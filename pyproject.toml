@@ -51,7 +51,9 @@ select = ["E", "F", "W", "I", "B", "UP", "N", "RUF"]
 ignore = ["N803", "N806"]  # physics notation: uppercase symbols are intentional
 
 [tool.mypy]
-python_version = "3.11"
+# Deliberately not pinned to 3.11: mypy must analyse the installed
+# dependencies' stubs under the interpreter they were installed for, and
+# numpy's stubs use 3.12 syntax on 3.12. The floor is set by requires-python.
 packages = ["mfespf"]
 mypy_path = "src"
 strict_equality = true
