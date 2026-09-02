@@ -1,0 +1,15 @@
+group: GRV
+title: Gravity interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: GRV-001
+  text: Gravity SHALL be provided through a replaceable interface beginning with a declared approximation.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

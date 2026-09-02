@@ -1,0 +1,15 @@
+group: ICE
+title: Cryosphere interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: ICE-001
+  text: The cryosphere interface SHALL couple mass, latent energy, freshwater, and surface optical properties.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

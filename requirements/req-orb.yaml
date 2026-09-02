@@ -1,0 +1,26 @@
+group: ORB
+title: Orbital interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: ORB-001
+  text: The orbital interface SHALL provide Earth-Sun distance, illumination geometry, and top-of-atmosphere
+    incident flux mapping.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: ORB-002
+  text: Distributed incident energy SHALL reconcile with intercepted solar power within tolerance.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

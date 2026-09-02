@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# MFESPF run outputs -- runs/ holds immutable evidence (AUD-005) and is
+# intentionally NOT committed by default; archive deliberately instead.
+runs/
+scratch/
+
+# Large or licensed input data. Provenance records (INF-*) are committed;
+# the bytes are not.
+data/raw/
+data/cache/
+*.nc
+*.h5
+*.hdf5
+
+# OneDrive / Windows
+Thumbs.db
+desktop.ini
+~$*

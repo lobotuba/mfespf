@@ -1,0 +1,16 @@
+group: PAR
+title: Particle and quantum interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: PAR-001
+  text: Particle and quantum modules SHALL remain optional and SHALL identify the claim requiring their
+    activation.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

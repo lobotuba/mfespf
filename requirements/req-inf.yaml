@@ -1,0 +1,91 @@
+group: INF
+title: Information provenance requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: INF-001
+  text: Every dataset use SHALL be assigned a declared evidentiary role.
+  strength: mandatory
+  section: INFORMATION PROVENANCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: INF-002
+  text: Supported roles SHALL distinguish reference constants, material properties, initial conditions,
+    boundary conditions, calibration, process validation, reconstruction evaluation, withheld hindcast
+    evaluation, out-of-sample evaluation, and diagnostics.
+  strength: mandatory
+  section: INFORMATION PROVENANCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: INF-003
+  text: Data used for equation, parameter, configuration, preprocessing, or threshold selection SHALL
+    NOT be described as untouched evidence for that same claim.
+  strength: mandatory
+  section: INFORMATION PROVENANCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: INF-004
+  text: Each validation report SHALL include an information-independence statement.
+  strength: mandatory
+  section: INFORMATION PROVENANCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: INF-005
+  text: Every hindcast SHALL record an information cutoff and model freeze.
+  strength: mandatory
+  section: INFORMATION PROVENANCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: INF-006
+  text: Every out-of-sample prediction SHALL record source, configuration, parameter, and claim hashes
+    before evaluation data are introduced.
+  strength: mandatory
+  section: INFORMATION PROVENANCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: INF-007
+  text: Data transformations SHALL record source variables, coverage used, operations, software version,
+    and uncertainty effects.
+  strength: mandatory
+  section: INFORMATION PROVENANCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: INF-008
+  text: Withheld datasets SHALL be inaccessible to the evolution and calibration path of the frozen run,
+    except through the post-run evaluator.
+  strength: mandatory
+  section: INFORMATION PROVENANCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

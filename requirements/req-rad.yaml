@@ -1,0 +1,38 @@
+group: RAD
+title: Radiation interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: RAD-001
+  text: The radiation interface SHALL accept incident spectra, material state, geometry, temperature,
+    pressure, composition, and optical properties.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: RAD-002
+  text: The radiation interface SHALL return absorbed, emitted, reflected, transmitted, upward, and downward
+    components sufficient for energy closure.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: RAD-003
+  text: Radiation heating tendencies SHALL be traceable to spectral and material contributions at the
+    active fidelity.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

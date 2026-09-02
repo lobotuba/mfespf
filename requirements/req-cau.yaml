@@ -1,0 +1,90 @@
+group: CAU
+title: Causality and dependency requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: CAU-001
+  text: Every run SHALL generate a directed dependency graph.
+  strength: mandatory
+  section: CAUSALITY AND DEPENDENCY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CAU-002
+  text: Graph nodes SHALL include active modules, states, parameters, datasets, and diagnostics necessary
+    to reconstruct implemented dependencies.
+  strength: mandatory
+  section: CAUSALITY AND DEPENDENCY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CAU-003
+  text: Graph edges SHALL be typed as physical transfer, state dependency, parameter dependency, boundary
+    dependency, initial-condition dependency, diagnostic dependency, calibration dependency, numerical
+    dependency, or uncertainty dependency.
+  strength: mandatory
+  section: CAUSALITY AND DEPENDENCY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CAU-004
+  text: Each edge SHALL identify the exchanged quantity and interface version.
+  strength: mandatory
+  section: CAUSALITY AND DEPENDENCY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CAU-005
+  text: Feedback cycles SHALL identify coupling order, iteration method, convergence condition, and residual.
+  strength: mandatory
+  section: CAUSALITY AND DEPENDENCY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CAU-006
+  text: Hidden dependencies on mutable global state SHALL NOT be permitted.
+  strength: mandatory
+  section: CAUSALITY AND DEPENDENCY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CAU-007
+  text: The framework SHALL support disabling or replacing a declared edge for a controlled intervention
+    test.
+  strength: mandatory
+  section: CAUSALITY AND DEPENDENCY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CAU-008
+  text: The graph SHALL be described as an implemented dependency graph and SHALL NOT by itself be reported
+    as proof of real-world causation.
+  strength: mandatory
+  section: CAUSALITY AND DEPENDENCY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

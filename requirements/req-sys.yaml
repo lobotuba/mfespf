@@ -1,0 +1,89 @@
+group: SYS
+title: System-level requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: SYS-001
+  text: The framework SHALL support modular replacement of physical-process implementations through versioned
+    interfaces.
+  strength: mandatory
+  section: SYSTEM-LEVEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SYS-002
+  text: The framework SHALL distinguish architectural carve-outs from active executable modules.
+  strength: mandatory
+  section: SYSTEM-LEVEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SYS-003
+  text: Every run SHALL declare each known module as ACTIVE, PRESCRIBED, DIAGNOSTIC, INACTIVE, or STUB.
+  strength: mandatory
+  section: SYSTEM-LEVEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SYS-004
+  text: STUB outputs SHALL carry a nonphysical test-data marker and SHALL NOT support a scientific claim.
+  strength: mandatory
+  section: SYSTEM-LEVEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SYS-005
+  text: The baseline reference kernel and mandatory correctness suite SHALL be configurable for the ENGINEERING_WORKSTATION
+    resource class.
+  strength: mandatory
+  section: SYSTEM-LEVEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SYS-006
+  text: The framework SHALL fail safely when mandatory interfaces, ownership, units, coordinates, timing,
+    or versions are incompatible.
+  strength: mandatory
+  section: SYSTEM-LEVEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SYS-007
+  text: The framework SHALL preserve original scientific outputs and create new versioned records for
+    corrections.
+  strength: mandatory
+  section: SYSTEM-LEVEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SYS-008
+  text: A run failing a mandatory validity gate SHALL be labeled INVALID_FOR_SCIENTIFIC_INFERENCE.
+  strength: mandatory
+  section: SYSTEM-LEVEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

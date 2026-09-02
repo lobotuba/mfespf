@@ -1,0 +1,77 @@
+group: STA
+title: State ownership requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: STA-001
+  text: Every prognostic state_id SHALL have exactly one authoritative owner in an executable configuration.
+  strength: mandatory
+  section: STATE OWNERSHIP REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: STA-002
+  text: Every state SHALL define units, dimensions, coordinate support, time semantics, phase or species
+    where applicable, and uncertainty representation.
+  strength: mandatory
+  section: STATE OWNERSHIP REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: STA-003
+  text: The state registry SHALL declare authorized readers, tendency providers, boundary providers, and
+    update authority.
+  strength: mandatory
+  section: STATE OWNERSHIP REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: STA-004
+  text: Configuration validation SHALL reject duplicate ownership.
+  strength: mandatory
+  section: STATE OWNERSHIP REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: STA-005
+  text: Configuration validation SHALL reject an active prognostic state with no owner.
+  strength: mandatory
+  section: STATE OWNERSHIP REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: STA-006
+  text: State updates SHALL retain labeled component tendencies sufficient to reconstruct the update budget.
+  strength: mandatory
+  section: STATE OWNERSHIP REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: STA-007
+  text: Derived views SHALL retain source-state provenance and SHALL NOT create a second state authority.
+  strength: mandatory
+  section: STATE OWNERSHIP REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

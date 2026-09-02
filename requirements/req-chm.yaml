@@ -1,0 +1,15 @@
+group: CHM
+title: Chemistry interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: CHM-001
+  text: Chemistry SHALL expose species tendencies and elemental or species budgets.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

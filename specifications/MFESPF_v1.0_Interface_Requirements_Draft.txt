@@ -1,0 +1,749 @@
+MFESPF VERSION 1.0 INTERFACE REQUIREMENTS SPECIFICATION
+
+Document ID: MFESPF-IRS-001
+Version: 1.0 Draft
+Author: Robert Voss
+Status: Draft for Technical Review
+Normative Language: SHALL, SHALL NOT, SHOULD, MAY
+
+======================================================================
+1. PURPOSE
+======================================================================
+
+This specification defines the minimum interface requirements for Version 1.0
+of the Modular Falsifiable Earth-System Physics Framework. It translates the
+project charter into testable software and scientific requirements.
+
+Version 1.0 is an interface standard and reference-kernel target. It is not a
+claim that every reserved physical domain is implemented at maximum fidelity.
+
+======================================================================
+2. REQUIREMENT CONVENTIONS
+======================================================================
+
+SHALL and SHALL NOT indicate mandatory requirements.
+SHOULD and SHOULD NOT indicate recommended requirements requiring documented
+justification when not followed.
+MAY indicates an optional capability.
+
+Each requirement has a stable identifier. Acceptance evidence shall reference
+these identifiers.
+
+======================================================================
+3. SYSTEM-LEVEL REQUIREMENTS
+======================================================================
+
+SYS-001 The framework SHALL support modular replacement of physical-process
+implementations through versioned interfaces.
+
+SYS-002 The framework SHALL distinguish architectural carve-outs from active
+executable modules.
+
+SYS-003 Every run SHALL declare each known module as ACTIVE, PRESCRIBED,
+DIAGNOSTIC, INACTIVE, or STUB.
+
+SYS-004 STUB outputs SHALL carry a nonphysical test-data marker and SHALL NOT
+support a scientific claim.
+
+SYS-005 The baseline reference kernel and mandatory correctness suite SHALL be
+configurable for the ENGINEERING_WORKSTATION resource class.
+
+SYS-006 The framework SHALL fail safely when mandatory interfaces, ownership,
+units, coordinates, timing, or versions are incompatible.
+
+SYS-007 The framework SHALL preserve original scientific outputs and create
+new versioned records for corrections.
+
+SYS-008 A run failing a mandatory validity gate SHALL be labeled
+INVALID_FOR_SCIENTIFIC_INFERENCE.
+
+======================================================================
+4. MODULE CONTRACT REQUIREMENTS
+======================================================================
+
+MOD-001 Every module SHALL expose module_id, name, implementation version,
+interface version, fidelity level, and status.
+
+MOD-002 Every module SHALL document its physical basis, governing equation
+IDs, assumptions, validity domain, and known limitations.
+
+MOD-003 Every module SHALL enumerate owned state, required inputs, produced
+outputs, imported transfers, exported transfers, and diagnostic outputs.
+
+MOD-004 Every module SHALL declare each applicable conserved quantity and all
+internal sources and sinks.
+
+MOD-005 Every module SHALL implement configuration validation before state
+initialization.
+
+MOD-006 Every ACTIVE or PRESCRIBED module SHALL support deterministic
+initialization from a recorded manifest, subject to declared stochastic inputs.
+
+MOD-007 Every ACTIVE module SHALL expose begin-step, input-receipt,
+tendency-computation, state-advance, output-emission, conservation-report, and
+finalization lifecycle operations.
+
+MOD-008 Every prognostic module SHOULD support checkpoint and restore.
+
+MOD-009 Every module SHALL report uncertainty contributions it can quantify
+and explicitly flag applicable but unresolved contributions.
+
+MOD-010 A module SHALL NOT directly write state owned by another module.
+
+MOD-011 A module MAY submit a labeled tendency or transfer to another module's
+state owner through an approved interface.
+
+MOD-012 Every module SHALL declare supported spatial, temporal, spectral, and
+parallel representations where applicable.
+
+MOD-013 Every module SHALL provide a computational-cost declaration.
+
+MOD-014 Every physical module SHALL identify at least one null, limiting-case,
+or disabled-coupling test.
+
+======================================================================
+5. STATE OWNERSHIP REQUIREMENTS
+======================================================================
+
+STA-001 Every prognostic state_id SHALL have exactly one authoritative owner
+in an executable configuration.
+
+STA-002 Every state SHALL define units, dimensions, coordinate support, time
+semantics, phase or species where applicable, and uncertainty representation.
+
+STA-003 The state registry SHALL declare authorized readers, tendency
+providers, boundary providers, and update authority.
+
+STA-004 Configuration validation SHALL reject duplicate ownership.
+
+STA-005 Configuration validation SHALL reject an active prognostic state with
+no owner.
+
+STA-006 State updates SHALL retain labeled component tendencies sufficient to
+reconstruct the update budget.
+
+STA-007 Derived views SHALL retain source-state provenance and SHALL NOT create
+a second state authority.
+
+======================================================================
+6. COMMON FIELD AND DATA REQUIREMENTS
+======================================================================
+
+DAT-001 Every exchanged field SHALL include a unique field_id, physical name,
+units, data type, dimensions, coordinates, spatial support, timestamp or
+interval, sign convention, provenance, and quality flags.
+
+DAT-002 Every field SHALL declare whether it is an intensive state, extensive
+state, flux, source, sink, tendency, boundary value, diagnostic, probability
+distribution, or uncertainty field.
+
+DAT-003 Internal physical interfaces SHALL use SI units unless the interface
+contract explicitly defines another coherent system.
+
+DAT-004 Unit conversion SHALL occur only at controlled boundaries and SHALL be
+logged.
+
+DAT-005 Dimensionally incompatible fields SHALL fail validation.
+
+DAT-006 Each time-dependent field SHALL declare whether it is instantaneous,
+interval-averaged, interval-accumulated, start-of-step, midpoint, or end-of-step.
+
+DAT-007 Missing-data behavior SHALL be explicit and SHALL NOT silently replace
+missing physical input with zero.
+
+DAT-008 Preprocessing SHALL be reproducible from a versioned transformation
+record.
+
+DAT-009 Every scientific input dataset SHALL have an identity, version,
+checksum, role, uncertainty record, and usage provenance.
+
+======================================================================
+7. CONSERVATION AND TRANSFER REQUIREMENTS
+======================================================================
+
+CON-001 The framework SHALL support accounting for energy, mass, water,
+momentum, angular momentum, electric charge, elemental inventories, and
+chemical species as applicable to active physics.
+
+CON-002 Every intermodule physical transfer SHALL have a transfer_id, sender,
+receiver, quantity, units, direction, time interval, and spatial mapping.
+
+CON-003 The standard transfer sign convention SHALL be positive into the
+receiving module unless a versioned interface explicitly defines otherwise.
+
+CON-004 Sender export and receiver import SHALL reconcile within a declared
+numerical tolerance.
+
+CON-005 Coupling residuals SHALL be reported separately from internal module
+residuals.
+
+CON-006 A physical transfer SHALL appear exactly once in the coupled total
+budget.
+
+CON-007 Phase changes SHALL reconcile transferred matter and latent energy.
+
+CON-008 Numerical clipping, filtering, diffusion, stabilization, or limiting
+that changes a conserved quantity SHALL be reported as a numerical source or
+sink.
+
+CON-009 Each run SHALL publish storage change, imports, exports, physical
+sources, physical sinks, numerical sources, numerical sinks, and residuals for
+applicable conserved quantities.
+
+CON-010 A run SHALL be invalid for scientific inference if an unexplained
+residual is large enough to account for the claimed effect.
+
+======================================================================
+8. CAUSALITY AND DEPENDENCY REQUIREMENTS
+======================================================================
+
+CAU-001 Every run SHALL generate a directed dependency graph.
+
+CAU-002 Graph nodes SHALL include active modules, states, parameters, datasets,
+and diagnostics necessary to reconstruct implemented dependencies.
+
+CAU-003 Graph edges SHALL be typed as physical transfer, state dependency,
+parameter dependency, boundary dependency, initial-condition dependency,
+diagnostic dependency, calibration dependency, numerical dependency, or
+uncertainty dependency.
+
+CAU-004 Each edge SHALL identify the exchanged quantity and interface version.
+
+CAU-005 Feedback cycles SHALL identify coupling order, iteration method,
+convergence condition, and residual.
+
+CAU-006 Hidden dependencies on mutable global state SHALL NOT be permitted.
+
+CAU-007 The framework SHALL support disabling or replacing a declared edge for
+a controlled intervention test.
+
+CAU-008 The graph SHALL be described as an implemented dependency graph and
+SHALL NOT by itself be reported as proof of real-world causation.
+
+======================================================================
+9. HYPOTHESIS INTERFACE REQUIREMENTS
+======================================================================
+
+HYP-001 Every tested mechanism SHALL have a hypothesis_id and associated
+claim_id.
+
+HYP-002 A hypothesis SHALL declare its physical basis, equations, inputs,
+outputs, expected signatures, validity domain, and failure criterion before
+final validation.
+
+HYP-003 Expected signatures SHALL address sign, magnitude or bound, temporal
+behavior, spatial behavior, and spectral behavior where applicable.
+
+HYP-004 A hypothesis SHALL declare affected conserved quantities and use
+ordinary transfer accounting.
+
+HYP-005 A hypothesis SHALL enter through a replaceable module, tendency,
+boundary, source, sink, constitutive relation, or diagnostic interface.
+
+HYP-006 A hypothesis implementation SHALL NOT directly modify unowned state.
+
+HYP-007 A hypothesis SHALL declare a null or control configuration.
+
+HYP-008 A hypothesis SHALL identify competing explanations that the proposed
+experiment can and cannot distinguish.
+
+HYP-009 Failure thresholds SHALL be frozen before final withheld evaluation.
+A later revision SHALL create a new claim version.
+
+HYP-010 Conventional and unconventional mechanisms SHALL be subject to the
+same correctness and evidentiary requirements.
+
+======================================================================
+10. EQUATION REGISTRY REQUIREMENTS
+======================================================================
+
+EQR-001 Every governing equation, constitutive relationship, closure,
+parameterization, empirical correction, diagnostic identity, and numerical
+operator used in a scientific run SHALL have a versioned equation_id.
+
+EQR-002 Each equation record SHALL include mathematical form, variables,
+units, category, basis, assumptions, parameters, validity domain, limiting
+cases, conserved quantities, numerical methods, and known failure modes.
+
+EQR-003 Equation categories SHALL distinguish fundamental laws, constitutive
+relations, reduced physical equations, closures, numerical operators,
+empirical relations, calibrated corrections, and diagnostic identities.
+
+EQR-004 Calibrated corrections SHALL NOT be labeled as fundamental laws or
+measured constants.
+
+EQR-005 Every run SHALL bind active module implementations to exact equation
+and numerical-operator versions.
+
+EQR-006 An incompatible change in mathematical meaning SHALL create a new
+major equation version.
+
+EQR-007 Superseded equations SHALL remain traceable.
+
+======================================================================
+11. INTERFACE VERSION REQUIREMENTS
+======================================================================
+
+VER-001 All mandatory contracts SHALL use semantic interface versions.
+
+VER-002 A major version SHALL indicate incompatible physical meaning or schema.
+
+VER-003 A minor version SHALL indicate a backward-compatible addition.
+
+VER-004 A patch version SHALL indicate a backward-compatible correction that
+does not change physical meaning.
+
+VER-005 Every module SHALL declare provided and required interface-version
+ranges.
+
+VER-006 The framework SHALL negotiate compatibility before initialization.
+
+VER-007 A physical change in units, sign convention, averaging semantics,
+spatial support, state ownership, or spectral-density basis SHALL NOT be hidden
+inside a compatible patch.
+
+VER-008 Migration adapters SHALL declare any approximation, information loss,
+or conservation residual they introduce.
+
+======================================================================
+12. INFORMATION PROVENANCE REQUIREMENTS
+======================================================================
+
+INF-001 Every dataset use SHALL be assigned a declared evidentiary role.
+
+INF-002 Supported roles SHALL distinguish reference constants, material
+properties, initial conditions, boundary conditions, calibration, process
+validation, reconstruction evaluation, withheld hindcast evaluation,
+out-of-sample evaluation, and diagnostics.
+
+INF-003 Data used for equation, parameter, configuration, preprocessing, or
+threshold selection SHALL NOT be described as untouched evidence for that
+same claim.
+
+INF-004 Each validation report SHALL include an information-independence
+statement.
+
+INF-005 Every hindcast SHALL record an information cutoff and model freeze.
+
+INF-006 Every out-of-sample prediction SHALL record source, configuration,
+parameter, and claim hashes before evaluation data are introduced.
+
+INF-007 Data transformations SHALL record source variables, coverage used,
+operations, software version, and uncertainty effects.
+
+INF-008 Withheld datasets SHALL be inaccessible to the evolution and
+calibration path of the frozen run, except through the post-run evaluator.
+
+======================================================================
+13. SPECTRAL INTERFACE REQUIREMENTS
+======================================================================
+
+SPC-001 The radiation architecture SHALL support spectra that vary with time,
+position, direction, temperature, pressure, material composition, cloud state,
+aerosol state, and surface state where implemented.
+
+SPC-002 The architecture SHALL NOT require a fixed solar or terrestrial
+spectral shape.
+
+SPC-003 A spectral field SHALL specify wavelength, frequency, wavenumber,
+energy, or band-ID coordinates and associated units.
+
+SPC-004 A spectral grid SHALL declare coordinates or bin edges, widths,
+integration convention, density units, ordering, interpolation, and
+extrapolation policy.
+
+SPC-005 Spectral regridding SHALL conserve integrated energy within a declared
+tolerance.
+
+SPC-006 Spectral regridding residuals SHALL be logged.
+
+SPC-007 The framework SHALL permit broadband, fixed-band, adaptive-band,
+high-resolution, and line-by-line implementations behind a common negotiated
+interface.
+
+SPC-008 A receiving module MAY request wavelength ranges or resolution, but
+the negotiated result SHALL record any unmet request and associated uncertainty.
+
+SPC-009 Equal integrated power with differing spectra SHALL NOT be assumed to
+produce identical response unless demonstrated for the tested configuration.
+
+SPC-010 Cloud shortwave and longwave spectral effects SHALL be separately
+available before a net cloud radiative diagnostic is formed.
+
+======================================================================
+14. TEMPORAL INTERFACE REQUIREMENTS
+======================================================================
+
+TIM-001 The framework SHALL support a master simulation time coordinate.
+
+TIM-002 Modules MAY use different internal time steps.
+
+TIM-003 Multirate coupling SHALL declare substeps, exchange frequency,
+interpolation, accumulation, synchronization, splitting order, and convergence.
+
+TIM-004 Time interpolation or aggregation SHALL report assumptions and any
+material loss of frequency information.
+
+TIM-005 The framework SHALL support equilibrium, controlled experiment,
+prescribed history, free evolution, historical reconstruction, hindcast, and
+out-of-sample prediction modes.
+
+TIM-006 Reports SHALL NOT describe one operating mode using the evidentiary
+language of another.
+
+TIM-007 The framework SHALL support step, pulse, impulse, and periodic forcing
+experiments.
+
+TIM-008 Characteristic timescales SHALL be measured per mechanism, subsystem,
+observable, and forcing regime rather than imposed as one universal climate
+index.
+
+======================================================================
+15. SPATIAL INTERFACE REQUIREMENTS
+======================================================================
+
+SPA-001 The architecture SHALL permit global scalar, vertical column,
+latitude-band, surface-grid, three-dimensional, irregular-mesh, and regional
+nested representations.
+
+SPA-002 Each exchanged field SHALL declare point, cell, face, layer, or domain-
+integrated support.
+
+SPA-003 Regridding extensive quantities and fluxes SHALL preserve integrated
+quantity within tolerance.
+
+SPA-004 Regridding intensive quantities SHALL use a method appropriate to the
+physical meaning and SHALL document it.
+
+SPA-005 Spatial-resolution changes SHALL appear in run lineage.
+
+SPA-006 A scientific claim SHALL NOT assert spatial detail finer than the
+active physics, input support, numerical grid, and validation observations
+justify.
+
+======================================================================
+16. UNCERTAINTY INTERFACE REQUIREMENTS
+======================================================================
+
+UNC-001 Every module SHALL declare applicable uncertain inputs, parameters,
+structure, and numerical approximations.
+
+UNC-002 Each quantified uncertainty SHALL identify propagation method,
+distributional assumptions, and correlations known or assumed.
+
+UNC-003 Numerical error, measurement uncertainty, parameter uncertainty,
+structural uncertainty, and predictive uncertainty SHALL remain separately
+traceable.
+
+UNC-004 Unquantified but applicable uncertainty SHALL be explicitly marked
+UNRESOLVED.
+
+UNC-005 The framework SHALL support bounds, sensitivity derivatives, parameter
+sweeps, ensembles, Monte Carlo propagation, and model-form comparison as
+optional uncertainty methods.
+
+UNC-006 Root-sum-square combination SHALL be used only when its independence
+and distribution assumptions are declared.
+
+UNC-007 Predictions SHALL state the meaning and nominal coverage of any
+predictive interval.
+
+UNC-008 A validation evaluator SHOULD test predictive-interval coverage when
+sample size permits.
+
+======================================================================
+17. COMPUTATIONAL RESOURCE REQUIREMENTS
+======================================================================
+
+CMP-001 Every module SHALL declare principal scaling variables and asymptotic
+time and memory complexity where determinable.
+
+CMP-002 Every module SHALL provide a benchmark or estimated resource record for
+at least one supported configuration.
+
+CMP-003 Each run SHALL declare resource class and resource budget.
+
+CMP-004 The preflight estimator SHALL report estimated memory, processor work,
+storage, spectral bins, spatial cells, and ensemble cost.
+
+CMP-005 The framework SHALL warn or fail when estimated cost exceeds configured
+limits according to user-selected policy.
+
+CMP-006 Modules SHOULD provide a lower-fidelity implementation or documented
+inactive mode when feasible.
+
+CMP-007 Higher fidelity SHALL record its scientific justification in the
+experiment manifest.
+
+CMP-008 The baseline acceptance configuration SHALL NOT require a distributed
+computer or specialized accelerator.
+
+CMP-009 Performance optimization SHALL NOT weaken conservation or alter
+physical meaning without a new implementation version and validation record.
+
+======================================================================
+18. RUN MANIFEST AND AUDIT REQUIREMENTS
+======================================================================
+
+AUD-001 Every run SHALL have a globally unique run_id.
+
+AUD-002 Every run SHALL record parent run IDs, claim IDs, experiment ID, source
+revision, framework version, module versions, interface versions, equation
+versions, datasets, parameters, configuration hash, environment, random seeds,
+and output checksums.
+
+AUD-003 Every child run SHALL generate a machine-readable difference report
+against its parent.
+
+AUD-004 Difference reports SHALL include module, equation, parameter, dataset,
+resolution, threshold, software, and environment changes.
+
+AUD-005 Published or retained evidence SHALL be immutable.
+
+AUD-006 Corrected runs SHALL link to superseded records rather than overwrite
+them.
+
+AUD-007 Invalid runs MAY be retained for debugging but SHALL NOT support or
+refute physical claims.
+
+AUD-008 Run logs SHALL identify warnings, automatic adaptations, convergence
+failures, conservation failures, and unresolved uncertainty.
+
+======================================================================
+19. CORE PHYSICAL INTERFACE REQUIREMENTS
+======================================================================
+
+SOL-001 The solar-source interface SHALL provide total irradiance, spectral
+irradiance, reference distance, time, and uncertainty.
+
+SOL-002 The solar source MAY provide particle and magnetic descriptors through
+optional versioned capabilities.
+
+ORB-001 The orbital interface SHALL provide Earth-Sun distance, illumination
+geometry, and top-of-atmosphere incident flux mapping.
+
+ORB-002 Distributed incident energy SHALL reconcile with intercepted solar
+power within tolerance.
+
+RAD-001 The radiation interface SHALL accept incident spectra, material state,
+geometry, temperature, pressure, composition, and optical properties.
+
+RAD-002 The radiation interface SHALL return absorbed, emitted, reflected,
+transmitted, upward, and downward components sufficient for energy closure.
+
+RAD-003 Radiation heating tendencies SHALL be traceable to spectral and
+material contributions at the active fidelity.
+
+ATM-001 The atmospheric-state module SHALL own the configured atmospheric
+thermodynamic and dynamic state.
+
+ATM-002 Atmospheric dynamics SHALL accept labeled radiative, surface,
+chemical, cloud, aerosol, and gravitational tendencies.
+
+ATM-003 Atmospheric outputs SHALL include state and conservation budgets.
+
+WAT-001 Water phase transfers SHALL conserve total water.
+
+WAT-002 Water phase transfers SHALL exchange latent energy through a labeled
+conserved transfer.
+
+CLD-001 Cloud state SHALL be a separate variable set or explicitly prescribed
+module output, not permanently hidden in one global albedo parameter.
+
+CLD-002 The cloud interface SHALL expose liquid, ice, fraction, altitude or
+vertical support, and optical properties at the active fidelity.
+
+OCN-001 The ocean interface SHALL accept surface heat, freshwater, momentum,
+ice, and chemical transfers as implemented.
+
+OCN-002 The ocean interface SHALL provide surface state, stored heat, and
+conservation budgets.
+
+LND-001 The land interface SHALL provide surface temperature, reflected and
+emitted spectra, turbulent fluxes, ground heat flux, and water exchange at the
+active fidelity.
+
+ICE-001 The cryosphere interface SHALL couple mass, latent energy, freshwater,
+and surface optical properties.
+
+CHM-001 Chemistry SHALL expose species tendencies and elemental or species
+budgets.
+
+BIO-001 Biological and biogeochemical transfers SHALL use ordinary physical
+mass, energy, water, and species interfaces.
+
+GRV-001 Gravity SHALL be provided through a replaceable interface beginning
+with a declared approximation.
+
+PAR-001 Particle and quantum modules SHALL remain optional and SHALL identify
+the claim requiring their activation.
+
+HUM-001 Human activity SHALL alter model state only through explicit physical
+inputs, sources, sinks, transfers, or boundary changes.
+
+======================================================================
+20. CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+======================================================================
+
+CLM-001 Every substantive scientific conclusion SHALL reference a versioned
+claim record.
+
+CLM-002 Claim statuses SHALL include proposed, testing, supported within scope,
+qualified, refuted, numerically unresolved, empirically unresolved, unable to
+distinguish, and superseded.
+
+CLM-003 Broad real-world claims SHALL use SUPPORTED_WITHIN_SCOPE rather than
+unqualified confirmation.
+
+EXP-001 Every experiment SHALL declare controls, manipulated variables,
+measured outputs, expected result, failure threshold, and analysis before final
+evaluation.
+
+EXP-002 Deviations from the declared experiment SHALL be recorded.
+
+VAL-001 Mandatory module tests SHALL include dimensional, limiting-case,
+conservation, and numerical-convergence checks as applicable.
+
+VAL-002 Spatial modules SHALL have spatial-resolution or manufactured-solution
+tests.
+
+VAL-003 Spectral modules SHALL have spectral-convergence or higher-fidelity
+comparison tests.
+
+VAL-004 Coupled modules SHALL have disabled-coupling controls.
+
+VAL-005 A mechanism SHALL NOT be supported solely by fit to one selected output
+when applicable cross-observables disagree beyond declared tolerance.
+
+VAL-006 Calibration data SHALL not be reported as independent validation.
+
+VAL-007 Historical reconstruction SHALL not be reported as prospective
+prediction.
+
+======================================================================
+21. VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+======================================================================
+
+KER-001 The reference kernel SHALL include registries for modules, states,
+equations, datasets, claims, experiments, and runs.
+
+KER-002 It SHALL include a unit and dimension validator.
+
+KER-003 It SHALL include interface-version negotiation.
+
+KER-004 It SHALL include a causality and dependency graph generator.
+
+KER-005 It SHALL include conservation reconciliation across module boundaries.
+
+KER-006 It SHALL include a run-manifest and lineage generator.
+
+KER-007 It SHALL include resource preflight estimation.
+
+KER-008 It SHALL include a withheld-data evaluation path separated from model
+evolution and calibration.
+
+KER-009 It SHALL demonstrate variable spectral input through at least two
+interchangeable spectral resolutions.
+
+KER-010 It SHALL demonstrate replaceable implementations for at least one
+physical module.
+
+KER-011 It SHALL demonstrate multirate coupling between at least two active
+modules.
+
+KER-012 It SHALL run at least these controlled configurations:
+
+- airless radiating body;
+- transparent atmosphere;
+- absorbing and emitting atmosphere;
+- variable-spectrum forcing;
+- surface thermal storage;
+- reduced ocean heat storage;
+- no-cloud control;
+- prescribed variable-cloud case.
+
+KER-013 The mandatory reference runs SHALL produce energy budgets and residuals.
+
+KER-014 The mandatory reference runs SHALL be reproducible from retained
+manifests on the declared workstation-class environment.
+
+======================================================================
+22. VERSION 1.0 ACCEPTANCE CRITERIA
+======================================================================
+
+ACC-001 All mandatory SHALL requirements shall have an acceptance test,
+inspection record, analysis record, or demonstration record.
+
+ACC-002 No mandatory acceptance run may have unresolved duplicate state
+ownership.
+
+ACC-003 No mandatory acceptance run may have unresolved interface-version or
+unit incompatibility.
+
+ACC-004 Conserved transfers shall reconcile within configuration-specific
+predeclared tolerances.
+
+ACC-005 Mandatory runs shall produce complete manifests, dependency graphs,
+equation bindings, provenance records, and output checksums.
+
+ACC-006 At least one intentional mechanism failure shall be correctly detected
+and reported without being misclassified as support.
+
+ACC-007 At least one numerical-invalidity case shall be labeled invalid for
+scientific inference.
+
+ACC-008 At least one calibration-versus-validation contamination test shall be
+rejected by provenance controls.
+
+ACC-009 At least one parent-child run pair shall produce an accurate difference
+record.
+
+ACC-010 The reference kernel shall complete its baseline suite within the
+configured ENGINEERING_WORKSTATION resource budget.
+
+======================================================================
+23. DEFERRED BUT RESERVED V1 EXTENSIONS
+======================================================================
+
+The following shall retain architectural interfaces but are not mandatory
+full-fidelity Version 1.0 implementations:
+
+- three-dimensional atmospheric circulation;
+- three-dimensional ocean circulation;
+- emergent cloud microphysics;
+- dynamic aerosols and aerosol-cloud interaction;
+- complete biosphere and biogeochemical cycles;
+- magnetosphere and charged-particle transport;
+- explicit particle-cascade physics;
+- first-principles quantum property calculation;
+- nonlinear relativistic gravity;
+- regional nested prediction.
+
+Deferral is an implementation scope decision, not removal of the architectural
+carve-out.
+
+======================================================================
+24. TRACEABILITY TEMPLATE
+======================================================================
+
+Each requirement shall be traceable using:
+
+- requirement_id
+- parent charter principle
+- design component
+- implementation component
+- verification method
+- acceptance evidence
+- status
+- issue or waiver reference
+
+Verification methods:
+
+- TEST
+- INSPECTION
+- ANALYSIS
+- DEMONSTRATION
+
+A waiver shall state the affected scientific claims and limitations.
+
+END OF DOCUMENT

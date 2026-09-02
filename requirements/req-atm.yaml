@@ -1,0 +1,36 @@
+group: ATM
+title: Atmospheric interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: ATM-001
+  text: The atmospheric-state module SHALL own the configured atmospheric thermodynamic and dynamic state.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: ATM-002
+  text: Atmospheric dynamics SHALL accept labeled radiative, surface, chemical, cloud, aerosol, and gravitational
+    tendencies.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: ATM-003
+  text: Atmospheric outputs SHALL include state and conservation budgets.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

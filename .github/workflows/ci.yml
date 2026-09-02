@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+
+      - name: Lint
+        run: |
+          python -m ruff check src tests tools
+          python -m ruff format --check src tests tools
+
+      - name: Type check
+        run: python -m mypy
+
+      - name: Correctness suite
+        # SYS-005 / CMP-010: the baseline suite must complete inside a
+        # workstation-class budget. A CI runner is smaller than that, so a
+        # timeout here is a real signal rather than flakiness.
+        timeout-minutes: 10
+        run: python -m pytest -q
+
+      - name: Requirement registry is in sync with the specification
+        run: |
+          python tools/extract_requirements.py
+          git diff --exit-code requirements/
+
+      - name: Traceability matrix
+        run: |
+          python tools/traceability.py --check
+          git diff --exit-code docs/traceability.md
+
+      - name: Reference configurations run and close their budgets
+        run: |
+          python -m mfespf.cli run airless --steps 240
+          python -m mfespf.cli run airless-banded --steps 240
+          python -m mfespf.cli run null-control --steps 240

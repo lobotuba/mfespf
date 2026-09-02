@@ -1,0 +1,77 @@
+group: VAL
+title: Validation requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: VAL-001
+  text: Mandatory module tests SHALL include dimensional, limiting-case, conservation, and numerical-convergence
+    checks as applicable.
+  strength: mandatory
+  section: CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VAL-002
+  text: Spatial modules SHALL have spatial-resolution or manufactured-solution tests.
+  strength: mandatory
+  section: CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VAL-003
+  text: Spectral modules SHALL have spectral-convergence or higher-fidelity comparison tests.
+  strength: mandatory
+  section: CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VAL-004
+  text: Coupled modules SHALL have disabled-coupling controls.
+  strength: mandatory
+  section: CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VAL-005
+  text: A mechanism SHALL NOT be supported solely by fit to one selected output when applicable cross-observables
+    disagree beyond declared tolerance.
+  strength: mandatory
+  section: CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VAL-006
+  text: Calibration data SHALL not be reported as independent validation.
+  strength: mandatory
+  section: CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VAL-007
+  text: Historical reconstruction SHALL not be reported as prospective prediction.
+  strength: mandatory
+  section: CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

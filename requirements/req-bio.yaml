@@ -1,0 +1,16 @@
+group: BIO
+title: Biosphere and biogeochemistry interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: BIO-001
+  text: Biological and biogeochemical transfers SHALL use ordinary physical mass, energy, water, and species
+    interfaces.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

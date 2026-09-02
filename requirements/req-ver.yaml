@@ -1,0 +1,88 @@
+group: VER
+title: Interface version requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: VER-001
+  text: All mandatory contracts SHALL use semantic interface versions.
+  strength: mandatory
+  section: INTERFACE VERSION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VER-002
+  text: A major version SHALL indicate incompatible physical meaning or schema.
+  strength: mandatory
+  section: INTERFACE VERSION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VER-003
+  text: A minor version SHALL indicate a backward-compatible addition.
+  strength: mandatory
+  section: INTERFACE VERSION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VER-004
+  text: A patch version SHALL indicate a backward-compatible correction that does not change physical
+    meaning.
+  strength: mandatory
+  section: INTERFACE VERSION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VER-005
+  text: Every module SHALL declare provided and required interface-version ranges.
+  strength: mandatory
+  section: INTERFACE VERSION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VER-006
+  text: The framework SHALL negotiate compatibility before initialization.
+  strength: mandatory
+  section: INTERFACE VERSION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VER-007
+  text: A physical change in units, sign convention, averaging semantics, spatial support, state ownership,
+    or spectral-density basis SHALL NOT be hidden inside a compatible patch.
+  strength: mandatory
+  section: INTERFACE VERSION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: VER-008
+  text: Migration adapters SHALL declare any approximation, information loss, or conservation residual
+    they introduce.
+  strength: mandatory
+  section: INTERFACE VERSION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

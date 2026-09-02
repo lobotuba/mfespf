@@ -1,0 +1,351 @@
+"""Solar source module.
+
+Charter 9.1 and requirements SOL-001, SOL-002, SPC-001, SPC-002, KER-009,
+KER-010.
+
+Two interchangeable implementations satisfy one interface: a broadband source
+carrying the whole irradiance in a single bin, and a banded source distributing
+it over an arbitrary wavelength grid.  They are the KER-009 demonstration that
+spectral resolution is configurable, and the KER-010 demonstration that a module
+implementation is replaceable -- both answer the same interface contract, and a
+run manifest records which one was active.
+
+Conservation role (charter 9.1): the solar module supplies irradiance.  It does
+not transfer absorbed energy into Earth modules; the orbital module owns the
+top-of-atmosphere boundary and accounts for what crosses it.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import numpy as np
+
+from mfespf.contracts.cost import CostDeclaration, ResourceClass
+from mfespf.contracts.module import FidelityLevel, Module, ModuleContract, ModuleStatus
+from mfespf.contracts.spectral import (
+    IntegrationConvention,
+    SpectralCoordinate,
+    SpectralGrid,
+)
+from mfespf.core.constants import value_of
+from mfespf.core.errors import ConfigurationError
+from mfespf.core.quantities import (
+    Field,
+    Provenance,
+    QuantityKind,
+    SignConvention,
+    SpatialSupport,
+    TimeSemantics,
+    Uncertainty,
+)
+from mfespf.core.versioning import InterfaceContract, Version
+from mfespf.physics.equations import EQUATION_IDS
+from mfespf.physics.radiation import normalized_band_weights
+
+__all__ = [
+    "SOLAR_SOURCE_INTERFACE",
+    "ConstantSpectrumSolarSource",
+    "SolarSource",
+    "banded_grid",
+    "broadband_grid",
+]
+
+V1 = Version(1, 0, 0)
+
+SOLAR_SOURCE_INTERFACE = InterfaceContract(
+    interface_id="solar_source",
+    version=V1,
+    physical_semantics={
+        "total_irradiance_units": "W m^-2",
+        "spectral_irradiance_units": "W m^-2 m^-1",
+        "reference_distance": "1 au",
+        "spectral_density_basis": "per_metre_of_wavelength",
+        "sign_convention": "positive_definite",
+        "time_semantics": "interval_average",
+    },
+    optional_capabilities=frozenset({"spectral_irradiance"}),
+)
+
+
+def broadband_grid(lower_m: float = 1.0e-7, upper_m: float = 1.0e-4) -> SpectralGrid:
+    """A single bin spanning the solar spectrum: the lowest spectral fidelity."""
+    return SpectralGrid(
+        grid_id="broadband_100nm_100um",
+        coordinate=SpectralCoordinate.WAVELENGTH,
+        coordinate_units="m",
+        edges=np.array([lower_m, upper_m]),
+        integration_convention=IntegrationConvention.SPECTRAL_DENSITY,
+        density_units="W m^-2 m^-1",
+        resolution_identifier="broadband-1band",
+    )
+
+
+def banded_grid(
+    n_bands: int = 16, lower_m: float = 1.0e-7, upper_m: float = 1.0e-4
+) -> SpectralGrid:
+    """A logarithmically spaced band grid over the same support.
+
+    Log spacing rather than linear: solar and terrestrial emission span three
+    decades of wavelength, and linear bins would put almost every bin in the
+    far infrared where there is little solar energy to resolve.
+    """
+    if n_bands < 1:
+        raise ConfigurationError("n_bands must be at least 1")
+    edges = np.logspace(np.log10(lower_m), np.log10(upper_m), n_bands + 1)
+    return SpectralGrid(
+        grid_id=f"log_bands_{n_bands}",
+        coordinate=SpectralCoordinate.WAVELENGTH,
+        coordinate_units="m",
+        edges=edges,
+        integration_convention=IntegrationConvention.SPECTRAL_DENSITY,
+        density_units="W m^-2 m^-1",
+        resolution_identifier=f"log-{n_bands}band",
+    )
+
+
+class SolarSource(Module):
+    """Base for solar-source implementations.
+
+    Subclasses supply the spectrum; the contract, outputs and uncertainty
+    reporting are shared so that two implementations cannot drift apart in what
+    they claim to provide.
+    """
+
+    def __init__(
+        self,
+        *,
+        module_id: str = "solar",
+        grid: SpectralGrid,
+        fidelity: FidelityLevel,
+        implementation_name: str,
+        status: ModuleStatus = ModuleStatus.PRESCRIBED,
+        assumptions: tuple[str, ...] = (),
+        cost_work_units: float = 1.0,
+    ) -> None:
+        contract = ModuleContract(
+            module_id=module_id,
+            module_name=implementation_name,
+            module_version=V1,
+            interface_version=V1,
+            fidelity_level=fidelity,
+            physical_basis=(
+                "Measured total solar irradiance at 1 au, distributed over wavelength by a "
+                "declared spectral shape."
+            ),
+            governing_equation_ids=(EQUATION_IDS["planck"],),
+            assumptions=assumptions,
+            validity_domain=(
+                "Irradiance at the reference distance of 1 au, over the declared spectral "
+                "support. No claim is made about solar variability beyond the supplied data."
+            ),
+            produced_outputs=("solar_total_irradiance_1au", "solar_spectral_irradiance_1au"),
+            conserved_quantities=("energy",),
+            supported_spectral_representations=(grid.resolution_identifier,),
+            provided_interfaces=(SOLAR_SOURCE_INTERFACE,),
+            uncertainty_outputs=("total_irradiance_measurement", "spectral_shape_structural"),
+            correctness_tests=(
+                "test_spectral_integral_matches_total_irradiance",
+                "test_solar_implementations_agree_broadband",
+            ),
+            known_limitations=(
+                "No solar-cycle, flare, particle or magnetic output at this fidelity.",
+            ),
+            cost=CostDeclaration(
+                module_id=module_id,
+                time_complexity="O(n_bands)",
+                memory_complexity="O(n_bands)",
+                scaling_variables=("n_bands",),
+                work_units_per_step=cost_work_units,
+                benchmark_configuration=f"{grid.n_bins} bands, global scalar",
+                peak_memory_bytes=8 * grid.n_bins + 4096,
+                supported_resource_classes=(
+                    ResourceClass.LAPTOP,
+                    ResourceClass.ENGINEERING_WORKSTATION,
+                ),
+                lower_fidelity_alternatives=("solar_constant_broadband",),
+            ),
+        )
+        super().__init__(contract, status=status)
+        self.grid = grid
+        self._total_irradiance = 0.0
+        self._spectral_irradiance = np.zeros(grid.n_bins)
+        self._spectral_capture_fraction = 1.0
+
+    # --- to be provided by implementations --------------------------------
+    def total_irradiance(self, time: float) -> float:
+        raise NotImplementedError
+
+    def spectral_shape(self) -> np.ndarray:
+        """Normalised weights per bin; they need not sum to one (see below)."""
+        raise NotImplementedError
+
+    # --- lifecycle --------------------------------------------------------
+    def initialize(self, initial_state: dict[str, Any], boundary_state: dict[str, Any]) -> None:
+        self._update(0.0)
+        self.mark_initialized()
+
+    def compute_tendencies(self) -> list[Any]:
+        self._update(self.context.time)
+        return []
+
+    def _update(self, time: float) -> None:
+        total = self.total_irradiance(time)
+        weights = self.spectral_shape()
+        captured = float(np.sum(weights))
+        if captured <= 0.0:
+            raise ConfigurationError(
+                f"solar spectral shape for {self.module_id!r} carries no energy"
+            )
+        # Scale so the spectral integral reproduces the measured total exactly.
+        # The fraction of the true spectrum lying outside the grid's support is
+        # reported as structural uncertainty rather than being discarded.
+        self._total_irradiance = total
+        self._spectral_irradiance = (weights / captured) * total / self.grid.widths
+        self._spectral_capture_fraction = captured
+
+    def emit_outputs(self) -> dict[str, Field]:
+        provenance = Provenance(
+            producer=self.module_id,
+            derivation=EQUATION_IDS["planck"],
+            notes=self.contract.module_name,
+        )
+        stub = self.status is ModuleStatus.STUB
+        return {
+            "solar_total_irradiance_1au": Field(
+                field_id="solar_total_irradiance_1au",
+                physical_name="total solar irradiance at 1 au",
+                symbol="S_1au",
+                values=np.array(self._total_irradiance),
+                units="W m^-2",
+                quantity_kind=QuantityKind.BOUNDARY_VALUE,
+                time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                time_interval=self.context.dt if self._context else None,
+                timestamp=self.context.time if self._context else None,
+                spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                provenance=provenance,
+                uncertainty=Uncertainty(
+                    standard_uncertainty=0.5,
+                    method="reported measurement uncertainty of the reference composite",
+                    unresolved=("solar_cycle_phase", "instrument_absolute_scale"),
+                ),
+                stub=stub,
+            ),
+            "solar_spectral_irradiance_1au": Field(
+                field_id="solar_spectral_irradiance_1au",
+                physical_name="spectral solar irradiance at 1 au",
+                symbol="S_lambda",
+                values=self._spectral_irradiance,
+                units="W m^-2 m^-1",
+                quantity_kind=QuantityKind.BOUNDARY_VALUE,
+                time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                time_interval=self.context.dt if self._context else None,
+                timestamp=self.context.time if self._context else None,
+                spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                spectral_coordinate=self.grid.grid_id,
+                dimensions=("band",),
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                provenance=provenance,
+                metadata={"spectral_grid": self.grid},
+                uncertainty=Uncertainty(
+                    method="none",
+                    unresolved=(
+                        "spectral_shape_structural",
+                        f"support_truncation_fraction={1.0 - self._spectral_capture_fraction:.4g}",
+                    ),
+                ),
+                stub=stub,
+            ),
+        }
+
+    def report_uncertainty(self) -> Any:
+        from mfespf.contracts.module import UncertaintyReport
+
+        return UncertaintyReport(
+            module_id=self.module_id,
+            quantified={"total_irradiance_standard_uncertainty_W_m2": 0.5},
+            method="declared measurement uncertainty; no propagation performed",
+            distributional_assumptions="unresolved",
+            correlations="unresolved",
+            unresolved=(
+                "spectral_shape_structural_uncertainty",
+                "solar_variability_outside_supplied_record",
+            ),
+        )
+
+    def parameters(self) -> dict[str, Any]:
+        return {
+            **dict(self.configuration),
+            "spectral_grid_id": self.grid.grid_id,
+            "spectral_resolution_identifier": self.grid.resolution_identifier,
+            "spectral_edges": self.grid.edges.tolist(),
+            "integration_convention": self.grid.integration_convention.value,
+        }
+
+    def checkpoint(self) -> dict[str, Any]:
+        return {
+            "total_irradiance": self._total_irradiance,
+            "spectral_irradiance": self._spectral_irradiance.copy(),
+        }
+
+    def restore(self, checkpoint: dict[str, Any]) -> None:
+        self._total_irradiance = float(checkpoint["total_irradiance"])
+        self._spectral_irradiance = np.asarray(checkpoint["spectral_irradiance"], dtype=float)
+
+
+class ConstantSpectrumSolarSource(SolarSource):
+    """Constant total irradiance with a fixed black-body spectral shape.
+
+    The same class serves both fidelities: with a one-bin grid it is the
+    broadband implementation, and with an N-band grid it is the banded one.  That
+    is deliberate -- if the two were separate classes, agreement between them
+    would test the two implementations rather than the spectral machinery.  The
+    thing under test in KER-009 is that the *grid* is interchangeable.
+    """
+
+    def __init__(
+        self,
+        *,
+        grid: SpectralGrid,
+        total_irradiance: float | None = None,
+        effective_temperature: float = 5772.0,
+        module_id: str = "solar",
+        status: ModuleStatus = ModuleStatus.PRESCRIBED,
+    ) -> None:
+        fidelity = FidelityLevel.REDUCED if grid.n_bins == 1 else FidelityLevel.STANDARD
+        super().__init__(
+            module_id=module_id,
+            grid=grid,
+            fidelity=fidelity,
+            implementation_name=(
+                f"constant TSI with black-body spectral shape ({grid.resolution_identifier})"
+            ),
+            status=status,
+            assumptions=(
+                "total solar irradiance constant over the simulated interval",
+                f"spectral shape of a black body at {effective_temperature:g} K",
+                "no solar-cycle, particle or magnetic output",
+            ),
+            cost_work_units=1.0,
+        )
+        self._total = (
+            total_irradiance
+            if total_irradiance is not None
+            else value_of("total_solar_irradiance_reference")
+        )
+        self.effective_temperature = effective_temperature
+        self._weights = normalized_band_weights(grid, effective_temperature)
+
+    def total_irradiance(self, time: float) -> float:
+        return self._total
+
+    def spectral_shape(self) -> np.ndarray:
+        return self._weights
+
+    def parameters(self) -> dict[str, Any]:
+        return {
+            **super().parameters(),
+            "total_solar_irradiance_1au": self._total,
+            "spectral_shape_effective_temperature": self.effective_temperature,
+        }

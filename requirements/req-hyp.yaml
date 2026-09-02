@@ -1,0 +1,111 @@
+group: HYP
+title: Hypothesis interface requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: HYP-001
+  text: Every tested mechanism SHALL have a hypothesis_id and associated claim_id.
+  strength: mandatory
+  section: HYPOTHESIS INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: HYP-002
+  text: A hypothesis SHALL declare its physical basis, equations, inputs, outputs, expected signatures,
+    validity domain, and failure criterion before final validation.
+  strength: mandatory
+  section: HYPOTHESIS INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: HYP-003
+  text: Expected signatures SHALL address sign, magnitude or bound, temporal behavior, spatial behavior,
+    and spectral behavior where applicable.
+  strength: mandatory
+  section: HYPOTHESIS INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: HYP-004
+  text: A hypothesis SHALL declare affected conserved quantities and use ordinary transfer accounting.
+  strength: mandatory
+  section: HYPOTHESIS INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: HYP-005
+  text: A hypothesis SHALL enter through a replaceable module, tendency, boundary, source, sink, constitutive
+    relation, or diagnostic interface.
+  strength: mandatory
+  section: HYPOTHESIS INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: HYP-006
+  text: A hypothesis implementation SHALL NOT directly modify unowned state.
+  strength: mandatory
+  section: HYPOTHESIS INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: HYP-007
+  text: A hypothesis SHALL declare a null or control configuration.
+  strength: mandatory
+  section: HYPOTHESIS INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: HYP-008
+  text: A hypothesis SHALL identify competing explanations that the proposed experiment can and cannot
+    distinguish.
+  strength: mandatory
+  section: HYPOTHESIS INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: HYP-009
+  text: Failure thresholds SHALL be frozen before final withheld evaluation. A later revision SHALL create
+    a new claim version.
+  strength: mandatory
+  section: HYPOTHESIS INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: HYP-010
+  text: Conventional and unconventional mechanisms SHALL be subject to the same correctness and evidentiary
+    requirements.
+  strength: mandatory
+  section: HYPOTHESIS INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

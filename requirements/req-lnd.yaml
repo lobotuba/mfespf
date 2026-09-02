@@ -1,0 +1,16 @@
+group: LND
+title: Land interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: LND-001
+  text: The land interface SHALL provide surface temperature, reflected and emitted spectra, turbulent
+    fluxes, ground heat flux, and water exchange at the active fidelity.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

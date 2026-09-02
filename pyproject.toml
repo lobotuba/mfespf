@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mfespf"
+version = "0.1.0"
+description = "Modular Falsifiable Earth-System Physics Framework"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Robert Voss" }]
+dependencies = [
+    "numpy>=1.26",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+mfespf = "mfespf.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    # Requirement binding. Every mandatory SHALL requirement in requirements/
+    # must be referenced by at least one marker (ACC-001); tools/traceability.py
+    # enforces this.
+    "req: bind a test to one or more requirement IDs, e.g. @pytest.mark.req('CON-004')",
+    # Charter section 19 validation ladder stage.
+    "stage: validation-ladder stage this test belongs to, e.g. @pytest.mark.stage(1)",
+    "slow: excluded from the default workstation acceptance budget (CMP-003)",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "RUF"]
+ignore = ["N803", "N806"]  # physics notation: uppercase symbols are intentional
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["mfespf"]
+mypy_path = "src"
+strict_equality = true
+warn_unused_ignores = true
+disallow_untyped_defs = true

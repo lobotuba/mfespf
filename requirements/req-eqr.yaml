@@ -1,0 +1,80 @@
+group: EQR
+title: Equation registry requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: EQR-001
+  text: Every governing equation, constitutive relationship, closure, parameterization, empirical correction,
+    diagnostic identity, and numerical operator used in a scientific run SHALL have a versioned equation_id.
+  strength: mandatory
+  section: EQUATION REGISTRY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: EQR-002
+  text: Each equation record SHALL include mathematical form, variables, units, category, basis, assumptions,
+    parameters, validity domain, limiting cases, conserved quantities, numerical methods, and known failure
+    modes.
+  strength: mandatory
+  section: EQUATION REGISTRY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: EQR-003
+  text: Equation categories SHALL distinguish fundamental laws, constitutive relations, reduced physical
+    equations, closures, numerical operators, empirical relations, calibrated corrections, and diagnostic
+    identities.
+  strength: mandatory
+  section: EQUATION REGISTRY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: EQR-004
+  text: Calibrated corrections SHALL NOT be labeled as fundamental laws or measured constants.
+  strength: mandatory
+  section: EQUATION REGISTRY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: EQR-005
+  text: Every run SHALL bind active module implementations to exact equation and numerical-operator versions.
+  strength: mandatory
+  section: EQUATION REGISTRY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: EQR-006
+  text: An incompatible change in mathematical meaning SHALL create a new major equation version.
+  strength: mandatory
+  section: EQUATION REGISTRY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: EQR-007
+  text: Superseded equations SHALL remain traceable.
+  strength: mandatory
+  section: EQUATION REGISTRY REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

@@ -1,0 +1,16 @@
+group: HUM
+title: Human activity interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: HUM-001
+  text: Human activity SHALL alter model state only through explicit physical inputs, sources, sinks,
+    transfers, or boundary changes.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

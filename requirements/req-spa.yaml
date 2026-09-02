@@ -1,0 +1,68 @@
+group: SPA
+title: Spatial interface requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: SPA-001
+  text: The architecture SHALL permit global scalar, vertical column, latitude-band, surface-grid, three-dimensional,
+    irregular-mesh, and regional nested representations.
+  strength: mandatory
+  section: SPATIAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPA-002
+  text: Each exchanged field SHALL declare point, cell, face, layer, or domain- integrated support.
+  strength: mandatory
+  section: SPATIAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPA-003
+  text: Regridding extensive quantities and fluxes SHALL preserve integrated quantity within tolerance.
+  strength: mandatory
+  section: SPATIAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPA-004
+  text: Regridding intensive quantities SHALL use a method appropriate to the physical meaning and SHALL
+    document it.
+  strength: mandatory
+  section: SPATIAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPA-005
+  text: Spatial-resolution changes SHALL appear in run lineage.
+  strength: mandatory
+  section: SPATIAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPA-006
+  text: A scientific claim SHALL NOT assert spatial detail finer than the active physics, input support,
+    numerical grid, and validation observations justify.
+  strength: mandatory
+  section: SPATIAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

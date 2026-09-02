@@ -1,0 +1,147 @@
+group: KER
+title: Version 1.0 reference-kernel requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: KER-001
+  text: The reference kernel SHALL include registries for modules, states, equations, datasets, claims,
+    experiments, and runs.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-002
+  text: It SHALL include a unit and dimension validator.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-003
+  text: It SHALL include interface-version negotiation.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-004
+  text: It SHALL include a causality and dependency graph generator.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-005
+  text: It SHALL include conservation reconciliation across module boundaries.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-006
+  text: It SHALL include a run-manifest and lineage generator.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-007
+  text: It SHALL include resource preflight estimation.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-008
+  text: It SHALL include a withheld-data evaluation path separated from model evolution and calibration.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-009
+  text: It SHALL demonstrate variable spectral input through at least two interchangeable spectral resolutions.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-010
+  text: It SHALL demonstrate replaceable implementations for at least one physical module.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-011
+  text: It SHALL demonstrate multirate coupling between at least two active modules.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-012
+  text: 'It SHALL run at least these controlled configurations:'
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-013
+  text: The mandatory reference runs SHALL produce energy budgets and residuals.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: KER-014
+  text: The mandatory reference runs SHALL be reproducible from retained manifests on the declared workstation-class
+    environment.
+  strength: mandatory
+  section: VERSION 1.0 REFERENCE-KERNEL REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

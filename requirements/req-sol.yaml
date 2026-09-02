@@ -1,0 +1,26 @@
+group: SOL
+title: Solar source interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: SOL-001
+  text: The solar-source interface SHALL provide total irradiance, spectral irradiance, reference distance,
+    time, and uncertainty.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SOL-002
+  text: The solar source MAY provide particle and magnetic descriptors through optional versioned capabilities.
+  strength: optional
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

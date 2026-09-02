@@ -1,0 +1,89 @@
+group: AUD
+title: Run manifest and audit requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: AUD-001
+  text: Every run SHALL have a globally unique run_id.
+  strength: mandatory
+  section: RUN MANIFEST AND AUDIT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: AUD-002
+  text: Every run SHALL record parent run IDs, claim IDs, experiment ID, source revision, framework version,
+    module versions, interface versions, equation versions, datasets, parameters, configuration hash,
+    environment, random seeds, and output checksums.
+  strength: mandatory
+  section: RUN MANIFEST AND AUDIT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: AUD-003
+  text: Every child run SHALL generate a machine-readable difference report against its parent.
+  strength: mandatory
+  section: RUN MANIFEST AND AUDIT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: AUD-004
+  text: Difference reports SHALL include module, equation, parameter, dataset, resolution, threshold,
+    software, and environment changes.
+  strength: mandatory
+  section: RUN MANIFEST AND AUDIT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: AUD-005
+  text: Published or retained evidence SHALL be immutable.
+  strength: mandatory
+  section: RUN MANIFEST AND AUDIT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: AUD-006
+  text: Corrected runs SHALL link to superseded records rather than overwrite them.
+  strength: mandatory
+  section: RUN MANIFEST AND AUDIT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: AUD-007
+  text: Invalid runs MAY be retained for debugging but SHALL NOT support or refute physical claims.
+  strength: mandatory
+  section: RUN MANIFEST AND AUDIT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: AUD-008
+  text: Run logs SHALL identify warnings, automatic adaptations, convergence failures, conservation failures,
+    and unresolved uncertainty.
+  strength: mandatory
+  section: RUN MANIFEST AND AUDIT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

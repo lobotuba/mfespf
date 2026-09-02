@@ -1,0 +1,209 @@
+PROJECT CHARTER AND MODELING PHILOSOPHY
+
+Modular Falsifiable Earth-System Physics Framework (MFESPF)
+
+Purpose
+-------
+Build a transparent, modular Earth-system physics framework capable of testing physical explanations of climate and Earth-system behavior. The model exists to evaluate hypotheses through conservation laws, physical mechanisms, numerical validation, and comparison with observations. Observations are used to falsify or support claims, not to dictate governing equations.
+
+Core Principles
+---------------
+1. Every subsystem is optional.
+2. Every approximation is visible.
+3. Every claim is measurable.
+4. Every prediction is falsifiable.
+5. Every failure is reportable.
+6. Historical agreement alone is not validation.
+7. Conservation laws take precedence over curve fitting.
+8. Architectural completeness is separate from executable complexity.
+
+Scientific Objective
+--------------------
+Build a transparent physical model capable of:
+- Reproducing observed Earth-system behavior.
+- Identifying dominant physical timescales.
+- Testing competing causal mechanisms.
+- Generating falsifiable out-of-sample predictions.
+
+Success Ladder
+--------------
+Level 1: Internal physical correctness.
+Level 2: Process reproduction.
+Level 3: Historical reconstruction.
+Level 4: Cross-observable validation.
+Level 5: Out-of-sample prediction.
+
+Relationship Between Theory and Data
+-------------------------------------
+Physics generates predictions.
+Observations test predictions.
+The framework shall not invent governing equations solely because they match observations.
+
+Physical Domains Reserved in Architecture
+-----------------------------------------
+- Solar Physics
+- Orbital Mechanics
+- Gravity
+- Electromagnetism
+- Atmospheric Dynamics
+- Atmospheric Chemistry
+- Radiation and Spectroscopy
+- Hydrology
+- Clouds
+- Aerosols
+- Oceans
+- Cryosphere
+- Land Surface
+- Biosphere
+- Biogeochemical Cycles
+- Solid Earth
+- Particle Physics
+- Quantum Physics
+- External Astrophysical Influences
+- Human Activity
+
+Inclusion of a domain in the architecture does not imply that the domain is necessary to explain climate behavior. It only guarantees that the domain may be tested.
+
+Modularity
+----------
+Subsystems exchange:
+- Energy
+- Mass
+- Momentum
+- Charge
+- Radiation
+- Chemical Species
+- Diagnostic Data
+- Uncertainty Data
+
+Each subsystem may be replaced by a higher-fidelity implementation without rewriting unrelated components.
+
+Variable Spectral Requirement
+-----------------------------
+No radiation subsystem shall assume fixed spectra.
+The architecture must support variable:
+- Solar spectra
+- Atmospheric absorption spectra
+- Cloud spectra
+- Aerosol spectra
+- Surface reflectance spectra
+- Surface emissivity spectra
+- Outgoing terrestrial spectra
+
+Spectral resolution shall be configurable.
+
+Computational Accessibility
+---------------------------
+The framework shall be usable on a normal engineering workstation.
+Every subsystem shall support multiple fidelity levels.
+Higher fidelity must justify increased computational cost through improved predictive value.
+
+Timescale Philosophy
+--------------------
+The model shall not assume a single climate timescale.
+Timescales shall be measured through:
+- Step response
+- Impulse response
+- Frequency analysis
+- Lag analysis
+- Relaxation analysis
+- Eigenmode analysis
+
+Conservation Requirements
+-------------------------
+All applicable runs shall track:
+- Energy
+- Mass
+- Water
+- Momentum
+- Charge
+
+Conservation residuals shall be reported.
+
+Falsifiability Standard
+-----------------------
+Every claim shall include:
+- Physical basis
+- Governing equations
+- Assumptions
+- Expected result
+- Competing explanations
+- Failure criteria
+- Uncertainty method
+- Validation observations
+
+Allowed result categories:
+- Supported within scope
+- Qualified
+- Refuted
+- Unresolved
+
+Failure Taxonomy
+----------------
+- Mathematical Failure
+- Numerical Failure
+- Coupling Failure
+- Physical Process Failure
+- Empirical Failure
+- Scope Failure
+- Identifiability Failure
+
+Uncertainty Philosophy
+----------------------
+Uncertainty sources may include:
+- Measurement uncertainty
+- Initial-condition uncertainty
+- Boundary-condition uncertainty
+- Parameter uncertainty
+- Numerical uncertainty
+- Structural uncertainty
+- Missing-physics uncertainty
+
+Claim Registry Requirement
+--------------------------
+Every scientific claim must be recorded with:
+- Claim ID
+- Description
+- Governing equations
+- Assumptions
+- Inputs
+- Outputs
+- Validation data
+- Failure criteria
+- Result status
+
+Development Methodology
+-----------------------
+1. Define physical claim.
+2. Derive governing equations.
+3. Implement simplest valid version.
+4. Test limiting cases.
+5. Test conservation.
+6. Test convergence.
+7. Compare against observation.
+8. Couple into larger framework.
+9. Re-test conservation.
+10. Report result.
+
+Initial Executable Kernel
+-------------------------
+- Variable Solar Input
+- Configurable Solar Spectrum
+- Earth-Sun Geometry
+- Multilayer Atmosphere
+- Configurable Spectral Radiation
+- Hydrostatic Atmosphere
+- Water Vapor State
+- Prescribed Variable Clouds
+- Surface Energy Storage
+- Ocean Heat Storage
+- Historical Replay Capability
+- Controlled Perturbation Capability
+
+Project Motto
+-------------
+Every subsystem is optional.
+Every approximation is visible.
+Every claim is measurable.
+Every prediction is falsifiable.
+Every failure is reportable.

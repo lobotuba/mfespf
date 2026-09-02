@@ -1,0 +1,112 @@
+group: SPC
+title: Spectral interface requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: SPC-001
+  text: The radiation architecture SHALL support spectra that vary with time, position, direction, temperature,
+    pressure, material composition, cloud state, aerosol state, and surface state where implemented.
+  strength: mandatory
+  section: SPECTRAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPC-002
+  text: The architecture SHALL NOT require a fixed solar or terrestrial spectral shape.
+  strength: mandatory
+  section: SPECTRAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPC-003
+  text: A spectral field SHALL specify wavelength, frequency, wavenumber, energy, or band-ID coordinates
+    and associated units.
+  strength: mandatory
+  section: SPECTRAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPC-004
+  text: A spectral grid SHALL declare coordinates or bin edges, widths, integration convention, density
+    units, ordering, interpolation, and extrapolation policy.
+  strength: mandatory
+  section: SPECTRAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPC-005
+  text: Spectral regridding SHALL conserve integrated energy within a declared tolerance.
+  strength: mandatory
+  section: SPECTRAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPC-006
+  text: Spectral regridding residuals SHALL be logged.
+  strength: mandatory
+  section: SPECTRAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPC-007
+  text: The framework SHALL permit broadband, fixed-band, adaptive-band, high-resolution, and line-by-line
+    implementations behind a common negotiated interface.
+  strength: mandatory
+  section: SPECTRAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPC-008
+  text: A receiving module MAY request wavelength ranges or resolution, but the negotiated result SHALL
+    record any unmet request and associated uncertainty.
+  strength: mandatory
+  section: SPECTRAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPC-009
+  text: Equal integrated power with differing spectra SHALL NOT be assumed to produce identical response
+    unless demonstrated for the tested configuration.
+  strength: mandatory
+  section: SPECTRAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: SPC-010
+  text: Cloud shortwave and longwave spectral effects SHALL be separately available before a net cloud
+    radiative diagnostic is formed.
+  strength: mandatory
+  section: SPECTRAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

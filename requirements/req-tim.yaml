@@ -1,0 +1,89 @@
+group: TIM
+title: Temporal interface requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: TIM-001
+  text: The framework SHALL support a master simulation time coordinate.
+  strength: mandatory
+  section: TEMPORAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: TIM-002
+  text: Modules MAY use different internal time steps.
+  strength: optional
+  section: TEMPORAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: TIM-003
+  text: Multirate coupling SHALL declare substeps, exchange frequency, interpolation, accumulation, synchronization,
+    splitting order, and convergence.
+  strength: mandatory
+  section: TEMPORAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: TIM-004
+  text: Time interpolation or aggregation SHALL report assumptions and any material loss of frequency
+    information.
+  strength: mandatory
+  section: TEMPORAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: TIM-005
+  text: The framework SHALL support equilibrium, controlled experiment, prescribed history, free evolution,
+    historical reconstruction, hindcast, and out-of-sample prediction modes.
+  strength: mandatory
+  section: TEMPORAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: TIM-006
+  text: Reports SHALL NOT describe one operating mode using the evidentiary language of another.
+  strength: mandatory
+  section: TEMPORAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: TIM-007
+  text: The framework SHALL support step, pulse, impulse, and periodic forcing experiments.
+  strength: mandatory
+  section: TEMPORAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: TIM-008
+  text: Characteristic timescales SHALL be measured per mechanism, subsystem, observable, and forcing
+    regime rather than imposed as one universal climate index.
+  strength: mandatory
+  section: TEMPORAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

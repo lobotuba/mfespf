@@ -1,0 +1,110 @@
+group: ACC
+title: Version 1.0 acceptance criteria
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: ACC-001
+  text: All mandatory SHALL requirements shall have an acceptance test, inspection record, analysis record,
+    or demonstration record.
+  strength: mandatory
+  section: VERSION 1.0 ACCEPTANCE CRITERIA
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: ACC-002
+  text: No mandatory acceptance run may have unresolved duplicate state ownership.
+  strength: optional
+  section: VERSION 1.0 ACCEPTANCE CRITERIA
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: ACC-003
+  text: No mandatory acceptance run may have unresolved interface-version or unit incompatibility.
+  strength: optional
+  section: VERSION 1.0 ACCEPTANCE CRITERIA
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: ACC-004
+  text: Conserved transfers shall reconcile within configuration-specific predeclared tolerances.
+  strength: mandatory
+  section: VERSION 1.0 ACCEPTANCE CRITERIA
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: ACC-005
+  text: Mandatory runs shall produce complete manifests, dependency graphs, equation bindings, provenance
+    records, and output checksums.
+  strength: mandatory
+  section: VERSION 1.0 ACCEPTANCE CRITERIA
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: ACC-006
+  text: At least one intentional mechanism failure shall be correctly detected and reported without being
+    misclassified as support.
+  strength: mandatory
+  section: VERSION 1.0 ACCEPTANCE CRITERIA
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: ACC-007
+  text: At least one numerical-invalidity case shall be labeled invalid for scientific inference.
+  strength: mandatory
+  section: VERSION 1.0 ACCEPTANCE CRITERIA
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: ACC-008
+  text: At least one calibration-versus-validation contamination test shall be rejected by provenance
+    controls.
+  strength: mandatory
+  section: VERSION 1.0 ACCEPTANCE CRITERIA
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: ACC-009
+  text: At least one parent-child run pair shall produce an accurate difference record.
+  strength: mandatory
+  section: VERSION 1.0 ACCEPTANCE CRITERIA
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: ACC-010
+  text: The reference kernel shall complete its baseline suite within the configured ENGINEERING_WORKSTATION
+    resource budget.
+  strength: mandatory
+  section: VERSION 1.0 ACCEPTANCE CRITERIA
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

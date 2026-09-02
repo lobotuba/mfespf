@@ -1,0 +1,89 @@
+group: UNC
+title: Uncertainty interface requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: UNC-001
+  text: Every module SHALL declare applicable uncertain inputs, parameters, structure, and numerical approximations.
+  strength: mandatory
+  section: UNCERTAINTY INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: UNC-002
+  text: Each quantified uncertainty SHALL identify propagation method, distributional assumptions, and
+    correlations known or assumed.
+  strength: mandatory
+  section: UNCERTAINTY INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: UNC-003
+  text: Numerical error, measurement uncertainty, parameter uncertainty, structural uncertainty, and predictive
+    uncertainty SHALL remain separately traceable.
+  strength: mandatory
+  section: UNCERTAINTY INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: UNC-004
+  text: Unquantified but applicable uncertainty SHALL be explicitly marked UNRESOLVED.
+  strength: mandatory
+  section: UNCERTAINTY INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: UNC-005
+  text: The framework SHALL support bounds, sensitivity derivatives, parameter sweeps, ensembles, Monte
+    Carlo propagation, and model-form comparison as optional uncertainty methods.
+  strength: mandatory
+  section: UNCERTAINTY INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: UNC-006
+  text: Root-sum-square combination SHALL be used only when its independence and distribution assumptions
+    are declared.
+  strength: mandatory
+  section: UNCERTAINTY INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: UNC-007
+  text: Predictions SHALL state the meaning and nominal coverage of any predictive interval.
+  strength: mandatory
+  section: UNCERTAINTY INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: UNC-008
+  text: A validation evaluator SHOULD test predictive-interval coverage when sample size permits.
+  strength: recommended
+  section: UNCERTAINTY INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

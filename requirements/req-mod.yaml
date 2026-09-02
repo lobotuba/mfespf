@@ -1,0 +1,153 @@
+group: MOD
+title: Module contract requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: MOD-001
+  text: Every module SHALL expose module_id, name, implementation version, interface version, fidelity
+    level, and status.
+  strength: mandatory
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-002
+  text: Every module SHALL document its physical basis, governing equation IDs, assumptions, validity
+    domain, and known limitations.
+  strength: mandatory
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-003
+  text: Every module SHALL enumerate owned state, required inputs, produced outputs, imported transfers,
+    exported transfers, and diagnostic outputs.
+  strength: mandatory
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-004
+  text: Every module SHALL declare each applicable conserved quantity and all internal sources and sinks.
+  strength: mandatory
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-005
+  text: Every module SHALL implement configuration validation before state initialization.
+  strength: mandatory
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-006
+  text: Every ACTIVE or PRESCRIBED module SHALL support deterministic initialization from a recorded manifest,
+    subject to declared stochastic inputs.
+  strength: mandatory
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-007
+  text: Every ACTIVE module SHALL expose begin-step, input-receipt, tendency-computation, state-advance,
+    output-emission, conservation-report, and finalization lifecycle operations.
+  strength: mandatory
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-008
+  text: Every prognostic module SHOULD support checkpoint and restore.
+  strength: recommended
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-009
+  text: Every module SHALL report uncertainty contributions it can quantify and explicitly flag applicable
+    but unresolved contributions.
+  strength: mandatory
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-010
+  text: A module SHALL NOT directly write state owned by another module.
+  strength: mandatory
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-011
+  text: A module MAY submit a labeled tendency or transfer to another module's state owner through an
+    approved interface.
+  strength: optional
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-012
+  text: Every module SHALL declare supported spatial, temporal, spectral, and parallel representations
+    where applicable.
+  strength: mandatory
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-013
+  text: Every module SHALL provide a computational-cost declaration.
+  strength: mandatory
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: MOD-014
+  text: Every physical module SHALL identify at least one null, limiting-case, or disabled-coupling test.
+  strength: mandatory
+  section: MODULE CONTRACT REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

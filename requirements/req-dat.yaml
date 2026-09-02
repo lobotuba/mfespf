@@ -1,0 +1,101 @@
+group: DAT
+title: Common field and data requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: DAT-001
+  text: Every exchanged field SHALL include a unique field_id, physical name, units, data type, dimensions,
+    coordinates, spatial support, timestamp or interval, sign convention, provenance, and quality flags.
+  strength: mandatory
+  section: COMMON FIELD AND DATA REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: DAT-002
+  text: Every field SHALL declare whether it is an intensive state, extensive state, flux, source, sink,
+    tendency, boundary value, diagnostic, probability distribution, or uncertainty field.
+  strength: mandatory
+  section: COMMON FIELD AND DATA REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: DAT-003
+  text: Internal physical interfaces SHALL use SI units unless the interface contract explicitly defines
+    another coherent system.
+  strength: mandatory
+  section: COMMON FIELD AND DATA REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: DAT-004
+  text: Unit conversion SHALL occur only at controlled boundaries and SHALL be logged.
+  strength: mandatory
+  section: COMMON FIELD AND DATA REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: DAT-005
+  text: Dimensionally incompatible fields SHALL fail validation.
+  strength: mandatory
+  section: COMMON FIELD AND DATA REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: DAT-006
+  text: Each time-dependent field SHALL declare whether it is instantaneous, interval-averaged, interval-accumulated,
+    start-of-step, midpoint, or end-of-step.
+  strength: mandatory
+  section: COMMON FIELD AND DATA REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: DAT-007
+  text: Missing-data behavior SHALL be explicit and SHALL NOT silently replace missing physical input
+    with zero.
+  strength: mandatory
+  section: COMMON FIELD AND DATA REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: DAT-008
+  text: Preprocessing SHALL be reproducible from a versioned transformation record.
+  strength: mandatory
+  section: COMMON FIELD AND DATA REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: DAT-009
+  text: Every scientific input dataset SHALL have an identity, version, checksum, role, uncertainty record,
+    and usage provenance.
+  strength: mandatory
+  section: COMMON FIELD AND DATA REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

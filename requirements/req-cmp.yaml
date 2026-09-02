@@ -1,0 +1,101 @@
+group: CMP
+title: Computational resource requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: CMP-001
+  text: Every module SHALL declare principal scaling variables and asymptotic time and memory complexity
+    where determinable.
+  strength: mandatory
+  section: COMPUTATIONAL RESOURCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CMP-002
+  text: Every module SHALL provide a benchmark or estimated resource record for at least one supported
+    configuration.
+  strength: mandatory
+  section: COMPUTATIONAL RESOURCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CMP-003
+  text: Each run SHALL declare resource class and resource budget.
+  strength: mandatory
+  section: COMPUTATIONAL RESOURCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CMP-004
+  text: The preflight estimator SHALL report estimated memory, processor work, storage, spectral bins,
+    spatial cells, and ensemble cost.
+  strength: mandatory
+  section: COMPUTATIONAL RESOURCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CMP-005
+  text: The framework SHALL warn or fail when estimated cost exceeds configured limits according to user-selected
+    policy.
+  strength: mandatory
+  section: COMPUTATIONAL RESOURCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CMP-006
+  text: Modules SHOULD provide a lower-fidelity implementation or documented inactive mode when feasible.
+  strength: recommended
+  section: COMPUTATIONAL RESOURCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CMP-007
+  text: Higher fidelity SHALL record its scientific justification in the experiment manifest.
+  strength: mandatory
+  section: COMPUTATIONAL RESOURCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CMP-008
+  text: The baseline acceptance configuration SHALL NOT require a distributed computer or specialized
+    accelerator.
+  strength: mandatory
+  section: COMPUTATIONAL RESOURCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CMP-009
+  text: Performance optimization SHALL NOT weaken conservation or alter physical meaning without a new
+    implementation version and validation record.
+  strength: mandatory
+  section: COMPUTATIONAL RESOURCE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

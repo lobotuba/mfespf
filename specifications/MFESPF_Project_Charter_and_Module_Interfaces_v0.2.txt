@@ -1,0 +1,1865 @@
+PROJECT CHARTER AND MODELING PHILOSOPHY
+MODULAR FALSIFIABLE EARTH-SYSTEM PHYSICS FRAMEWORK
+
+Document ID: MFESPF-CHARTER-002
+Version: 0.2 Draft
+Author: Robert Voss
+Document Type: Project Charter and Modeling Philosophy
+Status: Foundational Draft
+Supersedes: MFESPF-CHARTER-001, Version 0.1
+
+======================================================================
+1. PROJECT IDENTITY
+======================================================================
+
+1.1 Project Name
+
+Modular Falsifiable Earth-System Physics Framework
+
+Working abbreviation: MFESPF
+
+Working descriptive title:
+
+A computational laboratory for deriving, testing, and falsifying physical
+explanations of Earth-system behavior and climate change.
+
+1.2 Project Purpose
+
+The purpose of MFESPF is to construct a modular computational representation
+of the Earth system from established physical laws, measured physical
+properties, and explicitly documented approximations.
+
+The framework will be used to:
+
+1. Test whether proposed physical mechanisms can reproduce observed
+   Earth-system behavior.
+2. Reconstruct historical climate states from declared initial and boundary
+   conditions.
+3. Identify characteristic timescales that emerge from coupled physical
+   dynamics.
+4. Separate necessary mechanisms from mechanisms that are unnecessary,
+   inadequate, or observationally indistinguishable.
+5. Produce falsifiable predictions with declared uncertainty.
+6. Progress eventually to registered, out-of-sample prediction.
+
+The framework is not intended to affirm or reject a predetermined explanation
+of climate change. It shall provide a common physical and numerical laboratory
+in which competing mechanisms can be implemented, isolated, perturbed,
+measured, and compared with independent observations.
+
+1.3 Central Scientific Question
+
+Can a transparent model derived from physics reproduce major observed
+Earth-system behavior and make successful predictions without allowing the
+target observations to dictate its governing equations?
+
+1.4 Project Motto
+
+Every subsystem is optional.
+Every approximation is visible.
+Every claim is measurable.
+Every prediction is falsifiable.
+Every failure is reportable.
+
+======================================================================
+2. SCIENTIFIC OBJECTIVE AND SUCCESS LADDER
+======================================================================
+
+2.1 Primary Objective
+
+Build a transparent physical model capable of reproducing observed
+Earth-system behavior, identifying the physical mechanisms and timescales
+necessary to explain that behavior, and eventually generating successful
+out-of-sample predictions.
+
+2.2 Scientific Success Levels
+
+Level 1: Internal Physical Correctness
+
+The model satisfies applicable conservation laws, dimensional checks,
+limiting cases, analytic comparisons, numerical convergence requirements,
+and interface accounting requirements.
+
+Level 2: Process Reproduction
+
+Individual modules reproduce independently measured physical processes within
+a declared scope and uncertainty.
+
+Level 3: Historical Reconstruction
+
+The coupled framework reproduces selected historical observations when
+provided with historically measured initial and boundary conditions.
+
+Level 4: Cross-Observable Validation
+
+One frozen physical configuration reproduces multiple independent observables
+simultaneously. Agreement with one selected record is insufficient.
+
+Level 5: Out-of-Sample Prediction
+
+A frozen framework configuration successfully predicts observations that did
+not determine its equations, parameters, initial state, or boundary
+conditions.
+
+2.3 Scientific Success Versus Project Success
+
+The project may succeed scientifically even when a proposed mechanism fails.
+A refuted mechanism, exposed numerical artifact, measured validity boundary,
+or demonstrated inability to distinguish alternatives is a valid scientific
+result if it is reproducible and correctly reported.
+
+======================================================================
+3. GOVERNING MODELING PHILOSOPHY
+======================================================================
+
+3.1 Governing Scientific Rule
+
+No mechanism shall be added merely because it improves agreement with a
+selected observational record. Every mechanism must have:
+
+1. An independently defensible physical basis.
+2. An explicit mathematical representation.
+3. A declared validity domain.
+4. Declared assumptions and approximations.
+5. At least one limiting-case or correctness test.
+6. At least one test capable of demonstrating its failure.
+
+3.2 Physics Before Curve Fit
+
+The required scientific sequence is:
+
+Physical hypothesis
+    -> governing equations
+    -> derived prediction
+    -> numerical implementation
+    -> correctness tests
+    -> comparison with withheld observation
+    -> supported, qualified, refuted, or unresolved result
+
+The prohibited sequence is:
+
+Target observation
+    -> arbitrary fitted equation
+    -> agreement with same observation
+    -> claim of physical validation
+
+3.3 Cross-Observable Requirement
+
+A model that fits surface temperature while failing the associated energy
+budget, atmospheric structure, spectral radiation, ocean heat uptake, or
+other applicable independent observables shall not be described as physically
+validated.
+
+3.4 Narrow-Claim Rule
+
+Every conclusion shall be no broader than the tested configuration, variable
+range, spatial domain, temporal domain, spectral resolution, numerical
+resolution, and uncertainty permit.
+
+3.5 Negative-Result Rule
+
+Failed mechanisms, unstable formulations, null results, finite-domain
+artifacts, parameter degeneracies, and abandoned equations shall be retained
+in the experiment record when they affect scientific interpretation.
+
+======================================================================
+4. FORMAL DEFINITIONS
+======================================================================
+
+The following definitions are normative for MFESPF documentation and software.
+
+4.1 Framework
+
+The complete software, mathematical, data, test, and reporting environment
+that permits Earth-system modules to be implemented and coupled.
+
+4.2 Architecture
+
+The set of permitted module roles, interfaces, data contracts, lifecycle
+rules, conservation rules, configuration rules, and dependency boundaries.
+Architecture defines what may be represented without requiring that every
+representation be active in every run.
+
+4.3 Architectural Carve-Out
+
+A reserved and documented place in the architecture for a potentially
+relevant physical domain. A carve-out guarantees that an implementation may
+be added through defined interfaces. It does not assert that the domain is
+important, necessary, or active.
+
+4.4 Executable Configuration
+
+A complete declaration of the modules, implementations, equations, input
+data, parameters, resolutions, solvers, tolerances, and couplings active in a
+specific run.
+
+4.5 Module
+
+A replaceable computational unit that owns a defined portion of the model
+state, advances or diagnoses that state, and interacts with other modules only
+through approved interfaces.
+
+4.6 Module Implementation
+
+A specific fidelity-level realization of a module contract. Multiple
+implementations may satisfy the same contract, such as a gray-radiation model,
+a banded radiation model, and a line-by-line radiation model.
+
+4.7 Coupler
+
+A component responsible for scheduled exchanges among modules. A coupler may
+convert grids, aggregate time steps, reconcile units, enforce flux direction,
+and verify exchange conservation. It shall not silently add physical behavior.
+
+4.8 State Variable
+
+A quantity owned by one module whose value evolves in time or simulation step
+according to governing equations. Examples include temperature, water-vapor
+mixing ratio, cloud-water mass, ocean heat content, or ice fraction.
+
+4.9 Diagnostic Variable
+
+A quantity calculated from state variables and inputs but not independently
+evolved. Examples include outgoing longwave radiation, radiative imbalance,
+or relative humidity when derived from temperature, pressure, and water vapor.
+
+4.10 Prognostic Variable
+
+A state variable explicitly advanced through time by an evolution equation.
+
+4.11 Prescribed Variable
+
+A quantity supplied from a dataset, experiment definition, or external module
+rather than evolved by the receiving module.
+
+4.12 Control Variable
+
+A quantity deliberately fixed or manipulated to isolate the effect of another
+quantity in a controlled experiment.
+
+4.13 Parameter
+
+A named quantity used by an equation but not evolved as state during a given
+run. Each parameter must be classified as fundamental, measured, derived,
+parameterized, or calibrated.
+
+4.14 Fundamental Quantity
+
+A physical constant or universal relationship accepted as an input to the
+framework at a declared precision and provenance.
+
+4.15 Measured Quantity
+
+A property obtained independently through observation or laboratory
+measurement and supplied to the framework with units, provenance, and
+measurement uncertainty.
+
+4.16 Derived Quantity
+
+A quantity calculated from governing equations and other declared quantities.
+
+4.17 Constitutive Relationship
+
+A relationship describing how a particular material or phase responds, such
+as an equation of state, viscosity law, absorption coefficient, or heat
+capacity relation.
+
+4.18 Parameterization
+
+An explicit reduced representation of unresolved or intentionally omitted
+physics. A parameterization shall identify the higher-fidelity process it
+approximates and the expected validity range.
+
+4.19 Calibration
+
+The estimation or adjustment of one or more parameters using observational or
+experimental data. Calibration shall be declared and shall not be represented
+as independent validation.
+
+4.20 Initial Condition
+
+The declared system state at the starting time of an evolution.
+
+4.21 Boundary Condition
+
+A declared physical condition at the spatial, material, or system boundary,
+including incoming or outgoing energy, matter, momentum, radiation, or charge.
+
+4.22 Forcing
+
+A prescribed influence on a module or coupled system. A forcing may vary in
+space, time, direction, or spectrum and must be represented through a declared
+interface.
+
+4.23 Flux
+
+The rate at which an extensive quantity crosses a defined interface or unit
+area. Every flux shall declare quantity, units, direction, sign convention,
+time interval, and spatial support.
+
+4.24 Source and Sink
+
+A process that produces or removes a tracked quantity inside a module. Sources
+and sinks must be physically identified and included in conservation
+accounting.
+
+4.25 Conservation Residual
+
+The difference between the change in stored quantity and the integrated net
+transfer plus internal sources and sinks over an accounting interval.
+
+For a conserved quantity Q:
+
+R_Q = Delta Q_stored - Integral(S_Q - L_Q + F_Q,in - F_Q,out) dt
+
+where S_Q is an internal source and L_Q is an internal loss. If Q is strictly
+conserved within the modeled boundary, allowable physical sources and losses
+must sum consistently across the larger system.
+
+4.26 Physical Validity Domain
+
+The declared conditions under which an equation or implementation is expected
+to represent the intended process, including ranges of temperature, pressure,
+composition, spatial scale, temporal scale, and spectral resolution.
+
+4.27 Numerical Validity Domain
+
+The range of time steps, grid sizes, tolerances, solver settings, and state
+values for which numerical correctness gates have been passed.
+
+4.28 Fidelity Level
+
+A documented degree of physical and numerical detail for a module. Fidelity
+level is module-specific and does not imply universal superiority.
+
+4.29 Historical Replay
+
+A run in which one or more measured histories are prescribed as initial or
+boundary conditions and model outputs are compared with historical
+observations.
+
+4.30 Hindcast
+
+A run configured using only information declared available before a cutoff,
+then evaluated against later observations.
+
+4.31 Out-of-Sample Prediction
+
+A prediction generated from a frozen model before the evaluated observations
+are introduced into model construction, parameter selection, or run setup.
+
+4.32 Falsifiable Claim
+
+A precise statement that identifies a mechanism, expected measurable result,
+uncertainty method, applicable scope, and an observation or experimental
+outcome that would count against the claim.
+
+4.33 Supported Within Scope
+
+A claim status indicating that the declared tests were passed within the
+specified validity domain and uncertainty. It does not imply universal proof.
+
+4.34 Qualified
+
+A claim status indicating partial support, restricted validity, material
+caveats, inconsistent observables, or sensitivity that prevents a broader
+conclusion.
+
+4.35 Refuted
+
+A claim status indicating that a predefined failure condition was met and the
+failure cannot be explained by a known invalid numerical result.
+
+4.36 Unresolved
+
+A claim status indicating that available numerical precision, observations,
+uncertainty, or identifiability is inadequate to support or refute the claim.
+
+4.37 Structural Uncertainty
+
+Uncertainty resulting from the selected mathematical representation,
+omitted physics, module structure, or alternative physically plausible
+formulations.
+
+4.38 Numerical Error
+
+Difference introduced by discretization, finite precision, iterative solver
+tolerance, interpolation, operator splitting, or other computational methods.
+Numerical error is not the same as physical uncertainty.
+
+4.39 Predictive Interval
+
+A declared interval intended to contain a future or withheld observation at a
+specified coverage level under the stated model and uncertainty assumptions.
+
+4.40 Physics Manifest
+
+The human-readable and machine-readable declaration of which modules and
+physical processes are active, inactive, prescribed, or replaced in a run.
+
+======================================================================
+5. PHYSICAL-DOMAIN ARCHITECTURE
+======================================================================
+
+The architecture shall reserve modules or extension points for the following
+physical domains. Inclusion is not a prior claim of climatic importance.
+
+5.1 External and Astronomical Domain
+
+- Stellar and solar evolution
+- Solar luminosity and activity
+- Solar spectral irradiance
+- Solar particles and magnetic activity
+- Earth-Sun orbital mechanics
+- Eccentricity, obliquity, and precession
+- Rotation and nutation
+- Lunar and planetary perturbations
+- Tidal forcing
+- External astrophysical hypotheses
+
+5.2 Fundamental Interaction Domain
+
+- Gravity
+- Electromagnetism
+- Particle interactions
+- Quantum and molecular transitions
+- Nuclear processes where relevant
+
+5.3 Atmospheric Domain
+
+- Atmospheric mass and composition
+- Pressure and hydrostatic structure
+- Momentum and circulation
+- Thermodynamics
+- Radiation
+- Convection and turbulence
+- Chemistry and photochemistry
+- Aerosols
+- Electrical and charged-particle processes
+
+5.4 Water and Cloud Domain
+
+- Water vapor
+- Cloud liquid
+- Cloud ice
+- Precipitation
+- Snow
+- Surface water
+- Soil moisture
+- Groundwater
+- Phase transitions
+- Cloud optical properties
+- Cloud dynamics and microphysics
+
+5.5 Surface and Solid-Earth Domain
+
+- Surface radiative properties
+- Soil and rock thermal behavior
+- Topography
+- Land cover
+- Urban surfaces
+- Geothermal heat
+- Volcanism
+- Tectonics and weathering
+
+5.6 Ocean and Cryosphere Domain
+
+- Mixed-layer heat storage
+- Deep-ocean exchange
+- Salinity and density
+- Ocean circulation
+- Gas and chemical exchange
+- Sea ice
+- Snow and glaciers
+- Ice sheets and permafrost
+
+5.7 Biosphere and Biogeochemistry Domain
+
+- Vegetation
+- Photosynthesis and respiration
+- Transpiration
+- Microbial activity
+- Marine biology
+- Carbon, nitrogen, sulfur, phosphorus, methane, and oxygen cycles
+- Biological aerosols
+- Land-use and ecological change
+
+5.8 Human-Activity Domain
+
+Human effects shall enter through explicit physical state changes, fluxes,
+boundary conditions, or land-state changes. The architecture shall not require
+a single undifferentiated anthropogenic correction term.
+
+======================================================================
+6. MODULE ARCHITECTURE STANDARD
+======================================================================
+
+6.1 Module Independence
+
+A module shall own its internal state. Another module shall not directly alter
+that state. Exchanges shall occur through typed interface messages or coupler-
+managed shared fields with documented ownership.
+
+6.2 Required Module Contract
+
+Every module implementation shall provide:
+
+- module_id
+- module_name
+- module_version
+- interface_version
+- fidelity_level
+- physical_basis
+- governing_equations
+- assumptions
+- validity_domain
+- owned_state_variables
+- required_inputs
+- produced_outputs
+- exported_fluxes
+- imported_fluxes
+- conserved_quantities
+- internal_sources_and_sinks
+- supported_spatial_representations
+- supported_temporal_representations
+- supported_spectral_representations, if applicable
+- initialization_method
+- advance_method
+- diagnostic_method
+- checkpoint_method
+- restore_method
+- finalize_method
+- uncertainty_outputs
+- correctness_tests
+- known_limitations
+- expected_resource_class
+
+6.3 Standard Module Lifecycle
+
+The framework shall call modules through the following conceptual lifecycle:
+
+1. register()
+2. configure(configuration)
+3. validate_configuration()
+4. initialize(initial_state, boundary_state)
+5. expose_capabilities()
+6. negotiate_interfaces()
+7. begin_step(time, dt)
+8. receive_inputs(interface_packets)
+9. compute_tendencies()
+10. advance_state(dt)
+11. emit_outputs()
+12. report_conservation()
+13. report_uncertainty()
+14. checkpoint(), when requested
+15. finalize()
+
+A particular programming language may use different function names, but it
+shall preserve the lifecycle semantics.
+
+6.4 Module Status
+
+Each module in a run shall have exactly one primary status:
+
+ACTIVE
+    The module evolves owned state and participates in coupling.
+
+PRESCRIBED
+    The module supplies data from a declared dataset or function but does not
+    evolve the corresponding state internally.
+
+DIAGNOSTIC
+    The module consumes data and computes outputs without changing the
+    evolution.
+
+INACTIVE
+    The module does not participate in the run.
+
+STUB
+    The module satisfies an interface for integration testing but has no claim
+    to physical fidelity. Stub outputs must be visibly marked.
+
+6.5 Module Dependency Rule
+
+Dependencies shall be declared explicitly. Circular dependencies must be
+resolved through a coupler or iterative coupling schedule. Hidden dependencies
+on global mutable state are prohibited.
+
+6.6 Replaceability Rule
+
+Two implementations may be substituted when they satisfy the same versioned
+interface contract. Any changed assumption, output meaning, resolution, or
+conservation behavior must be declared in the run manifest.
+
+======================================================================
+7. COMMON DATA MODEL
+======================================================================
+
+7.1 Standard Field Metadata
+
+Every exchanged field shall include:
+
+- field_id
+- physical_name
+- symbol
+- quantity_kind
+- units
+- data_type
+- dimensions
+- coordinate_system
+- spatial_support
+- time_stamp
+- time_interval
+- averaging_method
+- spectral_coordinate, if applicable
+- angular_coordinate, if applicable
+- phase_or_species, if applicable
+- sign_convention
+- missing_value_policy
+- uncertainty_representation
+- provenance
+- quality_flags
+
+7.2 Quantity Kinds
+
+The framework shall distinguish at least:
+
+- intensive state
+- extensive state
+- flux
+- source rate
+- sink rate
+- tendency
+- boundary value
+- diagnostic
+- probability distribution
+- uncertainty field
+- categorical state
+
+7.3 Units
+
+Internal interfaces shall use a declared coherent unit system, preferably SI.
+Conversions shall occur at controlled boundaries and be logged. Fields with
+incompatible dimensions shall fail validation rather than be silently coerced.
+
+7.4 Coordinates
+
+A field shall identify its coordinate system and location convention. Examples
+include:
+
+- global scalar
+- atmospheric column
+- pressure level
+- altitude level
+- latitude band
+- spherical surface grid
+- Cartesian test domain
+- irregular mesh
+- ocean depth layer
+- spectral wavelength grid
+- spectral wavenumber grid
+
+7.5 Temporal Semantics
+
+A field shall explicitly state whether it is:
+
+- instantaneous
+- average over interval
+- accumulation over interval
+- start-of-step state
+- midpoint state
+- end-of-step state
+- predictor state
+- corrected state
+
+7.6 Uncertainty Payload
+
+Where uncertainty exists, a field may carry:
+
+- standard uncertainty
+- covariance reference
+- lower and upper bounds
+- ensemble member coordinate
+- probability distribution identifier
+- quality classification
+- unresolved uncertainty flag
+
+The representation must declare its assumptions.
+
+======================================================================
+8. CONSERVED-QUANTITY INTERFACE
+======================================================================
+
+8.1 Conserved Quantities
+
+Where applicable, the framework shall track:
+
+- total energy
+- mass
+- water mass
+- momentum
+- angular momentum
+- electric charge
+- elemental inventories
+- chemical species inventories
+
+8.2 Flux Sign Convention
+
+Each interface shall define one positive direction. The recommended convention
+is positive into the receiving module. The sending module shall report the
+same transfer with equal magnitude and opposite sign in its own budget.
+
+8.3 Transfer Transaction
+
+A coupled transfer shall include:
+
+- transfer_id
+- sender_module
+- receiver_module
+- conserved_quantity
+- amount_or_flux
+- units
+- start_time
+- end_time
+- spatial_mapping
+- numerical_transfer_error
+- physical_source_or_sink_reference
+
+8.4 Conservation Reconciliation
+
+At the end of each coupling interval, the coupler shall compare exported and
+imported transfers. Any mismatch above tolerance shall be recorded as a
+coupling residual.
+
+8.5 No Double Counting
+
+A physical transfer may be represented exactly once in the coupled budget.
+For example, latent heat carried from surface evaporation into the atmosphere
+must not also be independently added as an atmospheric heat source without a
+matching surface removal.
+
+8.6 Stabilization Accounting
+
+Numerical filters, clipping, diffusion, limiters, and stabilization methods
+that alter a conserved quantity shall report that alteration as a separately
+identified numerical source or sink.
+
+======================================================================
+9. CORE MODULE INTERFACES
+======================================================================
+
+The interfaces below are architectural contracts. The first implementation
+may use only a subset of their optional fields.
+
+9.1 Solar Source Module
+
+Purpose:
+Represent energy and particle outputs originating from the Sun at a declared
+reference surface.
+
+Required inputs:
+- simulation time
+- requested spectral grid
+- reference distance
+- selected solar model or dataset
+
+Required outputs:
+- total solar irradiance
+- spectral solar irradiance
+- output reference distance
+- irradiance uncertainty
+- solar-state metadata
+
+Optional outputs:
+- angular distribution
+- polarization
+- solar energetic particle flux
+- magnetic-field descriptors
+
+Conservation role:
+Provides external energy entering the Earth-system boundary. It does not
+itself add absorbed energy to Earth modules.
+
+Minimum implementations:
+- constant measured spectrum
+- time-varying measured total irradiance with fixed normalized spectrum
+- time-varying measured spectrum
+- physically evolving solar source
+
+9.2 Orbital Geometry Module
+
+Purpose:
+Calculate Earth-Sun geometry and map solar-source output to location, time,
+and orientation.
+
+Required inputs:
+- simulation time
+- orbital parameters or ephemeris
+- Earth shape and rotation parameters
+- solar source reference distance
+
+Required outputs:
+- Earth-Sun distance
+- solar zenith geometry
+- day length
+- local incident-angle factor
+- top-of-atmosphere irradiance before atmospheric interaction
+
+Optional outputs:
+- tidal potential
+- lunar geometry
+- planetary perturbation diagnostics
+
+Correctness gates:
+- inverse-square distance behavior
+- spherical-area integration
+- symmetric limiting configurations
+- energy consistency between intercepted disk and distributed surface flux
+
+9.3 Spectral Radiation Module
+
+Purpose:
+Transport shortwave and longwave radiation through media and across module
+boundaries.
+
+Required inputs:
+- incident spectral radiance or irradiance
+- temperature fields
+- pressure fields
+- material composition
+- optical properties
+- layer or spatial geometry
+- surface spectral properties
+
+Required outputs:
+- upward and downward spectral flux
+- absorbed energy by layer or material
+- emitted energy by layer or material
+- reflected and transmitted energy
+- top-of-atmosphere flux
+- surface radiative flux
+- spectral heating rates
+
+Spectral contract:
+The module shall not assume an immutable spectral distribution. It must accept
+an externally supplied grid or negotiate a compatible spectral representation.
+
+Supported spectral representations may include:
+- broadband
+- fixed bands
+- correlated-k or equivalent reduced bands
+- adaptive bands
+- high-resolution spectrum
+- line-by-line spectrum
+
+Conservation role:
+Incident energy must equal absorbed plus reflected plus transmitted energy
+within numerical tolerance, accounting for internal thermal emission.
+
+Required uncertainty outputs:
+- spectral discretization error estimate
+- optical-property uncertainty contribution
+- solver residual
+
+9.4 Atmospheric State and Dynamics Module
+
+Purpose:
+Own atmospheric thermodynamic and dynamic state and evolve it under resolved
+and parameterized forces.
+
+Owned state may include:
+- pressure
+- density
+- temperature
+- velocity
+- composition
+- water species
+- atmospheric energy
+
+Required inputs:
+- radiative heating rates
+- surface momentum, sensible heat, latent heat, and mass fluxes
+- gravity
+- chemical tendencies
+- cloud and aerosol tendencies where separately owned
+- boundary conditions
+
+Required outputs:
+- updated atmospheric state
+- pressure and density profile
+- temperature profile
+- winds or reduced transport variables
+- advective fluxes
+- convective tendencies
+- atmospheric conservation budget
+
+Permitted fidelity path:
+- hydrostatic column
+- radiative-convective column
+- latitude-resolved reduced dynamics
+- two-dimensional dynamics
+- three-dimensional primitive equations
+- nonhydrostatic dynamics where justified
+
+9.5 Atmospheric Chemistry Module
+
+Purpose:
+Evolve chemical species and reaction pathways without owning bulk atmospheric
+motion.
+
+Required inputs:
+- species concentrations
+- temperature and pressure
+- actinic or spectral radiation
+- transport tendencies
+- emissions and deposition fluxes
+- aerosol surface information where applicable
+
+Required outputs:
+- species tendencies
+- chemical heating or cooling
+- photochemical products
+- deposition and transformation rates
+- elemental conservation report
+
+Interface rule:
+The chemistry module may request radiation at chemically relevant wavelengths,
+but it shall not silently redefine the radiation module's spectrum.
+
+9.6 Water Phase and Hydrology Module
+
+Purpose:
+Track water among vapor, liquid, solid, surface, soil, and transport stores.
+
+Owned state may include:
+- atmospheric water vapor
+- cloud liquid and ice, if not cloud-owned
+- rain and snow stores
+- soil moisture
+- surface water
+- groundwater
+
+Required inputs:
+- temperature and pressure
+- surface energy state
+- wind or exchange parameters
+- precipitation
+- evaporation and sublimation potentials
+- transport fields
+
+Required outputs:
+- water phase-change tendencies
+- evaporation and sublimation fluxes
+- runoff
+- infiltration
+- water-storage changes
+- latent-energy transfers
+- total water budget
+
+Conservation rule:
+Every phase transfer must conserve total water and exchange latent energy with
+the applicable receiving and sending modules.
+
+9.7 Cloud Module
+
+Purpose:
+Represent cloud state, formation, evolution, precipitation coupling, and
+radiative properties as a distinct variable set.
+
+Owned state may include:
+- cloud fraction
+- liquid water content
+- ice water content
+- droplet size distribution
+- crystal size distribution
+- cloud altitude and thickness
+- cloud optical depth
+- cloud lifetime variables
+
+Required inputs:
+- atmospheric temperature and pressure
+- water-vapor state
+- vertical motion or convective tendency
+- aerosol or nuclei information when implemented
+- spectral radiation
+- hydrological phase-transfer data
+
+Required outputs:
+- cloud-state tendencies
+- shortwave optical properties
+- longwave optical properties
+- phase-transition mass transfers
+- precipitation source terms
+- cloud radiative diagnostics
+- cloud uncertainty contribution
+
+Fidelity path:
+- no-cloud control
+- prescribed static cloud state
+- prescribed time-varying cloud state
+- reduced dynamic cloud equations
+- bulk microphysics
+- detailed microphysics
+- particle-resolved implementation
+
+Cloud reporting rule:
+Shortwave and longwave effects shall be reported separately before any net
+cloud radiative effect is reported.
+
+9.8 Aerosol Module
+
+Purpose:
+Track aerosol state and expose optical, chemical, and cloud-nucleation effects.
+
+Required inputs:
+- emissions or source terms
+- atmospheric transport state
+- humidity
+- temperature
+- chemical tendencies
+- deposition conditions
+
+Required outputs:
+- aerosol mass and number fields
+- size distribution
+- spectral optical properties
+- deposition fluxes
+- cloud-nuclei properties where implemented
+- aerosol conservation budget
+
+9.9 Land-Surface Module
+
+Purpose:
+Own land thermal, radiative, moisture, and material state.
+
+Required inputs:
+- incident shortwave and longwave radiation
+- atmospheric temperature, humidity, wind, and pressure
+- precipitation
+- hydrological state
+- land-cover and material properties
+
+Required outputs:
+- reflected shortwave spectrum
+- emitted longwave spectrum
+- sensible heat flux
+- latent heat flux
+- ground heat flux
+- surface momentum flux
+- surface temperature
+- surface-water transfers
+- land energy and water budgets
+
+9.10 Ocean Module
+
+Purpose:
+Own ocean thermal, mechanical, salinity, and chemical state at the selected
+fidelity.
+
+Required inputs:
+- surface radiative flux
+- sensible and latent heat exchange
+- freshwater flux
+- momentum flux
+- river input
+- ice exchange
+- gas or chemical exchange
+
+Required outputs:
+- sea-surface temperature
+- ocean heat uptake
+- stored heat
+- surface salinity
+- return heat, moisture, and momentum fluxes
+- circulation or reduced transport diagnostics
+- ocean energy, water, and salt budgets
+
+Fidelity path:
+- fixed boundary temperature
+- single thermal reservoir
+- mixed-layer and deep-ocean reservoirs
+- latitude-resolved transport
+- reduced circulation
+- three-dimensional dynamic ocean
+
+9.11 Cryosphere Module
+
+Purpose:
+Represent snow, sea ice, glaciers, ice sheets, and permafrost.
+
+Required inputs:
+- atmospheric and ocean temperature
+- precipitation
+- radiative flux
+- surface and ocean heat flux
+- mechanical stresses where implemented
+
+Required outputs:
+- ice and snow state
+- phase-change energy transfer
+- freshwater transfer
+- surface spectral properties
+- insulation effects
+- ice dynamics where implemented
+- cryosphere mass and energy budgets
+
+9.12 Biosphere Module
+
+Purpose:
+Represent biological processes that exchange energy, water, gases, nutrients,
+and surface properties with other modules.
+
+Required inputs:
+- radiation
+- temperature
+- water availability
+- atmospheric and soil composition
+- nutrient state
+- land or ocean habitat state
+
+Required outputs:
+- gas exchange
+- transpiration
+- biological heat or energy terms where significant
+- biomass and carbon changes
+- surface-property changes
+- biological aerosol or chemical source terms
+
+9.13 Biogeochemistry Module
+
+Purpose:
+Track elemental and chemical reservoirs and transfers across atmosphere,
+ocean, land, biosphere, and solid Earth.
+
+Required outputs include separate budgets for each modeled conserved element.
+
+9.14 Solid-Earth Module
+
+Purpose:
+Represent geothermal, volcanic, tectonic, weathering, and long-term boundary
+changes at appropriate timescales.
+
+The module may operate as prescribed history, event source, reduced dynamic
+model, or higher-fidelity physical model.
+
+9.15 Gravity Module
+
+Purpose:
+Provide gravitational acceleration, potential, and tidal terms required by
+other modules.
+
+Fidelity path:
+- constant-g approximation
+- altitude- and latitude-dependent Newtonian gravity
+- spatial gravitational field
+- relativistic correction where a defined claim requires it
+
+9.16 Particle Interaction Module
+
+Purpose:
+Represent charged-particle, ionization, collision, cascade, nuclear, isotope,
+or particle-induced chemical processes when required by a falsifiable claim.
+
+The module shall remain inactive unless a run identifies the mechanism, input
+particle environment, target observables, and failure criterion.
+
+9.17 Quantum and Molecular Properties Module
+
+Purpose:
+Supply quantum-derived or externally calculated atomic and molecular
+properties, including transition frequencies, line strengths, partition
+functions, scattering properties, and reaction information.
+
+The initial framework may use measured or curated molecular properties.
+Explicit quantum calculation may replace those inputs through the same
+interface when scientifically justified.
+
+9.18 Human Activity Module
+
+Purpose:
+Translate documented human activities into explicit physical changes, such as
+species emissions, aerosol sources, land-state changes, water transfers, or
+energy fluxes.
+
+The module shall not directly alter diagnostic climate outputs. It shall act
+through ordinary physical interfaces.
+
+======================================================================
+10. SPECTRAL INTERFACE STANDARD
+======================================================================
+
+10.1 General Representation
+
+Spectral quantities shall be expressible as:
+
+X = X(s, x, t, d, p)
+
+where:
+- s is wavelength, frequency, wavenumber, energy, or band identifier;
+- x is position;
+- t is time;
+- d is direction or angular coordinate when required;
+- p represents polarization or other spectral-state metadata when required.
+
+10.2 Spectral Grid Descriptor
+
+Each spectral packet shall declare:
+
+- spectral_coordinate_type
+- coordinate_units
+- bin_edges or sample_coordinates
+- bin_widths
+- integration_convention
+- spectral_density_units
+- ordering
+- interpolation_policy
+- extrapolation_policy
+- resolution_identifier
+
+10.3 Spectral Regridding
+
+Spectral regridding shall conserve integrated energy to a declared tolerance.
+The regridding method and residual shall be logged.
+
+10.4 Dynamic Spectra
+
+The framework shall permit spectra to vary with:
+
+- time
+- solar state
+- temperature
+- pressure
+- molecular composition
+- cloud state
+- aerosol state
+- surface state
+- viewing or propagation direction
+
+10.5 Spectral Fidelity Comparison
+
+A lower-fidelity spectral module shall be testable against a higher-fidelity
+implementation over the lower-fidelity module's declared validity domain.
+
+======================================================================
+11. TEMPORAL COUPLING AND EMERGENT TIMESCALES
+======================================================================
+
+11.1 Time Is a Model Coordinate, Not a Fixed Climate Index
+
+No single time index shall be assumed to characterize the entire Earth
+system. Each module may have characteristic timescales derived from its
+storage, fluxes, feedbacks, and governing equations.
+
+11.2 Multirate Coupling
+
+Modules may advance at different time steps. The coupler shall declare:
+
+- master time coordinate
+- module substeps
+- exchange frequency
+- interpolation method
+- accumulation method
+- synchronization points
+- splitting order
+- coupling convergence criterion
+
+11.3 Timescale Experiments
+
+The framework shall support:
+
+- step response
+- impulse response
+- pulse response
+- periodic forcing
+- relaxation analysis
+- eigenmode analysis
+- lag and cross-correlation analysis
+- transfer-function analysis
+- frequency-dependent gain and phase
+
+11.4 Historical Time Inputs
+
+Historical datasets may be supplied at native or transformed intervals. Any
+resampling shall declare aggregation, interpolation, uncertainty, and lost
+frequency content.
+
+======================================================================
+12. SPATIAL REPRESENTATION AND REGRIDDING
+======================================================================
+
+12.1 Supported Spatial Abstractions
+
+The architecture shall permit:
+
+- zero-dimensional global mean
+- one-dimensional vertical column
+- one-dimensional latitude bands
+- two-dimensional surface grids
+- three-dimensional atmosphere or ocean grids
+- irregular meshes
+- regional nested domains
+
+12.2 Spatial Exchange
+
+Each field exchange shall identify whether a value is point-based, cell-
+averaged, face-centered, layer-averaged, or integrated over a domain.
+
+12.3 Conservative Regridding
+
+Regridding of extensive quantities and fluxes shall conserve the integrated
+quantity to a declared tolerance. Intensive quantities shall use methods
+appropriate to their physical meaning.
+
+12.4 Resolution Claims
+
+No result shall claim spatial detail finer than supported by the active
+physics, input data, numerical grid, and validation observations.
+
+======================================================================
+13. UNCERTAINTY INTERFACE
+======================================================================
+
+13.1 Required Uncertainty Categories
+
+Modules shall report applicable contributions from:
+
+- measurement uncertainty
+- initial-condition uncertainty
+- boundary-condition uncertainty
+- parameter uncertainty
+- constitutive-property uncertainty
+- numerical discretization error
+- iterative solver error
+- structural uncertainty
+- missing-physics uncertainty
+- stochastic variability
+- spatial-resolution uncertainty
+- temporal-resolution uncertainty
+- spectral-resolution uncertainty
+
+13.2 Separation of Error Types
+
+Numerical uncertainty, model uncertainty, and predictive uncertainty shall not
+be merged without retaining their separate components.
+
+13.3 Module Uncertainty Contract
+
+A module shall identify:
+
+- uncertain inputs
+- uncertain parameters
+- output quantities affected
+- propagation method
+- distributional assumptions
+- correlations known or assumed
+- unresolved contributions
+
+13.4 Accepted Propagation Methods
+
+Depending on assumptions and cost, methods may include:
+
+- analytic propagation
+- local sensitivity derivatives
+- parameter sweeps
+- Monte Carlo ensembles
+- bounded intervals
+- interval arithmetic
+- Bayesian propagation
+- model-form ensembles
+- worst-case bounds
+
+No method shall be used without documenting its assumptions.
+
+======================================================================
+14. CLAIM AND EXPERIMENT INTERFACES
+======================================================================
+
+14.1 Claim Record
+
+Every substantive scientific claim shall contain:
+
+- claim_id
+- claim_statement
+- mechanism
+- physical_basis
+- governing_equations
+- assumptions
+- validity_domain
+- active_modules
+- inactive_modules
+- prescribed_quantities
+- independent_variables
+- dependent_variables
+- expected_sign
+- expected_magnitude_or_bound
+- expected_spatial_behavior
+- expected_temporal_behavior
+- expected_spectral_behavior
+- calibration_data
+- validation_data
+- withheld_data
+- uncertainty_method
+- control_experiment
+- null_hypothesis
+- alternative_hypotheses
+- numerical_correctness_gates
+- failure_criterion
+- support_criterion
+- reproduction_configuration
+- result
+- status
+- limitations
+
+14.2 Experiment Record
+
+Each experiment shall contain:
+
+- experiment_id
+- related_claim_ids
+- run_ids
+- purpose
+- controlled_variables
+- manipulated_variables
+- measured_outputs
+- predeclared analysis
+- expected result
+- failure thresholds
+- stopping criteria
+- deviations from plan
+- final outcome
+
+14.3 Claim Status
+
+Allowed statuses are:
+
+- PROPOSED
+- AWAITING_IMPLEMENTATION
+- TESTING
+- SUPPORTED_WITHIN_SCOPE
+- QUALIFIED
+- REFUTED
+- MATHEMATICALLY_UNRESOLVED
+- NUMERICALLY_UNRESOLVED
+- EMPIRICALLY_UNRESOLVED
+- UNABLE_TO_DISTINGUISH
+- SUPERSEDED
+
+======================================================================
+15. FAILURE CRITERIA AND CORRECTNESS GATES
+======================================================================
+
+15.1 Mathematical Failure
+
+- dimensional inconsistency
+- ill-posed equations
+- undefined state
+- unphysical singularity
+- incorrect limiting behavior
+- required symmetry violation
+
+15.2 Numerical Failure
+
+- lack of time-step convergence
+- lack of spatial convergence
+- lack of spectral convergence
+- domain-size artifact
+- boundary contamination
+- solver-dependent conclusion
+- excess conservation residual
+- impossible state created by numerics
+- restart or reproducibility failure
+
+15.3 Interface and Coupling Failure
+
+- unmatched transfer
+- incompatible units
+- inconsistent sign convention
+- double counting
+- missing reciprocal exchange
+- order-dependent result beyond tolerance
+- interpolation or aggregation error sufficient to change a claim
+
+15.4 Physical-Process Failure
+
+- wrong response sign
+- wrong equilibrium behavior
+- wrong temporal response
+- wrong spatial response
+- wrong spectral response
+- correct aggregate result from an incorrect budget
+
+15.5 Empirical Failure
+
+- withheld observation outside the declared predictive interval
+- persistent directional bias beyond the declared tolerance
+- inability to reproduce an independently measured process
+- physically implausible parameter requirements
+- failure of cross-observable consistency
+
+15.6 Identifiability Failure
+
+If two or more mechanisms cannot be distinguished within the available
+observations and uncertainty, the result shall be UNABLE_TO_DISTINGUISH.
+
+15.7 Minimum Correctness Gates
+
+Each applicable module shall pass:
+
+- dimensional analysis
+- analytic or manufactured-solution test
+- limiting-case test
+- conservation test
+- time-step convergence
+- spatial convergence, when spatial
+- spectral convergence, when spectral
+- boundary sensitivity
+- independent implementation or solver comparison where practical
+- null or disabled-coupling control
+
+======================================================================
+16. RUN CONFIGURATION MANIFEST
+======================================================================
+
+Every run shall generate a machine-readable and human-readable manifest.
+
+Minimum fields:
+
+- framework_version
+- source_revision
+- run_id
+- execution_time
+- claim_ids
+- experiment_id
+- active_modules
+- prescribed_modules
+- diagnostic_modules
+- inactive_modules
+- implementation and fidelity for each module
+- equations selected
+- parameter sources
+- initial conditions
+- boundary conditions
+- input datasets and versions
+- spatial representation and resolution
+- temporal representation and resolution
+- spectral representation and resolution
+- coupling schedule
+- solver and tolerances
+- random seeds
+- computing environment
+- conservation tolerances
+- uncertainty methods
+- support and failure criteria
+
+Example conceptual manifest:
+
+run_id: MVP-ENERGY-001
+framework_version: 0.2
+purpose: Test variable-spectrum radiative energy closure
+modules:
+  solar:
+    status: ACTIVE
+    implementation: measured_time_variable_spectrum
+  orbit:
+    status: ACTIVE
+    implementation: spherical_geometry
+  radiation:
+    status: ACTIVE
+    implementation: configurable_banded
+  atmosphere:
+    status: ACTIVE
+    implementation: hydrostatic_column
+  clouds:
+    status: PRESCRIBED
+    implementation: time_variable_optical_state
+  ocean:
+    status: ACTIVE
+    implementation: two_reservoir
+  particle_physics:
+    status: INACTIVE
+spectral_resolution: user_defined_bands
+resource_class: engineering_workstation
+
+======================================================================
+17. COMPUTATIONAL ACCESSIBILITY
+======================================================================
+
+17.1 Workstation Requirement
+
+The baseline correctness suite and initial executable kernel shall be runnable
+on a generally available engineering workstation.
+
+17.2 Resource Classes
+
+- LAPTOP
+- ENGINEERING_WORKSTATION
+- MULTICORE_SERVER
+- DISTRIBUTED_ENVIRONMENT
+- SPECIALIZED_HIGH_PERFORMANCE_ENVIRONMENT
+
+17.3 Fidelity Versus Resolution
+
+The framework shall treat the following as separate configuration dimensions:
+
+- architectural completeness
+- physical fidelity
+- spatial resolution
+- temporal resolution
+- spectral resolution
+- ensemble size
+
+17.4 Computational-Cost Rule
+
+A higher-cost implementation shall be used only when required by the tested
+claim, when a lower-fidelity validity boundary is exceeded, or when a measured
+increase in predictive or explanatory value justifies it.
+
+17.5 Selective Refinement
+
+The architecture should support selective refinement of only the module,
+region, interval, or spectral range required by an experiment.
+
+======================================================================
+18. INITIAL EXECUTABLE KERNEL
+======================================================================
+
+The architectural carve-outs above are complete in scope, but the first
+executable kernel shall remain intentionally limited.
+
+Candidate active modules:
+
+1. Variable solar source
+2. Configurable solar spectrum
+3. Earth-Sun orbital and spherical geometry
+4. Multilayer atmospheric column
+5. Configurable spectral radiation
+6. Hydrostatic atmospheric structure
+7. Dry thermodynamics
+8. Water-vapor state
+9. Prescribed variable clouds
+10. Surface energy storage
+11. Reduced ocean heat storage
+12. Historical data adapter
+13. Conservation auditor
+14. Uncertainty reporter
+15. Claim and experiment registry
+
+Initial excluded claims:
+
+- detailed regional precipitation prediction
+- storm forecasting
+- complete dynamic cloud emergence
+- full three-dimensional atmospheric circulation
+- full three-dimensional ocean circulation
+- explicit quantum calculation of all molecular properties
+
+Exclusion from the initial kernel does not remove the corresponding
+architectural interface.
+
+======================================================================
+19. INITIAL VALIDATION LADDER
+======================================================================
+
+Stage 0: Unit, Coordinate, and Accounting Kernel
+
+- units
+- constants
+- coordinate conventions
+- transfer transactions
+- conservation accounting
+- deterministic restart
+
+Stage 1: Airless Radiating Body
+
+- solar geometry
+- absorbed radiation
+- thermal emission
+- analytic equilibrium
+- transient convergence
+
+Stage 2: Atmospheric Radiation
+
+- transparent atmosphere
+- absorbing atmosphere
+- emitting atmosphere
+- variable spectrum
+- multilayer energy closure
+
+Stage 3: Atmospheric Thermodynamics
+
+- hydrostatic balance
+- dry convection
+- water vapor
+- phase-change energy
+- moist stability
+
+Stage 4: Clouds
+
+- no-cloud control
+- prescribed cloud state
+- variable cloud spectral state
+- separate shortwave and longwave effects
+
+Stage 5: Thermal Storage
+
+- surface heat capacity
+- mixed-layer ocean
+- deeper reservoir
+- step, pulse, and periodic forcing
+- measured response timescales
+
+Stage 6: Historical Replay
+
+- declared historical inputs
+- withheld output records
+- frozen equations
+- energy-budget reconstruction
+
+Stage 7: Hindcast and Prediction
+
+- declared information cutoff
+- frozen model and parameters
+- registered prediction
+- later comparison
+- claim-level result
+
+======================================================================
+20. DEVELOPMENT METHOD
+======================================================================
+
+For each new module, equation, or coupling:
+
+1. Define the physical claim.
+2. Identify the governing physics.
+3. Derive or document the approximation.
+4. Define the validity domain.
+5. Define the module interface.
+6. Implement the simplest valid form.
+7. Verify units and limiting cases.
+8. Verify conservation.
+9. Verify numerical convergence.
+10. Compare with an independent process-level observation.
+11. Couple it to the framework.
+12. Re-run conservation and convergence tests.
+13. Run a null or disabled-coupling control.
+14. Quantify uncertainty and sensitivity.
+15. Record the claim status.
+16. Preserve negative and qualified results.
+
+======================================================================
+21. REPORTING STANDARD
+======================================================================
+
+Every report shall distinguish:
+
+- assumed
+- measured
+- derived
+- parameterized
+- calibrated
+- prescribed
+- reproduced
+- predicted
+- falsified
+- unresolved
+
+Each reported result shall identify:
+
+- claim and experiment IDs
+- run configuration
+- active and inactive physics
+- passed and failed correctness gates
+- conservation residuals
+- uncertainty budget
+- applicable validity domain
+- alternative explanations not eliminated
+- result status
+
+Historical reconstruction shall not be labeled prediction. Calibration data
+shall not be labeled independent validation. Agreement without correct process
+budgets shall not be labeled physical validation.
+
+======================================================================
+22. OPEN SCIENCE AND REPRODUCIBILITY
+======================================================================
+
+The project should maintain:
+
+- version-controlled source code
+- version-controlled equations and documents
+- machine-readable configuration files
+- reproducible environments
+- dataset provenance and checksums
+- automated unit and conservation tests
+- claim registry
+- experiment registry
+- failure log
+- negative-results archive
+- model cards for releases
+
+A result is not fully reproducible without its code revision, run manifest,
+authorized input data, parameter provenance, and analysis method.
+
+======================================================================
+23. EXPLICIT NON-ASSUMPTIONS
+======================================================================
+
+The project does not begin by assuming that:
+
+- any one mechanism explains observed climate change;
+- existing explanations are either correct or incorrect;
+- solar variability dominates Earth-system behavior;
+- atmospheric carbon dioxide dominates every timescale or observable;
+- water vapor is exclusively a forcing or exclusively a feedback;
+- clouds have one fixed net effect;
+- particle physics is necessary for ordinary climate behavior;
+- explicit quantum simulation is required at every scale;
+- historical correlation establishes causation;
+- a successful curve fit validates a mechanism;
+- a failed mechanism invalidates all related physics;
+- maximum resolution implies maximum scientific validity;
+- greater complexity necessarily produces a better model.
+
+These are questions to be tested through explicit claims and experiments.
+
+======================================================================
+24. CHARTER STATEMENT
+======================================================================
+
+MFESPF shall construct a computational representation of the Earth system
+from explicit physical laws, measured properties, and documented
+approximations.
+
+The architecture shall preserve a place for every physical domain that may
+become necessary, including solar physics, orbital mechanics, gravity,
+radiation, atmospheric dynamics, chemistry, water, clouds, aerosols, oceans,
+ice, land, biology, solid-Earth processes, particle physics, quantum physics,
+external astrophysical influences, and human activity.
+
+No executable configuration is required to activate every domain. Each run
+shall state exactly which physics is active, prescribed, diagnostic, inactive,
+or represented by a stub.
+
+The framework shall support changing solar and terrestrial spectra, modular
+fidelity, multiple spatial and temporal representations, historical replay,
+controlled intervention, uncertainty propagation, and out-of-sample
+prediction.
+
+The framework shall be designed so that scientifically useful configurations
+and the baseline correctness suite can run without a supercomputer. Higher-
+fidelity modules may be substituted when justified by a defined claim.
+
+Observational records shall not dictate governing equations. They may provide
+measured properties, initial conditions, boundary conditions, calibration
+where explicitly declared, and independent opportunities to falsify the
+model's claims.
+
+Every scientific conclusion shall be constrained by conservation laws,
+numerical correctness, process-level validation, uncertainty, and a
+predefined failure criterion.
+
+The final authority shall not be the model, its author, an institution, or a
+consensus position. The final authority shall be the degree to which explicit
+physical predictions survive reproducible testing against reality.
+
+END OF DOCUMENT

@@ -1,0 +1,27 @@
+group: CLD
+title: Cloud interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: CLD-001
+  text: Cloud state SHALL be a separate variable set or explicitly prescribed module output, not permanently
+    hidden in one global albedo parameter.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CLD-002
+  text: The cloud interface SHALL expose liquid, ice, fraction, altitude or vertical support, and optical
+    properties at the active fidelity.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

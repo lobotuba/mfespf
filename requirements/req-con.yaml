@@ -1,0 +1,111 @@
+group: CON
+title: Conservation and transfer requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: CON-001
+  text: The framework SHALL support accounting for energy, mass, water, momentum, angular momentum, electric
+    charge, elemental inventories, and chemical species as applicable to active physics.
+  strength: mandatory
+  section: CONSERVATION AND TRANSFER REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CON-002
+  text: Every intermodule physical transfer SHALL have a transfer_id, sender, receiver, quantity, units,
+    direction, time interval, and spatial mapping.
+  strength: mandatory
+  section: CONSERVATION AND TRANSFER REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CON-003
+  text: The standard transfer sign convention SHALL be positive into the receiving module unless a versioned
+    interface explicitly defines otherwise.
+  strength: mandatory
+  section: CONSERVATION AND TRANSFER REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CON-004
+  text: Sender export and receiver import SHALL reconcile within a declared numerical tolerance.
+  strength: mandatory
+  section: CONSERVATION AND TRANSFER REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CON-005
+  text: Coupling residuals SHALL be reported separately from internal module residuals.
+  strength: mandatory
+  section: CONSERVATION AND TRANSFER REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CON-006
+  text: A physical transfer SHALL appear exactly once in the coupled total budget.
+  strength: mandatory
+  section: CONSERVATION AND TRANSFER REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CON-007
+  text: Phase changes SHALL reconcile transferred matter and latent energy.
+  strength: mandatory
+  section: CONSERVATION AND TRANSFER REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CON-008
+  text: Numerical clipping, filtering, diffusion, stabilization, or limiting that changes a conserved
+    quantity SHALL be reported as a numerical source or sink.
+  strength: mandatory
+  section: CONSERVATION AND TRANSFER REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CON-009
+  text: Each run SHALL publish storage change, imports, exports, physical sources, physical sinks, numerical
+    sources, numerical sinks, and residuals for applicable conserved quantities.
+  strength: mandatory
+  section: CONSERVATION AND TRANSFER REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CON-010
+  text: A run SHALL be invalid for scientific inference if an unexplained residual is large enough to
+    account for the claimed effect.
+  strength: mandatory
+  section: CONSERVATION AND TRANSFER REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

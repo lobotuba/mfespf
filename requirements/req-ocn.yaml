@@ -1,0 +1,26 @@
+group: OCN
+title: Ocean interface
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: OCN-001
+  text: The ocean interface SHALL accept surface heat, freshwater, momentum, ice, and chemical transfers
+    as implemented.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: OCN-002
+  text: The ocean interface SHALL provide surface state, stored heat, and conservation budgets.
+  strength: mandatory
+  section: CORE PHYSICAL INTERFACE REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

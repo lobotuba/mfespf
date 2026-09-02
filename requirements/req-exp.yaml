@@ -1,0 +1,26 @@
+group: EXP
+title: Experiment requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: EXP-001
+  text: Every experiment SHALL declare controls, manipulated variables, measured outputs, expected result,
+    failure threshold, and analysis before final evaluation.
+  strength: mandatory
+  section: CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: EXP-002
+  text: Deviations from the declared experiment SHALL be recorded.
+  strength: mandatory
+  section: CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''

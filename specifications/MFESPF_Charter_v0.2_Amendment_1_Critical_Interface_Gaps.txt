@@ -1,0 +1,460 @@
+MFESPF PROJECT CHARTER AND MODELING PHILOSOPHY
+VERSION 0.2, AMENDMENT 1
+CRITICAL INTERFACE-GAP ADDITIONS
+
+Document ID: MFESPF-CHARTER-002-A1
+Applies To: MFESPF-CHARTER-002, Version 0.2 Draft
+Author: Robert Voss
+Status: Normative Amendment Draft
+
+PURPOSE
+
+This amendment adds eight required architectural controls to Version 0.2:
+state ownership, causality, hypothesis injection, information provenance,
+computational cost, interface versioning, equation registration, and run audit
+lineage. These provisions are normative and shall be treated as part of the
+Version 0.2 charter wherever the original text is silent or ambiguous.
+
+======================================================================
+A1. STATE OWNERSHIP REGISTRY
+======================================================================
+
+A1.1 Principle
+
+Every prognostic state variable shall have exactly one authoritative owner in
+an executable configuration. Other modules may read the state or submit
+proposed tendencies and transfers, but they shall not independently overwrite
+it.
+
+A1.2 Required Registry Fields
+
+Each state entry shall include:
+
+- state_id
+- physical_name
+- symbol
+- owner_module_id
+- authorized_readers
+- authorized_tendency_providers
+- authorized_boundary_providers
+- update_authority
+- units
+- dimensions
+- coordinate support
+- phase or species
+- conservation participation
+- initialization source
+- checkpoint requirement
+- uncertainty representation
+- validity flags
+
+A1.3 Shared Physical Quantities
+
+When several modules act on one state, the owner shall aggregate labeled
+contributions. For example, atmospheric water vapor may receive tendencies
+from transport, phase change, surface evaporation, chemistry, and numerical
+stabilization, but only the atmospheric-state owner shall commit the updated
+state.
+
+A1.4 Derived Views
+
+A module may publish a transformed or aggregated view of another module's
+state only if it preserves provenance and does not become a second authority.
+
+A1.5 Conflict Rule
+
+Configuration validation shall fail if:
+
+- two active modules claim ownership of the same state_id;
+- an active prognostic state has no owner;
+- a module writes a state it does not own;
+- unit, coordinate, phase, or timing semantics are incompatible.
+
+======================================================================
+A2. CAUSALITY AND DEPENDENCY GRAPH
+======================================================================
+
+A2.1 Principle
+
+Every executable configuration shall generate a directed, versioned graph of
+module and variable dependencies. The graph documents implemented information
+and physical influence paths. It does not by itself prove real-world
+causation.
+
+A2.2 Required Edge Types
+
+- PHYSICAL_TRANSFER
+- STATE_DEPENDENCY
+- PARAMETER_DEPENDENCY
+- BOUNDARY_DEPENDENCY
+- INITIAL_CONDITION_DEPENDENCY
+- DIAGNOSTIC_DEPENDENCY
+- CALIBRATION_DEPENDENCY
+- NUMERICAL_DEPENDENCY
+- UNCERTAINTY_DEPENDENCY
+
+A2.3 Required Edge Metadata
+
+- source node
+- destination node
+- exchanged field or parameter
+- interface version
+- direction
+- units
+- time semantics
+- spatial semantics
+- spectral semantics, when applicable
+- coupling frequency
+- physical or numerical classification
+- governing equation references
+- uncertainty transfer rule
+
+A2.4 Cycle Handling
+
+Feedback loops shall be explicit. Each cycle shall identify its coupling
+scheme, iteration order, convergence criterion, and residual. Hidden cycles
+through global mutable state are prohibited.
+
+A2.5 Intervention Support
+
+The graph shall permit a dependency edge or mechanism to be disabled,
+replaced, clamped, or perturbed for controlled experiments without silently
+changing unrelated edges.
+
+======================================================================
+A3. HYPOTHESIS INJECTION INTERFACE
+======================================================================
+
+A3.1 Principle
+
+A proposed mechanism shall enter the framework through a standard hypothesis
+interface rather than by modifying unrelated module internals. Conventional
+and unconventional hypotheses shall be held to the same conservation,
+correctness, uncertainty, and falsifiability requirements.
+
+A3.2 Required Hypothesis Declaration
+
+- hypothesis_id
+- claim_ids
+- mechanism statement
+- physical basis
+- governing equations
+- equation IDs
+- affected modules and interfaces
+- required input variables
+- produced tendencies, fluxes, or state variables
+- expected sign
+- expected magnitude or bound
+- expected spatial signature
+- expected temporal signature
+- expected spectral signature
+- validity domain
+- conserved-quantity effects
+- free parameters and provenance
+- competing mechanisms
+- control configuration
+- null configuration
+- failure criteria
+- uncertainty method
+- expected computational cost
+
+A3.3 Permitted Integration Forms
+
+A hypothesis may be implemented as:
+
+- a replaceable module implementation;
+- an additional labeled tendency provider;
+- a boundary-condition provider;
+- a source or sink provider;
+- a constitutive-law replacement;
+- a diagnostic-only mechanism test.
+
+A3.4 Prohibited Behavior
+
+A hypothesis implementation shall not:
+
+- directly modify unowned state;
+- bypass conserved-transfer accounting;
+- read withheld validation or prediction data during evolution;
+- alter acceptance thresholds after seeing final validation results without
+  creating a new claim version;
+- conceal fitted corrections inside an unlabeled physical term.
+
+======================================================================
+A4. INFORMATION PROVENANCE AND DATA-SEPARATION CONTROL
+======================================================================
+
+A4.1 Principle
+
+The framework shall track not only physical transfers but also evidentiary
+information flow. This control exists to prevent calibration, validation, and
+prediction contamination.
+
+A4.2 Dataset Roles
+
+Every dataset use shall be assigned one or more explicitly compatible roles:
+
+- FUNDAMENTAL_OR_REFERENCE_CONSTANT
+- MATERIAL_PROPERTY
+- INITIAL_CONDITION
+- BOUNDARY_CONDITION
+- PARAMETER_CALIBRATION
+- PROCESS_VALIDATION
+- HISTORICAL_RECONSTRUCTION_EVALUATION
+- WITHHELD_HINDCAST_EVALUATION
+- OUT_OF_SAMPLE_PREDICTION_EVALUATION
+- DIAGNOSTIC_ONLY
+
+A4.3 Required Provenance Record
+
+- dataset_id and version
+- source and acquisition record
+- checksum
+- variables and units used
+- temporal and spatial coverage actually consumed
+- preprocessing operations
+- uncertainty and quality flags
+- assigned role
+- modules, equations, and parameters influenced
+- first run or revision in which used
+- responsible claim and experiment IDs
+
+A4.4 Contamination Rule
+
+Data used to select equations, parameters, thresholds, preprocessing choices,
+or configurations shall not later be described as untouched validation or
+out-of-sample evidence for that same claim.
+
+A4.5 Freeze Record
+
+A hindcast or out-of-sample prediction shall record the information cutoff,
+model freeze identifier, parameter freeze identifier, and cryptographic hashes
+of the relevant configuration and source revision.
+
+A4.6 Data Independence Report
+
+Every validation report shall state what information was available during:
+
+- mechanism selection;
+- equation selection;
+- parameter determination;
+- configuration selection;
+- failure-threshold selection;
+- final evaluation.
+
+======================================================================
+A5. COMPUTATIONAL COMPLEXITY AND RESOURCE BUDGET
+======================================================================
+
+A5.1 Principle
+
+Architectural completeness shall not require maximum simultaneous fidelity.
+Every module shall declare computational characteristics so workstation-scale
+configurations can be designed deliberately.
+
+A5.2 Required Cost Declaration
+
+- asymptotic time complexity in principal dimensions
+- asymptotic memory complexity
+- principal scaling variables
+- expected wall-clock work units or benchmark record
+- peak memory estimate
+- temporary-storage estimate
+- persistent-output estimate
+- parallelism model
+- accelerator requirement, if any
+- supported resource classes
+- lower-fidelity alternatives
+- checkpoint cost
+- uncertainty or ensemble cost multiplier
+
+A5.3 Resource Classes
+
+- LAPTOP
+- ENGINEERING_WORKSTATION
+- MULTICORE_SERVER
+- DISTRIBUTED_ENVIRONMENT
+- SPECIALIZED_HIGH_PERFORMANCE_ENVIRONMENT
+
+A5.4 Configuration Budget
+
+Each run manifest shall declare maximum permitted memory, processor use,
+storage, runtime work units, spectral bins, spatial cells, ensemble members,
+and output volume. Configuration validation shall warn or fail when estimated
+requirements exceed the declared resource class.
+
+A5.5 Scientific Value Rule
+
+Higher computational cost shall be justified by at least one of:
+
+- a claim requiring the added fidelity;
+- a demonstrated failure of the lower-fidelity validity domain;
+- a correctness comparison;
+- a measurable reduction in relevant uncertainty;
+- a measurable increase in withheld predictive performance;
+- resolution of previously indistinguishable mechanisms.
+
+======================================================================
+A6. VERSIONED PHYSICS INTERFACES
+======================================================================
+
+A6.1 Principle
+
+All module, field, transfer, spectral, uncertainty, and lifecycle contracts
+shall have explicit semantic versions.
+
+A6.2 Version Form
+
+Interfaces shall use MAJOR.MINOR.PATCH:
+
+- MAJOR: incompatible meaning or schema change;
+- MINOR: backward-compatible addition;
+- PATCH: backward-compatible correction that does not change physical meaning.
+
+A6.3 Compatibility Declaration
+
+Each module shall declare:
+
+- interfaces provided;
+- interfaces required;
+- supported version ranges;
+- optional capabilities;
+- deprecated fields;
+- migration adapters, if available.
+
+A6.4 Physical Meaning Protection
+
+A field name shall not retain its interface identity if its physical meaning,
+units, sign convention, averaging interval, spatial support, spectral density
+basis, or ownership changes incompatibly.
+
+A6.5 Negotiation Failure
+
+A run shall fail before initialization when active modules cannot negotiate
+compatible mandatory interface versions.
+
+======================================================================
+A7. EQUATION AND APPROXIMATION REGISTRY
+======================================================================
+
+A7.1 Principle
+
+Every governing equation, constitutive relationship, closure, numerical
+operator, and correction used in a scientific run shall have a registered,
+versioned identity.
+
+A7.2 Required Equation Record
+
+- equation_id
+- equation_version
+- name
+- mathematical form
+- owning or using modules
+- equation category
+- physical derivation or basis
+- source or provenance
+- variables and units
+- assumptions
+- approximations
+- parameter list and classification
+- coordinate formulation
+- boundary and initial requirements
+- validity domain
+- known limiting cases
+- conserved quantities
+- symmetries
+- numerical discretizations permitted
+- correctness tests
+- known failure modes
+- superseded equations
+
+A7.3 Equation Categories
+
+- FUNDAMENTAL_LAW
+- CONSTITUTIVE_RELATION
+- REDUCED_PHYSICAL_EQUATION
+- CLOSURE_OR_PARAMETERIZATION
+- NUMERICAL_OPERATOR
+- EMPIRICAL_RELATION
+- CALIBRATED_CORRECTION
+- DIAGNOSTIC_IDENTITY
+
+A7.4 Run Binding
+
+The run manifest shall bind each active module implementation to the exact
+equation and discretization versions used.
+
+A7.5 Change Control
+
+Changing an equation, validity domain, parameter classification, or numerical
+operator shall create a new registry version and shall be visible in run
+lineage.
+
+======================================================================
+A8. RUN LINEAGE AND AUDIT TRAIL
+======================================================================
+
+A8.1 Principle
+
+Every scientific run shall be traceable to its parent configuration, source,
+equations, parameters, datasets, environment, and declared scientific intent.
+
+A8.2 Required Lineage Fields
+
+- run_id
+- parent_run_ids
+- experiment_id
+- claim_ids
+- source-code revision
+- framework version
+- interface versions
+- equation versions
+- module implementation versions
+- dataset versions and checksums
+- parameter-set version
+- configuration checksum
+- environment and dependency record
+- random seeds
+- operator or user who initiated the run
+- reason for change
+- timestamp
+- output checksums
+- pass, fail, or invalid status
+
+A8.3 Difference Record
+
+For every run with a parent, the framework shall produce a machine-readable
+difference report covering:
+
+- modules added, removed, or replaced;
+- equations changed;
+- parameters changed;
+- data changed;
+- spatial, temporal, or spectral resolution changed;
+- interface versions changed;
+- thresholds or test criteria changed;
+- software or environment changed.
+
+A8.4 Immutable Evidence
+
+Original outputs, manifests, logs, and claim evaluations used in a published
+or retained conclusion shall not be overwritten. Corrections shall create new
+versions linked to the superseded record.
+
+A8.5 Invalid Run Handling
+
+A run failing mandatory mathematical, numerical, interface, or conservation
+gates shall be labeled INVALID_FOR_SCIENTIFIC_INFERENCE. Its outputs may be
+retained for debugging but shall not support or refute a physical claim.
+
+======================================================================
+A9. INTEGRATION WITH VERSION 0.2
+======================================================================
+
+The eight controls in this amendment apply to all Version 0.2 modules and
+interfaces. Where the base document contains a general requirement, this
+amendment supplies the more specific normative rule. Where a conflict exists,
+the stricter conservation, provenance, versioning, falsifiability, or audit
+requirement governs.
+
+END OF AMENDMENT

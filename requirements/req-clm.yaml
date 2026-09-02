@@ -1,0 +1,36 @@
+group: CLM
+title: Claim requirements
+source: MFESPF-IRS-001 v1.0 Draft
+generated_by: tools/extract_requirements.py
+requirements:
+- id: CLM-001
+  text: Every substantive scientific conclusion SHALL reference a versioned claim record.
+  strength: mandatory
+  section: CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CLM-002
+  text: Claim statuses SHALL include proposed, testing, supported within scope, qualified, refuted, numerically
+    unresolved, empirically unresolved, unable to distinguish, and superseded.
+  strength: mandatory
+  section: CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
+- id: CLM-003
+  text: Broad real-world claims SHALL use SUPPORTED_WITHIN_SCOPE rather than unqualified confirmation.
+  strength: mandatory
+  section: CLAIM, EXPERIMENT, AND VALIDATION REQUIREMENTS
+  verification: TEST
+  status: not_started
+  design_component: ''
+  implementation: ''
+  evidence: []
+  waiver: ''
