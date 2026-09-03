@@ -32,6 +32,7 @@ from mfespf.contracts.module import (
     UncertaintyReport,
 )
 from mfespf.contracts.spectral import SpectralGrid
+from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError
 from mfespf.core.quantities import (
     Field,
@@ -49,6 +50,7 @@ from mfespf.physics.equations import EQUATION_IDS
 from mfespf.physics.surface import (
     SURFACE_INTERFACE,
     SURFACE_TEMPERATURE_STATE,
+    SURFACE_WATER_STATE,
     V1,
 )
 from mfespf.registries.states import StateBudget, TendencyContribution
@@ -73,11 +75,27 @@ class ColumnSurfaceModule(Module):
         areal_heat_capacity: float = 2.1e8,
         albedo: float | np.ndarray = 0.3,
         initial_temperature: float = 250.0,
+        couple_water: bool = False,
+        water_module_id: str = "water",
+        initial_water_store: float = 1.0e4,
+        latent_heat: float | None = None,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
+        # The contract genuinely differs between a dry and a moist configuration:
+        # a moist surface owns a second state, needs three more inputs and moves
+        # a second conserved quantity. MOD-001 requires the contract to describe
+        # the module as configured, so it is built rather than fixed.
+        moist_inputs = (
+            ("surface_evaporation_flux", "precipitation_flux", "surface_latent_heat_flux")
+            if couple_water
+            else ()
+        )
         contract = ModuleContract(
             module_id=module_id,
-            module_name="slab surface coupled to a radiating column",
+            module_name=(
+                "slab surface coupled to a radiating column"
+                + (" with evaporation and precipitation" if couple_water else "")
+            ),
             module_version=V1,
             interface_version=V1,
             fidelity_level=FidelityLevel.REDUCED,
@@ -102,20 +120,31 @@ class ColumnSurfaceModule(Module):
                 "Sensible and latent heat fluxes are absent, so the surface-to-air "
                 "temperature difference this produces is not comparable with observations."
             ),
-            owned_state_ids=frozenset({SURFACE_TEMPERATURE_STATE}),
+            owned_state_ids=frozenset(
+                {SURFACE_TEMPERATURE_STATE} | ({SURFACE_WATER_STATE} if couple_water else set())
+            ),
             required_inputs=(
                 "surface_downward_radiation",
                 "surface_upward_radiation",
                 "surface_absorbed_radiation",
+                *moist_inputs,
             ),
             produced_outputs=(
                 SURFACE_TEMPERATURE_STATE,
                 "surface_spectral_albedo",
+                "surface_heat_capacity",
                 "surface_net_radiative_flux",
+                *((SURFACE_WATER_STATE, "surface_energy_balance") if couple_water else ()),
             ),
-            imported_transfers=("radiation_down_surface",),
-            exported_transfers=("radiation_up_surface",),
-            conserved_quantities=("energy",),
+            imported_transfers=(
+                "radiation_down_surface",
+                *(("precipitation_water",) if couple_water else ()),
+            ),
+            exported_transfers=(
+                "radiation_up_surface",
+                *(("evaporation_water", "evaporation_latent_energy") if couple_water else ()),
+            ),
+            conserved_quantities=("energy", "water") if couple_water else ("energy",),
             provided_interfaces=(SURFACE_INTERFACE,),
             required_interfaces=(("spectral_radiation", VersionRange.parse(">=1.0.0,<2.0.0")),),
             uncertainty_outputs=(
@@ -130,10 +159,32 @@ class ColumnSurfaceModule(Module):
                 "test_single_grey_layer_matches_the_analytic_greenhouse",
                 "test_column_energy_budget_closes",
                 "test_zero_insolation_column_only_cools",
+                *(
+                    (
+                        "test_moist_column_budgets_close_for_water_and_energy",
+                        "test_evaporation_conserves_water_and_carries_its_latent_energy",
+                    )
+                    if couple_water
+                    else ()
+                ),
             ),
             known_limitations=(
-                "No sensible or latent heat flux, so this surface runs warmer relative to "
-                "the air than a real one and the difference is not a model result.",
+                (
+                    "No sensible heat flux, so the surface-to-air temperature difference "
+                    "is not comparable with observations."
+                    if couple_water
+                    else "No sensible or latent heat flux, so this surface runs warmer "
+                    "relative to the air than a real one and the difference is not a "
+                    "model result."
+                ),
+                *(
+                    (
+                        "The water store does not limit evaporation, so the surface "
+                        "cannot dry out however much it loses.",
+                    )
+                    if couple_water
+                    else ()
+                ),
             ),
             cost=CostDeclaration(
                 module_id=module_id,
@@ -158,7 +209,22 @@ class ColumnSurfaceModule(Module):
         self.albedo = albedo
         self.initial_temperature = initial_temperature
 
+        self.couple_water = couple_water
+        self.water_module_id = water_module_id
+        self.initial_water_store = initial_water_store
+        self.latent_heat = (
+            latent_heat
+            if latent_heat is not None
+            else value_of("water_latent_heat_vaporization_273")
+        )
+
         self.temperature = initial_temperature
+        self.water_store = initial_water_store
+        self._evaporation = 0.0
+        self._precipitation = 0.0
+        self._latent_flux = 0.0
+        self._water_initial = initial_water_store
+        self._water_budget: StateBudget | None = None
         self._downward = 0.0
         self._upward = 0.0
         self._absorbed = 0.0
@@ -188,6 +254,9 @@ class ColumnSurfaceModule(Module):
         self.temperature = float(
             initial_state.get(SURFACE_TEMPERATURE_STATE, self.initial_temperature)
         )
+        self.water_store = float(initial_state.get(SURFACE_WATER_STATE, self.initial_water_store))
+        if self.water_store < 0.0:
+            raise ConfigurationError("the surface water store cannot start negative")
         self.mark_initialized()
 
     # --- physics ----------------------------------------------------------
@@ -218,7 +287,7 @@ class ColumnSurfaceModule(Module):
         # already inside the upward flux, so subtracting the whole upward stream
         # from the whole downward one counts it exactly once.
         net = self._downward - self._upward
-        return [
+        contributions = [
             TendencyContribution(
                 state_id=SURFACE_TEMPERATURE_STATE,
                 provider_module_id=self.module_id,
@@ -228,21 +297,79 @@ class ColumnSurfaceModule(Module):
                 equation_id=EQUATION_IDS["slab"],
             )
         ]
+        if not self.couple_water:
+            return contributions
+
+        self._evaporation = (
+            self.input_field("surface_evaporation_flux").require_units("kg m^-2 s^-1").scalar()
+        )
+        self._precipitation = (
+            self.input_field("precipitation_flux").require_units("kg m^-2 s^-1").scalar()
+        )
+        self._latent_flux = (
+            self.input_field("surface_latent_heat_flux").require_units("W m^-2").scalar()
+        )
+        self._water_initial = self.water_store
+
+        # Evaporative cooling is a separate labeled contribution rather than
+        # being folded into the net radiative term, so the surface energy budget
+        # shows the radiative and turbulent parts apart (charter 9.9).
+        contributions.append(
+            TendencyContribution(
+                state_id=SURFACE_TEMPERATURE_STATE,
+                provider_module_id=self.module_id,
+                label="evaporative_cooling",
+                value=-self._latent_flux / self.areal_heat_capacity,
+                units="K s^-1",
+                equation_id=EQUATION_IDS["latent_energy"],
+            )
+        )
+        contributions.append(
+            TendencyContribution(
+                state_id=SURFACE_WATER_STATE,
+                provider_module_id=self.module_id,
+                label="precipitation_minus_evaporation",
+                value=self._precipitation - self._evaporation,
+                units="kg m^-2 s^-1",
+                equation_id=EQUATION_IDS["surface_evaporation"],
+            )
+        )
+        return contributions
 
     def advance_state(self, dt: float, contributions: list[TendencyContribution]) -> None:
+        thermal = [c for c in contributions if c.state_id == SURFACE_TEMPERATURE_STATE]
         initial = np.asarray(self.temperature, dtype=float)
-        total = sum(float(np.asarray(c.value)) for c in contributions)
-        self.temperature = float(initial + total * dt)
+        self.temperature = float(initial + sum(float(np.asarray(c.value)) for c in thermal) * dt)
         self._budget = StateBudget(
             state_id=SURFACE_TEMPERATURE_STATE,
             initial_value=initial,
             final_value=np.asarray(self.temperature, dtype=float),
             dt=dt,
-            contributions=list(contributions),
+            contributions=thermal,
+        )
+
+        hydrological = [c for c in contributions if c.state_id == SURFACE_WATER_STATE]
+        if not hydrological:
+            return
+        water_initial = np.asarray(self.water_store, dtype=float)
+        self.water_store = float(
+            water_initial + sum(float(np.asarray(c.value)) for c in hydrological) * dt
+        )
+        self._water_budget = StateBudget(
+            state_id=SURFACE_WATER_STATE,
+            initial_value=water_initial,
+            final_value=np.asarray(self.water_store, dtype=float),
+            dt=dt,
+            contributions=hydrological,
         )
 
     def state_budgets(self) -> dict[str, Any]:
-        return {SURFACE_TEMPERATURE_STATE: self._budget} if self._budget else {}
+        budgets: dict[str, Any] = {}
+        if self._budget:
+            budgets[SURFACE_TEMPERATURE_STATE] = self._budget
+        if self._water_budget:
+            budgets[SURFACE_WATER_STATE] = self._water_budget
+        return budgets
 
     # --- outputs ----------------------------------------------------------
     def emit_state(self) -> dict[str, Field]:
@@ -273,6 +400,42 @@ class ColumnSurfaceModule(Module):
                         "time_discretization",
                     ),
                 ),
+            ),
+            **(
+                {
+                    SURFACE_WATER_STATE: Field(
+                        field_id=SURFACE_WATER_STATE,
+                        physical_name="liquid water stored at the surface",
+                        symbol="W_s",
+                        values=np.array(self.water_store),
+                        units="kg m^-2",
+                        quantity_kind=QuantityKind.EXTENSIVE_STATE,
+                        time_semantics=TimeSemantics.INSTANTANEOUS,
+                        timestamp=timestamp,
+                        spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                        phase_or_species="liquid_water",
+                        sign_convention=SignConvention.POSITIVE_DEFINITE,
+                        provenance=Provenance(
+                            producer=self.module_id,
+                            derivation=EQUATION_IDS["surface_evaporation"],
+                        ),
+                    )
+                }
+                if self.couple_water
+                else {}
+            ),
+            "surface_heat_capacity": Field(
+                field_id="surface_heat_capacity",
+                physical_name="areal heat capacity of the surface slab",
+                symbol="C_s",
+                values=np.array(self.areal_heat_capacity),
+                units="J m^-2 K^-1",
+                quantity_kind=QuantityKind.EXTENSIVE_STATE,
+                time_semantics=TimeSemantics.INSTANTANEOUS,
+                timestamp=timestamp,
+                spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                provenance=provenance,
             ),
             "surface_spectral_albedo": Field(
                 field_id="surface_spectral_albedo",
@@ -311,7 +474,28 @@ class ColumnSurfaceModule(Module):
                 spatial_support=SpatialSupport.GLOBAL_SCALAR,
                 sign_convention=SignConvention.POSITIVE_DOWNWARD,
                 provenance=Provenance(producer=self.module_id, derivation=EQUATION_IDS["slab"]),
-            )
+            ),
+            **(
+                {
+                    "surface_energy_balance": Field(
+                        field_id="surface_energy_balance",
+                        physical_name="net energy into the surface after the latent loss",
+                        values=np.array(self._downward - self._upward - self._latent_flux),
+                        units="W m^-2",
+                        quantity_kind=QuantityKind.DIAGNOSTIC,
+                        time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                        time_interval=ctx.dt,
+                        timestamp=ctx.time,
+                        spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                        sign_convention=SignConvention.POSITIVE_DOWNWARD,
+                        provenance=Provenance(
+                            producer=self.module_id, derivation=EQUATION_IDS["slab"]
+                        ),
+                    ),
+                }
+                if self.couple_water
+                else {}
+            ),
         }
 
     def report_transfers(self) -> tuple[list[Transfer], list[Transfer]]:
@@ -345,10 +529,73 @@ class ColumnSurfaceModule(Module):
                 **common,  # type: ignore[arg-type]
             )
         ]
+        sensible = self._inputs.get("surface_sensible_heat_flux")
+        if sensible is not None:
+            exports.append(
+                Transfer(
+                    transfer_id=f"sensible_heat@{start:g}",
+                    sender_module=self.module_id,
+                    receiver_module=self.atmosphere_module_id,
+                    amount=sensible.require_units("W m^-2").scalar() * dt,
+                    channel="sensible_heat",
+                    equation_id=EQUATION_IDS["sensible_heat"],
+                    **common,  # type: ignore[arg-type]
+                )
+            )
+
+        if not self.couple_water:
+            return (exports, imports)
+
+        water_common = {
+            "start_time": start,
+            "end_time": end,
+            "spatial_mapping": "global_mean_over_planetary_surface",
+        }
+        exports.extend(
+            [
+                Transfer(
+                    transfer_id=f"evaporation_water@{start:g}",
+                    sender_module=self.module_id,
+                    receiver_module=self.water_module_id,
+                    quantity=ConservedQuantity.WATER,
+                    amount=self._evaporation * dt,
+                    units="kg m^-2",
+                    channel="evaporation_water",
+                    species="water_vapour",
+                    equation_id=EQUATION_IDS["surface_evaporation"],
+                    **water_common,  # type: ignore[arg-type]
+                ),
+                Transfer(
+                    transfer_id=f"evaporation_latent_energy@{start:g}",
+                    sender_module=self.module_id,
+                    receiver_module=self.water_module_id,
+                    quantity=ConservedQuantity.ENERGY,
+                    amount=self._latent_flux * dt,
+                    units="J m^-2",
+                    channel="evaporation_latent_energy",
+                    equation_id=EQUATION_IDS["latent_energy"],
+                    **water_common,  # type: ignore[arg-type]
+                ),
+            ]
+        )
+        imports.append(
+            Transfer(
+                transfer_id=f"precipitation_water@{start:g}",
+                sender_module=self.water_module_id,
+                receiver_module=self.module_id,
+                quantity=ConservedQuantity.WATER,
+                amount=self._precipitation * dt,
+                units="kg m^-2",
+                channel="precipitation_water",
+                species="liquid_water",
+                equation_id=EQUATION_IDS["condensation"],
+                **water_common,  # type: ignore[arg-type]
+            )
+        )
         return (exports, imports)
 
     def report_conservation(self) -> list[ModuleBudget]:
-        return [
+        budgets = [
             ModuleBudget(
                 module_id=self.module_id,
                 quantity=ConservedQuantity.ENERGY,
@@ -357,6 +604,17 @@ class ColumnSurfaceModule(Module):
                 stored_final=self.stored_energy(),
             )
         ]
+        if self.couple_water:
+            budgets.append(
+                ModuleBudget(
+                    module_id=self.module_id,
+                    quantity=ConservedQuantity.WATER,
+                    units="kg m^-2",
+                    stored_initial=self._water_initial,
+                    stored_final=self.water_store,
+                )
+            )
+        return budgets
 
     def report_uncertainty(self) -> UncertaintyReport:
         return UncertaintyReport(
@@ -381,10 +639,23 @@ class ColumnSurfaceModule(Module):
             "initial_temperature_K": self.initial_temperature,
             "emissivity_rule": "one_minus_albedo_kirchhoff",
             "time_integration": "forward_euler",
+            "couple_water": self.couple_water,
+            **(
+                {
+                    "initial_water_store_kg_m2": self.initial_water_store,
+                    "latent_heat_J_kg": self.latent_heat,
+                }
+                if self.couple_water
+                else {}
+            ),
         }
 
     def checkpoint(self) -> dict[str, Any]:
-        return {SURFACE_TEMPERATURE_STATE: self.temperature}
+        return {
+            SURFACE_TEMPERATURE_STATE: self.temperature,
+            SURFACE_WATER_STATE: self.water_store,
+        }
 
     def restore(self, checkpoint: dict[str, Any]) -> None:
         self.temperature = float(checkpoint[SURFACE_TEMPERATURE_STATE])
+        self.water_store = float(checkpoint.get(SURFACE_WATER_STATE, self.water_store))

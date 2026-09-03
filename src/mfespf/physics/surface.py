@@ -57,8 +57,10 @@ from mfespf.registries.states import (
 __all__ = [
     "SURFACE_INTERFACE",
     "SURFACE_TEMPERATURE_STATE",
+    "SURFACE_WATER_STATE",
     "SlabSurfaceModule",
     "surface_state_entry",
+    "surface_water_state_entry",
 ]
 
 V1 = Version(1, 0, 0)
@@ -79,7 +81,10 @@ SURFACE_INTERFACE = InterfaceContract(
 
 
 def surface_state_entry(
-    *, owner: str = "surface", readers: frozenset[str] = frozenset()
+    *,
+    owner: str = "surface",
+    readers: frozenset[str] = frozenset(),
+    tendency_providers: frozenset[str] = frozenset(),
 ) -> StateEntry:
     """The registry row for the surface temperature (STA-002, STA-003)."""
     return StateEntry(
@@ -92,11 +97,39 @@ def surface_state_entry(
         state_kind=StateKind.PROGNOSTIC,
         conservation_participation=("energy",),
         authorized_readers=readers,
-        authorized_tendency_providers=frozenset({owner}),
+        authorized_tendency_providers=frozenset({owner}) | tendency_providers,
         update_authority=UpdateAuthority.OWNER_ONLY,
         initialization_source="manifest",
         checkpoint_required=True,
         uncertainty_representation="initial_condition_and_parameter_uncertainty",
+    )
+
+
+SURFACE_WATER_STATE = "surface_water_store"
+
+
+def surface_water_state_entry(*, owner: str = "surface") -> StateEntry:
+    """Registry row for the surface water reservoir (STA-002, WAT-001).
+
+    A single bulk store: this fidelity has no soil, runoff or groundwater, so the
+    charter's hydrology carve-outs (9.6) stay reserved and inactive rather than
+    being approximated by this one number.
+    """
+    return StateEntry(
+        record_id=SURFACE_WATER_STATE,
+        version=V1,
+        physical_name="liquid water stored at the surface per unit area",
+        symbol="W_s",
+        owner_module_id=owner,
+        units="kg m^-2",
+        state_kind=StateKind.PROGNOSTIC,
+        phase_or_species="liquid_water",
+        conservation_participation=("water",),
+        authorized_tendency_providers=frozenset({owner}),
+        update_authority=UpdateAuthority.OWNER_ONLY,
+        initialization_source="manifest",
+        checkpoint_required=True,
+        uncertainty_representation="initial_condition_uncertainty",
     )
 
 

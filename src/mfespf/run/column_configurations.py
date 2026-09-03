@@ -27,6 +27,7 @@ from mfespf.physics.atmosphere import (
 )
 from mfespf.physics.boundary import SPACE_ENERGY_STATE, SpaceBoundaryModule, space_state_entry
 from mfespf.physics.column_surface import ColumnSurfaceModule
+from mfespf.physics.convection import ConvectiveAdjustmentModule
 from mfespf.physics.equations import build_equation_registry
 from mfespf.physics.orbit import OrbitalGeometryModule
 from mfespf.physics.radiative_transfer import (
@@ -35,7 +36,13 @@ from mfespf.physics.radiative_transfer import (
     window_absorption,
 )
 from mfespf.physics.solar import ConstantSpectrumSolarSource, banded_grid
-from mfespf.physics.surface import SURFACE_TEMPERATURE_STATE, surface_state_entry
+from mfespf.physics.surface import (
+    SURFACE_TEMPERATURE_STATE,
+    SURFACE_WATER_STATE,
+    surface_state_entry,
+    surface_water_state_entry,
+)
+from mfespf.physics.water import VAPOUR_STATE, WaterModule, vapour_state_entry
 from mfespf.registries.states import StateRegistry
 from mfespf.run.driver import Kernel
 
@@ -43,7 +50,9 @@ __all__ = [
     "absorbing_emitting_atmosphere",
     "column_grid",
     "declare_explicit_cycles",
+    "moist_radiative_convective",
     "radiating_column",
+    "radiative_convective",
     "shortwave_albedo",
     "single_grey_layer",
     "transparent_atmosphere",
@@ -127,33 +136,71 @@ def declare_explicit_cycles(
     return declared
 
 
-def _build_state_registry(*, n_layers: int) -> StateRegistry:
+def _build_state_registry(
+    *, n_layers: int, convection: bool = False, water: bool = False
+) -> StateRegistry:
+    """Register the states this configuration actually contains.
+
+    The authorisation lists grow with the configuration rather than being fixed:
+    a module that is not present must not appear as an authorised provider, or
+    STA-003 would be satisfied by a declaration nothing backs.
+    """
+    providers = {"radiation"}
+    if convection:
+        providers.add("convection")
+    if water:
+        providers.add("water")
+
+    readers = {"radiation", "surface", *providers}
     states = StateRegistry()
     states.register(
-        surface_state_entry(owner="surface", readers=frozenset({"radiation", "atmosphere"}))
+        surface_state_entry(
+            owner="surface",
+            readers=frozenset(readers - {"surface"}),
+            tendency_providers=frozenset({"convection"}) if convection else frozenset(),
+        )
     )
     states.register(
         atmosphere_state_entry(
             owner="atmosphere",
             n_layers=n_layers,
-            tendency_providers=frozenset({"radiation"}),
-            readers=frozenset({"radiation", "surface"}),
+            tendency_providers=frozenset(providers),
+            readers=frozenset(readers),
         )
     )
     states.register(space_state_entry(owner="space"))
+    if water:
+        states.register(
+            vapour_state_entry(
+                owner="water", n_layers=n_layers, readers=frozenset({"radiation", "atmosphere"})
+            )
+        )
+        states.register(surface_water_state_entry(owner="surface"))
     return states
 
 
-def _build_graph(*, configuration_id: str, coupling_frequency: str) -> DependencyGraph:
+def _build_graph(
+    *,
+    configuration_id: str,
+    coupling_frequency: str,
+    convection: bool = False,
+    water: bool = False,
+    splitting_order: tuple[str, ...] = _SPLITTING_ORDER,
+) -> DependencyGraph:
     graph = DependencyGraph(configuration_id)
-    for module_id, label in (
+    modules = [
         ("solar", "solar source"),
         ("orbit", "orbital geometry and TOA boundary"),
         ("radiation", "spectral column radiative transfer"),
         ("atmosphere", "hydrostatic radiative column"),
         ("surface", "slab surface"),
         ("space", "system boundary sink"),
-    ):
+    ]
+    if convection:
+        modules.append(("convection", "dry convective adjustment"))
+    if water:
+        modules.append(("water", "atmospheric water vapour"))
+    for module_id, label in modules:
         graph.add_node(Node(module_id, NodeType.MODULE, label))
     graph.add_node(Node(SURFACE_TEMPERATURE_STATE, NodeType.STATE, "slab temperature"))
     graph.add_node(Node(ATMOSPHERE_TEMPERATURE_STATE, NodeType.STATE, "layer temperatures"))
@@ -280,9 +327,107 @@ def _build_graph(*, configuration_id: str, coupling_frequency: str) -> Dependenc
             equation_ids=(equation, "EQ-NUM-FORWARD-EULER"),
         )
 
+    if convection:
+        edge(
+            "radiation",
+            "convection",
+            "layer_radiative_heating",
+            edge_type=EdgeType.DIAGNOSTIC_DEPENDENCY,
+            units="W m^-2",
+        )
+        edge(
+            ATMOSPHERE_TEMPERATURE_STATE,
+            "convection",
+            ATMOSPHERE_TEMPERATURE_STATE,
+            edge_type=EdgeType.STATE_DEPENDENCY,
+            units="K",
+            equation_ids=("EQ-POTENTIAL-TEMPERATURE",),
+        )
+        edge(
+            "convection",
+            "atmosphere",
+            "convective_temperature_tendency",
+            edge_type=EdgeType.STATE_DEPENDENCY,
+            units="K s^-1",
+            equation_ids=("EQ-DRY-CONVECTIVE-ADJUSTMENT",),
+            uncertainty_rule="structural; the closure has no parametric uncertainty",
+        )
+
+    if water:
+        graph.add_node(Node(VAPOUR_STATE, NodeType.STATE, "layer water vapour"))
+        graph.add_node(Node(SURFACE_WATER_STATE, NodeType.STATE, "surface water store"))
+        edge(
+            SURFACE_TEMPERATURE_STATE,
+            "water",
+            SURFACE_TEMPERATURE_STATE,
+            edge_type=EdgeType.STATE_DEPENDENCY,
+            units="K",
+            equation_ids=("EQ-CLAUSIUS-CLAPEYRON-SATURATION",),
+        )
+        edge(
+            ATMOSPHERE_TEMPERATURE_STATE,
+            "water",
+            ATMOSPHERE_TEMPERATURE_STATE,
+            edge_type=EdgeType.STATE_DEPENDENCY,
+            units="K",
+            equation_ids=("EQ-SATURATION-SPECIFIC-HUMIDITY",),
+        )
+        edge(
+            "surface",
+            "water",
+            "evaporation_water",
+            edge_type=EdgeType.PHYSICAL_TRANSFER,
+            units="kg m^-2",
+            time_semantics="interval_accumulation",
+            equation_ids=("EQ-BULK-SURFACE-EVAPORATION",),
+        )
+        edge(
+            "surface",
+            "water",
+            "evaporation_latent_energy",
+            edge_type=EdgeType.PHYSICAL_TRANSFER,
+            units="J m^-2",
+            time_semantics="interval_accumulation",
+            equation_ids=("EQ-LATENT-ENERGY-OF-VAPOUR",),
+        )
+        edge(
+            "water",
+            "surface",
+            "precipitation_water",
+            edge_type=EdgeType.PHYSICAL_TRANSFER,
+            units="kg m^-2",
+            time_semantics="interval_accumulation",
+            equation_ids=("EQ-SATURATION-ADJUSTMENT-CONDENSATION",),
+        )
+        edge(
+            "water",
+            "atmosphere",
+            "latent_heat_release",
+            edge_type=EdgeType.PHYSICAL_TRANSFER,
+            units="J m^-2",
+            time_semantics="interval_accumulation",
+            equation_ids=("EQ-SATURATION-ADJUSTMENT-CONDENSATION",),
+        )
+        edge(
+            "water",
+            VAPOUR_STATE,
+            f"{VAPOUR_STATE}_update",
+            edge_type=EdgeType.NUMERICAL_DEPENDENCY,
+            units="kg m^-2",
+            equation_ids=("EQ-NUM-FORWARD-EULER",),
+        )
+        edge(
+            "surface",
+            SURFACE_WATER_STATE,
+            f"{SURFACE_WATER_STATE}_update",
+            edge_type=EdgeType.NUMERICAL_DEPENDENCY,
+            units="kg m^-2",
+            equation_ids=("EQ-NUM-FORWARD-EULER",),
+        )
+
     declare_explicit_cycles(
         graph,
-        splitting_order=_SPLITTING_ORDER,
+        splitting_order=splitting_order,
         scheme="explicit_single_pass_per_master_step_in_the_declared_splitting_order",
         criterion=(
             "no iteration; the residual of the lagged coupling is bounded by the "
@@ -310,6 +455,10 @@ def radiating_column(
     master_dt: float = 3600.0,
     solar_step_multiple: int = 1,
     diffusivity_factor: float | None = None,
+    convection: bool = False,
+    water: bool = False,
+    evaporation_coefficient: float = 2.0e-4,
+    initial_water_store: float = 1.0e4,
     conservation_tolerance: float = 1e-11,
     budget: ResourceBudget | None = None,
 ) -> Kernel:
@@ -339,29 +488,54 @@ def radiating_column(
         surface_pressure=surface_pressure,
         top_pressure=top_pressure,
         initial_temperature=initial_air_temperature,
+        couple_water=water,
     )
     surface = ColumnSurfaceModule(
         grid=working_grid,
         areal_heat_capacity=areal_heat_capacity,
         albedo=surface_reflectance,
         initial_temperature=initial_surface_temperature,
+        couple_water=water,
+        initial_water_store=initial_water_store,
     )
     space = SpaceBoundaryModule(
         sender_module_id="atmosphere",
         incoming_flux_fields=(("toa_upward_radiation", "radiation_up_toa"),),
     )
 
-    schedule = CouplingSchedule(
-        master_dt=master_dt,
-        schedules=[
-            ModuleSchedule(solar, step_multiple=solar_step_multiple),
-            ModuleSchedule(orbit, step_multiple=solar_step_multiple),
-            ModuleSchedule(radiation, step_multiple=1),
+    schedules = [
+        ModuleSchedule(solar, step_multiple=solar_step_multiple),
+        ModuleSchedule(orbit, step_multiple=solar_step_multiple),
+        ModuleSchedule(radiation, step_multiple=1),
+    ]
+    # Splitting order is physics, not bookkeeping: water releases latent heat
+    # before convection so that convection stabilises the profile condensation
+    # has already produced, rather than one it is about to destabilise.
+    order = ["solar", "orbit", "radiation"]
+    if water:
+        schedules.append(
+            ModuleSchedule(
+                WaterModule(n_layers=n_layers, evaporation_coefficient=evaporation_coefficient),
+                step_multiple=1,
+            )
+        )
+        order.append("water")
+    if convection:
+        schedules.append(ModuleSchedule(ConvectiveAdjustmentModule(), step_multiple=1))
+        order.append("convection")
+    schedules.extend(
+        [
             ModuleSchedule(atmosphere, step_multiple=1),
             ModuleSchedule(surface, step_multiple=1),
             ModuleSchedule(space, step_multiple=1),
-        ],
-        splitting_order=_SPLITTING_ORDER,
+        ]
+    )
+    order.extend(["atmosphere", "surface", "space"])
+
+    schedule = CouplingSchedule(
+        master_dt=master_dt,
+        schedules=schedules,
+        splitting_order=tuple(order),
         convergence_criterion="explicit_single_pass",
     )
 
@@ -370,14 +544,20 @@ def radiating_column(
         if solar_step_multiple == 1
         else f"solar_every_{solar_step_multiple}_master_steps"
     )
-    graph = _build_graph(configuration_id=run_id, coupling_frequency=coupling_frequency)
+    graph = _build_graph(
+        configuration_id=run_id,
+        coupling_frequency=coupling_frequency,
+        convection=convection,
+        water=water,
+        splitting_order=tuple(order),
+    )
 
     initial_air = np.asarray(initial_air_temperature, dtype=float)
     return Kernel(
         run_id=run_id,
         purpose=purpose,
         schedule=schedule,
-        states=_build_state_registry(n_layers=n_layers),
+        states=_build_state_registry(n_layers=n_layers, convection=convection, water=water),
         equations=build_equation_registry(),
         graph=graph,
         budget=budget
@@ -507,6 +687,59 @@ def single_grey_layer(emissivity: float = 0.9, **kwargs: Any) -> Kernel:
     kwargs["diffusivity_factor"] = diffusivity
     return radiating_column(
         absorption_coefficient=kappa,
+        grid=grid,
+        **kwargs,
+    )
+
+
+def radiative_convective(kappa: float = 1.0e-4, **kwargs: Any) -> Kernel:
+    """Stage 3: a radiating column with dry convective adjustment.
+
+    The correction to Stage 2. Left to radiation alone the column reaches pure
+    radiative equilibrium, which is convectively unstable in its lower layers;
+    with adjustment the profile is stable everywhere and the surface is cooler,
+    because convection carries heat upward that radiation alone had to leave at
+    the bottom.
+    """
+    grid = kwargs.pop("grid", None) or column_grid()
+    kwargs.setdefault("run_id", f"STAGE3-RADCONV-{kappa:g}")
+    kwargs.setdefault(
+        "purpose",
+        "Stage 3 radiative-convective equilibrium: a dry column whose lapse rate "
+        "is limited by convective adjustment.",
+    )
+    kwargs["convection"] = True
+    return radiating_column(
+        absorption_coefficient=window_absorption(grid, kappa_opaque=kappa),
+        grid=grid,
+        **kwargs,
+    )
+
+
+def moist_radiative_convective(kappa: float = 1.0e-4, **kwargs: Any) -> Kernel:
+    """Stage 3: the same column with water vapour, evaporation and precipitation.
+
+    Two conserved quantities move at once, which is the point. Water leaves the
+    surface as vapour carrying latent energy, condenses aloft releasing that
+    energy as sensible heat, and returns as precipitation carrying none. Both
+    budgets have to close simultaneously, which is what CON-007 asks of a phase
+    change.
+
+    The vapour is radiatively inert: the absorption coefficient does not respond
+    to it, so this configuration has no water-vapour feedback and no claim about
+    one is in scope.
+    """
+    grid = kwargs.pop("grid", None) or column_grid()
+    kwargs.setdefault("run_id", f"STAGE3-MOIST-{kappa:g}")
+    kwargs.setdefault(
+        "purpose",
+        "Stage 3 moist radiative-convective column: simultaneous closure of the "
+        "water and energy budgets across a phase change.",
+    )
+    kwargs["convection"] = True
+    kwargs["water"] = True
+    return radiating_column(
+        absorption_coefficient=window_absorption(grid, kappa_opaque=kappa),
         grid=grid,
         **kwargs,
     )

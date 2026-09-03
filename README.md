@@ -21,22 +21,23 @@ specification governs.**
 
 ## Status
 
-Version 0.2.0 — the **Stage 0 accounting kernel, Stage 1 airless radiating body
-and Stage 2 radiating atmospheric column** of the charter's validation ladder
-(charter §19), on top of the full Version 1.0 interface spine.
+Version 0.3.0 — the charter's validation ladder (§19) through **Stage 3**:
+the accounting kernel, the airless radiating body, the radiating atmospheric
+column, and atmospheric thermodynamics with convection and water — on top of the
+full Version 1.0 interface spine.
 
 | Ladder stage | State |
 | --- | --- |
 | 0 — units, coordinates, transfers, conservation accounting, restart | implemented |
 | 1 — airless radiating body: geometry, absorbed radiation, thermal emission, analytic equilibrium, transient | implemented |
 | 2 — atmospheric radiation: transparent, absorbing and emitting, multilayer, variable spectrum | implemented |
-| 3 — atmospheric thermodynamics | not started |
+| 3 — atmospheric thermodynamics: hydrostatic balance, dry convection, water vapour, phase-change energy | implemented |
 | 4 — clouds | not started |
 | 5 — thermal storage and measured response timescales | partially: single-reservoir response measured |
 | 6 — historical replay | machinery present (withheld-data path), no datasets |
 | 7 — hindcast and registered prediction | machinery present (freeze records), not exercised |
 
-189 mandatory requirements are tracked; 125 currently have a bound acceptance
+189 mandatory requirements are tracked; 129 currently have a bound acceptance
 test. See [`docs/traceability.md`](docs/traceability.md) — the uncovered ones are
 listed there rather than left implicit.
 
@@ -44,9 +45,10 @@ listed there rather than left implicit.
 
 ```bash
 python -m pip install -e ".[dev]"     # Python 3.11+
-python -m pytest                       # 157 tests, ~57 s on a workstation
+python -m pytest                       # 185 tests, ~90 s on a workstation
 mfespf run airless --steps 4800        # Stage 1: 200 simulated days
-mfespf run window --steps 6000 --heat-capacity 1e6   # Stage 2 column
+mfespf run window --steps 6000 --heat-capacity 1e6            # Stage 2 column
+mfespf run moist  --steps 4000 --heat-capacity 1e6            # Stage 3 moist column
 ```
 
 ```
@@ -60,7 +62,8 @@ run STAGE1-AIRLESS-001 [complete]
 ```
 
 Configurations: `airless`, `airless-banded`, `null-control` (Stage 1);
-`transparent`, `absorbing`, `window`, `grey-layer` (Stage 2).
+`transparent`, `absorbing`, `window`, `grey-layer` (Stage 2);
+`radiative-convective`, `moist` (Stage 3).
 Add `--manifest run.json` to write the run record.
 
 ## What the kernel actually does
@@ -81,6 +84,23 @@ solar ─▶ orbit ─▶ radiation ─▶ atmosphere ⇄ surface        atmosph
                   solves the   owns T_a[]   owns T_s        owns the two
                   whole column                              column interfaces
 ```
+
+**Stage 3** — thermodynamics, convection and water on the same column:
+
+```
+solar ─▶ orbit ─▶ radiation ─▶ water ─▶ convection ─▶ atmosphere ─▶ surface ─▶ space
+                               owns     sensible       commits      owns T_s and
+                               vapour   flux and       four         its water store
+                               and its  dry adiabatic  labeled
+                               latent   adjustment     tendencies
+                               energy
+```
+
+Three modules now contribute labeled tendencies to one state, and the framework
+moves a conserved quantity that is not energy. Water leaves the surface as
+vapour carrying latent energy, condenses aloft releasing it as sensible heat,
+and returns as precipitation carrying none — with **both** budgets required to
+close at the same time, which is what CON-007 asks of a phase change.
 
 The physics is deliberately small; the point is that it is **accounted**. The
 coupled energy budget closes to ~1e-16 relative at every coupling interval.
@@ -122,6 +142,8 @@ The interface spine is the substantial part. See
 | Run audit | [`run/manifest.py`](src/mfespf/run/manifest.py) | configuration hashing, parent/child diffs, immutable evidence |
 | Radiative transfer | [`physics/radiative_transfer.py`](src/mfespf/physics/radiative_transfer.py) | flux divergence closes by construction; scattering absent, not approximated |
 | Atmospheric column | [`physics/atmosphere.py`](src/mfespf/physics/atmosphere.py) | owns layer temperatures; radiation contributes, the column commits |
+| Thermodynamics | [`physics/thermodynamics.py`](src/mfespf/physics/thermodynamics.py) | convective adjustment conserves column enthalpy by construction |
+| Water | [`physics/water.py`](src/mfespf/physics/water.py) | owns the latent energy, so water and energy close together |
 
 ### The design decisions worth knowing
 
@@ -161,6 +183,18 @@ it caught a real inconsistency: Stage 1's pairing of a 0.3 albedo with unit
 emissivity is only self-consistent if the reflectance is confined to short
 wavelengths. Read as a genuinely grey surface it gives 278 K, not 254.6 K. Both
 are legitimate configurations; the framework now records which one a run used.
+
+**The water module owns the latent energy, not the atmosphere.** Its energy
+store is `L_v` times the vapour it holds. Without that store the budget could
+not close between evaporation and condensation — energy would leave the surface
+at one event and appear in the atmosphere at the other with nothing holding it
+in between.
+
+**Convective adjustment conserves enthalpy by construction, not to a
+tolerance.** The mixed potential temperature of each unstable group is *defined*
+as the value leaving `sum(C_i T_i)` unchanged. Convection crosses no module
+boundary, so its contribution to the column total must be exactly zero — and
+that is asserted per step, not assumed.
 
 ## Requirement traceability
 

@@ -42,6 +42,14 @@ EQUATION_IDS = {
     "beer_lambert": "EQ-BEER-LAMBERT-EXTINCTION",
     "diffusivity": "EQ-DIFFUSIVITY-APPROXIMATION",
     "grey_greenhouse": "EQ-GREY-SINGLE-LAYER-GREENHOUSE",
+    "potential_temperature": "EQ-POTENTIAL-TEMPERATURE",
+    "convective_adjustment": "EQ-DRY-CONVECTIVE-ADJUSTMENT",
+    "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
+    "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
+    "surface_evaporation": "EQ-BULK-SURFACE-EVAPORATION",
+    "condensation": "EQ-SATURATION-ADJUSTMENT-CONDENSATION",
+    "latent_energy": "EQ-LATENT-ENERGY-OF-VAPOUR",
+    "sensible_heat": "EQ-BULK-SENSIBLE-HEAT-FLUX",
 }
 
 
@@ -645,6 +653,358 @@ def build_equation_registry() -> EquationRegistry:
             conserved_quantities=("energy",),
             correctness_tests=("test_single_grey_layer_matches_the_analytic_greenhouse",),
             source="Closed form of EQ-SCHWARZSCHILD-TRANSFER for one grey layer",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["potential_temperature"],
+            version=V1,
+            name="Dry potential temperature",
+            category=EquationCategory.DIAGNOSTIC_IDENTITY,
+            mathematical_form="theta = T (p_ref / p)^(R_d / c_p)",
+            physical_basis=(
+                "Temperature a dry parcel would have if brought adiabatically to the "
+                "reference pressure; conserved under dry adiabatic displacement."
+            ),
+            variables=(
+                ("theta", "potential temperature", "K"),
+                ("T", "temperature", "K"),
+                ("p", "pressure", "Pa"),
+            ),
+            parameters=(
+                ("gas_constant_dry_air", "derived", "molar mass of dry air"),
+                ("specific_heat_dry_air", "measured", "thermodynamic tables"),
+            ),
+            assumptions=("dry air", "reversible adiabatic displacement"),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 100.0, 400.0, "K"), ("p", 1.0, 1.2e5, "Pa")),
+            ),
+            limiting_cases=("theta equals T at the reference pressure",),
+            symmetries=("invariant under dry adiabatic displacement",),
+            conserved_quantities=(),
+            correctness_tests=("test_exner_and_potential_temperature_are_inverse",),
+            source="Standard atmospheric thermodynamics",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["convective_adjustment"],
+            version=V1,
+            name="Dry convective adjustment",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form=(
+                "where theta decreases with height, set theta = "
+                "sum(C_i T_i) / sum(C_i pi_i) over the unstable group"
+            ),
+            physical_basis=(
+                "A column whose potential temperature decreases with height is unstable "
+                "to vertical displacement; convection is assumed to have mixed such "
+                "layers to neutrality within the coupling interval."
+            ),
+            variables=(
+                ("theta", "potential temperature", "K"),
+                ("C_i", "areal heat capacity of a layer", "J m^-2 K^-1"),
+                ("pi_i", "Exner function at the layer", "1"),
+            ),
+            assumptions=(
+                "mixing is instantaneous on the coupling timestep",
+                "mixing is complete inside an unstable group and absent outside it",
+                "the neutral target is the dry adiabat",
+            ),
+            approximations=(
+                "Replaces resolved convective motion with an instantaneous adjustment. "
+                "It has no timescale, so the answer does not converge as the timestep "
+                "refines -- it is already independent of it, which is a limitation and "
+                "not a strength.",
+                "Targets the dry adiabat, over-stabilising a saturated troposphere whose "
+                "real neutral profile is the smaller moist lapse rate.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 100.0, 400.0, "K"),),
+                conditions=("hydrostatic columns without resolved vertical motion",),
+            ),
+            limiting_cases=(
+                "a stable profile is left exactly unchanged",
+                "a wholly unstable column mixes to a single potential temperature",
+                "column enthalpy sum(C_i T_i) is conserved exactly",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("iterative group merging from the lowest instability",),
+            correctness_tests=(
+                "test_convective_adjustment_conserves_column_enthalpy_exactly",
+                "test_convective_adjustment_leaves_a_stable_profile",
+                "test_an_already_stable_profile_is_left_untouched",
+                "test_convection_adds_no_energy_to_the_column",
+            ),
+            known_failure_modes=(
+                "predicts a dry lapse rate where the real atmosphere follows a moist one",
+                "no convective timescale, so it cannot represent the diurnal cycle of "
+                "convection or any transient adjustment",
+            ),
+            source="Manabe and Strickler 1964; Manabe and Wetherald 1967",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["clausius_clapeyron"],
+            version=V1,
+            name="Clausius-Clapeyron saturation vapour pressure",
+            category=EquationCategory.CONSTITUTIVE_RELATION,
+            mathematical_form=("e_s(T) = e_triple exp( (L_v / R_v) (1/T_triple - 1/T) )"),
+            physical_basis=(
+                "Equilibrium between liquid water and its vapour along the phase "
+                "boundary, integrated at constant latent heat."
+            ),
+            variables=(
+                ("e_s", "saturation vapour pressure over liquid", "Pa"),
+                ("T", "temperature", "K"),
+            ),
+            parameters=(
+                ("water_latent_heat_vaporization_273", "measured", "thermodynamic tables"),
+                ("gas_constant_water_vapour", "derived", "molar mass of water"),
+                (
+                    "saturation_vapour_pressure_triple_point",
+                    "measured",
+                    "measured triple-point value",
+                ),
+            ),
+            assumptions=(
+                "the latent heat of vaporisation is constant over the range used",
+                "the vapour behaves as an ideal gas",
+                "the liquid volume is negligible beside the vapour volume",
+                "saturation is over liquid water, not ice",
+            ),
+            approximations=(
+                "Holding L constant costs about a percent between 250 and 300 K and more "
+                "outside it. Over ice below the triple point the true saturation pressure "
+                "is lower than this returns, which matters for any claim about cirrus or "
+                "polar humidity.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 230.0, 340.0, "K"),),
+                conditions=("saturation over liquid water",),
+            ),
+            limiting_cases=("returns the measured value exactly at the triple point",),
+            conserved_quantities=(),
+            correctness_tests=(
+                "test_saturation_vapour_pressure_at_the_triple_point",
+                "test_saturation_vapour_pressure_matches_reference_values",
+            ),
+            known_failure_modes=(
+                "systematically wrong over ice",
+                "extrapolates poorly far from the triple point",
+            ),
+            source="Clausius-Clapeyron relation, integrated form",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["specific_humidity"],
+            version=V1,
+            name="Saturation specific humidity",
+            category=EquationCategory.DIAGNOSTIC_IDENTITY,
+            mathematical_form="q_s = eps e_s / (p - (1 - eps) e_s),  eps = R_d / R_v",
+            physical_basis="Definition of specific humidity applied at saturation.",
+            variables=(
+                ("q_s", "saturation specific humidity", "kg kg^-1"),
+                ("e_s", "saturation vapour pressure", "Pa"),
+                ("p", "total pressure", "Pa"),
+            ),
+            assumptions=("ideal-gas mixture of dry air and vapour",),
+            approximations=(
+                "The thin form q_s = eps e_s / p is not used: the two differ by about "
+                "2 percent at 300 K and sea level.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("p", 1.0, 1.2e5, "Pa"),),
+                conditions=("e_s well below the total pressure",),
+            ),
+            limiting_cases=("q_s -> 0 as the temperature falls",),
+            conserved_quantities=(),
+            correctness_tests=(
+                "test_saturation_specific_humidity_is_monotone_and_bounded",
+                "test_specific_humidity_uses_the_full_form_not_the_thin_approximation",
+            ),
+            known_failure_modes=("undefined once e_s approaches the total pressure",),
+            source="Definition",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["surface_evaporation"],
+            version=V1,
+            name="Bulk surface evaporation",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form="E = k_E * max(0, q_s(T_s) - q_1)",
+            physical_basis=(
+                "Turbulent transfer of vapour down the humidity gradient between a "
+                "saturated surface and the air above it."
+            ),
+            variables=(
+                ("E", "evaporative mass flux", "kg m^-2 s^-1"),
+                ("k_E", "bulk exchange coefficient", "kg m^-2 s^-1"),
+                ("q_1", "specific humidity of the lowest layer", "kg kg^-1"),
+            ),
+            parameters=(("k_E", "parameterized", "free parameter of the reduced model"),),
+            assumptions=(
+                "the surface is saturated and has unlimited water available",
+                "the exchange coefficient absorbs wind speed and stability entirely",
+                "no condensation onto the surface, so the flux is one-way",
+            ),
+            approximations=(
+                "A real bulk formula scales with wind speed and a stability-dependent "
+                "transfer coefficient. Collapsing both into one constant means this "
+                "cannot represent any wind or stability dependence of evaporation, and "
+                "no claim about either is in scope.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T_s", 230.0, 340.0, "K"),),
+                conditions=("saturated surface with unlimited water",),
+            ),
+            limiting_cases=(
+                "zero when the air above is already saturated at the surface temperature",
+            ),
+            conserved_quantities=("water", "energy"),
+            correctness_tests=(
+                "test_evaporation_conserves_water_and_carries_its_latent_energy",
+                "test_evaporation_stops_when_the_air_is_saturated",
+            ),
+            known_failure_modes=(
+                "no wind or stability dependence",
+                "cannot dry out: the surface store is not allowed to limit the flux at "
+                "this fidelity, so the run must declare an unlimited reservoir",
+            ),
+            source="Reduced bulk aerodynamic formula",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["condensation"],
+            version=V1,
+            name="Saturation adjustment condensation",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form="C_i = max(0, w_i - q_s(T_i, p_i) m_i)",
+            physical_basis=(
+                "Vapour in excess of saturation condenses; the latent heat released warms "
+                "the layer and the condensate leaves as precipitation."
+            ),
+            variables=(
+                ("C_i", "condensed mass in a layer", "kg m^-2"),
+                ("w_i", "vapour mass in a layer", "kg m^-2"),
+                ("m_i", "dry air mass of the layer", "kg m^-2"),
+            ),
+            assumptions=(
+                "condensation is instantaneous once saturation is exceeded",
+                "all condensate precipitates immediately, so no cloud water is stored",
+                "no supersaturation and no nucleation barrier",
+            ),
+            approximations=(
+                "Removing all condensate at once means there is no cloud, and therefore "
+                "no cloud radiative effect at all. A claim about clouds is outside this "
+                "module's scope until the Stage 4 cloud state exists.",
+                "The saturation check uses the temperature before latent release rather "
+                "than iterating to a consistent post-release state.",
+            ),
+            validity_domain=ValidityDomain(
+                conditions=(
+                    "columns where cloud storage and its radiative effect can be neglected",
+                ),
+            ),
+            limiting_cases=("no condensation in subsaturated air",),
+            conserved_quantities=("water", "energy"),
+            correctness_tests=(
+                "test_condensation_conserves_water_and_energy_together",
+                "test_moist_column_budgets_close_for_water_and_energy",
+            ),
+            known_failure_modes=(
+                "no cloud, so no cloud radiative effect",
+                "instantaneous adjustment cannot represent precipitation timing",
+            ),
+            source="Standard saturation adjustment",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["latent_energy"],
+            version=V1,
+            name="Latent energy content of atmospheric vapour",
+            category=EquationCategory.DIAGNOSTIC_IDENTITY,
+            mathematical_form="E_latent = L_v * sum_i w_i",
+            physical_basis=(
+                "Energy that was supplied to evaporate the vapour and is returned when it "
+                "condenses. Treating it as a stored quantity is what lets the water and "
+                "energy budgets close simultaneously between the two events."
+            ),
+            variables=(
+                ("E_latent", "latent energy per unit area", "J m^-2"),
+                ("w_i", "vapour mass in a layer", "kg m^-2"),
+            ),
+            parameters=(
+                ("water_latent_heat_vaporization_273", "measured", "thermodynamic tables"),
+            ),
+            assumptions=("constant latent heat of vaporisation",),
+            approximations=(
+                "The sensible heat carried by the water itself is neglected, both in the "
+                "vapour and in the precipitation that returns to the surface.",
+            ),
+            validity_domain=ValidityDomain(ranges=(("T", 230.0, 340.0, "K"),)),
+            limiting_cases=("zero in a dry column",),
+            conserved_quantities=("energy",),
+            correctness_tests=("test_moist_column_budgets_close_for_water_and_energy",),
+            source="Definition",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["sensible_heat"],
+            version=V1,
+            name="Bulk sensible heat flux",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form="H = k_H (T_s - T_1)",
+            physical_basis=(
+                "Turbulent transport of sensible heat down the temperature gradient "
+                "between the surface and the air immediately above it."
+            ),
+            variables=(
+                ("H", "sensible heat flux", "W m^-2"),
+                ("k_H", "bulk exchange coefficient", "W m^-2 K^-1"),
+                ("T_1", "temperature of the lowest layer", "K"),
+            ),
+            parameters=(("k_H", "parameterized", "free parameter of the reduced model"),),
+            assumptions=(
+                "the exchange coefficient absorbs wind speed and stability entirely",
+                "the flux is linear in the temperature difference",
+            ),
+            approximations=(
+                "A real bulk formula scales with wind speed and a stability-dependent "
+                "coefficient, and is strongly asymmetric between stable and unstable "
+                "conditions. One constant can represent none of that, so no claim about "
+                "the wind or stability dependence of the surface energy balance is in "
+                "scope.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T_s", 150.0, 400.0, "K"),),
+                conditions=("columns without resolved boundary-layer turbulence",),
+            ),
+            limiting_cases=("zero flux when the surface and the air above are isothermal",),
+            conserved_quantities=("energy",),
+            correctness_tests=(
+                "test_sensible_heat_flux_vanishes_when_isothermal",
+                "test_sensible_heat_is_transferred_not_created",
+            ),
+            known_failure_modes=(
+                "no wind or stability dependence",
+                "linear in the temperature difference, where the real flux is not",
+            ),
+            source="Reduced bulk aerodynamic formula",
         )
     )
 

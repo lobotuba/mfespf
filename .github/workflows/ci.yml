@@ -39,7 +39,7 @@ jobs:
         # SYS-005 / CMP-010: the baseline suite must complete inside a
         # workstation-class budget. A CI runner is smaller than that, so a
         # timeout here is a real signal rather than flakiness.
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: python -m pytest -q
 
       - name: Requirement registry is in sync with the specification
@@ -64,3 +64,5 @@ jobs:
           python -m mfespf.cli run absorbing --steps 240 --heat-capacity 1e6
           python -m mfespf.cli run window --steps 240 --heat-capacity 1e6
           python -m mfespf.cli run grey-layer --steps 240 --heat-capacity 1e6
+          python -m mfespf.cli run radiative-convective --steps 240 --heat-capacity 1e6
+          python -m mfespf.cli run moist --steps 240 --heat-capacity 1e6

@@ -1,0 +1,616 @@
+"""Atmospheric water vapour, evaporation, condensation and precipitation.
+
+Charter 9.6 and section 19 stage 3; requirements WAT-001, WAT-002, CON-001,
+CON-007, CON-009.
+
+This is the first module to move a conserved quantity that is not energy, and
+the first to move two at once. Both budgets must close simultaneously, which is
+what CON-007 asks for when it says a phase change shall reconcile transferred
+matter *and* latent energy.
+
+The accounting choice that makes that possible: **the water module owns the
+latent energy**, not the atmosphere. Its energy store is ``L_v`` times the
+vapour it holds. Evaporation is then an ordinary transfer of two quantities from
+the surface -- water mass, and the energy that was spent lifting it into the
+vapour phase -- and condensation is a transfer of that energy onward to the
+atmosphere as sensible heat, while the water mass returns to the surface as
+precipitation carrying none.
+
+Without that store the budget would not close between the two events: energy
+would leave the surface at evaporation and appear in the atmosphere at
+condensation with nothing holding it in between.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import numpy as np
+
+from mfespf.contracts.cost import CostDeclaration, ResourceClass
+from mfespf.contracts.module import (
+    FidelityLevel,
+    Module,
+    ModuleContract,
+    ModuleStatus,
+    UncertaintyReport,
+)
+from mfespf.core.constants import value_of
+from mfespf.core.errors import ConfigurationError
+from mfespf.core.quantities import (
+    Field,
+    Provenance,
+    QuantityKind,
+    SignConvention,
+    SpatialSupport,
+    TimeSemantics,
+    Uncertainty,
+)
+from mfespf.core.versioning import InterfaceContract, Version, VersionRange
+from mfespf.coupling.conservation import ModuleBudget
+from mfespf.coupling.transfers import ConservedQuantity, Transfer
+from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
+from mfespf.physics.equations import EQUATION_IDS
+from mfespf.physics.thermodynamics import saturation_specific_humidity
+from mfespf.registries.states import (
+    StateBudget,
+    StateEntry,
+    StateKind,
+    TendencyContribution,
+    UpdateAuthority,
+)
+
+__all__ = [
+    "VAPOUR_STATE",
+    "WATER_INTERFACE",
+    "WaterModule",
+    "vapour_state_entry",
+]
+
+V1 = Version(1, 0, 0)
+
+VAPOUR_STATE = "atmosphere_water_vapour"
+
+WATER_INTERFACE = InterfaceContract(
+    interface_id="atmospheric_water",
+    version=V1,
+    physical_semantics={
+        "vapour_units": "kg m^-2",
+        "vapour_basis": "mass_per_unit_area_in_each_layer",
+        "layer_ordering": "index_0_is_the_lowest_layer",
+        "latent_energy_owner": "water",
+        "precipitation_energy_content": "neglected",
+        "state_owner": "water",
+    },
+)
+
+
+def vapour_state_entry(
+    *,
+    owner: str = "water",
+    n_layers: int,
+    readers: frozenset[str] = frozenset(),
+) -> StateEntry:
+    """Registry row for the layer vapour masses (STA-002, STA-003)."""
+    return StateEntry(
+        record_id=VAPOUR_STATE,
+        version=V1,
+        physical_name="water vapour mass per unit area in each layer",
+        symbol="w",
+        owner_module_id=owner,
+        units="kg m^-2",
+        state_kind=StateKind.PROGNOSTIC,
+        dimensions=("layer",),
+        phase_or_species="water_vapour",
+        conservation_participation=("water", "energy"),
+        authorized_readers=readers,
+        authorized_tendency_providers=frozenset({owner}),
+        update_authority=UpdateAuthority.OWNER_ONLY,
+        initialization_source="manifest",
+        checkpoint_required=True,
+        uncertainty_representation="initial_condition_and_parameter_uncertainty",
+        validity_flags=(f"n_layers={n_layers}",),
+    )
+
+
+class WaterModule(Module):
+    """Owns atmospheric vapour and the latent energy it carries."""
+
+    def __init__(
+        self,
+        *,
+        module_id: str = "water",
+        atmosphere_module_id: str = "atmosphere",
+        surface_module_id: str = "surface",
+        n_layers: int = 8,
+        evaporation_coefficient: float = 2.0e-4,
+        initial_relative_humidity: float = 0.0,
+        latent_heat: float | None = None,
+        status: ModuleStatus = ModuleStatus.ACTIVE,
+    ) -> None:
+        contract = ModuleContract(
+            module_id=module_id,
+            module_name="atmospheric water vapour with saturation adjustment",
+            module_version=V1,
+            interface_version=V1,
+            fidelity_level=FidelityLevel.REDUCED,
+            physical_basis=(
+                "Conservation of water mass between a surface reservoir and atmospheric "
+                "vapour, with bulk evaporation, saturation-adjustment condensation, and "
+                "immediate precipitation."
+            ),
+            governing_equation_ids=(
+                EQUATION_IDS["clausius_clapeyron"],
+                EQUATION_IDS["specific_humidity"],
+                EQUATION_IDS["surface_evaporation"],
+                EQUATION_IDS["condensation"],
+                EQUATION_IDS["latent_energy"],
+            ),
+            assumptions=(
+                "no vertical or horizontal transport of vapour between layers",
+                "the surface is saturated with unlimited water available",
+                "condensate precipitates immediately, so no cloud water is stored",
+                "precipitation carries no sensible heat",
+                "constant latent heat of vaporisation",
+            ),
+            validity_domain=(
+                "Columns where vapour transport and cloud storage may be neglected. With "
+                "no transport, the vapour profile is set entirely by local evaporation "
+                "and condensation, so no claim about humidity structure aloft is in scope."
+            ),
+            owned_state_ids=frozenset({VAPOUR_STATE}),
+            required_inputs=(
+                ATMOSPHERE_TEMPERATURE_STATE,
+                "atmosphere_layer_mass",
+                "atmosphere_layer_pressure",
+                "atmosphere_layer_heat_capacity",
+                "surface_temperature",
+            ),
+            produced_outputs=(
+                VAPOUR_STATE,
+                "atmosphere_specific_humidity",
+                "atmosphere_relative_humidity",
+                "surface_evaporation_flux",
+                "precipitation_flux",
+                "surface_latent_heat_flux",
+                "latent_heating_rate",
+                "atmosphere_precipitable_water",
+            ),
+            imported_transfers=("evaporation_water", "evaporation_latent_energy"),
+            exported_transfers=("precipitation_water", "latent_heat_release"),
+            conserved_quantities=("water", "energy"),
+            internal_sources_and_sinks=(),
+            provided_interfaces=(WATER_INTERFACE,),
+            required_interfaces=(
+                ("atmospheric_state", VersionRange.parse(">=1.0.0,<2.0.0")),
+                ("surface", VersionRange.parse(">=1.0.0,<2.0.0")),
+            ),
+            uncertainty_outputs=(
+                "evaporation_coefficient_parameter",
+                "missing_vapour_transport_structural",
+                "missing_cloud_storage_structural",
+                "latent_heat_constant_approximation",
+            ),
+            correctness_tests=(
+                "test_evaporation_conserves_water_and_carries_its_latent_energy",
+                "test_evaporation_stops_when_the_air_is_saturated",
+                "test_condensation_conserves_water_and_energy_together",
+                "test_moist_column_budgets_close_for_water_and_energy",
+                "test_a_dry_column_with_no_evaporation_is_inert",
+            ),
+            known_limitations=(
+                "No vapour transport, so humidity aloft comes only from local processes.",
+                "No cloud water, and therefore no cloud radiative effect whatsoever.",
+                "Vapour is radiatively inert here: the absorption coefficient does not "
+                "respond to it, so this column has no water-vapour feedback.",
+            ),
+            cost=CostDeclaration(
+                module_id=module_id,
+                time_complexity="O(n_layers)",
+                memory_complexity="O(n_layers)",
+                scaling_variables=("n_layers",),
+                work_units_per_step=1.5,
+                benchmark_configuration=f"{n_layers} layers, global scalar column",
+                peak_memory_bytes=8 * n_layers + 4096,
+                supported_resource_classes=(
+                    ResourceClass.LAPTOP,
+                    ResourceClass.ENGINEERING_WORKSTATION,
+                ),
+                lower_fidelity_alternatives=("dry_column_no_water",),
+                checkpoint_cost_bytes=8 * n_layers,
+            ),
+        )
+        super().__init__(contract, status=status)
+        self.atmosphere_module_id = atmosphere_module_id
+        self.surface_module_id = surface_module_id
+        self.n_layers = n_layers
+        self.evaporation_coefficient = evaporation_coefficient
+        self.initial_relative_humidity = initial_relative_humidity
+        self.latent_heat = (
+            latent_heat
+            if latent_heat is not None
+            else value_of("water_latent_heat_vaporization_273")
+        )
+
+        self.vapour = np.zeros(n_layers)
+        self._evaporation = 0.0
+        self._condensation = np.zeros(n_layers)
+        self._precipitation = 0.0
+        self._latent_heating = np.zeros(n_layers)
+        self._specific_humidity = np.zeros(n_layers)
+        self._relative_humidity = np.zeros(n_layers)
+        self._interval = (0.0, 0.0)
+        self._stored_initial = 0.0
+        self._budget: StateBudget | None = None
+        self._layer_mass = np.ones(n_layers)
+
+    # --- configuration ----------------------------------------------------
+    def validate_configuration(self) -> None:
+        super().validate_configuration()
+        if self.evaporation_coefficient < 0.0:
+            raise ConfigurationError(
+                f"evaporation coefficient {self.evaporation_coefficient} cannot be negative"
+            )
+        if not 0.0 <= self.initial_relative_humidity <= 1.0:
+            raise ConfigurationError("initial relative humidity must lie in [0, 1]")
+        if self.latent_heat <= 0.0:
+            raise ConfigurationError("the latent heat of vaporisation must be positive")
+
+    def initialize(self, initial_state: dict[str, Any], boundary_state: dict[str, Any]) -> None:
+        supplied = initial_state.get(VAPOUR_STATE)
+        if supplied is None:
+            # Left at zero until the first step, when the layer masses and
+            # temperatures needed to convert a relative humidity into a mass are
+            # available. Initialising from a guess would put a number in the
+            # manifest that the run never used.
+            self.vapour = np.zeros(self.n_layers)
+        else:
+            values = np.asarray(supplied, dtype=float)
+            self.vapour = (
+                np.full(self.n_layers, float(values)) if values.ndim == 0 else np.array(values)
+            )
+            if self.vapour.size != self.n_layers:
+                raise ConfigurationError(
+                    f"initial vapour has {self.vapour.size} layers, expected {self.n_layers}"
+                )
+        if np.any(self.vapour < 0.0):
+            raise ConfigurationError("vapour mass cannot be negative")
+        self.mark_initialized()
+
+    # --- physics ----------------------------------------------------------
+    @property
+    def precipitable_water(self) -> float:
+        """Total column vapour in kg m^-2, the quantity WAT-001 conserves."""
+        return float(np.sum(self.vapour))
+
+    def latent_energy(self, vapour: np.ndarray | None = None) -> float:
+        """``L_v`` times the column vapour, in J m^-2."""
+        w = self.vapour if vapour is None else vapour
+        return self.latent_heat * float(np.sum(w))
+
+    def compute_tendencies(self) -> list[TendencyContribution]:
+        ctx = self.context
+        temperature = self.input_field(ATMOSPHERE_TEMPERATURE_STATE).require_units("K").values
+        layer_mass = self.input_field("atmosphere_layer_mass").require_units("kg m^-2").values
+        pressure = self.input_field("atmosphere_layer_pressure").require_units("Pa").values
+        heat_capacity = (
+            self.input_field("atmosphere_layer_heat_capacity").require_units("J m^-2 K^-1").values
+        )
+        surface_temperature = self.input_field("surface_temperature").require_units("K").scalar()
+
+        self._layer_mass = np.asarray(layer_mass, dtype=float)
+        self._interval = (ctx.time, ctx.time + ctx.dt)
+        self._stored_initial = self.latent_energy()
+
+        saturation = saturation_specific_humidity(temperature, pressure)
+        specific_humidity = self.vapour / self._layer_mass
+
+        # Evaporation into the lowest layer only: with no vertical transport there
+        # is no mechanism to carry vapour higher, and pretending otherwise would
+        # be transport by another name.
+        surface_saturation = float(
+            saturation_specific_humidity(np.array([surface_temperature]), np.array([pressure[0]]))[
+                0
+            ]
+        )
+        deficit = max(0.0, surface_saturation - float(specific_humidity[0]))
+        self._evaporation = self.evaporation_coefficient * deficit
+
+        provisional = np.array(self.vapour)
+        provisional[0] += self._evaporation * ctx.dt
+
+        # Saturation adjustment: everything above saturation condenses and leaves.
+        capacity = saturation * self._layer_mass
+        self._condensation = np.maximum(0.0, provisional - capacity)
+        self._precipitation = float(np.sum(self._condensation)) / ctx.dt
+        self._latent_heating = self.latent_heat * self._condensation / ctx.dt
+
+        final = provisional - self._condensation
+        self._specific_humidity = final / self._layer_mass
+        self._relative_humidity = np.divide(
+            self._specific_humidity,
+            saturation,
+            out=np.zeros_like(saturation),
+            where=saturation > 0.0,
+        )
+
+        return [
+            TendencyContribution(
+                state_id=VAPOUR_STATE,
+                provider_module_id=self.module_id,
+                label="evaporation_minus_condensation",
+                value=(final - self.vapour) / ctx.dt,
+                units="kg m^-2",
+                equation_id=EQUATION_IDS["condensation"],
+            ),
+            # Latent heat released into the layer where it condensed. The column
+            # owns its temperature; this is a labeled contribution to it, exactly
+            # as the radiative and convective ones are.
+            TendencyContribution(
+                state_id=ATMOSPHERE_TEMPERATURE_STATE,
+                provider_module_id=self.module_id,
+                label="latent_heat_release",
+                value=self._latent_heating / heat_capacity,
+                units="K s^-1",
+                equation_id=EQUATION_IDS["condensation"],
+            ),
+        ]
+
+    def advance_state(self, dt: float, contributions: list[TendencyContribution]) -> None:
+        initial = np.array(self.vapour, dtype=float)
+        total = np.zeros(self.n_layers)
+        for contribution in contributions:
+            total = total + np.broadcast_to(contribution.as_array(), (self.n_layers,))
+        self.vapour = np.maximum(initial + total * dt, 0.0)
+        self._budget = StateBudget(
+            state_id=VAPOUR_STATE,
+            initial_value=initial,
+            final_value=np.array(self.vapour, dtype=float),
+            dt=dt,
+            contributions=list(contributions),
+        )
+
+    def state_budgets(self) -> dict[str, Any]:
+        return {VAPOUR_STATE: self._budget} if self._budget else {}
+
+    # --- outputs ----------------------------------------------------------
+    def emit_state(self) -> dict[str, Field]:
+        provenance = Provenance(producer=self.module_id, derivation=EQUATION_IDS["latent_energy"])
+        timestamp = self._context.time if self._context else 0.0
+        return {
+            VAPOUR_STATE: Field(
+                field_id=VAPOUR_STATE,
+                physical_name="water vapour mass per unit area in each layer",
+                symbol="w",
+                values=np.array(self.vapour),
+                units="kg m^-2",
+                quantity_kind=QuantityKind.EXTENSIVE_STATE,
+                time_semantics=TimeSemantics.INSTANTANEOUS,
+                timestamp=timestamp,
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                coordinate_system="pressure_layers",
+                phase_or_species="water_vapour",
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                provenance=provenance,
+                uncertainty=Uncertainty(
+                    method="none",
+                    unresolved=("initial_condition", "evaporation_coefficient_parameter"),
+                ),
+            )
+        }
+
+    def emit_outputs(self) -> dict[str, Field]:
+        ctx = self.context
+        provenance = Provenance(producer=self.module_id, derivation=EQUATION_IDS["condensation"])
+        scalar_flux = {
+            "quantity_kind": QuantityKind.FLUX,
+            "time_semantics": TimeSemantics.INTERVAL_AVERAGE,
+            "time_interval": ctx.dt,
+            "timestamp": ctx.time,
+            "spatial_support": SpatialSupport.GLOBAL_SCALAR,
+            "provenance": provenance,
+            "sign_convention": SignConvention.POSITIVE_DEFINITE,
+        }
+        profile = {
+            "quantity_kind": QuantityKind.DIAGNOSTIC,
+            "time_semantics": TimeSemantics.END_OF_STEP,
+            "timestamp": ctx.time,
+            "spatial_support": SpatialSupport.LAYER_AVERAGE,
+            "dimensions": ("layer",),
+            "coordinate_system": "pressure_layers",
+            "provenance": provenance,
+        }
+        return {
+            "surface_evaporation_flux": Field(
+                field_id="surface_evaporation_flux",
+                physical_name="evaporative water mass flux from the surface",
+                symbol="E",
+                values=np.array(self._evaporation),
+                units="kg m^-2 s^-1",
+                **scalar_flux,  # type: ignore[arg-type]
+            ),
+            "precipitation_flux": Field(
+                field_id="precipitation_flux",
+                physical_name="precipitation water mass flux to the surface",
+                symbol="P",
+                values=np.array(self._precipitation),
+                units="kg m^-2 s^-1",
+                **scalar_flux,  # type: ignore[arg-type]
+            ),
+            "surface_latent_heat_flux": Field(
+                field_id="surface_latent_heat_flux",
+                physical_name="latent heat flux leaving the surface with evaporation",
+                symbol="LE",
+                values=np.array(self.latent_heat * self._evaporation),
+                units="W m^-2",
+                **scalar_flux,  # type: ignore[arg-type]
+            ),
+            "atmosphere_precipitable_water": Field(
+                field_id="atmosphere_precipitable_water",
+                physical_name="total column water vapour",
+                symbol="W",
+                values=np.array(self.precipitable_water),
+                units="kg m^-2",
+                quantity_kind=QuantityKind.EXTENSIVE_STATE,
+                time_semantics=TimeSemantics.END_OF_STEP,
+                timestamp=ctx.time,
+                spatial_support=SpatialSupport.DOMAIN_INTEGRAL,
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                provenance=provenance,
+            ),
+            "latent_heating_rate": Field(
+                field_id="latent_heating_rate",
+                physical_name="latent heat released in each layer by condensation",
+                symbol="LC",
+                values=np.array(self._latent_heating),
+                units="W m^-2",
+                quantity_kind=QuantityKind.SOURCE_RATE,
+                time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                time_interval=ctx.dt,
+                timestamp=ctx.time,
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                coordinate_system="pressure_layers",
+                sign_convention=SignConvention.POSITIVE_INTO_RECEIVER,
+                provenance=provenance,
+            ),
+            "atmosphere_specific_humidity": Field(
+                field_id="atmosphere_specific_humidity",
+                physical_name="specific humidity of each layer",
+                symbol="q",
+                values=np.array(self._specific_humidity),
+                units="kg kg^-1",
+                **profile,  # type: ignore[arg-type]
+            ),
+            "atmosphere_relative_humidity": Field(
+                field_id="atmosphere_relative_humidity",
+                physical_name="relative humidity of each layer",
+                symbol="RH",
+                values=np.array(self._relative_humidity),
+                units="1",
+                **profile,  # type: ignore[arg-type]
+            ),
+        }
+
+    def report_transfers(self) -> tuple[list[Transfer], list[Transfer]]:
+        """Two quantities across two boundaries, recorded from this side.
+
+        Water enters from the surface and leaves to it; energy enters from the
+        surface with the evaporated vapour and leaves to the atmosphere when that
+        vapour condenses. Precipitation carries water but no energy, which is the
+        declared approximation of neglecting its sensible heat.
+        """
+        start, end = self._interval
+        dt = end - start
+        common = {
+            "start_time": start,
+            "end_time": end,
+            "spatial_mapping": "global_mean_over_planetary_surface",
+        }
+        condensed = float(np.sum(self._condensation))
+
+        imports = [
+            Transfer(
+                transfer_id=f"evaporation_water@{start:g}",
+                sender_module=self.surface_module_id,
+                receiver_module=self.module_id,
+                quantity=ConservedQuantity.WATER,
+                amount=self._evaporation * dt,
+                units="kg m^-2",
+                channel="evaporation_water",
+                species="water_vapour",
+                equation_id=EQUATION_IDS["surface_evaporation"],
+                **common,  # type: ignore[arg-type]
+            ),
+            Transfer(
+                transfer_id=f"evaporation_latent_energy@{start:g}",
+                sender_module=self.surface_module_id,
+                receiver_module=self.module_id,
+                quantity=ConservedQuantity.ENERGY,
+                amount=self.latent_heat * self._evaporation * dt,
+                units="J m^-2",
+                channel="evaporation_latent_energy",
+                equation_id=EQUATION_IDS["latent_energy"],
+                **common,  # type: ignore[arg-type]
+            ),
+        ]
+        exports = [
+            Transfer(
+                transfer_id=f"precipitation_water@{start:g}",
+                sender_module=self.module_id,
+                receiver_module=self.surface_module_id,
+                quantity=ConservedQuantity.WATER,
+                amount=condensed,
+                units="kg m^-2",
+                channel="precipitation_water",
+                species="liquid_water",
+                equation_id=EQUATION_IDS["condensation"],
+                **common,  # type: ignore[arg-type]
+            ),
+            Transfer(
+                transfer_id=f"latent_heat_release@{start:g}",
+                sender_module=self.module_id,
+                receiver_module=self.atmosphere_module_id,
+                quantity=ConservedQuantity.ENERGY,
+                amount=self.latent_heat * condensed,
+                units="J m^-2",
+                channel="latent_heat_release",
+                equation_id=EQUATION_IDS["condensation"],
+                **common,  # type: ignore[arg-type]
+            ),
+        ]
+        return (exports, imports)
+
+    def report_conservation(self) -> list[ModuleBudget]:
+        return [
+            ModuleBudget(
+                module_id=self.module_id,
+                quantity=ConservedQuantity.WATER,
+                units="kg m^-2",
+                stored_initial=self._stored_initial / self.latent_heat,
+                stored_final=self.precipitable_water,
+            ),
+            ModuleBudget(
+                module_id=self.module_id,
+                quantity=ConservedQuantity.ENERGY,
+                units="J m^-2",
+                stored_initial=self._stored_initial,
+                stored_final=self.latent_energy(),
+            ),
+        ]
+
+    def report_uncertainty(self) -> UncertaintyReport:
+        return UncertaintyReport(
+            module_id=self.module_id,
+            quantified={
+                "precipitable_water_kg_m2": self.precipitable_water,
+                "evaporation_coefficient_kg_m2_s": self.evaporation_coefficient,
+            },
+            method="none propagated at this fidelity",
+            distributional_assumptions="unresolved",
+            correlations="unresolved",
+            unresolved=(
+                "evaporation_coefficient_parameter_uncertainty",
+                "structural_uncertainty_of_omitting_vapour_transport",
+                "structural_uncertainty_of_omitting_cloud_storage",
+                "constant_latent_heat_approximation",
+            ),
+        )
+
+    def parameters(self) -> dict[str, Any]:
+        return {
+            **dict(self.configuration),
+            "n_layers": self.n_layers,
+            "evaporation_coefficient_kg_m2_s": self.evaporation_coefficient,
+            "latent_heat_J_kg": self.latent_heat,
+            "initial_relative_humidity": self.initial_relative_humidity,
+            "condensate_fate": "precipitates_immediately",
+            "vapour_transport": "none",
+        }
+
+    def checkpoint(self) -> dict[str, Any]:
+        return {VAPOUR_STATE: np.array(self.vapour)}
+
+    def restore(self, checkpoint: dict[str, Any]) -> None:
+        self.vapour = np.array(checkpoint[VAPOUR_STATE], dtype=float)

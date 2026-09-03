@@ -50,6 +50,74 @@ Nothing in the upper layers can bypass the lower ones. A module has no method
 that writes another module's state; the only path is a labeled tendency the
 owner commits.
 
+## Stage 3: thermodynamics, convection and water
+
+```
+solar ─▶ orbit ─▶ radiation ─▶ water ─▶ convection ─▶ atmosphere ─▶ surface ─▶ space
+```
+
+| Module | Owns | Role |
+| --- | --- | --- |
+| `water` | `atmosphere_water_vapour` | vapour, evaporation, condensation, **and the latent energy** |
+| `convection` | — | surface sensible heat flux and dry convective adjustment |
+| `surface` | `surface_temperature`, `surface_water_store` | as before, plus a water reservoir |
+
+### Splitting order is physics, not bookkeeping
+
+Water runs before convection so that convection stabilises the profile
+condensation has already produced, rather than one it is about to destabilise.
+Both run after radiation, so the profile each acts on is the one its predecessor
+left. The order is declared in the schedule and appears in the run manifest.
+
+### The latent energy has to live somewhere
+
+Evaporation removes energy from the surface; condensation delivers it to the
+atmosphere. Between the two events that energy is in the vapour, and if nothing
+owns it the budget cannot close at either moment.
+
+So the water module's energy store is `L_v` times the vapour it holds.
+Evaporation becomes an ordinary transfer of *two* quantities from the surface —
+water mass and its latent energy — condensation transfers the energy onward to
+the atmosphere as sensible heat, and precipitation returns the mass carrying
+none. That last part is a declared approximation: the sensible heat content of
+the falling water is neglected, and the equation record says so.
+
+This is what CON-007 means by a phase change reconciling matter *and* latent
+energy: the two budgets close simultaneously, between the same modules, over the
+same interval.
+
+### Convection was inert until the surface flux existed
+
+Convective adjustment was written first, on the expectation that pure radiative
+equilibrium would be convectively unstable — the classical Manabe–Strickler
+result. Measured in the Stage 2 configurations it was not. Adding the adjustment
+changed the answer by 0.00 K, to the last digit, at every opacity tested.
+
+The reason is instructive. The instability the textbooks describe lives in the
+27 K jump between the surface and the air immediately above it, and a column
+whose only surface-to-air coupling is radiative has no mechanism that can act on
+that jump. The equal-pressure layers are also far too thick to resolve the
+shallow super-adiabatic sub-layer.
+
+Adding a bulk sensible heat flux supplied the missing coupling. With it, the
+adjustment mixes three layers, the surface cools by about 5 K and the lowest
+layer warms by nearly 20 K — the expected radiative-convective behaviour. The
+flux is a closure with a free coefficient and no wind or stability dependence,
+and the equation record carries all of that.
+
+The general lesson is the one the charter is built around: a module that
+produces no measurable change is not evidence that the process is unimportant.
+It is evidence that something else is missing.
+
+### Three tendencies, one owner
+
+The atmospheric layer temperature now receives labeled contributions from three
+modules at once — radiation, convection (twice: sensible heating and mixing) and
+water. The column owns the state and commits their sum, and every label survives
+into the per-state budget, so a reader can see how much of a layer's warming was
+radiative, how much turbulent and how much latent. This is A1.3 exercised
+properly for the first time.
+
 ## Stage 2: the radiating column
 
 ```

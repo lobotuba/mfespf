@@ -25,6 +25,9 @@ _CONFIGURATIONS = {
     "absorbing": column_configurations.absorbing_emitting_atmosphere,
     "window": column_configurations.window_atmosphere,
     "grey-layer": column_configurations.single_grey_layer,
+    # Stage 3: thermodynamics, convection and water.
+    "radiative-convective": column_configurations.radiative_convective,
+    "moist": column_configurations.moist_radiative_convective,
 }
 
 
@@ -59,6 +62,21 @@ def _run(args: argparse.Namespace) -> int:
         if layers is not None:
             profile = ", ".join(f"{v:.2f}" for v in layers.values)
             print(f"layer temperatures (surface first): {profile} K")
+        sensible = outputs.get("surface_sensible_heat_flux")
+        latent = outputs.get("surface_latent_heat_flux")
+        if sensible is not None:
+            line = f"sensible heat flux: {sensible.scalar():.4f} W m^-2"
+            if latent is not None:
+                line += f"   latent heat flux: {latent.scalar():.4f} W m^-2"
+            print(line)
+        water = outputs.get("atmosphere_precipitable_water")
+        precipitation = outputs.get("precipitation_flux")
+        if water is not None and precipitation is not None:
+            # Reported in mm/day, the unit a hydrological claim would use.
+            print(
+                f"precipitable water: {water.scalar():.4f} kg m^-2   "
+                f"precipitation: {precipitation.scalar() * 86400.0:.4f} mm/day"
+            )
         olr = outputs.get("outgoing_longwave_radiation")
         reflected = outputs.get("reflected_shortwave_radiation")
         if olr is not None and reflected is not None:

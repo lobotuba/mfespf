@@ -151,6 +151,8 @@ class AtmosphericColumnModule(Module):
         initial_temperature: float | np.ndarray = 250.0,
         specific_heat: float | None = None,
         gravity: float | None = None,
+        couple_water: bool = False,
+        water_module_id: str = "water",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         contract = ModuleContract(
@@ -187,15 +189,24 @@ class AtmosphericColumnModule(Module):
                 "toa_upward_radiation",
                 "surface_downward_radiation",
                 "surface_upward_radiation",
+                *(("latent_heating_rate",) if couple_water else ()),
             ),
             produced_outputs=(
                 ATMOSPHERE_TEMPERATURE_STATE,
                 "atmosphere_layer_mass",
                 "atmosphere_layer_heat_capacity",
+                "atmosphere_layer_pressure",
                 "atmosphere_interface_pressure",
                 "atmosphere_column_energy",
             ),
-            imported_transfers=("radiation_down_toa", "radiation_up_surface"),
+            imported_transfers=(
+                "radiation_down_toa",
+                "radiation_up_surface",
+                # Latent heat arrives as an ordinary transfer, not as a quietly
+                # applied tendency: condensation moves energy across a module
+                # boundary and CON-002 requires both parties to record it.
+                *(("latent_heat_release",) if couple_water else ()),
+            ),
             exported_transfers=("radiation_down_surface", "radiation_up_toa"),
             conserved_quantities=("energy", "mass"),
             internal_sources_and_sinks=(),
@@ -234,6 +245,8 @@ class AtmosphericColumnModule(Module):
             ),
         )
         super().__init__(contract, status=status)
+        self.couple_water = couple_water
+        self.water_module_id = water_module_id
         self.surface_module_id = surface_module_id
         self.space_module_id = space_module_id
         self.source_module_id = source_module_id
@@ -257,12 +270,18 @@ class AtmosphericColumnModule(Module):
             gravity=self.gravity,
         )
         self.layer_heat_capacity = self.specific_heat * self.layer_mass
+        # Layer midpoint pressure, the level a layer's bulk properties are
+        # attributed to. Linear in pressure because the layers are equal in
+        # pressure and therefore in mass.
+        self.layer_pressure = 0.5 * (self.interface_pressure[:-1] + self.interface_pressure[1:])
         self.temperature = np.full(n_layers, float(np.mean(np.asarray(initial_temperature))))
 
         self._interval = (0.0, 0.0)
         self._stored_initial = 0.0
         self._budget: StateBudget | None = None
         self._boundary_energy: dict[str, float] = {}
+        self._latent_received = 0.0
+        self._sensible_received: float | None = None
 
     # --- configuration ----------------------------------------------------
     def validate_configuration(self) -> None:
@@ -324,6 +343,16 @@ class AtmosphericColumnModule(Module):
                 ("radiation_up_surface", "surface_upward_radiation"),
             )
         }
+        sensible = self._inputs.get("surface_sensible_heat_flux")
+        self._sensible_received = (
+            sensible.require_units("W m^-2").scalar() * ctx.dt if sensible is not None else None
+        )
+        self._latent_received = (
+            float(np.sum(self.input_field("latent_heating_rate").require_units("W m^-2").values))
+            * ctx.dt
+            if self.couple_water
+            else 0.0
+        )
         return []
 
     def advance_state(self, dt: float, contributions: list[TendencyContribution]) -> None:
@@ -373,6 +402,21 @@ class AtmosphericColumnModule(Module):
                 values=np.array(self.layer_mass),
                 units="kg m^-2",
                 quantity_kind=QuantityKind.EXTENSIVE_STATE,
+                time_semantics=TimeSemantics.INSTANTANEOUS,
+                timestamp=timestamp,
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                coordinate_system="pressure_layers",
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                provenance=provenance,
+            ),
+            "atmosphere_layer_pressure": Field(
+                field_id="atmosphere_layer_pressure",
+                physical_name="midpoint pressure of each layer",
+                symbol="p_i",
+                values=np.array(self.layer_pressure),
+                units="Pa",
+                quantity_kind=QuantityKind.INTENSIVE_STATE,
                 time_semantics=TimeSemantics.INSTANTANEOUS,
                 timestamp=timestamp,
                 spatial_support=SpatialSupport.LAYER_AVERAGE,
@@ -483,6 +527,28 @@ class AtmosphericColumnModule(Module):
                 **common,  # type: ignore[arg-type]
             ),
         ]
+        if self._sensible_received is not None:
+            imports.append(
+                Transfer(
+                    transfer_id=f"sensible_heat@{start:g}",
+                    sender_module=self.surface_module_id,
+                    receiver_module=self.module_id,
+                    amount=self._sensible_received,
+                    channel="sensible_heat",
+                    **common,  # type: ignore[arg-type]
+                )
+            )
+        if self.couple_water:
+            imports.append(
+                Transfer(
+                    transfer_id=f"latent_heat_release@{start:g}",
+                    sender_module=self.water_module_id,
+                    receiver_module=self.module_id,
+                    amount=self._latent_received,
+                    channel="latent_heat_release",
+                    **common,  # type: ignore[arg-type]
+                )
+            )
         return (exports, imports)
 
     def report_conservation(self) -> list[ModuleBudget]:
@@ -530,6 +596,7 @@ class AtmosphericColumnModule(Module):
             "specific_heat_J_kg_K": self.specific_heat,
             "gravity_m_s2": self.gravity,
             "column_mass_kg_m2": self.column_mass,
+            "couple_water": self.couple_water,
             "initial_temperature_K": np.asarray(self.initial_temperature, dtype=float)
             .reshape(-1)
             .tolist(),

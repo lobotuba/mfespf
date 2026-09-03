@@ -30,6 +30,12 @@ saying out loud.
 - **Emissivity follows from albedo band by band** (Kirchhoff). Do not add a
   free-standing emissivity parameter to a spectral surface; if a configuration
   wants a reflective-but-black surface, it says so spectrally.
+- **A process that moves matter must move its energy in the same interval.**
+  The water module owns the latent energy for exactly this reason. Do not add a
+  phase change whose energy is applied separately from its mass.
+- **A closure that redistributes within a module must sum to zero.** Convective
+  adjustment conserves column enthalpy by construction, and the test asserts it
+  per step. Do not replace it with a scheme that only conserves on average.
 - **Calibration data is never independent validation.** The dataset registry
   enforces it per claim, at variable granularity.
 - **Withheld data is unreadable before the claim freezes.** Do not add a
@@ -90,7 +96,7 @@ fields are preserved across regeneration — they are the human record).
 
 ## Adding a validation-ladder stage
 
-Stages 3 onward are unimplemented. Follow charter §20 rather than writing the
+Stages 4 onward are unimplemented. Follow charter §20 rather than writing the
 physics first: define the claim, derive the equation, declare its validity
 domain, implement the simplest valid form, verify units and limiting cases,
 verify conservation, verify convergence, compare against an independent
