@@ -36,6 +36,12 @@ saying out loud.
 - **A closure that redistributes within a module must sum to zero.** Convective
   adjustment conserves column enthalpy by construction, and the test asserts it
   per step. Do not replace it with a scheme that only conserves on average.
+- **Cloud shortwave and longwave effects are published separately, before any
+  net.** They are of opposite sign and comparable size; a net alone cannot tell
+  a right model from a doubly wrong one (SPC-010, CLD-001).
+- **A term that is not physics gets a name, not a hiding place.** A prescribed
+  cloud's water enters the budget as `prescribed_cloud_water_source`, the same
+  way a limiter's energy enters as a numerical source.
 - **Calibration data is never independent validation.** The dataset registry
   enforces it per claim, at variable granularity.
 - **Withheld data is unreadable before the claim freezes.** Do not add a
@@ -96,7 +102,7 @@ fields are preserved across regeneration — they are the human record).
 
 ## Adding a validation-ladder stage
 
-Stages 4 onward are unimplemented. Follow charter §20 rather than writing the
+Stages 5 onward are unimplemented. Follow charter §20 rather than writing the
 physics first: define the claim, derive the equation, declare its validity
 domain, implement the simplest valid form, verify units and limiting cases,
 verify conservation, verify convergence, compare against an independent

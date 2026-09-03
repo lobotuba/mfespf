@@ -68,6 +68,7 @@ __all__ = [
     "SpectralRadiationModule",
     "grey_absorption",
     "solve_column_radiation",
+    "two_stream_layer",
     "window_absorption",
 ]
 
@@ -141,6 +142,76 @@ def window_absorption(
     return opaque * float(kappa_opaque) + in_window * float(kappa_window)
 
 
+def two_stream_layer(
+    optical_depth: np.ndarray,
+    single_scattering_albedo: np.ndarray,
+    asymmetry: np.ndarray,
+    diffusivity: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Reflectance, transmittance and emissivity of a homogeneous layer.
+
+    The standard two-stream solution for a slab that absorbs, scatters and emits.
+    Its two limits are what make it safe to introduce underneath work that was
+    validated without it:
+
+    * with no scattering it reduces to ``t = exp(-D tau)``, ``r = 0`` and
+      ``e = 1 - t`` -- algebraically identical to the absorption-only sweeps this
+      replaces, so every Stage 2 and Stage 3 result is unchanged;
+    * with conservative scattering it gives ``r + t = 1`` and ``e = 0``, so a
+      purely scattering layer neither absorbs nor emits.
+
+    Scattering is needed for clouds specifically. A cloud's shortwave effect is
+    reflection, and representing it as absorption would warm the column where the
+    real one cools it -- a wrong response sign, which the charter's failure
+    taxonomy (15.4) treats as a refutation rather than an inaccuracy.
+
+    Emissivity follows from ``e = 1 - r - t`` rather than being supplied
+    independently: that is Kirchhoff's law plus energy conservation, and deriving
+    it means the layer cannot emit energy it did not absorb.
+    """
+    tau = np.asarray(optical_depth, dtype=float)
+    # Not clipped below one: a conservatively scattering layer must come out
+    # with r + t exactly one and e exactly zero, and a guard of 1 - 1e-12 leaves
+    # a few picowatts of absorption that no physics put there.
+    omega = np.clip(np.asarray(single_scattering_albedo, dtype=float), 0.0, 1.0)
+    g = np.clip(np.asarray(asymmetry, dtype=float), 0.0, 1.0 - 1e-12)
+
+    # Delta scaling removes the forward-scattering peak, which a two-stream
+    # cannot represent, and rescales the remainder so the transmitted energy is
+    # right. Without it a cloud with g ~ 0.85 would reflect far too much.
+    forward = g**2
+    tau = tau * (1.0 - omega * forward)
+    omega = omega * (1.0 - forward) / np.maximum(1.0 - omega * forward, 1e-300)
+    g = g / (1.0 + g)
+
+    backscatter = 0.5 * (1.0 - g)
+    gamma1 = diffusivity * (1.0 - omega * (1.0 - backscatter))
+    gamma2 = diffusivity * omega * backscatter
+    k = np.sqrt(np.maximum(gamma1**2 - gamma2**2, 0.0))
+
+    x = k * tau
+    reflectance = np.zeros_like(tau)
+    transmittance = np.ones_like(tau)
+
+    # Two regimes, for accuracy rather than taste: the series form is the k -> 0
+    # limit where the exponential form is 0/0, and the scaled exponential form
+    # avoids the overflow that cosh and sinh reach around tau ~ 400.
+    small = x < 1e-6
+    if np.any(small):
+        denominator = 1.0 + gamma1[small] * tau[small]
+        reflectance[small] = gamma2[small] * tau[small] / denominator
+        transmittance[small] = 1.0 / denominator
+    large = ~small
+    if np.any(large):
+        decay = np.exp(-2.0 * x[large])
+        denominator = (k[large] + gamma1[large]) + (k[large] - gamma1[large]) * decay
+        reflectance[large] = gamma2[large] * (1.0 - decay) / denominator
+        transmittance[large] = 2.0 * k[large] * np.exp(-x[large]) / denominator
+
+    emissivity = np.clip(1.0 - reflectance - transmittance, 0.0, 1.0)
+    return reflectance, transmittance, emissivity
+
+
 @dataclass
 class ColumnRadiationSolution:
     """Interface fluxes, layer heating and the diagnostics RAD-002 requires.
@@ -202,20 +273,22 @@ def solve_column_radiation(
     absorption_coefficient: np.ndarray,
     surface_temperature: float,
     surface_albedo: np.ndarray,
+    cloud_absorption_optical_depth: np.ndarray | None = None,
+    cloud_scattering_optical_depth: np.ndarray | None = None,
+    cloud_asymmetry: np.ndarray | None = None,
     diffusivity_factor: float | None = None,
     shortwave_cutoff_m: float = _DEFAULT_SW_LW_CUTOFF_M,
 ) -> ColumnRadiationSolution:
-    """Solve absorption, emission and surface reflection through the column.
+    """Solve absorption, scattering, emission and surface reflection in the column.
 
-    Two sweeps per band, downward then upward, because without scattering the
-    downward field does not depend on the upward one. Surface reflection is
-    computed between them, which is why the order matters and is fixed here
-    rather than left to a caller.
+    Solved by the adding method: sweeping upward, accumulate the reflectance and
+    the emitted source of everything below each interface, then sweep down once
+    with the incident field. That handles multiple reflection between layers
+    exactly, which a pair of independent sweeps cannot once anything scatters.
 
-    ``incident_spectral_irradiance`` is the spectral irradiance arriving at the
-    top of the column in W m^-2 m^-1 on ``grid``; ``surface_albedo`` is the
-    per-band reflectance, and the surface's emissivity is its complement by
-    Kirchhoff's law.
+    ``cloud_*`` arrays are optional and shaped ``(n_layers, n_bands)``. Omitting
+    them leaves the column non-scattering, in which case the result is the
+    absorption-only solution to floating-point round-off.
     """
     n_layers = int(np.asarray(layer_mass).size)
     n_bands = grid.n_bins
@@ -244,38 +317,81 @@ def solve_column_radiation(
     temperature = np.asarray(layer_temperature, dtype=float)
     albedo = np.clip(np.asarray(surface_albedo, dtype=float), 0.0, 1.0)
 
-    # Emissivity of each layer in each band. Kirchhoff's law makes absorptivity
-    # and emissivity the same number, which is what keeps the column from
-    # manufacturing energy at equilibrium.
-    optical_depth = D * kappa[None, :] * mass[:, None]
-    layer_emissivity = -np.expm1(-optical_depth)  # 1 - exp(-tau), accurate when tau is small
-    transmittance = 1.0 - layer_emissivity
+    shape = (n_layers, n_bands)
 
+    def _optional(values: np.ndarray | None) -> np.ndarray:
+        if values is None:
+            return np.zeros(shape)
+        array = np.asarray(values, dtype=float)
+        if array.shape != shape:
+            raise ConfigurationError(
+                f"cloud optical property has shape {array.shape}, expected {shape}"
+            )
+        if np.any(array < 0.0):
+            raise ConfigurationError("cloud optical depths cannot be negative")
+        return array
+
+    cloud_absorption = _optional(cloud_absorption_optical_depth)
+    cloud_scattering = _optional(cloud_scattering_optical_depth)
+    asymmetry = (
+        np.zeros(shape)
+        if cloud_asymmetry is None
+        else np.broadcast_to(np.asarray(cloud_asymmetry, dtype=float), shape)
+    )
+
+    gas_absorption = kappa[None, :] * mass[:, None]
+    total_optical_depth = gas_absorption + cloud_absorption + cloud_scattering
+    single_scattering_albedo = np.divide(
+        cloud_scattering,
+        total_optical_depth,
+        out=np.zeros(shape),
+        where=total_optical_depth > 0.0,
+    )
+
+    reflectance, transmittance, emissivity = two_stream_layer(
+        total_optical_depth, single_scattering_albedo, asymmetry, D
+    )
     layer_emission = band_exitance_profile(grid, temperature)
 
-    n_interfaces = n_layers + 1
-    downward = np.zeros((n_interfaces, n_bands))
-    upward = np.zeros((n_interfaces, n_bands))
+    # Upward pass: reflectance and emitted source of everything below interface i.
+    below_reflectance = np.zeros((n_layers + 1, n_bands))
+    below_source = np.zeros((n_layers + 1, n_bands))
+    surface_emissivity = 1.0 - albedo
+    below_reflectance[0] = albedo
+    below_source[0] = surface_emissivity * band_exitance(grid, float(surface_temperature))
 
+    for i in range(n_layers):
+        coupling = 1.0 - reflectance[i] * below_reflectance[i]
+        source = emissivity[i] * layer_emission[i]
+        below_reflectance[i + 1] = (
+            reflectance[i] + (transmittance[i] ** 2 * below_reflectance[i]) / coupling
+        )
+        below_source[i + 1] = (
+            transmittance[i]
+            * below_reflectance[i]
+            * (reflectance[i] * below_source[i] + source)
+            / coupling
+            + transmittance[i] * below_source[i]
+            + source
+        )
+
+    # Downward pass with the incident field, then the upward field follows.
+    downward = np.zeros((n_layers + 1, n_bands))
     downward[n_layers] = np.asarray(incident_spectral_irradiance, dtype=float) * grid.widths
     for i in range(n_layers - 1, -1, -1):
-        downward[i] = downward[i + 1] * transmittance[i] + layer_emissivity[i] * layer_emission[i]
+        coupling = 1.0 - reflectance[i] * below_reflectance[i]
+        source = emissivity[i] * layer_emission[i]
+        downward[i] = (
+            transmittance[i] * downward[i + 1] + reflectance[i] * below_source[i] + source
+        ) / coupling
 
-    surface_emission = band_exitance(grid, float(surface_temperature))
-    surface_emissivity = 1.0 - albedo
-    upward[0] = surface_emissivity * surface_emission + albedo * downward[0]
-    for i in range(n_layers):
-        upward[i + 1] = upward[i] * transmittance[i] + layer_emissivity[i] * layer_emission[i]
+    upward = below_reflectance * downward + below_source
 
-    # Heating is the flux divergence across the layer, so the column budget
-    # closes identically rather than approximately.
+    # Heating is still the flux divergence across the layer, so the column budget
+    # closes identically whatever the layer coefficients turned out to be.
     layer_heating = np.array(
         [
-            float(
-                np.sum(
-                    (upward[i] - upward[i + 1]) + (downward[i + 1] - downward[i]),
-                )
-            )
+            float(np.sum((upward[i] - upward[i + 1]) + (downward[i + 1] - downward[i])))
             for i in range(n_layers)
         ]
     )
@@ -286,9 +402,37 @@ def solve_column_radiation(
         downward=downward,
         layer_heating=layer_heating,
         surface_absorbed=float(np.sum(surface_emissivity * downward[0])),
-        surface_emitted=float(np.sum(surface_emissivity * surface_emission)),
+        surface_emitted=float(
+            np.sum(surface_emissivity * band_exitance(grid, float(surface_temperature)))
+        ),
         grid=grid,
         shortwave_mask=shortwave_mask,
+    )
+
+
+def _mix_columns(
+    clear: ColumnRadiationSolution, overcast: ColumnRadiationSolution, fraction: float
+) -> ColumnRadiationSolution:
+    """Combine a clear and an overcast column under maximum overlap.
+
+    The independent-column approximation: solve the two skies separately and
+    weight them. Every quantity mixes linearly because the radiative transfer is
+    linear in the source terms, so the mixed fluxes remain a consistent solution
+    of the same energy budget -- which is what keeps the flux divergence closing
+    identically after the mix.
+    """
+    if not 0.0 <= fraction <= 1.0:
+        raise ConfigurationError(f"cloud fraction {fraction} must lie in [0, 1]")
+    weight = fraction
+    return ColumnRadiationSolution(
+        upward=(1.0 - weight) * clear.upward + weight * overcast.upward,
+        downward=(1.0 - weight) * clear.downward + weight * overcast.downward,
+        layer_heating=(1.0 - weight) * clear.layer_heating + weight * overcast.layer_heating,
+        surface_absorbed=(1.0 - weight) * clear.surface_absorbed
+        + weight * overcast.surface_absorbed,
+        surface_emitted=(1.0 - weight) * clear.surface_emitted + weight * overcast.surface_emitted,
+        grid=clear.grid,
+        shortwave_mask=clear.shortwave_mask,
     )
 
 
@@ -310,6 +454,8 @@ class SpectralRadiationModule(Module):
         absorption_coefficient: np.ndarray,
         diffusivity_factor: float | None = None,
         shortwave_cutoff_m: float = _DEFAULT_SW_LW_CUTOFF_M,
+        couple_clouds: bool = False,
+        cloud_module_id: str = "cloud",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         n_bands = grid.n_bins
@@ -320,21 +466,36 @@ class SpectralRadiationModule(Module):
             interface_version=V1,
             fidelity_level=FidelityLevel.REDUCED,
             physical_basis=(
-                "Plane-parallel radiative transfer with absorption, thermal emission "
-                "under Kirchhoff's law, and surface reflection; no scattering."
+                "Plane-parallel two-stream radiative transfer with absorption, "
+                "scattering, thermal emission under Kirchhoff's law, and surface "
+                "reflection, solved by the adding method."
             ),
             governing_equation_ids=(
                 EQUATION_IDS["schwarzschild"],
                 EQUATION_IDS["beer_lambert"],
                 EQUATION_IDS["planck"],
                 EQUATION_IDS["diffusivity"],
+                EQUATION_IDS["two_stream"],
+                *(
+                    (EQUATION_IDS["cloud_optics"], EQUATION_IDS["cloud_radiative_effect"])
+                    if couple_clouds
+                    else ()
+                ),
             ),
             assumptions=(
                 "plane-parallel, horizontally homogeneous column",
-                "no scattering in any band",
+                "gases absorb and emit but do not scatter; only clouds scatter",
                 "local thermodynamic equilibrium, so emissivity equals absorptivity",
                 "each layer emits at its single isothermal temperature",
                 "the hemispheric angular integral is replaced by one diffusivity factor",
+                *(
+                    (
+                        "maximum overlap: all-sky is a linear mix of a clear and an "
+                        "overcast column weighted by the cloud fraction",
+                    )
+                    if couple_clouds
+                    else ()
+                ),
             ),
             validity_domain=(
                 "Optical depths where the diffusivity approximation holds to a few "
@@ -348,6 +509,7 @@ class SpectralRadiationModule(Module):
                 "atmosphere_layer_heat_capacity",
                 "surface_temperature",
                 "surface_spectral_albedo",
+                *(("cloud_fraction",) if couple_clouds else ()),
             ),
             produced_outputs=(
                 "layer_radiative_heating",
@@ -359,6 +521,17 @@ class SpectralRadiationModule(Module):
                 "outgoing_longwave_radiation",
                 "reflected_shortwave_radiation",
                 "atmospheric_radiative_forcing_diagnostics",
+                *(
+                    (
+                        "clear_sky_outgoing_longwave_radiation",
+                        "clear_sky_reflected_shortwave_radiation",
+                        "cloud_shortwave_radiative_effect",
+                        "cloud_longwave_radiative_effect",
+                        "cloud_net_radiative_effect",
+                    )
+                    if couple_clouds
+                    else ()
+                ),
             ),
             conserved_quantities=("energy",),
             supported_spectral_representations=(grid.resolution_identifier,),
@@ -379,11 +552,29 @@ class SpectralRadiationModule(Module):
                 "test_radiation_flux_divergence_closes_identically",
                 "test_incident_equals_absorbed_plus_reflected_plus_transmitted",
                 "test_spectral_convergence_of_the_column_solution",
+                "test_two_stream_reduces_to_pure_absorption",
+                *(
+                    (
+                        "test_no_cloud_control_matches_the_clear_column",
+                        "test_cloud_shortwave_effect_cools_and_longwave_effect_warms",
+                    )
+                    if couple_clouds
+                    else ()
+                ),
             ),
             known_limitations=(
-                "No scattering, so a shortwave-scattering atmosphere cannot be "
-                "represented at all -- not merely represented badly.",
+                "Gas scattering is absent, so Rayleigh scattering and its contribution "
+                "to planetary albedo are not represented at all.",
                 "One diffusivity factor for both solar beam and thermal diffuse paths.",
+                *(
+                    (
+                        "All-sky fluxes are a linear mix of two independent columns, so "
+                        "horizontal photon transport between the clear and cloudy parts "
+                        "is absent. The cost is two full solves per step.",
+                    )
+                    if couple_clouds
+                    else ()
+                ),
             ),
             cost=CostDeclaration(
                 module_id=module_id,
@@ -410,7 +601,11 @@ class SpectralRadiationModule(Module):
             else value_of("radiative_diffusivity_factor")
         )
         self.shortwave_cutoff_m = shortwave_cutoff_m
+        self.couple_clouds = couple_clouds
+        self.cloud_module_id = cloud_module_id
         self.solution: ColumnRadiationSolution | None = None
+        self.clear_sky: ColumnRadiationSolution | None = None
+        self._cloud_fraction = 0.0
         self._layer_heat_capacity: np.ndarray | None = None
         # A property of the grid, not of the run: computed once and reported
         # every step as the structural uncertainty of the spectral truncation.
@@ -449,7 +644,7 @@ class SpectralRadiationModule(Module):
                 f"configured for {self.grid.n_bins}; regrid at a declared boundary (SPC-005)"
             )
 
-        self.solution = solve_column_radiation(
+        common = dict(
             grid=self.grid,
             incident_spectral_irradiance=incident.values,
             layer_temperature=temperature.values,
@@ -460,6 +655,26 @@ class SpectralRadiationModule(Module):
             diffusivity_factor=self.diffusivity_factor,
             shortwave_cutoff_m=self.shortwave_cutoff_m,
         )
+
+        # The clear-sky column is always solved. It is the reference the cloud
+        # radiative effect is defined against, and when no cloud is active it is
+        # also the answer -- so a no-cloud run costs exactly what it did before.
+        self.clear_sky = solve_column_radiation(**common)  # type: ignore[arg-type]
+
+        cloud = self._cloud_optics() if self.couple_clouds else None
+        if cloud is None or cloud[0] <= 0.0:
+            self._cloud_fraction = 0.0
+            self.solution = self.clear_sky
+        else:
+            fraction, optics = cloud
+            self._cloud_fraction = fraction
+            overcast = solve_column_radiation(
+                cloud_absorption_optical_depth=optics.absorption,
+                cloud_scattering_optical_depth=optics.scattering,
+                cloud_asymmetry=optics.asymmetry,
+                **common,  # type: ignore[arg-type]
+            )
+            self.solution = _mix_columns(self.clear_sky, overcast, fraction)
 
         heat_capacity = self.input_field("atmosphere_layer_heat_capacity").require_units(
             "J m^-2 K^-1"
@@ -576,6 +791,52 @@ class SpectralRadiationModule(Module):
                 **flux,  # type: ignore[arg-type]
             ),
         }
+
+        if self.couple_clouds and self.clear_sky is not None:
+            clear_sw, clear_lw = self.clear_sky.partition(
+                self.clear_sky.upward[self.clear_sky.toa_index]
+            )
+            effect_sw, effect_lw = self.cloud_radiative_effect()
+            outputs.update(
+                {
+                    "clear_sky_reflected_shortwave_radiation": Field(
+                        field_id="clear_sky_reflected_shortwave_radiation",
+                        physical_name="reflected shortwave with the cloud removed",
+                        values=np.array(clear_sw),
+                        sign_convention=SignConvention.POSITIVE_UPWARD,
+                        **flux,  # type: ignore[arg-type]
+                    ),
+                    "clear_sky_outgoing_longwave_radiation": Field(
+                        field_id="clear_sky_outgoing_longwave_radiation",
+                        physical_name="outgoing longwave with the cloud removed",
+                        values=np.array(clear_lw),
+                        sign_convention=SignConvention.POSITIVE_UPWARD,
+                        **flux,  # type: ignore[arg-type]
+                    ),
+                    "cloud_shortwave_radiative_effect": Field(
+                        field_id="cloud_shortwave_radiative_effect",
+                        physical_name="shortwave cloud radiative effect at the top",
+                        values=np.array(effect_sw),
+                        sign_convention=SignConvention.POSITIVE_DOWNWARD,
+                        **flux,  # type: ignore[arg-type]
+                    ),
+                    "cloud_longwave_radiative_effect": Field(
+                        field_id="cloud_longwave_radiative_effect",
+                        physical_name="longwave cloud radiative effect at the top",
+                        values=np.array(effect_lw),
+                        sign_convention=SignConvention.POSITIVE_DOWNWARD,
+                        **flux,  # type: ignore[arg-type]
+                    ),
+                    # Formed only after both components are published above.
+                    "cloud_net_radiative_effect": Field(
+                        field_id="cloud_net_radiative_effect",
+                        physical_name="net cloud radiative effect at the top",
+                        values=np.array(effect_sw + effect_lw),
+                        sign_convention=SignConvention.POSITIVE_DOWNWARD,
+                        **flux,  # type: ignore[arg-type]
+                    ),
+                }
+            )
         return outputs
 
     def report_uncertainty(self) -> UncertaintyReport:
@@ -615,8 +876,57 @@ class SpectralRadiationModule(Module):
             "absorption_coefficient_m2_kg": self.absorption_coefficient.tolist(),
             "diffusivity_factor": self.diffusivity_factor,
             "shortwave_longwave_cutoff_m": self.shortwave_cutoff_m,
-            "scattering": "not_represented",
+            "gas_scattering": "not_represented",
+            "cloud_scattering": "two_stream_with_delta_scaling"
+            if self.couple_clouds
+            else "no_clouds_active",
+            "couple_clouds": self.couple_clouds,
         }
+
+    def _cloud_optics(self) -> tuple[float, Any] | None:
+        """Read the cloud state, if a cloud module published one this step."""
+        fraction_field = self._inputs.get("cloud_fraction")
+        if fraction_field is None:
+            return None
+        fraction = float(fraction_field.require_units("1").scalar())
+        if fraction <= 0.0:
+            return None
+        liquid = self._inputs.get("cloud_liquid_water_path")
+        ice = self._inputs.get("cloud_ice_water_path")
+        radii = self._inputs.get("cloud_effective_radius")
+        if liquid is None or ice is None or radii is None:
+            raise ConfigurationError(
+                "a cloud fraction was published without the water paths and effective "
+                "radii the optical properties are derived from (CLD-002)"
+            )
+        from mfespf.physics.clouds import CloudProfile, cloud_optical_properties
+
+        profile = CloudProfile(
+            liquid_water_path=liquid.require_units("kg m^-2").values,
+            ice_water_path=ice.require_units("kg m^-2").values,
+            fraction=fraction,
+            droplet_effective_radius=float(radii.require_units("m").values[0]),
+            crystal_effective_radius=float(radii.require_units("m").values[1]),
+        )
+        return fraction, cloud_optical_properties(
+            self.grid, profile, shortwave_cutoff_m=self.shortwave_cutoff_m
+        )
+
+    def cloud_radiative_effect(self) -> tuple[float, float]:
+        """Shortwave and longwave cloud radiative effect at the top, in W m^-2.
+
+        Returned as a pair and never pre-summed. The two have opposite signs and
+        comparable magnitudes, so the net is a small difference of large numbers;
+        SPC-010 and CLD-001 both require the components to be available first.
+        """
+        if self.clear_sky is None or self.solution is None:
+            return (0.0, 0.0)
+        toa = self.solution.toa_index
+        all_sky_sw, all_sky_lw = self.solution.partition(self.solution.upward[toa])
+        clear_sw, clear_lw = self.clear_sky.partition(self.clear_sky.upward[toa])
+        # Net downward is incident minus outgoing, and the incident is identical
+        # in both columns, so the effect is the difference in what leaves.
+        return (clear_sw - all_sky_sw, clear_lw - all_sky_lw)
 
     def _require_solution(self) -> ColumnRadiationSolution:
         if self.solution is None:

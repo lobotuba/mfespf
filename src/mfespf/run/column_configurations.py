@@ -26,6 +26,7 @@ from mfespf.physics.atmosphere import (
     atmosphere_state_entry,
 )
 from mfespf.physics.boundary import SPACE_ENERGY_STATE, SpaceBoundaryModule, space_state_entry
+from mfespf.physics.clouds import CloudProfile, PrescribedCloudModule, single_layer_cloud
 from mfespf.physics.column_surface import ColumnSurfaceModule
 from mfespf.physics.convection import ConvectiveAdjustmentModule
 from mfespf.physics.equations import build_equation_registry
@@ -51,6 +52,8 @@ __all__ = [
     "column_grid",
     "declare_explicit_cycles",
     "moist_radiative_convective",
+    "no_cloud_control",
+    "prescribed_cloud",
     "radiating_column",
     "radiative_convective",
     "shortwave_albedo",
@@ -185,6 +188,7 @@ def _build_graph(
     coupling_frequency: str,
     convection: bool = False,
     water: bool = False,
+    clouds: bool = False,
     splitting_order: tuple[str, ...] = _SPLITTING_ORDER,
 ) -> DependencyGraph:
     graph = DependencyGraph(configuration_id)
@@ -200,6 +204,8 @@ def _build_graph(
         modules.append(("convection", "dry convective adjustment"))
     if water:
         modules.append(("water", "atmospheric water vapour"))
+    if clouds:
+        modules.append(("cloud", "prescribed cloud state"))
     for module_id, label in modules:
         graph.add_node(Node(module_id, NodeType.MODULE, label))
     graph.add_node(Node(SURFACE_TEMPERATURE_STATE, NodeType.STATE, "slab temperature"))
@@ -425,6 +431,25 @@ def _build_graph(
             equation_ids=("EQ-NUM-FORWARD-EULER",),
         )
 
+    if clouds:
+        for exchanged, units in (
+            ("cloud_fraction", "1"),
+            ("cloud_liquid_water_path", "kg m^-2"),
+            ("cloud_ice_water_path", "kg m^-2"),
+            ("cloud_effective_radius", "m"),
+        ):
+            edge(
+                "cloud",
+                "radiation",
+                exchanged,
+                edge_type=EdgeType.BOUNDARY_DEPENDENCY,
+                units=units,
+                equation_ids=("EQ-CLOUD-OPTICAL-PROPERTIES",),
+                uncertainty_rule=(
+                    "prescribed; the cloud responds to nothing, so no feedback path exists"
+                ),
+            )
+
     declare_explicit_cycles(
         graph,
         splitting_order=splitting_order,
@@ -457,6 +482,7 @@ def radiating_column(
     diffusivity_factor: float | None = None,
     convection: bool = False,
     water: bool = False,
+    cloud: CloudProfile | None = None,
     evaporation_coefficient: float = 2.0e-4,
     initial_water_store: float = 1.0e4,
     conservation_tolerance: float = 1e-11,
@@ -482,6 +508,7 @@ def radiating_column(
         grid=working_grid,
         absorption_coefficient=kappa,
         diffusivity_factor=diffusivity_factor,
+        couple_clouds=cloud is not None,
     )
     atmosphere = AtmosphericColumnModule(
         n_layers=n_layers,
@@ -506,12 +533,24 @@ def radiating_column(
     schedules = [
         ModuleSchedule(solar, step_multiple=solar_step_multiple),
         ModuleSchedule(orbit, step_multiple=solar_step_multiple),
-        ModuleSchedule(radiation, step_multiple=1),
     ]
+    order_head = ["solar", "orbit"]
+    if cloud is not None:
+        # The cloud is published before radiation reads it: a prescribed state is
+        # a boundary condition on the radiation, not a response to it.
+        schedules.append(
+            ModuleSchedule(
+                PrescribedCloudModule(grid=working_grid, n_layers=n_layers, profile=cloud),
+                step_multiple=1,
+            )
+        )
+        order_head.append("cloud")
+    schedules.append(ModuleSchedule(radiation, step_multiple=1))
+    order_head.append("radiation")
     # Splitting order is physics, not bookkeeping: water releases latent heat
     # before convection so that convection stabilises the profile condensation
     # has already produced, rather than one it is about to destabilise.
-    order = ["solar", "orbit", "radiation"]
+    order = order_head
     if water:
         schedules.append(
             ModuleSchedule(
@@ -549,6 +588,7 @@ def radiating_column(
         coupling_frequency=coupling_frequency,
         convection=convection,
         water=water,
+        clouds=cloud is not None,
         splitting_order=tuple(order),
     )
 
@@ -743,3 +783,60 @@ def moist_radiative_convective(kappa: float = 1.0e-4, **kwargs: Any) -> Kernel:
         grid=grid,
         **kwargs,
     )
+
+
+def no_cloud_control(kappa: float = 1.0e-4, **kwargs: Any) -> Kernel:
+    """KER-012 configuration: the no-cloud control.
+
+    The reference every cloud result is measured against. It is the cloudy
+    configuration with the cloud removed, not a separately written column, so a
+    difference between the two is attributable to the cloud and to nothing else.
+    """
+    kwargs.setdefault("run_id", "STAGE4-NO-CLOUD-001")
+    kwargs.setdefault(
+        "purpose",
+        "Stage 4 no-cloud control: the clear-sky reference for every cloud "
+        "radiative effect reported by the prescribed-cloud configuration.",
+    )
+    kwargs["cloud"] = None
+    return radiative_convective(kappa, **kwargs)
+
+
+def prescribed_cloud(
+    kappa: float = 1.0e-4,
+    *,
+    layer: int = 4,
+    liquid_water_path: float = 0.05,
+    fraction: float = 0.6,
+    droplet_effective_radius: float = 1.0e-5,
+    ice: bool = False,
+    **kwargs: Any,
+) -> Kernel:
+    """KER-012 configuration: a prescribed cloud, static or time-varying.
+
+    Pass a callable as ``cloud`` for the time-varying case; the defaults give a
+    single mid-level liquid cloud covering 60 percent of the column.
+
+    The cloud's water is supplied by fiat rather than drawn from the water cycle,
+    so a run using this does not conserve water through its cloud. The cloud
+    module's budget names that source rather than hiding it.
+    """
+    n_layers = int(kwargs.get("n_layers", 8))
+    kwargs.setdefault("run_id", f"STAGE4-CLOUD-LWP{liquid_water_path:g}-F{fraction:g}")
+    kwargs.setdefault(
+        "purpose",
+        "Stage 4 prescribed cloud: shortwave and longwave cloud radiative effects "
+        "reported separately against the no-cloud control.",
+    )
+    kwargs.setdefault(
+        "cloud",
+        single_layer_cloud(
+            n_layers=n_layers,
+            layer=layer,
+            liquid_water_path=liquid_water_path,
+            fraction=fraction,
+            ice=ice,
+            droplet_effective_radius=droplet_effective_radius,
+        ),
+    )
+    return radiative_convective(kappa, **kwargs)

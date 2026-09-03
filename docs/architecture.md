@@ -50,6 +50,73 @@ Nothing in the upper layers can bypass the lower ones. A module has no method
 that writes another module's state; the only path is a labeled tendency the
 owner commits.
 
+## Stage 4: clouds
+
+```
+solar ─▶ orbit ─▶ cloud ─▶ radiation ─▶ ... ─▶ space
+                  publishes  solves clear-sky and
+                  a state    overcast, then mixes
+```
+
+### Scattering was a prerequisite, not an option
+
+A cloud cools the planet by reflecting sunlight. The Stage 2 solver absorbed and
+emitted but did not scatter, and a cloud represented as an absorber would have
+*warmed* the column — a wrong response sign, which the charter's 15.4 taxonomy
+calls a refutation rather than an inaccuracy. So the solver was replaced before
+the cloud module was written.
+
+The replacement is a two-stream layer solved by the adding method. Two limits
+made it safe to put underneath already-validated work:
+
+- **no scattering** gives `t = exp(−Dτ)`, `r = 0`, `e = 1 − t` — algebraically
+  identical to the sweeps it replaced, so Stages 1–3 are unchanged;
+- **conservative scattering** gives `r + t = 1` and `e = 0` to one machine
+  epsilon, so a purely scattering layer neither absorbs nor emits.
+
+Both are asserted directly, and a third test recomputes an absorption-only
+column by an independent route and requires agreement to 1e-12.
+
+Delta scaling comes first, because a two-stream that treated a droplet's forward
+lobe as isotropic would make every cloud far too bright.
+
+### Two solves, and why the cost is worth declaring
+
+The clear-sky column is always solved; it is the reference the cloud radiative
+effect is defined against. When a cloud is present an overcast column is solved
+too, and the all-sky answer is their linear mix weighted by the cloud fraction —
+the independent-column approximation under maximum overlap.
+
+That doubles the radiation cost, which the module's limitations state. What it
+buys is that the cloud radiative effect is a *difference of two computed
+columns* rather than an estimate, and that horizontal photon transport between
+the clear and cloudy parts is the only thing being neglected.
+
+Linearity is what keeps the mix legitimate: the transfer is linear in its source
+terms, so the mixed fluxes are still a consistent solution of the same budget
+and the flux divergence closes identically after mixing.
+
+### Reporting the components before the net
+
+`CRE_sw` and `CRE_lw` have opposite signs and comparable magnitudes, so the net
+is a small difference of two large numbers. A model with both components badly
+wrong can produce a plausible net. SPC-010 and CLD-001 therefore require the
+components to be available first, and the module publishes them as separate
+fields — along with the clear-sky fluxes, so a reader can recompute the
+difference rather than take it on trust.
+
+### The honesty problem with a prescribed cloud
+
+A prescribed cloud's condensate is not drawn from the modeled water cycle. Left
+alone, that is silent non-conservation of water.
+
+The module instead reports a water budget in which the change is booked against
+a source called `prescribed_cloud_water_source`. The budget closes, the run
+stays admissible, and the conservation report shows a named line telling the
+reader the water was supplied by fiat. That is the same pattern CON-008 uses for
+numerical sources: the way to handle a term that is not physics is to name it,
+not to hide it or to refuse to account for it.
+
 ## Stage 3: thermodynamics, convection and water
 
 ```

@@ -21,10 +21,10 @@ specification governs.**
 
 ## Status
 
-Version 0.3.0 — the charter's validation ladder (§19) through **Stage 3**:
+Version 0.4.0 — the charter's validation ladder (§19) through **Stage 4**:
 the accounting kernel, the airless radiating body, the radiating atmospheric
-column, and atmospheric thermodynamics with convection and water — on top of the
-full Version 1.0 interface spine.
+column, atmospheric thermodynamics with convection and water, and clouds — on
+top of the full Version 1.0 interface spine.
 
 | Ladder stage | State |
 | --- | --- |
@@ -32,23 +32,25 @@ full Version 1.0 interface spine.
 | 1 — airless radiating body: geometry, absorbed radiation, thermal emission, analytic equilibrium, transient | implemented |
 | 2 — atmospheric radiation: transparent, absorbing and emitting, multilayer, variable spectrum | implemented |
 | 3 — atmospheric thermodynamics: hydrostatic balance, dry convection, water vapour, phase-change energy | implemented |
-| 4 — clouds | not started |
+| 4 — clouds: no-cloud control, prescribed and time-varying cloud state, separate SW and LW effects | implemented |
 | 5 — thermal storage and measured response timescales | partially: single-reservoir response measured |
 | 6 — historical replay | machinery present (withheld-data path), no datasets |
 | 7 — hindcast and registered prediction | machinery present (freeze records), not exercised |
 
-189 mandatory requirements are tracked; 129 currently have a bound acceptance
-test. See [`docs/traceability.md`](docs/traceability.md) — the uncovered ones are
+189 mandatory requirements are tracked; 131 currently have a bound acceptance
+test. Seven of the eight KER-012 reference configurations exist and run; the
+reduced two-reservoir ocean is the one still missing. See [`docs/traceability.md`](docs/traceability.md) — the uncovered ones are
 listed there rather than left implicit.
 
 ## Install and run
 
 ```bash
 python -m pip install -e ".[dev]"     # Python 3.11+
-python -m pytest                       # 185 tests, ~90 s on a workstation
+python -m pytest                       # 207 tests, ~105 s on a workstation
 mfespf run airless --steps 4800        # Stage 1: 200 simulated days
 mfespf run window --steps 6000 --heat-capacity 1e6            # Stage 2 column
 mfespf run moist  --steps 4000 --heat-capacity 1e6            # Stage 3 moist column
+mfespf run cloud  --steps 3000 --heat-capacity 1e6            # Stage 4 cloudy column
 ```
 
 ```
@@ -63,7 +65,7 @@ run STAGE1-AIRLESS-001 [complete]
 
 Configurations: `airless`, `airless-banded`, `null-control` (Stage 1);
 `transparent`, `absorbing`, `window`, `grey-layer` (Stage 2);
-`radiative-convective`, `moist` (Stage 3).
+`radiative-convective`, `moist` (Stage 3); `no-cloud`, `cloud` (Stage 4).
 Add `--manifest run.json` to write the run record.
 
 ## What the kernel actually does
@@ -101,6 +103,21 @@ moves a conserved quantity that is not energy. Water leaves the surface as
 vapour carrying latent energy, condenses aloft releasing it as sensible heat,
 and returns as precipitation carrying none — with **both** budgets required to
 close at the same time, which is what CON-007 asks of a phase change.
+
+**Stage 4** adds clouds, and with them scattering. A cloud's shortwave effect
+*is* reflection, so the absorption-only solver had to become a two-stream one
+first. The reference run reports the two effects separately, as the charter
+requires, before any net:
+
+```
+$ mfespf run cloud --steps 3000 --heat-capacity 1e6
+cloud radiative effect  shortwave: -55.8632 W m^-2   longwave: +48.1483 W m^-2   net: -7.7149 W m^-2
+outgoing longwave: 184.6212 W m^-2   reflected shortwave: 156.9432 W m^-2
+```
+
+Against the no-cloud control the cloud raises reflected sunlight from 101 to
+157 W m⁻² and lowers outgoing longwave from 240 to 185. The signs are the
+declared ones; the magnitudes are not tuned to anything.
 
 The physics is deliberately small; the point is that it is **accounted**. The
 coupled energy budget closes to ~1e-16 relative at every coupling interval.
@@ -144,6 +161,7 @@ The interface spine is the substantial part. See
 | Atmospheric column | [`physics/atmosphere.py`](src/mfespf/physics/atmosphere.py) | owns layer temperatures; radiation contributes, the column commits |
 | Thermodynamics | [`physics/thermodynamics.py`](src/mfespf/physics/thermodynamics.py) | convective adjustment conserves column enthalpy by construction |
 | Water | [`physics/water.py`](src/mfespf/physics/water.py) | owns the latent energy, so water and energy close together |
+| Clouds | [`physics/clouds.py`](src/mfespf/physics/clouds.py) | a separate variable set, never a global albedo parameter |
 
 ### The design decisions worth knowing
 
@@ -195,6 +213,18 @@ tolerance.** The mixed potential temperature of each unstable group is *defined*
 as the value leaving `sum(C_i T_i)` unchanged. Convection crosses no module
 boundary, so its contribution to the column total must be exactly zero — and
 that is asserted per step, not assumed.
+
+**Clouds forced the solver to scatter.** A cloud cools by reflecting sunlight;
+represented as absorption it would warm the column instead — a wrong response
+sign, which the charter treats as refutation rather than inaccuracy. The
+two-stream layer coefficients reduce *exactly* to `t = exp(−Dτ)`, `r = 0` when
+nothing scatters, so every earlier result is unchanged, and give `r + t = 1`,
+`e = 0` for conservative scattering.
+
+**A prescribed cloud's water comes from nowhere, and the budget says so.** Its
+condensate is not drawn from the water cycle, so the module books the change
+against a source named `prescribed_cloud_water_source`. The fiat appears in the
+conservation report rather than being left for a reader to notice.
 
 ## Requirement traceability
 

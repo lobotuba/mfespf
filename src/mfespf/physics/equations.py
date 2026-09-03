@@ -50,6 +50,9 @@ EQUATION_IDS = {
     "condensation": "EQ-SATURATION-ADJUSTMENT-CONDENSATION",
     "latent_energy": "EQ-LATENT-ENERGY-OF-VAPOUR",
     "sensible_heat": "EQ-BULK-SENSIBLE-HEAT-FLUX",
+    "cloud_optics": "EQ-CLOUD-OPTICAL-PROPERTIES",
+    "cloud_radiative_effect": "EQ-CLOUD-RADIATIVE-EFFECT",
+    "two_stream": "EQ-TWO-STREAM-LAYER-COEFFICIENTS",
 }
 
 
@@ -1005,6 +1008,176 @@ def build_equation_registry() -> EquationRegistry:
                 "linear in the temperature difference, where the real flux is not",
             ),
             source="Reduced bulk aerodynamic formula",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["two_stream"],
+            version=V1,
+            name="Two-stream layer reflectance, transmittance and emissivity",
+            category=EquationCategory.REDUCED_PHYSICAL_EQUATION,
+            mathematical_form=(
+                "r = g2 sinh(k tau) / (k cosh(k tau) + g1 sinh(k tau)) ; "
+                "t = k / (k cosh(k tau) + g1 sinh(k tau)) ; e = 1 - r - t"
+            ),
+            physical_basis=(
+                "Radiative transfer through a homogeneous slab that absorbs, scatters "
+                "and emits, with the radiance reduced to one upward and one downward "
+                "hemispheric stream."
+            ),
+            variables=(
+                ("r", "layer reflectance", "1"),
+                ("t", "layer transmittance", "1"),
+                ("e", "layer emissivity", "1"),
+                ("tau", "optical depth", "1"),
+                ("omega", "single-scattering albedo", "1"),
+                ("g", "asymmetry parameter", "1"),
+            ),
+            parameters=(("radiative_diffusivity_factor", "parameterized", "Elsasser 1942"),),
+            assumptions=(
+                "isotropic radiance within each hemisphere",
+                "homogeneous layer properties",
+                "local thermodynamic equilibrium, so emissivity is one minus reflectance "
+                "minus transmittance",
+            ),
+            approximations=(
+                "Two streams cannot represent an anisotropic radiance field. Delta "
+                "scaling removes the forward-scattering peak first, without which a "
+                "cloud of asymmetry 0.85 would reflect far too much.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("tau", 0.0, 1000.0, "1"), ("omega", 0.0, 1.0, "1")),
+            ),
+            limiting_cases=(
+                "omega = 0 gives r = 0, t = exp(-D tau), e = 1 - t: the absorption-only "
+                "solution it replaces",
+                "omega = 1 gives r + t = 1 and e = 0: a purely scattering layer neither "
+                "absorbs nor emits",
+                "tau = 0 gives a transparent layer",
+            ),
+            symmetries=("Kirchhoff: emissivity equals absorptivity",),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("adding method over layers",),
+            correctness_tests=(
+                "test_two_stream_reduces_to_pure_absorption",
+                "test_conservative_scattering_neither_absorbs_nor_emits",
+                "test_scattering_solver_reproduces_the_absorption_only_results",
+            ),
+            known_failure_modes=(
+                "two streams misrepresent strongly anisotropic fields even after delta scaling",
+                "no polarisation and no angular detail",
+            ),
+            source="Standard two-stream transfer; Joseph, Wiscombe and Weinman 1976",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["cloud_optics"],
+            version=V1,
+            name="Cloud optical properties from water path",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form=(
+                "shortwave: tau_sca = 3 W / (2 rho r_eff) ; longwave: tau_abs = k_lw W"
+            ),
+            physical_basis=(
+                "Geometric-optics extinction by droplets large compared with the solar "
+                "wavelength, and absorption by droplets comparable with the infrared "
+                "wavelength."
+            ),
+            variables=(
+                ("W", "condensed water path", "kg m^-2"),
+                ("r_eff", "effective radius", "m"),
+                ("tau_sca", "shortwave scattering optical depth", "1"),
+                ("tau_abs", "longwave absorption optical depth", "1"),
+            ),
+            parameters=(
+                ("k_lw", "parameterized", "reduced longwave mass absorption coefficient"),
+                ("r_eff", "parameterized", "one prescribed effective radius per phase"),
+                ("g", "parameterized", "droplet asymmetry parameter"),
+            ),
+            assumptions=(
+                "one effective radius per phase, with no size distribution",
+                "shortwave scattering is conservative; droplet absorption is neglected",
+                "longwave scattering is neglected",
+                "ice differs from liquid only through a larger effective radius",
+            ),
+            approximations=(
+                "The geometric-optics limit is good to a few percent for droplets in the "
+                "solar spectrum and poor for ice crystals, whose habit dominates their "
+                "scattering and is absent here.",
+                "A single effective radius replaces the distribution. The shortwave "
+                "optical depth is inversely proportional to it, so that choice sets the "
+                "cloud albedo as strongly as the water path does.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("r_eff", 1.0e-6, 1.0e-4, "m"), ("W", 0.0, 10.0, "kg m^-2")),
+                conditions=("liquid or simple ice clouds, no mixed phase",),
+            ),
+            limiting_cases=(
+                "zero water path gives a transparent cloud and no radiative effect",
+                "optical depth is linear in water path at fixed effective radius",
+            ),
+            conserved_quantities=("energy",),
+            correctness_tests=(
+                "test_cloud_optical_depth_scales_with_water_path",
+                "test_no_cloud_control_matches_the_clear_column",
+                "test_a_thin_cloud_is_longwave_dominated_and_a_thick_one_shortwave",
+            ),
+            known_failure_modes=(
+                "ice optical properties are a crude analogy to liquid",
+                "no sub-grid variability, so a broken cloud field would be "
+                "systematically too reflective",
+            ),
+            source="Standard reduced cloud optics",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["cloud_radiative_effect"],
+            version=V1,
+            name="Cloud radiative effect",
+            category=EquationCategory.DIAGNOSTIC_IDENTITY,
+            mathematical_form=(
+                "CRE_sw = F_sw,net(all sky) - F_sw,net(clear) ; "
+                "CRE_lw = OLR(clear) - OLR(all sky) ; CRE = CRE_sw + CRE_lw"
+            ),
+            physical_basis=(
+                "Difference between the radiation budget of the column as it is and of "
+                "the same column with the cloud removed, evaluated at the top."
+            ),
+            variables=(
+                ("CRE_sw", "shortwave cloud radiative effect", "W m^-2"),
+                ("CRE_lw", "longwave cloud radiative effect", "W m^-2"),
+            ),
+            assumptions=(
+                "the clear-sky column differs from the all-sky one only by the cloud",
+                "maximum overlap, with all-sky formed as a linear mix of a clear and an "
+                "overcast column weighted by the cloud fraction",
+            ),
+            approximations=(
+                "Independent-column mixing ignores horizontal photon transport between "
+                "the clear and cloudy parts of a partially covered column.",
+            ),
+            validity_domain=ValidityDomain(ranges=(("f_c", 0.0, 1.0, "1"),)),
+            limiting_cases=(
+                "zero cloud fraction gives exactly zero in both components",
+                "the shortwave component is negative and the longwave positive for a "
+                "cloud that reflects sunlight and absorbs terrestrial radiation",
+            ),
+            conserved_quantities=("energy",),
+            correctness_tests=(
+                "test_no_cloud_control_matches_the_clear_column",
+                "test_cloud_shortwave_effect_cools_and_longwave_effect_warms",
+                "test_cloud_radiative_effect_is_reported_before_any_net",
+            ),
+            known_failure_modes=(
+                "reporting only the net hides which component is wrong, since the two "
+                "are of opposite sign and comparable magnitude",
+            ),
+            source="Standard definition; Ramanathan et al. 1989",
         )
     )
 

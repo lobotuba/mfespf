@@ -28,6 +28,9 @@ _CONFIGURATIONS = {
     # Stage 3: thermodynamics, convection and water.
     "radiative-convective": column_configurations.radiative_convective,
     "moist": column_configurations.moist_radiative_convective,
+    # Stage 4: clouds.
+    "no-cloud": column_configurations.no_cloud_control,
+    "cloud": column_configurations.prescribed_cloud,
 }
 
 
@@ -62,6 +65,15 @@ def _run(args: argparse.Namespace) -> int:
         if layers is not None:
             profile = ", ".join(f"{v:.2f}" for v in layers.values)
             print(f"layer temperatures (surface first): {profile} K")
+        cre_sw = outputs.get("cloud_shortwave_radiative_effect")
+        cre_lw = outputs.get("cloud_longwave_radiative_effect")
+        if cre_sw is not None and cre_lw is not None:
+            # SPC-010: the components first, the net only after them.
+            print(
+                f"cloud radiative effect  shortwave: {cre_sw.scalar():+.4f} W m^-2   "
+                f"longwave: {cre_lw.scalar():+.4f} W m^-2   "
+                f"net: {cre_sw.scalar() + cre_lw.scalar():+.4f} W m^-2"
+            )
         sensible = outputs.get("surface_sensible_heat_flux")
         latent = outputs.get("surface_latent_heat_flux")
         if sensible is not None:
