@@ -68,3 +68,8 @@ jobs:
           python -m mfespf.cli run moist --steps 240 --heat-capacity 1e6
           python -m mfespf.cli run no-cloud --steps 240 --heat-capacity 1e6
           python -m mfespf.cli run cloud --steps 240 --heat-capacity 1e6
+          python -m mfespf.cli run surface-storage --steps 400 --master-dt 864000 \
+            --steps-per-solar-exchange 1 --forcing step
+          python -m mfespf.cli run ocean --steps 400 --master-dt 864000 \
+            --steps-per-solar-exchange 1 --forcing pulse --forcing-duration 8.64e7
+          python -m mfespf.cli run column-ocean --steps 200 --heat-capacity 1e7

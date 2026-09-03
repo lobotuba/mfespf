@@ -53,6 +53,7 @@ EQUATION_IDS = {
     "cloud_optics": "EQ-CLOUD-OPTICAL-PROPERTIES",
     "cloud_radiative_effect": "EQ-CLOUD-RADIATIVE-EFFECT",
     "two_stream": "EQ-TWO-STREAM-LAYER-COEFFICIENTS",
+    "deep_ocean_exchange": "EQ-TWO-RESERVOIR-OCEAN-EXCHANGE",
 }
 
 
@@ -1178,6 +1179,71 @@ def build_equation_registry() -> EquationRegistry:
                 "are of opposite sign and comparable magnitude",
             ),
             source="Standard definition; Ramanathan et al. 1989",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["deep_ocean_exchange"],
+            version=V1,
+            name="Two-reservoir ocean heat exchange",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form="H = gamma (T_s - T_d) ; C_d dT_d/dt = H",
+            physical_basis=(
+                "Bulk representation of every process that carries heat from the ocean "
+                "mixed layer into the water below it -- subduction, diffusion and "
+                "overturning -- as a single rate proportional to the temperature "
+                "difference between two well-mixed reservoirs."
+            ),
+            variables=(
+                ("H", "downward heat flux from the mixed layer", "W m^-2"),
+                ("T_s", "mixed-layer temperature", "K"),
+                ("T_d", "deep-reservoir temperature", "K"),
+                ("C_d", "areal heat capacity of the deep reservoir", "J m^-2 K^-1"),
+            ),
+            parameters=(
+                ("ocean_deep_exchange_coefficient", "calibrated", "fitted, not measured"),
+                ("density_seawater", "measured", "nominal surface seawater density"),
+                ("specific_heat_seawater", "measured", "TEOS-10 nominal value"),
+            ),
+            assumptions=(
+                "both reservoirs are isothermal and well mixed",
+                "the exchange coefficient does not depend on the state or on time",
+                "no salinity, circulation or meridional transport",
+            ),
+            approximations=(
+                "A linear law replaces a vertical structure with two numbers, so the "
+                "vertical profile of heat uptake is absent rather than approximated.",
+                "The exchange coefficient is calibrated against the behaviour of models "
+                "and observations, not derived; EQR-004 requires that be carried with it.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T_s", 200.0, 340.0, "K"), ("T_d", 200.0, 340.0, "K")),
+                conditions=(
+                    "global-mean heat uptake on timescales from the mixed-layer "
+                    "adjustment time to a few deep-reservoir times",
+                ),
+            ),
+            limiting_cases=(
+                "equal reservoir temperatures give exactly zero exchange",
+                "an infinite deep capacity fixes T_d and recovers a constant-temperature "
+                "lower boundary",
+                "a zero exchange coefficient recovers the single-reservoir slab exactly",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("forward_euler",),
+            correctness_tests=(
+                "test_equal_temperatures_exchange_no_heat",
+                "test_two_reservoir_timescales_match_the_analytic_modes",
+                "test_disabling_the_exchange_recovers_the_single_reservoir_result",
+            ),
+            known_failure_modes=(
+                "constant exchange efficiency, so the model cannot represent a change in "
+                "ocean heat uptake efficiency under sustained warming",
+                "forward Euler is unstable if the step approaches the fast mode's "
+                "timescale, which is set by the mixed layer and not by this equation",
+            ),
+            source="Gregory 2000; Held et al. 2010 two-layer energy-balance formulation",
         )
     )
 

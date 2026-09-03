@@ -18,6 +18,7 @@ import numpy as np
 from mfespf.contracts.cost import ResourceBudget, ResourceClass
 from mfespf.contracts.module import ModuleStatus
 from mfespf.contracts.spectral import SpectralGrid
+from mfespf.core.constants import value_of
 from mfespf.coupling.coupler import CouplingSchedule, ModuleSchedule
 from mfespf.coupling.graph import Cycle, DependencyGraph, Edge, EdgeType, Node, NodeType
 from mfespf.physics.atmosphere import (
@@ -29,7 +30,12 @@ from mfespf.physics.boundary import SPACE_ENERGY_STATE, SpaceBoundaryModule, spa
 from mfespf.physics.clouds import CloudProfile, PrescribedCloudModule, single_layer_cloud
 from mfespf.physics.column_surface import ColumnSurfaceModule
 from mfespf.physics.convection import ConvectiveAdjustmentModule
-from mfespf.physics.equations import build_equation_registry
+from mfespf.physics.equations import EQUATION_IDS, build_equation_registry
+from mfespf.physics.ocean import (
+    OCEAN_DEEP_STATE,
+    DeepOceanModule,
+    ocean_deep_state_entry,
+)
 from mfespf.physics.orbit import OrbitalGeometryModule
 from mfespf.physics.radiative_transfer import (
     SpectralRadiationModule,
@@ -50,6 +56,7 @@ from mfespf.run.driver import Kernel
 __all__ = [
     "absorbing_emitting_atmosphere",
     "column_grid",
+    "column_over_reduced_ocean",
     "declare_explicit_cycles",
     "moist_radiative_convective",
     "no_cloud_control",
@@ -140,7 +147,11 @@ def declare_explicit_cycles(
 
 
 def _build_state_registry(
-    *, n_layers: int, convection: bool = False, water: bool = False
+    *,
+    n_layers: int,
+    convection: bool = False,
+    water: bool = False,
+    deep_ocean: bool = False,
 ) -> StateRegistry:
     """Register the states this configuration actually contains.
 
@@ -179,6 +190,8 @@ def _build_state_registry(
             )
         )
         states.register(surface_water_state_entry(owner="surface"))
+    if deep_ocean:
+        states.register(ocean_deep_state_entry(owner="ocean", readers=frozenset({"surface"})))
     return states
 
 
@@ -189,6 +202,7 @@ def _build_graph(
     convection: bool = False,
     water: bool = False,
     clouds: bool = False,
+    deep_ocean: bool = False,
     splitting_order: tuple[str, ...] = _SPLITTING_ORDER,
 ) -> DependencyGraph:
     graph = DependencyGraph(configuration_id)
@@ -206,6 +220,8 @@ def _build_graph(
         modules.append(("water", "atmospheric water vapour"))
     if clouds:
         modules.append(("cloud", "prescribed cloud state"))
+    if deep_ocean:
+        modules.append(("ocean", "reduced deep-ocean reservoir"))
     for module_id, label in modules:
         graph.add_node(Node(module_id, NodeType.MODULE, label))
     graph.add_node(Node(SURFACE_TEMPERATURE_STATE, NodeType.STATE, "slab temperature"))
@@ -450,6 +466,49 @@ def _build_graph(
                 ),
             )
 
+    if deep_ocean:
+        graph.add_node(Node(OCEAN_DEEP_STATE, NodeType.STATE, "deep reservoir temperature"))
+        edge(
+            SURFACE_TEMPERATURE_STATE,
+            "ocean",
+            SURFACE_TEMPERATURE_STATE,
+            edge_type=EdgeType.STATE_DEPENDENCY,
+            units="K",
+            equation_ids=(EQUATION_IDS["deep_ocean_exchange"],),
+        )
+        edge(
+            "surface",
+            "ocean",
+            "surface_heat_capacity",
+            edge_type=EdgeType.PARAMETER_DEPENDENCY,
+            units="J m^-2 K^-1",
+        )
+        edge(
+            "ocean",
+            "surface",
+            "deep_ocean_heat_flux",
+            edge_type=EdgeType.STATE_DEPENDENCY,
+            units="W m^-2",
+            equation_ids=(EQUATION_IDS["deep_ocean_exchange"],),
+        )
+        edge(
+            "surface",
+            "ocean",
+            "deep_ocean_heat",
+            edge_type=EdgeType.PHYSICAL_TRANSFER,
+            units="J m^-2",
+            time_semantics="interval_accumulation",
+            equation_ids=(EQUATION_IDS["deep_ocean_exchange"],),
+        )
+        edge(
+            "ocean",
+            OCEAN_DEEP_STATE,
+            f"{OCEAN_DEEP_STATE}_update",
+            edge_type=EdgeType.NUMERICAL_DEPENDENCY,
+            units="K",
+            equation_ids=("EQ-NUM-FORWARD-EULER",),
+        )
+
     declare_explicit_cycles(
         graph,
         splitting_order=splitting_order,
@@ -483,6 +542,10 @@ def radiating_column(
     convection: bool = False,
     water: bool = False,
     cloud: CloudProfile | None = None,
+    deep_ocean: bool = False,
+    deep_ocean_depth: float = 1200.0,
+    deep_ocean_exchange: float | None = None,
+    initial_deep_temperature: float | None = None,
     evaporation_coefficient: float = 2.0e-4,
     initial_water_store: float = 1.0e4,
     conservation_tolerance: float = 1e-11,
@@ -524,6 +587,7 @@ def radiating_column(
         initial_temperature=initial_surface_temperature,
         couple_water=water,
         initial_water_store=initial_water_store,
+        couple_deep_ocean=deep_ocean,
     )
     space = SpaceBoundaryModule(
         sender_module_id="atmosphere",
@@ -562,6 +626,29 @@ def radiating_column(
     if convection:
         schedules.append(ModuleSchedule(ConvectiveAdjustmentModule(), step_multiple=1))
         order.append("convection")
+    if deep_ocean:
+        # Ahead of the surface, like every other module the surface reads from:
+        # the exchange is computed from the temperature committed at the end of
+        # the previous step and applied within this one.
+        schedules.append(
+            ModuleSchedule(
+                DeepOceanModule(
+                    depth=deep_ocean_depth,
+                    exchange_coefficient=(
+                        deep_ocean_exchange
+                        if deep_ocean_exchange is not None
+                        else value_of("ocean_deep_exchange_coefficient")
+                    ),
+                    initial_temperature=(
+                        initial_deep_temperature
+                        if initial_deep_temperature is not None
+                        else initial_surface_temperature
+                    ),
+                ),
+                step_multiple=1,
+            )
+        )
+        order.append("ocean")
     schedules.extend(
         [
             ModuleSchedule(atmosphere, step_multiple=1),
@@ -589,6 +676,7 @@ def radiating_column(
         convection=convection,
         water=water,
         clouds=cloud is not None,
+        deep_ocean=deep_ocean,
         splitting_order=tuple(order),
     )
 
@@ -597,7 +685,9 @@ def radiating_column(
         run_id=run_id,
         purpose=purpose,
         schedule=schedule,
-        states=_build_state_registry(n_layers=n_layers, convection=convection, water=water),
+        states=_build_state_registry(
+            n_layers=n_layers, convection=convection, water=water, deep_ocean=deep_ocean
+        ),
         equations=build_equation_registry(),
         graph=graph,
         budget=budget
@@ -612,6 +702,17 @@ def radiating_column(
                 np.full(n_layers, float(initial_air)) if initial_air.ndim == 0 else initial_air
             ),
             SPACE_ENERGY_STATE: 0.0,
+            **(
+                {
+                    OCEAN_DEEP_STATE: (
+                        initial_deep_temperature
+                        if initial_deep_temperature is not None
+                        else initial_surface_temperature
+                    )
+                }
+                if deep_ocean
+                else {}
+            ),
         },
         conservation_tolerance=conservation_tolerance,
         spectral_bins=working_grid.n_bins,
@@ -840,3 +941,29 @@ def prescribed_cloud(
         ),
     )
     return radiative_convective(kappa, **kwargs)
+
+
+def column_over_reduced_ocean(kappa: float = 1.0e-4, **kwargs: Any) -> Kernel:
+    """A moist radiative-convective column standing over the two-reservoir ocean.
+
+    The same ``DeepOceanModule`` that sits under the airless slab, under a very
+    different surface. That is what putting the reservoir in its own module
+    buys: it couples to whatever owns the mixed layer, and neither surface
+    implementation had to learn anything about the other.
+
+    Here the feedback parameter is not the bare ``4 sigma T^3`` of a radiating
+    body -- the atmosphere, the convective adjustment and the surface water all
+    sit inside the loop -- so the analytic two-mode expression does not apply
+    and the timescales must be measured rather than predicted. That is the
+    ordinary case. The airless configuration exists to check the measurement
+    against the one case where a prediction is available.
+    """
+    kwargs.setdefault("run_id", "STAGE5-COLUMN-OCEAN-001")
+    kwargs.setdefault(
+        "purpose",
+        "Stage 5 column over a reduced ocean: a moist radiative-convective column whose "
+        "mixed layer exchanges heat with a deep reservoir, for the response timescales "
+        "of a configuration whose feedback parameter is not known in closed form.",
+    )
+    kwargs["deep_ocean"] = True
+    return moist_radiative_convective(kappa, **kwargs)

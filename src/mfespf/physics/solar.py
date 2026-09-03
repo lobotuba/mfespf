@@ -17,6 +17,7 @@ top-of-atmosphere boundary and accounts for what crosses it.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 import numpy as np
@@ -46,6 +47,7 @@ from mfespf.physics.radiation import normalized_band_weights
 __all__ = [
     "SOLAR_SOURCE_INTERFACE",
     "ConstantSpectrumSolarSource",
+    "ForcedSolarSource",
     "SolarSource",
     "banded_grid",
     "broadband_grid",
@@ -348,4 +350,125 @@ class ConstantSpectrumSolarSource(SolarSource):
             **super().parameters(),
             "total_solar_irradiance_1au": self._total,
             "spectral_shape_effective_temperature": self.effective_temperature,
+        }
+
+
+class ForcedSolarSource(ConstantSpectrumSolarSource):
+    """A solar source carrying a declared forcing experiment (TIM-007).
+
+    The forcing perturbs total solar irradiance, so its energy enters the system
+    through the top-of-atmosphere boundary and is accounted by the transfers that
+    were already there. No fiat source term is needed and none is added: a
+    forcing experiment must not be the one place in the framework where energy
+    appears from nowhere.
+
+    Two consequences follow from where the perturbation is applied, and both are
+    published rather than left implicit. A perturbation ``dS`` at 1 au becomes
+    ``dS / 4`` of insolation once spread over the rotating sphere, and only the
+    absorbed fraction ``1 - alpha`` of that reaches the system as heating. A
+    timescale experiment measuring a gain per watt must therefore use the
+    realised anomaly, not the nominal one, and both are on the bus.
+
+    The contract is rebuilt rather than inherited: the parent declares that total
+    irradiance is constant over the simulated interval, which is exactly what
+    this class makes false. A contract that keeps an assumption its module has
+    abandoned is worse than no contract (MOD-001).
+    """
+
+    def __init__(
+        self,
+        *,
+        grid: SpectralGrid,
+        forcing: Any,
+        total_irradiance: float | None = None,
+        effective_temperature: float = 5772.0,
+        module_id: str = "solar",
+        status: ModuleStatus = ModuleStatus.PRESCRIBED,
+    ) -> None:
+        super().__init__(
+            grid=grid,
+            total_irradiance=total_irradiance,
+            effective_temperature=effective_temperature,
+            module_id=module_id,
+            status=status,
+        )
+        self.forcing = forcing
+        self._anomaly = 0.0
+        self.contract = replace(
+            self.contract,
+            module_name=(
+                f"solar source under a declared {forcing.regime} forcing "
+                f"({grid.resolution_identifier})"
+            ),
+            physical_basis=(
+                "Measured total solar irradiance at 1 au perturbed by a declared "
+                "experimental forcing, distributed over wavelength by a declared "
+                "spectral shape. The perturbation is a boundary condition of the "
+                "experiment, not a solar physics result."
+            ),
+            assumptions=(
+                "baseline total solar irradiance constant over the simulated interval",
+                f"the {forcing.regime} perturbation is applied to the total and leaves "
+                "the spectral shape unchanged",
+                f"spectral shape of a black body at {effective_temperature:g} K",
+                "no solar-cycle, particle or magnetic output",
+            ),
+            validity_domain=(
+                "A controlled forcing experiment. The irradiance history is imposed, so "
+                "no statement about actual solar variability is in scope, and TIM-006 "
+                "forbids reporting this mode in the language of a historical run."
+            ),
+            produced_outputs=(
+                "solar_total_irradiance_1au",
+                "solar_spectral_irradiance_1au",
+                "solar_irradiance_anomaly",
+            ),
+            correctness_tests=(
+                "test_unforced_source_reproduces_the_constant_one_exactly",
+                "test_forcing_delivers_its_declared_energy_at_any_time_step",
+                "test_spectral_integral_matches_total_irradiance",
+            ),
+            known_limitations=(
+                "No solar-cycle, flare, particle or magnetic output at this fidelity.",
+                "The perturbation is spectrally flat, so an experiment about the "
+                "wavelength dependence of solar forcing cannot be run with it.",
+            ),
+        )
+
+    def total_irradiance(self, time: float) -> float:
+        # The interval mean, not the value at the step start: the forcing classes
+        # integrate themselves exactly so that the delivered energy does not
+        # depend on the time step. Sampling here would throw that away.
+        dt = self._context.dt if self._context else 0.0
+        self._anomaly = self.forcing.mean_amplitude(time, time + dt)
+        return self._total + self._anomaly
+
+    def emit_outputs(self) -> dict[str, Field]:
+        outputs = super().emit_outputs()
+        ctx = self.context
+        outputs["solar_irradiance_anomaly"] = Field(
+            field_id="solar_irradiance_anomaly",
+            physical_name="imposed total solar irradiance anomaly at 1 au",
+            symbol="dS",
+            values=np.array(self._anomaly),
+            units="W m^-2",
+            quantity_kind=QuantityKind.BOUNDARY_VALUE,
+            time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+            time_interval=ctx.dt,
+            timestamp=ctx.time,
+            spatial_support=SpatialSupport.GLOBAL_SCALAR,
+            provenance=Provenance(
+                producer=self.module_id,
+                notes=(
+                    f"declared experimental forcing: {self.forcing.describe()}; "
+                    f"the insolation anomaly is a quarter of this before albedo"
+                ),
+            ),
+        )
+        return outputs
+
+    def parameters(self) -> dict[str, Any]:
+        return {
+            **super().parameters(),
+            "forcing": self.forcing.parameters(),
         }

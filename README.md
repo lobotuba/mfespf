@@ -21,10 +21,11 @@ specification governs.**
 
 ## Status
 
-Version 0.4.0 — the charter's validation ladder (§19) through **Stage 4**:
+Version 0.5.0 — the charter's validation ladder (§19) through **Stage 5**:
 the accounting kernel, the airless radiating body, the radiating atmospheric
-column, atmospheric thermodynamics with convection and water, and clouds — on
-top of the full Version 1.0 interface spine.
+column, atmospheric thermodynamics with convection and water, clouds, and
+thermal storage with measured response timescales — on top of the full
+Version 1.0 interface spine.
 
 | Ladder stage | State |
 | --- | --- |
@@ -33,24 +34,26 @@ top of the full Version 1.0 interface spine.
 | 2 — atmospheric radiation: transparent, absorbing and emitting, multilayer, variable spectrum | implemented |
 | 3 — atmospheric thermodynamics: hydrostatic balance, dry convection, water vapour, phase-change energy | implemented |
 | 4 — clouds: no-cloud control, prescribed and time-varying cloud state, separate SW and LW effects | implemented |
-| 5 — thermal storage and measured response timescales | partially: single-reservoir response measured |
+| 5 — thermal storage: surface heat capacity, two-reservoir ocean, step/pulse/impulse/periodic forcing, measured timescales | implemented |
 | 6 — historical replay | machinery present (withheld-data path), no datasets |
 | 7 — hindcast and registered prediction | machinery present (freeze records), not exercised |
 
-189 mandatory requirements are tracked; 131 currently have a bound acceptance
-test. Seven of the eight KER-012 reference configurations exist and run; the
-reduced two-reservoir ocean is the one still missing. See [`docs/traceability.md`](docs/traceability.md) — the uncovered ones are
+189 mandatory requirements are tracked; 140 currently have a bound acceptance
+test. **All eight KER-012 reference configurations now exist and run.** See
+[`docs/traceability.md`](docs/traceability.md) — the uncovered requirements are
 listed there rather than left implicit.
 
 ## Install and run
 
 ```bash
 python -m pip install -e ".[dev]"     # Python 3.11+
-python -m pytest                       # 207 tests, ~105 s on a workstation
+python -m pytest                       # 270 tests, ~2 min on a workstation
 mfespf run airless --steps 4800        # Stage 1: 200 simulated days
 mfespf run window --steps 6000 --heat-capacity 1e6            # Stage 2 column
 mfespf run moist  --steps 4000 --heat-capacity 1e6            # Stage 3 moist column
 mfespf run cloud  --steps 3000 --heat-capacity 1e6            # Stage 4 cloudy column
+mfespf run ocean  --steps 16000 --master-dt 864000 --steps-per-solar-exchange 1 \
+                  --forcing step                              # Stage 5 step response
 ```
 
 ```
@@ -65,8 +68,11 @@ run STAGE1-AIRLESS-001 [complete]
 
 Configurations: `airless`, `airless-banded`, `null-control` (Stage 1);
 `transparent`, `absorbing`, `window`, `grey-layer` (Stage 2);
-`radiative-convective`, `moist` (Stage 3); `no-cloud`, `cloud` (Stage 4).
-Add `--manifest run.json` to write the run record.
+`radiative-convective`, `moist` (Stage 3); `no-cloud`, `cloud` (Stage 4);
+`surface-storage`, `ocean`, `column-ocean` (Stage 5).
+Add `--manifest run.json` to write the run record. The Stage 5 configurations
+take `--forcing step|pulse|impulse|periodic|none` and report the response
+timescales they measure.
 
 ## What the kernel actually does
 
@@ -119,6 +125,31 @@ Against the no-cloud control the cloud raises reflected sunlight from 101 to
 157 W m⁻² and lowers outgoing longwave from 240 to 185. The signs are the
 declared ones; the magnitudes are not tuned to anything.
 
+**Stage 5** adds a second place to put heat, and with it a second timescale.
+Every configuration up to here stored energy in exactly one reservoir and
+carried the same declared limitation: one temperature and one relaxation time by
+construction. The two-reservoir ocean removes it, and the removal is measured
+rather than asserted:
+
+```
+$ mfespf run surface-storage --steps 16000 --master-dt 864000 --forcing step
+  1-mode relative residual: 0.0004138          # one reservoir, one exponential
+  radiative_relaxation_of_the_mixed_layer: tau = 1.702 yr
+
+$ mfespf run ocean --steps 16000 --master-dt 864000 --forcing step
+  1-mode relative residual: 0.5436             # the same fit now fails
+  2-mode relative residual: 0.0002401          # by a factor of 2260
+  radiative_relaxation_of_the_mixed_layer: tau = 1.433 yr
+  deep_reservoir_heat_uptake:              tau = 262.9 yr
+```
+
+The two measured timescales match the analytic eigenvalues of the linearised
+two-reservoir system — 1.455 yr and 263.7 yr — to 1.5% and 0.3%, the rest being
+forward-Euler error and the fact that the emission is quartic rather than linear
+in temperature. The two configurations are the same builder with one flag
+changed, so the second timescale is attributable to the reservoir and to nothing
+else.
+
 The physics is deliberately small; the point is that it is **accounted**. The
 coupled energy budget closes to ~1e-16 relative at every coupling interval.
 Stage 1 reaches the closed-form equilibrium to 1e-9 relative and the analytic
@@ -162,6 +193,10 @@ The interface spine is the substantial part. See
 | Thermodynamics | [`physics/thermodynamics.py`](src/mfespf/physics/thermodynamics.py) | convective adjustment conserves column enthalpy by construction |
 | Water | [`physics/water.py`](src/mfespf/physics/water.py) | owns the latent energy, so water and energy close together |
 | Clouds | [`physics/clouds.py`](src/mfespf/physics/clouds.py) | a separate variable set, never a global albedo parameter |
+| Ocean | [`physics/ocean.py`](src/mfespf/physics/ocean.py) | a second reservoir in its own module, so the exchange is an auditable transfer |
+| Forcing experiments | [`experiments/forcing.py`](src/mfespf/experiments/forcing.py) | a forcing delivers its declared energy at any time step |
+| Declared experiments | [`experiments/protocol.py`](src/mfespf/experiments/protocol.py) | the threshold is hashed before the run; editing it invalidates the evaluation |
+| Timescales | [`evaluation/timescales.py`](src/mfespf/evaluation/timescales.py) | measured per mechanism; one universal climate index is refused |
 
 ### The design decisions worth knowing
 
@@ -225,6 +260,45 @@ nothing scatters, so every earlier result is unchanged, and give `r + t = 1`,
 condensate is not drawn from the water cycle, so the module books the change
 against a source named `prescribed_cloud_water_source`. The fiat appears in the
 conservation report rather than being left for a reader to notice.
+
+**The deep ocean is a module, not a second temperature inside the surface.** It
+would have been fewer lines to give the surface two reservoirs. Then the heat
+moving between them would have been an internal number no audit could see, the
+reservoir could not have been disabled as a single edge, and the same module
+could not have been dropped under both the airless slab and the radiating column
+— which it now is, unchanged. As written, the exchange is a transfer both parties
+record and the ledger reconciles.
+
+**A forcing declares energy, not an instantaneous value.** Each forcing
+integrates itself exactly over the step about to be taken, so a pulse whose
+edges fall inside a step still delivers exactly what it declared. Sampling at
+the step start instead would make the delivered energy a function of the time
+step, and a convergence study run against it would be measuring the forcing.
+An impulse takes this furthest: in discrete time the narrowest perturbation is
+one step wide, so `ImpulseForcing` fixes the *energy* and lets the flux follow
+from the step. The impulse response is then identical across time steps to
+nine digits, and the part that is not resolved is named in the declaration.
+
+**A timescale longer than the record is marked as extrapolated.** A two-mode fit
+will happily return a 124-year mode from a 44-year run, and the number looks
+exactly like a measured one. It is an estimate under an assumed model, and
+`ExponentialFit.constrained` says which modes the record was long enough to
+have measured — the same separation between operating modes that TIM-006 asks
+for between runs, applied inside a single analysis.
+
+**A second timescale is claimed from a residual, not from a second mode.**
+Granting any fit an extra mode always lowers its residual. The question is by
+how much: on the single-reservoir control a two-mode fit buys a factor of five
+and returns two near-degenerate timescales, and on the two-reservoir run it buys
+a factor of two thousand and returns two separated ones. The framework reports
+two timescales only when the residual justifies it.
+
+**The framework refuses to state a single climate timescale.** `TimescaleReport`
+carries observable, subsystem, mechanism and forcing regime with every
+measurement, and `single_index()` raises when the measurements span more than a
+declared factor. An average of a 1.4-year adjustment and a 263-year one
+describes no mechanism in the system, and a reader given it has no way to know
+that.
 
 ## Requirement traceability
 

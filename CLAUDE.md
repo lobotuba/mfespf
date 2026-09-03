@@ -42,6 +42,23 @@ saying out loud.
 - **A term that is not physics gets a name, not a hiding place.** A prescribed
   cloud's water enters the budget as `prescribed_cloud_water_source`, the same
   way a limiter's energy enters as a numerical source.
+- **A second storage reservoir is a second module.** Heat crossing between the
+  mixed layer and the deep ocean is a transfer both parties record. Do not fold
+  a second temperature into a surface module — it would hide the exchange from
+  the auditor and weld the reservoir to one surface implementation.
+- **A forcing delivers its declared energy at any time step.** Forcings
+  integrate themselves exactly over the interval. Do not add one that samples at
+  the step start, and do not give `ImpulseForcing` a fixed flux — the energy is
+  the invariant, the sub-step shape is not (TIM-007).
+- **A second timescale is claimed from a residual, not from a second mode.**
+  Granting any fit an extra mode always lowers its residual; report two only
+  when the improvement is large and the modes are separated.
+- **Timescales carry observable, subsystem, mechanism and forcing regime, and
+  one longer than the record is marked extrapolated.** `single_index()` raises
+  rather than averaging measurements that disagree (TIM-008).
+- **An experiment's threshold is frozen before the run.** `ExperimentProtocol`
+  hashes the declaration; editing it invalidates the evaluation. Do not add a
+  path that evaluates an unfrozen protocol (EXP-001).
 - **Calibration data is never independent validation.** The dataset registry
   enforces it per claim, at variable granularity.
 - **Withheld data is unreadable before the claim freezes.** Do not add a
@@ -102,7 +119,7 @@ fields are preserved across regeneration — they are the human record).
 
 ## Adding a validation-ladder stage
 
-Stages 5 onward are unimplemented. Follow charter §20 rather than writing the
+Stages 6 onward are unimplemented. Follow charter §20 rather than writing the
 physics first: define the claim, derive the equation, declare its validity
 domain, implement the simplest valid form, verify units and limiting cases,
 verify conservation, verify convergence, compare against an independent

@@ -28,7 +28,7 @@ from mfespf.core.hashing import canonical_json, digest, file_digest
 
 __all__ = ["DifferenceReport", "EnvironmentRecord", "RunManifest", "RunStatus", "diff_manifests"]
 
-FRAMEWORK_VERSION = "0.4.0"
+FRAMEWORK_VERSION = "0.5.0"
 
 
 class RunStatus:

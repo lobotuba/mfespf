@@ -11,8 +11,25 @@ import argparse
 import sys
 from pathlib import Path
 
+import numpy as np
+
 from mfespf import __version__
 from mfespf.core.errors import MFESPFError
+from mfespf.evaluation.timescales import (
+    ExponentialFit,
+    TimescaleMeasurement,
+    TimescaleReport,
+    efolding_time,
+    fit_exponential_modes,
+)
+from mfespf.experiments.forcing import (
+    Forcing,
+    ImpulseForcing,
+    NoForcing,
+    PeriodicForcing,
+    PulseForcing,
+    StepForcing,
+)
 from mfespf.run import column_configurations, configurations
 
 _CONFIGURATIONS = {
@@ -31,7 +48,104 @@ _CONFIGURATIONS = {
     # Stage 4: clouds.
     "no-cloud": column_configurations.no_cloud_control,
     "cloud": column_configurations.prescribed_cloud,
+    # Stage 5: thermal storage and response timescales.
+    "surface-storage": configurations.surface_thermal_storage,
+    "ocean": configurations.reduced_ocean_heat_storage,
+    "column-ocean": column_configurations.column_over_reduced_ocean,
 }
+
+# Configurations whose surface temperature is worth analysing for response
+# timescales. Running the analysis on an unforced configuration would fit modes
+# to a spin-up transient and label them response times, which is exactly the
+# confusion TIM-006 is about.
+_TIMESCALE_CONFIGURATIONS = frozenset({"surface-storage", "ocean", "column-ocean"})
+
+
+def _build_forcing(args: argparse.Namespace) -> Forcing | None:
+    """Assemble the declared forcing experiment (TIM-007)."""
+    if args.forcing is None:
+        return None
+    amplitude = args.forcing_amplitude
+    onset = args.forcing_onset
+    if args.forcing == "none":
+        return NoForcing()
+    if args.forcing == "step":
+        return StepForcing(amplitude=amplitude, onset=onset)
+    if args.forcing == "pulse":
+        return PulseForcing(amplitude=amplitude, onset=onset, duration=args.forcing_duration)
+    if args.forcing == "impulse":
+        # Energy rather than flux: an impulse one step wide has a flux that
+        # depends on the step, and only the energy is reproducible.
+        return ImpulseForcing(energy=amplitude * args.forcing_duration, onset=onset)
+    return PeriodicForcing(amplitude=amplitude, period=args.forcing_period, onset=onset)
+
+
+def _report_timescales(result: object, regime: str) -> None:
+    """Measure and print the response timescales, per mechanism (TIM-008)."""
+    steps = result.steps  # type: ignore[attr-defined]
+    times = np.array([s.time for s in steps])
+    values = np.array([s.outputs["surface_temperature"].scalar() for s in steps])
+    if times.size < 32 or float(np.std(values)) == 0.0:
+        return
+
+    report = TimescaleReport()
+    subsystem = "mixed_layer_and_deep_reservoir" if _has_ocean(steps) else "surface_slab"
+    fits: dict[int, ExponentialFit] = {}
+    for n_modes in (1, 2):
+        try:
+            fits[n_modes] = fit_exponential_modes(times, values, n_modes=n_modes)
+        except MFESPFError:
+            continue
+    if not fits:
+        return
+
+    # Which model to believe is decided by the residuals, not by which
+    # configuration was run: a second mode is reported only when admitting it
+    # improves the fit by more than an order of magnitude.
+    best = 1
+    if 2 in fits and 1 in fits and fits[2].relative_residual * 10.0 < fits[1].relative_residual:
+        best = 2
+    fit = fits[best]
+    mechanisms = (
+        ("radiative_relaxation_of_the_mixed_layer", "deep_reservoir_heat_uptake")
+        if best == 2
+        else ("radiative_relaxation_of_the_mixed_layer",)
+    )
+    for amplitude, tau, mechanism, constrained in zip(
+        fit.amplitudes, fit.timescales, mechanisms, fit.constrained, strict=True
+    ):
+        report.add(
+            TimescaleMeasurement(
+                observable="surface_temperature",
+                subsystem=subsystem,
+                mechanism=mechanism,
+                forcing_regime=regime,
+                timescale_s=tau,
+                method=f"{best}-mode exponential fit to the {regime} response",
+                amplitude=amplitude,
+                relative_residual=fit.relative_residual,
+                constrained=constrained,
+            )
+        )
+
+    print()
+    print(report.describe())
+    for n_modes, candidate in sorted(fits.items()):
+        print(f"  {n_modes}-mode relative residual: {candidate.relative_residual:.4g}")
+    if any(not m.constrained for m in report.measurements):
+        print(
+            f"  the record spans {fit.record_span:.4g} s; a timescale longer than that "
+            f"is an extrapolation under the fitted model, not a measurement. Run longer "
+            f"before quoting it."
+        )
+    try:
+        print(f"  e-folding time (no model assumed): {efolding_time(times, values):.6g} s")
+    except MFESPFError as exc:
+        print(f"  e-folding time unavailable: {exc}")
+
+
+def _has_ocean(steps: list) -> bool:
+    return bool(steps) and "ocean_deep_temperature" in steps[-1].outputs
 
 
 def _run(args: argparse.Namespace) -> int:
@@ -43,6 +157,11 @@ def _run(args: argparse.Namespace) -> int:
         kwargs["eccentricity"] = args.eccentricity
     if args.heat_capacity is not None:
         kwargs["areal_heat_capacity"] = args.heat_capacity
+    if args.master_dt is not None:
+        kwargs["master_dt"] = args.master_dt
+    forcing = _build_forcing(args)
+    if forcing is not None:
+        kwargs["forcing"] = forcing
     kernel = builder(**kwargs)  # type: ignore[arg-type]
 
     try:
@@ -89,6 +208,16 @@ def _run(args: argparse.Namespace) -> int:
                 f"precipitable water: {water.scalar():.4f} kg m^-2   "
                 f"precipitation: {precipitation.scalar() * 86400.0:.4f} mm/day"
             )
+        deep = outputs.get("ocean_deep_temperature")
+        uptake = outputs.get("ocean_heat_uptake")
+        if deep is not None and uptake is not None:
+            print(
+                f"deep reservoir temperature: {float(deep.values):.4f} K   "
+                f"ocean heat uptake: {float(uptake.values):+.4f} W m^-2"
+            )
+        anomaly = outputs.get("solar_irradiance_anomaly")
+        if anomaly is not None:
+            print(f"imposed irradiance anomaly at the final step: {anomaly.scalar():+.4f} W m^-2")
         olr = outputs.get("outgoing_longwave_radiation")
         reflected = outputs.get("reflected_shortwave_radiation")
         if olr is not None and reflected is not None:
@@ -96,6 +225,9 @@ def _run(args: argparse.Namespace) -> int:
                 f"outgoing longwave: {olr.scalar():.4f} W m^-2   "
                 f"reflected shortwave: {reflected.scalar():.4f} W m^-2"
             )
+
+    if args.configuration in _TIMESCALE_CONFIGURATIONS and forcing is not None:
+        _report_timescales(result, forcing.regime)
 
     if args.manifest:
         path = Path(args.manifest)
@@ -132,6 +264,39 @@ def main(argv: list[str] | None = None) -> int:
         dest="heat_capacity",
         help="areal heat capacity of the surface slab in J m^-2 K^-1; lowering it "
         "shortens the response time and so the run needed to reach equilibrium",
+    )
+    run.add_argument(
+        "--master-dt",
+        type=float,
+        dest="master_dt",
+        help="master time step in seconds",
+    )
+    run.add_argument(
+        "--forcing",
+        choices=("none", "step", "pulse", "impulse", "periodic"),
+        help="declared forcing experiment applied to total solar irradiance (TIM-007)",
+    )
+    run.add_argument(
+        "--forcing-amplitude",
+        type=float,
+        default=20.0,
+        help="forcing amplitude in W m^-2 of irradiance at 1 au; for an impulse this "
+        "is multiplied by --forcing-duration to give the delivered energy",
+    )
+    run.add_argument(
+        "--forcing-onset", type=float, default=0.0, help="forcing onset time in seconds"
+    )
+    run.add_argument(
+        "--forcing-duration",
+        type=float,
+        default=8.64e6,
+        help="pulse duration in seconds, or the impulse's energy divisor",
+    )
+    run.add_argument(
+        "--forcing-period",
+        type=float,
+        default=3.456e7,
+        help="period of a periodic forcing in seconds",
     )
     run.add_argument(
         "--allow-residual",

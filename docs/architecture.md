@@ -50,6 +50,120 @@ Nothing in the upper layers can bypass the lower ones. A module has no method
 that writes another module's state; the only path is a labeled tendency the
 owner commits.
 
+## Stage 5: thermal storage and response timescales
+
+```
+solar ─▶ orbit ─▶ ocean ─▶ surface ─▶ space
+ forced by a     computes  applies the exchange,
+ declared        the       exports the transfer
+ experiment      exchange
+```
+
+### The reservoir is a module, and that is the whole design decision
+
+Charter 9.10's fidelity path reaches "mixed-layer and deep-ocean reservoirs" at
+its third rung. There were two ways to build it.
+
+The short way is to give the surface module a second temperature. It works, it
+is fewer lines, and it is wrong for this framework: the heat moving between the
+two reservoirs would be an internal number, invisible to the conservation
+auditor, impossible to disable as a single dependency edge under CAU-007, and
+welded to whichever surface implementation grew it.
+
+The way taken puts the deep reservoir in its own module owning one state. The
+mixed layer stays with the surface. The heat between them is an ordinary
+transfer, recorded independently by both parties and reconciled by the ledger
+like every other exchange (charter 8.4), and the exchange can be disabled to
+recover the single-reservoir configuration exactly.
+
+The visible consequence is that the same `DeepOceanModule` runs unchanged under
+`SlabSurfaceModule` and under `ColumnSurfaceModule`, which share nothing but an
+interface. Neither surface knows anything about the ocean beyond one input field
+and one exported transfer.
+
+### Two reservoirs, two timescales, one prediction to check against
+
+Linearised about a radiative equilibrium the coupled system is
+
+```
+C_s dT_s/dt = F - lambda T_s - gamma (T_s - T_d)
+C_d dT_d/dt =                  gamma (T_s - T_d)
+```
+
+which is linear, so its step response is a sum of two exponentials whose
+timescales are minus the reciprocal eigenvalues, and its frequency response is a
+transfer function in closed form. Both are in `physics/ocean.py` to be compared
+against -- never used by the modules, which integrate the nonlinear system.
+
+That comparison is what distinguishes a coupling that is right from one that
+merely produces a curve with two bends in it. The measured timescales agree with
+the eigenvalues to about one percent, which is the forward-Euler error plus the
+fact that the emission is quartic rather than linear in temperature.
+
+One result is worth stating because it looks like a bug. A two-reservoir system
+lags a periodic forcing *less* than a slab does, not more. The deep branch
+contributes a zero to the transfer function as well as extra damping, and the
+zero reduces the phase lag. A measured lag smaller than the control's is
+therefore the prediction, and the test asserts it against the analytic value
+rather than against intuition.
+
+### Forcing: the energy is the declaration
+
+Every forcing implements `mean_amplitude(t0, t1)` as an exact integral rather
+than a sample, so the energy delivered over a run is what was declared at any
+time step. A pulse whose edges fall inside a step delivers exactly its declared
+energy; a periodic forcing integrates to exactly zero over whole periods and so
+cannot warm the system by accident.
+
+An impulse takes this to its conclusion. In discrete time the narrowest possible
+perturbation is one step wide, so `ImpulseForcing` fixes the energy and lets the
+flux follow from the step. The impulse response is then reproducible across time
+steps -- identical to nine digits at 2, 4 and 8 day steps -- while the shape
+below one step is unresolved and declared as such.
+
+The forcing perturbs total solar irradiance rather than being injected inside
+the system, so its energy enters through the top-of-atmosphere boundary and is
+accounted by transfers that already existed. No fiat source term was needed and
+none was added.
+
+### Measuring a timescale, and refusing to invent one
+
+`evaluation/timescales.py` offers two things that are not interchangeable.
+`efolding_time` measures: it reports when the response first covered `1 - 1/e`
+of its change, assuming nothing about its shape. `fit_exponential_modes` fits:
+it assumes a sum of exponentials and returns the modes with the residual that
+says how well the assumption held.
+
+The residual is the part that matters. Granting a fit an extra mode always
+lowers it, so a second timescale is reported only when the improvement is large:
+on the single-reservoir control a two-mode fit buys a factor of five and returns
+two near-degenerate timescales; on the two-reservoir run it buys a factor of two
+thousand and returns two separated ones.
+
+A fit will also return a timescale several times longer than the record it saw.
+`ExponentialFit.constrained` marks those, and a `TimescaleMeasurement` carrying
+one prints EXTRAPOLATED. A 44-year run of the reference ocean returns a
+124-year slow mode; the same configuration run for 438 years returns 263 years,
+which is the right answer. Without the marking the first would have been
+reported in the same words as the second.
+
+`TimescaleReport` carries observable, subsystem, mechanism and forcing regime
+with every measurement, because TIM-008 is a prohibition as much as a
+capability. `single_index()` exists only to refuse: it raises when the
+measurements span more than a declared factor, rather than averaging a 1.4-year
+adjustment and a 263-year one into a number that describes no mechanism.
+
+### The experiment was declared before it was run
+
+EXP-001 lists six things an experiment must declare, and adds the phrase that
+gives the requirement teeth: *before final evaluation*. `ExperimentProtocol`
+hashes the whole declaration at `freeze()`, and `evaluate()` refuses against a
+protocol that was never frozen or whose declaration has moved since -- an
+`InvalidForScientificInferenceError`, not a warning, because a threshold chosen
+after seeing the result is not a weaker test but a different kind of thing.
+Deviations (EXP-002) are appended to the outcome, never folded back into the
+declaration, so what was promised and what happened stay separately readable.
+
 ## Stage 4: clouds
 
 ```
@@ -468,24 +582,51 @@ rather than discovered in a result.
 
 ## Known limitations of the current kernel
 
+Kept current rather than accumulated: a limitation that has since been removed
+is deleted from this list, and where a stage removed one the entry says so.
+
 - Zero-dimensional global mean only; no diurnal, seasonal or latitudinal
   structure, and the geometry module says so in its validity domain.
-- The slab has one temperature and therefore one response timescale *by
-  construction*. The charter's timescale philosophy expects a real system to
-  have several; the Stage 5 work is where that assumption gets tested rather
-  than assumed.
 - Uncertainty is declared and marked UNRESOLVED, not propagated. UNC-005's
   ensemble and Monte Carlo methods have interfaces but no implementations.
-- The column has no dynamics, convection or water, so it reaches *pure radiative
-  equilibrium* — which is convectively unstable in the real lower troposphere.
-  That is a known wrong answer for the lapse rate, registered as a known failure
-  mode of `EQ-LAYER-ENERGY-BALANCE` rather than presented as a result.
-- No scattering anywhere. A scattering atmosphere is outside scope rather than
-  approximated badly, and the radiation contract says so.
 - Absorption coefficients are free parameters of the reduced model, not measured
   properties of any gas. Nothing in the framework yet connects them to a
   molecular spectroscopic database.
 - One diffusivity factor serves both the solar beam and the diffuse thermal
   field, which is a parameterization with a declared few-percent accuracy.
-- Nothing in Stage 3 onward (moist thermodynamics, clouds, ocean transport) is
-  exercised.
+- Clouds are prescribed, so they respond to nothing. There is no cloud feedback
+  of any kind, and the condensate the water module produces still precipitates
+  immediately rather than becoming the cloud.
+- Cloud overlap is maximum only, with one column fraction; partial overlap
+  between layers is not represented.
+- Gas scattering is absent, so Rayleigh scattering and its contribution to
+  planetary albedo are missing. Cloud scattering *is* present as of Stage 4.
+- One effective radius per phase, no size distribution, no mixed phase. Ice
+  differs from liquid only through a larger radius, which is a crude analogy.
+- Water vapour is radiatively inert: the absorption coefficient does not respond
+  to it, so no configuration has a water-vapour feedback and no claim about one
+  is in scope.
+- The ocean has two reservoirs and no vertical structure, so nothing about the
+  profile of heat uptake is in scope. Its exchange coefficient is calibrated
+  rather than measured, and constant, so the model cannot represent a change in
+  heat-uptake efficiency under sustained warming.
+- The ocean has no salinity, circulation, meridional transport, sea ice,
+  freshwater, momentum or chemical exchange, all of which charter 9.10 lists for
+  the full-fidelity module.
+- The forcing perturbation is spectrally flat, so no experiment about the
+  wavelength dependence of solar forcing can be run with it.
+- Stages 6 and 7 are unexercised. The withheld-data path and the freeze records
+  exist and are tested, but no historical dataset has been registered against
+  them, so nothing in the framework has yet been compared with an observation.
+
+Removed by later stages, recorded because the reasoning still matters:
+
+- *"The slab has one temperature and therefore one response timescale by
+  construction."* Stage 5's two-reservoir ocean removes this, and the removal is
+  measured rather than asserted -- see the residual comparison above.
+- *"No scattering anywhere."* Stage 4 replaced the absorption-only solver with a
+  two-stream one that reduces to it exactly when nothing scatters.
+- *"The column reaches pure radiative equilibrium, which is convectively
+  unstable."* Stage 3's convective adjustment removes this; the wrong answer
+  stays registered as a known failure mode of `EQ-LAYER-ENERGY-BALANCE`, because
+  a configuration can still be built without convection.

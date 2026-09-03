@@ -249,6 +249,17 @@ CONSTANTS: dict[str, Constant] = {
             "path. Accurate to a few percent near unit optical depth and degrading "
             "outside that range; it is a parameterization, not a measured quantity.",
         ),
+        _c(
+            "ocean_deep_exchange_coefficient",
+            0.7,
+            "W m^-2 K^-1",
+            ParameterClass.CALIBRATED,
+            "Two-layer energy-balance fits to coupled-model step experiments",
+            0.3,
+            notes="Fitted to model behaviour, not measured on seawater. EQR-004 forbids "
+            "presenting it as a measured constant, and the large declared uncertainty is "
+            "the honest statement of how well the fit constrains it.",
+        ),
     )
 }
 

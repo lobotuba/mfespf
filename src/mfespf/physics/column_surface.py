@@ -79,6 +79,8 @@ class ColumnSurfaceModule(Module):
         water_module_id: str = "water",
         initial_water_store: float = 1.0e4,
         latent_heat: float | None = None,
+        couple_deep_ocean: bool = False,
+        ocean_module_id: str = "ocean",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         # The contract genuinely differs between a dry and a moist configuration:
@@ -95,6 +97,7 @@ class ColumnSurfaceModule(Module):
             module_name=(
                 "slab surface coupled to a radiating column"
                 + (" with evaporation and precipitation" if couple_water else "")
+                + (" over a deep ocean reservoir" if couple_deep_ocean else "")
             ),
             module_version=V1,
             interface_version=V1,
@@ -128,6 +131,7 @@ class ColumnSurfaceModule(Module):
                 "surface_upward_radiation",
                 "surface_absorbed_radiation",
                 *moist_inputs,
+                *(("deep_ocean_heat_flux",) if couple_deep_ocean else ()),
             ),
             produced_outputs=(
                 SURFACE_TEMPERATURE_STATE,
@@ -143,6 +147,7 @@ class ColumnSurfaceModule(Module):
             exported_transfers=(
                 "radiation_up_surface",
                 *(("evaporation_water", "evaporation_latent_energy") if couple_water else ()),
+                *(("deep_ocean_heat",) if couple_deep_ocean else ()),
             ),
             conserved_quantities=("energy", "water") if couple_water else ("energy",),
             provided_interfaces=(SURFACE_INTERFACE,),
@@ -185,6 +190,15 @@ class ColumnSurfaceModule(Module):
                     if couple_water
                     else ()
                 ),
+                *(
+                    (
+                        "The mixed layer is one isothermal reservoir; the slower "
+                        "response comes from the deep store below it, not from any "
+                        "structure within this one.",
+                    )
+                    if couple_deep_ocean
+                    else ()
+                ),
             ),
             cost=CostDeclaration(
                 module_id=module_id,
@@ -208,6 +222,10 @@ class ColumnSurfaceModule(Module):
         self.areal_heat_capacity = areal_heat_capacity
         self.albedo = albedo
         self.initial_temperature = initial_temperature
+
+        self.couple_deep_ocean = couple_deep_ocean
+        self.ocean_module_id = ocean_module_id
+        self._deep_ocean_flux = 0.0
 
         self.couple_water = couple_water
         self.water_module_id = water_module_id
@@ -297,6 +315,24 @@ class ColumnSurfaceModule(Module):
                 equation_id=EQUATION_IDS["slab"],
             )
         ]
+        if self.couple_deep_ocean:
+            # A labelled contribution of its own, next to the radiative one: the
+            # surface energy balance is the thing being examined here, and a sum
+            # would hide which of the two terms moved (STA-006, charter 9.9).
+            self._deep_ocean_flux = (
+                self.input_field("deep_ocean_heat_flux").require_units("W m^-2").scalar()
+            )
+            contributions.append(
+                TendencyContribution(
+                    state_id=SURFACE_TEMPERATURE_STATE,
+                    provider_module_id=self.module_id,
+                    label="deep_ocean_exchange",
+                    value=-self._deep_ocean_flux / self.areal_heat_capacity,
+                    units="K s^-1",
+                    equation_id=EQUATION_IDS["deep_ocean_exchange"],
+                )
+            )
+
         if not self.couple_water:
             return contributions
 
@@ -529,6 +565,18 @@ class ColumnSurfaceModule(Module):
                 **common,  # type: ignore[arg-type]
             )
         ]
+        if self.couple_deep_ocean:
+            exports.append(
+                Transfer(
+                    transfer_id=f"deep_ocean_heat@{start:g}",
+                    sender_module=self.module_id,
+                    receiver_module=self.ocean_module_id,
+                    amount=self._deep_ocean_flux * dt,
+                    channel="deep_ocean_heat",
+                    equation_id=EQUATION_IDS["deep_ocean_exchange"],
+                    **common,  # type: ignore[arg-type]
+                )
+            )
         sensible = self._inputs.get("surface_sensible_heat_flux")
         if sensible is not None:
             exports.append(
@@ -640,6 +688,7 @@ class ColumnSurfaceModule(Module):
             "emissivity_rule": "one_minus_albedo_kirchhoff",
             "time_integration": "forward_euler",
             "couple_water": self.couple_water,
+            "couple_deep_ocean": self.couple_deep_ocean,
             **(
                 {
                     "initial_water_store_kg_m2": self.initial_water_store,

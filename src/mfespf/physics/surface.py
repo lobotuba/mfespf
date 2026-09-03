@@ -146,8 +146,14 @@ class SlabSurfaceModule(Module):
         emissivity: float = 1.0,
         albedo: float | np.ndarray = 0.3,
         initial_temperature: float = 250.0,
+        couple_deep_ocean: bool = False,
+        ocean_module_id: str = "ocean",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
+        # The contract describes the module as configured (MOD-001). A slab with a
+        # reservoir beneath it needs one more input, exports one more transfer, and
+        # -- the part that matters -- stops carrying the single-timescale
+        # limitation, because it no longer has that limitation.
         contract = ModuleContract(
             module_id=module_id,
             module_name="slab surface with spectral albedo and grey emission",
@@ -176,16 +182,25 @@ class SlabSurfaceModule(Module):
                 "stability limit for the configured heat capacity."
             ),
             owned_state_ids=frozenset({SURFACE_TEMPERATURE_STATE}),
-            required_inputs=("toa_incident_irradiance", "toa_spectral_irradiance"),
+            required_inputs=(
+                "toa_incident_irradiance",
+                "toa_spectral_irradiance",
+                *(("deep_ocean_heat_flux",) if couple_deep_ocean else ()),
+            ),
             produced_outputs=(
                 "surface_temperature",
+                "surface_heat_capacity",
                 "surface_absorbed_shortwave",
                 "surface_reflected_shortwave",
                 "surface_emitted_longwave",
                 "surface_net_radiative_flux",
             ),
             imported_transfers=("toa_incident_energy",),
-            exported_transfers=("reflected_shortwave_energy", "emitted_longwave_energy"),
+            exported_transfers=(
+                "reflected_shortwave_energy",
+                "emitted_longwave_energy",
+                *(("deep_ocean_heat",) if couple_deep_ocean else ()),
+            ),
             conserved_quantities=("energy",),
             internal_sources_and_sinks=(),
             provided_interfaces=(SURFACE_INTERFACE,),
@@ -202,11 +217,25 @@ class SlabSurfaceModule(Module):
                 "test_slab_energy_closure",
                 "test_grey_albedo_matches_broadband",
                 "test_zero_insolation_null_control",
+                *(
+                    (
+                        "test_two_reservoir_timescales_match_the_analytic_modes",
+                        "test_disabling_the_exchange_recovers_the_single_reservoir_result",
+                    )
+                    if couple_deep_ocean
+                    else ()
+                ),
             ),
             known_limitations=(
-                "One temperature and one timescale by construction; it cannot exhibit the "
-                "multiple response timescales the charter's timescale philosophy expects a "
-                "real system to have.",
+                (
+                    "The mixed layer is still one isothermal reservoir; the second "
+                    "timescale comes from the deep store below it, not from any "
+                    "structure within this one."
+                    if couple_deep_ocean
+                    else "One temperature and one timescale by construction; it cannot "
+                    "exhibit the multiple response timescales the charter's timescale "
+                    "philosophy expects a real system to have."
+                ),
             ),
             cost=CostDeclaration(
                 module_id=module_id,
@@ -231,8 +260,11 @@ class SlabSurfaceModule(Module):
         self.emissivity = emissivity
         self.albedo = albedo
         self.initial_temperature = initial_temperature
+        self.couple_deep_ocean = couple_deep_ocean
+        self.ocean_module_id = ocean_module_id
 
         self.temperature = initial_temperature
+        self._deep_ocean_flux = 0.0
         self._incident = 0.0
         self._absorbed = 0.0
         self._reflected = 0.0
@@ -305,7 +337,7 @@ class SlabSurfaceModule(Module):
         self._stored_initial = self.stored_energy()
 
         net = self._absorbed - self._emitted
-        return [
+        contributions = [
             TendencyContribution(
                 state_id=SURFACE_TEMPERATURE_STATE,
                 provider_module_id=self.module_id,
@@ -315,6 +347,25 @@ class SlabSurfaceModule(Module):
                 equation_id=EQUATION_IDS["slab"],
             )
         ]
+        if self.couple_deep_ocean:
+            # Kept as its own labelled contribution rather than folded into the
+            # net radiative term: STA-006 wants the two apart, and a run in which
+            # the ocean is doing most of the work looks identical to one in which
+            # it is doing none once they are summed.
+            self._deep_ocean_flux = (
+                self.input_field("deep_ocean_heat_flux").require_units("W m^-2").scalar()
+            )
+            contributions.append(
+                TendencyContribution(
+                    state_id=SURFACE_TEMPERATURE_STATE,
+                    provider_module_id=self.module_id,
+                    label="deep_ocean_exchange",
+                    value=-self._deep_ocean_flux / self.areal_heat_capacity,
+                    units="K s^-1",
+                    equation_id=EQUATION_IDS["deep_ocean_exchange"],
+                )
+            )
+        return contributions
 
     def advance_state(self, dt: float, contributions: list[TendencyContribution]) -> None:
         """Forward Euler, with the labeled contributions retained (STA-006)."""
@@ -333,6 +384,54 @@ class SlabSurfaceModule(Module):
         return {SURFACE_TEMPERATURE_STATE: self._budget} if self._budget else {}
 
     # --- outputs ----------------------------------------------------------
+    def emit_state(self) -> dict[str, Field]:
+        """Committed state and static properties, published before the first step.
+
+        A module scheduled ahead of this one -- the deep ocean, which needs the
+        mixed-layer temperature and capacity to compute an exchange -- would
+        otherwise find nothing on the bus at step zero. Fluxes stay in
+        ``emit_outputs`` where they have an averaging interval to declare
+        (DAT-006); a committed temperature has an instant, and a heat capacity is
+        a constant.
+        """
+        timestamp = self._context.time if self._context else 0.0
+        provenance = Provenance(producer=self.module_id, derivation=EQUATION_IDS["slab"])
+        return {
+            SURFACE_TEMPERATURE_STATE: Field(
+                field_id=SURFACE_TEMPERATURE_STATE,
+                physical_name="slab surface temperature",
+                symbol="T_s",
+                values=np.array(self.temperature),
+                units="K",
+                quantity_kind=QuantityKind.INTENSIVE_STATE,
+                time_semantics=TimeSemantics.INSTANTANEOUS,
+                timestamp=timestamp,
+                spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                provenance=provenance,
+                uncertainty=Uncertainty(
+                    method="none",
+                    unresolved=(
+                        "initial_condition",
+                        "areal_heat_capacity_parameter",
+                        "time_discretization",
+                    ),
+                ),
+            ),
+            "surface_heat_capacity": Field(
+                field_id="surface_heat_capacity",
+                physical_name="areal heat capacity of the surface slab",
+                symbol="C_s",
+                values=np.array(self.areal_heat_capacity),
+                units="J m^-2 K^-1",
+                quantity_kind=QuantityKind.EXTENSIVE_STATE,
+                time_semantics=TimeSemantics.INSTANTANEOUS,
+                timestamp=timestamp,
+                spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                provenance=provenance,
+            ),
+        }
+
     def emit_outputs(self) -> dict[str, Field]:
         ctx = self.context
         provenance = Provenance(producer=self.module_id, derivation=EQUATION_IDS["slab"])
@@ -433,6 +532,22 @@ class SlabSurfaceModule(Module):
                 equation_id=EQUATION_IDS["greybody"],
             ),
         ]
+        if self.couple_deep_ocean:
+            exports.append(
+                Transfer(
+                    transfer_id=f"deep_ocean_heat@{start:g}",
+                    sender_module=self.module_id,
+                    receiver_module=self.ocean_module_id,
+                    quantity=ConservedQuantity.ENERGY,
+                    amount=self._deep_ocean_flux * dt,
+                    units="J m^-2",
+                    start_time=start,
+                    end_time=end,
+                    spatial_mapping="global_mean_over_planetary_surface",
+                    channel="deep_ocean_heat",
+                    equation_id=EQUATION_IDS["deep_ocean_exchange"],
+                )
+            )
         imports = [
             Transfer(
                 transfer_id=f"toa_incident@{start:g}",
@@ -487,6 +602,7 @@ class SlabSurfaceModule(Module):
             "albedo": albedo.reshape(-1).tolist(),
             "initial_temperature_K": self.initial_temperature,
             "time_integration": "forward_euler",
+            "couple_deep_ocean": self.couple_deep_ocean,
         }
 
     def checkpoint(self) -> dict[str, Any]:
