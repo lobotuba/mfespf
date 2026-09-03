@@ -200,10 +200,11 @@ class Coupler:
             if not s.module.status.participates:
                 continue
             s.module.initialize(dict(initial_state or {}), dict(boundary_state or {}))
-        # The bus stays empty until the first step. A field emitted outside a
-        # step would have no interval to declare, and DAT-006 does not allow an
-        # interval-averaged quantity without one; modules publish in splitting
-        # order within the step instead.
+            # Only committed state and static properties are published before the
+            # first step. A flux emitted here would have no averaging interval to
+            # declare, which DAT-006 forbids; fluxes appear once a step is under
+            # way and modules publish in splitting order within it.
+            self.bus.update(s.module.emit_state())
 
     # --- stepping ---------------------------------------------------------
     def step(self) -> StepReport:
@@ -259,6 +260,10 @@ class Coupler:
                 continue
             owned = [c for c in contributions if c.state_id in module.contract.owned_state_ids]
             module.advance_state(self.schedule.module_dt(module.module_id), owned)
+            # Republish the committed state so the next step's earlier modules --
+            # a radiation solver ahead of the owner in the splitting order -- read
+            # the state as of the start of their step rather than one step stale.
+            self.bus.update(module.emit_state())
 
         for s in self.schedule.ordered():
             module = s.module

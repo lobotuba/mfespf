@@ -249,6 +249,25 @@ class Module(ABC):
         return None
 
     def emit_outputs(self) -> dict[str, Field]:
+        """Diagnostics and fluxes for the step just computed.
+
+        Called after ``compute_tendencies`` and before the next module in the
+        splitting order receives its inputs.
+        """
+        return {}
+
+    def emit_state(self) -> dict[str, Field]:
+        """The module's currently committed state, and any static properties.
+
+        Called once at initialisation and again after every ``advance_state``, so
+        the bus always carries the state as of the *start* of the next step. A
+        module that needs another's state -- a radiation solver needing
+        temperatures -- reads it from here rather than being ordered after the
+        owner, which would make its inputs a step stale.
+
+        Fields published here are instantaneous and carry no averaging interval,
+        which is what lets them exist before any step has been taken (DAT-006).
+        """
         return {}
 
     def parameters(self) -> dict[str, Any]:

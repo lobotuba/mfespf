@@ -21,22 +21,22 @@ specification governs.**
 
 ## Status
 
-Version 0.1.0 — the **Stage 0 accounting kernel and Stage 1 airless radiating
-body** of the charter's validation ladder (charter §19), on top of the full
-Version 1.0 interface spine.
+Version 0.2.0 — the **Stage 0 accounting kernel, Stage 1 airless radiating body
+and Stage 2 radiating atmospheric column** of the charter's validation ladder
+(charter §19), on top of the full Version 1.0 interface spine.
 
 | Ladder stage | State |
 | --- | --- |
 | 0 — units, coordinates, transfers, conservation accounting, restart | implemented |
 | 1 — airless radiating body: geometry, absorbed radiation, thermal emission, analytic equilibrium, transient | implemented |
-| 2 — atmospheric radiation (transparent → absorbing → emitting, multilayer) | not started |
+| 2 — atmospheric radiation: transparent, absorbing and emitting, multilayer, variable spectrum | implemented |
 | 3 — atmospheric thermodynamics | not started |
 | 4 — clouds | not started |
 | 5 — thermal storage and measured response timescales | partially: single-reservoir response measured |
 | 6 — historical replay | machinery present (withheld-data path), no datasets |
 | 7 — hindcast and registered prediction | machinery present (freeze records), not exercised |
 
-189 mandatory requirements are tracked; 122 currently have a bound acceptance
+189 mandatory requirements are tracked; 125 currently have a bound acceptance
 test. See [`docs/traceability.md`](docs/traceability.md) — the uncovered ones are
 listed there rather than left implicit.
 
@@ -44,8 +44,9 @@ listed there rather than left implicit.
 
 ```bash
 python -m pip install -e ".[dev]"     # Python 3.11+
-python -m pytest                       # 136 tests, ~18 s on a workstation
-mfespf run airless --steps 4800        # 200 simulated days
+python -m pytest                       # 157 tests, ~57 s on a workstation
+mfespf run airless --steps 4800        # Stage 1: 200 simulated days
+mfespf run window --steps 6000 --heat-capacity 1e6   # Stage 2 column
 ```
 
 ```
@@ -58,13 +59,13 @@ run STAGE1-AIRLESS-001 [complete]
   worst relative conservation residual: 8.938e-16
 ```
 
-Configurations: `airless`, `airless-banded`, `null-control`.
+Configurations: `airless`, `airless-banded`, `null-control` (Stage 1);
+`transparent`, `absorbing`, `window`, `grey-layer` (Stage 2).
 Add `--manifest run.json` to write the run record.
 
 ## What the kernel actually does
 
-A zero-dimensional airless sphere in radiative balance, coupled through the full
-interface machinery:
+**Stage 1** — a zero-dimensional airless sphere in radiative balance:
 
 ```
 solar ──irradiance──▶ orbit ──energy──▶ surface ──reflected──▶ space
@@ -73,10 +74,28 @@ solar ──irradiance──▶ orbit ──energy──▶ surface ──reflec
                       boundary
 ```
 
+**Stage 2** — a hydrostatic radiating column above it:
+
+```
+solar ─▶ orbit ─▶ radiation ─▶ atmosphere ⇄ surface        atmosphere ─▶ space
+                  solves the   owns T_a[]   owns T_s        owns the two
+                  whole column                              column interfaces
+```
+
 The physics is deliberately small; the point is that it is **accounted**. The
-coupled energy budget closes to ~1e-16 relative at every coupling interval, and
-the run reaches the closed-form equilibrium temperature to 1e-9 relative and the
-analytic relaxation timescale to 2%.
+coupled energy budget closes to ~1e-16 relative at every coupling interval.
+Stage 1 reaches the closed-form equilibrium to 1e-9 relative and the analytic
+relaxation timescale to 2%. Stage 2's single grey layer reproduces the
+closed-form greenhouse temperatures — 295.42 K against 295.62 K analytic, with
+the 0.07% gap attributable to a measured spectral-overlap term rather than to
+tolerance.
+
+There is no shortwave/longwave split in the Stage 2 physics. There is radiation
+in band *b*, with two sources: sunlight at the top and thermal emission from the
+layers and surface. A greenhouse is then just an absorption coefficient that is
+small where the solar spectrum lives and large where the terrestrial one does —
+which is what the real one is. The SW/LW *diagnostics* the charter requires are
+recovered by partitioning bands after the solve.
 
 ## Architecture
 
@@ -101,6 +120,8 @@ The interface spine is the substantial part. See
 | Withheld data | [`evaluation/withheld.py`](src/mfespf/evaluation/withheld.py) | unreadable until the claim is frozen |
 | Convergence | [`evaluation/convergence.py`](src/mfespf/evaluation/convergence.py) | an answer that moves with the time step is a solver property |
 | Run audit | [`run/manifest.py`](src/mfespf/run/manifest.py) | configuration hashing, parent/child diffs, immutable evidence |
+| Radiative transfer | [`physics/radiative_transfer.py`](src/mfespf/physics/radiative_transfer.py) | flux divergence closes by construction; scattering absent, not approximated |
+| Atmospheric column | [`physics/atmosphere.py`](src/mfespf/physics/atmosphere.py) | owns layer temperatures; radiation contributes, the column commits |
 
 ### The design decisions worth knowing
 
@@ -127,6 +148,19 @@ what makes the sender/receiver reconciliation a real check.
 **A disabled dependency edge withholds the field entirely.** It does not
 substitute zero — a module that requires the input fails loudly, so a control
 experiment cannot silently become a different experiment.
+
+**Radiation runs before the state owners, and owners republish state after
+advancing.** `Module.emit_state()` publishes committed state at initialisation
+and after every `advance_state`, so a solver placed earlier in the splitting
+order reads the state as of the start of *its* step rather than one step stale.
+Fluxes still come from `emit_outputs()` mid-step, because a flux needs an
+averaging interval and state does not.
+
+**Emissivity follows from albedo, band by band.** That is Kirchhoff's law, and
+it caught a real inconsistency: Stage 1's pairing of a 0.3 albedo with unit
+emissivity is only self-consistent if the reflectance is confined to short
+wavelengths. Read as a genuinely grey surface it gives 278 K, not 254.6 K. Both
+are legitimate configurations; the framework now records which one a run used.
 
 ## Requirement traceability
 

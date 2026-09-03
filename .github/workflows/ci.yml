@@ -53,7 +53,14 @@ jobs:
           git diff --exit-code docs/traceability.md
 
       - name: Reference configurations run and close their budgets
+        # KER-012: every configuration the specification names must run and
+        # reconcile. A non-zero exit here means a budget failed to close or the
+        # run was marked inadmissible, not merely that a number moved.
         run: |
           python -m mfespf.cli run airless --steps 240
           python -m mfespf.cli run airless-banded --steps 240
           python -m mfespf.cli run null-control --steps 240
+          python -m mfespf.cli run transparent --steps 240 --heat-capacity 1e6
+          python -m mfespf.cli run absorbing --steps 240 --heat-capacity 1e6
+          python -m mfespf.cli run window --steps 240 --heat-capacity 1e6
+          python -m mfespf.cli run grey-layer --steps 240 --heat-capacity 1e6

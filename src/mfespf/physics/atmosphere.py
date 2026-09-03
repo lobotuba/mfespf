@@ -1,0 +1,543 @@
+"""Hydrostatic atmospheric column.
+
+Charter 9.4 and section 19 stage 2; requirements ATM-001, ATM-002, ATM-003,
+STA-001, STA-006, CON-009.
+
+The column owns the atmospheric thermodynamic state and nothing else.  It does
+not compute radiation: the radiation module submits labeled per-layer heating
+tendencies and the column commits them, which is the A1.3 pattern for a state
+several processes act on.  At this fidelity there is no dynamics, so the layer
+temperatures evolve under radiative heating alone and the module's known
+limitations say so.
+
+Mass is distributed hydrostatically in pressure coordinates: a layer spanning
+``dp`` holds ``dp / g`` kilograms per square metre, independent of temperature.
+That is exact for a hydrostatic atmosphere and is what makes the column's heat
+capacity a fixed, declarable quantity rather than something that drifts with the
+state.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import numpy as np
+
+from mfespf.contracts.cost import CostDeclaration, ResourceClass
+from mfespf.contracts.module import (
+    FidelityLevel,
+    Module,
+    ModuleContract,
+    ModuleStatus,
+    UncertaintyReport,
+)
+from mfespf.core.constants import value_of
+from mfespf.core.errors import ConfigurationError
+from mfespf.core.quantities import (
+    Field,
+    Provenance,
+    QuantityKind,
+    SignConvention,
+    SpatialSupport,
+    TimeSemantics,
+    Uncertainty,
+)
+from mfespf.core.versioning import InterfaceContract, Version
+from mfespf.coupling.conservation import ModuleBudget
+from mfespf.coupling.transfers import ConservedQuantity, Transfer
+from mfespf.physics.equations import EQUATION_IDS
+from mfespf.registries.states import (
+    StateBudget,
+    StateEntry,
+    StateKind,
+    TendencyContribution,
+    UpdateAuthority,
+)
+
+__all__ = [
+    "ATMOSPHERE_INTERFACE",
+    "ATMOSPHERE_TEMPERATURE_STATE",
+    "AtmosphericColumnModule",
+    "atmosphere_state_entry",
+    "hydrostatic_layer_masses",
+]
+
+V1 = Version(1, 0, 0)
+
+ATMOSPHERE_TEMPERATURE_STATE = "atmosphere_layer_temperature"
+
+ATMOSPHERE_INTERFACE = InterfaceContract(
+    interface_id="atmospheric_state",
+    version=V1,
+    physical_semantics={
+        "temperature_units": "K",
+        "pressure_units": "Pa",
+        "layer_mass_units": "kg m^-2",
+        "layer_ordering": "index_0_is_the_lowest_layer",
+        "vertical_coordinate": "pressure",
+        "state_owner": "atmosphere",
+    },
+)
+
+
+def hydrostatic_layer_masses(
+    *,
+    n_layers: int,
+    surface_pressure: float,
+    top_pressure: float,
+    gravity: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Layer interface pressures and masses for a hydrostatic column.
+
+    Returns ``(interface_pressures, layer_masses)`` with interface index 0 at the
+    surface and index ``n_layers`` at the model top, so layer ``i`` lies between
+    interfaces ``i`` and ``i+1``.  Layers are equal in pressure, hence equal in
+    mass -- the simplest distribution, and one whose total is exactly
+    ``(p_s - p_top) / g`` so the column's mass budget is checkable by hand.
+    """
+    if n_layers < 1:
+        raise ConfigurationError("an atmospheric column needs at least one layer")
+    if not 0.0 <= top_pressure < surface_pressure:
+        raise ConfigurationError(
+            f"top pressure {top_pressure} must be non-negative and below the surface "
+            f"pressure {surface_pressure}"
+        )
+    interfaces = np.linspace(surface_pressure, top_pressure, n_layers + 1)
+    masses = -np.diff(interfaces) / gravity
+    return interfaces, masses
+
+
+def atmosphere_state_entry(
+    *,
+    owner: str = "atmosphere",
+    n_layers: int,
+    tendency_providers: frozenset[str] = frozenset(),
+    readers: frozenset[str] = frozenset(),
+) -> StateEntry:
+    """Registry row for the layer temperatures (STA-002, STA-003)."""
+    return StateEntry(
+        record_id=ATMOSPHERE_TEMPERATURE_STATE,
+        version=V1,
+        physical_name="atmospheric layer temperature",
+        symbol="T_a",
+        owner_module_id=owner,
+        units="K",
+        state_kind=StateKind.PROGNOSTIC,
+        dimensions=("layer",),
+        conservation_participation=("energy",),
+        authorized_readers=readers,
+        authorized_tendency_providers=frozenset({owner}) | tendency_providers,
+        update_authority=UpdateAuthority.OWNER_ONLY,
+        initialization_source="manifest",
+        checkpoint_required=True,
+        uncertainty_representation="initial_condition_and_parameter_uncertainty",
+        validity_flags=(f"n_layers={n_layers}",),
+    )
+
+
+class AtmosphericColumnModule(Module):
+    """A hydrostatic column of isothermal layers, heated only by radiation."""
+
+    def __init__(
+        self,
+        *,
+        module_id: str = "atmosphere",
+        surface_module_id: str = "surface",
+        space_module_id: str = "space",
+        source_module_id: str = "orbit",
+        n_layers: int = 8,
+        surface_pressure: float | None = None,
+        top_pressure: float = 1.0e3,
+        initial_temperature: float | np.ndarray = 250.0,
+        specific_heat: float | None = None,
+        gravity: float | None = None,
+        status: ModuleStatus = ModuleStatus.ACTIVE,
+    ) -> None:
+        contract = ModuleContract(
+            module_id=module_id,
+            module_name=f"hydrostatic radiative column ({n_layers} layers)",
+            module_version=V1,
+            interface_version=V1,
+            fidelity_level=FidelityLevel.REDUCED,
+            physical_basis=(
+                "First law applied to hydrostatically distributed isothermal layers "
+                "exchanging energy by radiation only."
+            ),
+            governing_equation_ids=(
+                EQUATION_IDS["hydrostatic"],
+                EQUATION_IDS["layer_energy_balance"],
+                EQUATION_IDS["forward_euler"],
+            ),
+            assumptions=(
+                "hydrostatic balance with a prescribed, time-invariant pressure structure",
+                "each layer is isothermal and well mixed",
+                "dry air with constant specific heat",
+                "no advection, convection, latent heat or kinetic energy",
+            ),
+            validity_domain=(
+                "Radiative-only column experiments. With no convective adjustment the "
+                "column reaches pure radiative equilibrium, which is known to be "
+                "convectively unstable in the real lower troposphere; a claim about "
+                "lapse rate is outside this module's domain until Stage 3 adds it."
+            ),
+            owned_state_ids=frozenset({ATMOSPHERE_TEMPERATURE_STATE}),
+            required_inputs=(
+                "layer_radiative_heating",
+                "toa_downward_radiation",
+                "toa_upward_radiation",
+                "surface_downward_radiation",
+                "surface_upward_radiation",
+            ),
+            produced_outputs=(
+                ATMOSPHERE_TEMPERATURE_STATE,
+                "atmosphere_layer_mass",
+                "atmosphere_layer_heat_capacity",
+                "atmosphere_interface_pressure",
+                "atmosphere_column_energy",
+            ),
+            imported_transfers=("radiation_down_toa", "radiation_up_surface"),
+            exported_transfers=("radiation_down_surface", "radiation_up_toa"),
+            conserved_quantities=("energy", "mass"),
+            internal_sources_and_sinks=(),
+            provided_interfaces=(ATMOSPHERE_INTERFACE,),
+            uncertainty_outputs=(
+                "initial_condition",
+                "specific_heat_parameter",
+                "vertical_resolution",
+                "missing_convection_structural",
+            ),
+            correctness_tests=(
+                "test_transparent_column_recovers_the_airless_result",
+                "test_single_grey_layer_matches_the_analytic_greenhouse",
+                "test_column_energy_budget_closes",
+                "test_column_mass_is_hydrostatic",
+                "test_zero_insolation_column_only_cools",
+            ),
+            known_limitations=(
+                "No dynamics, convection or water. Pure radiative equilibrium only.",
+                "Layer temperatures may become convectively unstable; nothing corrects it.",
+            ),
+            cost=CostDeclaration(
+                module_id=module_id,
+                time_complexity="O(n_layers)",
+                memory_complexity="O(n_layers)",
+                scaling_variables=("n_layers",),
+                work_units_per_step=1.0,
+                benchmark_configuration=f"{n_layers} layers, global scalar column",
+                peak_memory_bytes=8 * n_layers + 4096,
+                supported_resource_classes=(
+                    ResourceClass.LAPTOP,
+                    ResourceClass.ENGINEERING_WORKSTATION,
+                ),
+                lower_fidelity_alternatives=("single_layer_column",),
+                checkpoint_cost_bytes=8 * n_layers,
+            ),
+        )
+        super().__init__(contract, status=status)
+        self.surface_module_id = surface_module_id
+        self.space_module_id = space_module_id
+        self.source_module_id = source_module_id
+        self.n_layers = n_layers
+        self.surface_pressure = (
+            surface_pressure
+            if surface_pressure is not None
+            else value_of("standard_surface_pressure")
+        )
+        self.top_pressure = top_pressure
+        self.specific_heat = (
+            specific_heat if specific_heat is not None else value_of("specific_heat_dry_air")
+        )
+        self.gravity = gravity if gravity is not None else value_of("earth_standard_gravity")
+        self.initial_temperature = initial_temperature
+
+        self.interface_pressure, self.layer_mass = hydrostatic_layer_masses(
+            n_layers=n_layers,
+            surface_pressure=self.surface_pressure,
+            top_pressure=top_pressure,
+            gravity=self.gravity,
+        )
+        self.layer_heat_capacity = self.specific_heat * self.layer_mass
+        self.temperature = np.full(n_layers, float(np.mean(np.asarray(initial_temperature))))
+
+        self._interval = (0.0, 0.0)
+        self._stored_initial = 0.0
+        self._budget: StateBudget | None = None
+        self._boundary_energy: dict[str, float] = {}
+
+    # --- configuration ----------------------------------------------------
+    def validate_configuration(self) -> None:
+        super().validate_configuration()
+        if self.specific_heat <= 0.0:
+            raise ConfigurationError(f"specific heat {self.specific_heat} must be positive")
+        if self.gravity <= 0.0:
+            raise ConfigurationError(f"gravity {self.gravity} must be positive")
+        initial = np.asarray(self.initial_temperature, dtype=float)
+        if initial.ndim == 1 and initial.size != self.n_layers:
+            raise ConfigurationError(
+                f"initial temperature has {initial.size} entries for {self.n_layers} layers"
+            )
+        if np.any(initial <= 0.0):
+            raise ConfigurationError("initial layer temperatures must be positive")
+
+    def initialize(self, initial_state: dict[str, Any], boundary_state: dict[str, Any]) -> None:
+        supplied = initial_state.get(ATMOSPHERE_TEMPERATURE_STATE, self.initial_temperature)
+        values = np.asarray(supplied, dtype=float)
+        self.temperature = (
+            np.full(self.n_layers, float(values))
+            if values.ndim == 0
+            else np.array(values, dtype=float)
+        )
+        if self.temperature.size != self.n_layers:
+            raise ConfigurationError(
+                f"initial atmospheric state has {self.temperature.size} layers, "
+                f"expected {self.n_layers}"
+            )
+        self.mark_initialized()
+
+    # --- physics ----------------------------------------------------------
+    @property
+    def column_mass(self) -> float:
+        """Total dry mass per unit area, exactly ``(p_s - p_top) / g``."""
+        return float(np.sum(self.layer_mass))
+
+    def stored_energy(self, temperature: np.ndarray | None = None) -> float:
+        """Column internal energy per unit area, ``sum_i c_p m_i T_i`` in J m^-2."""
+        T = self.temperature if temperature is None else temperature
+        return float(np.sum(self.layer_heat_capacity * T))
+
+    def compute_tendencies(self) -> list[TendencyContribution]:
+        """The column contributes nothing of its own; radiation supplies the heating.
+
+        Returning an empty list is the honest statement of this fidelity level: at
+        Stage 2 the only process acting on layer temperature is radiative flux
+        divergence, and the radiation module owns that computation and labels it.
+        """
+        ctx = self.context
+        self._interval = (ctx.time, ctx.time + ctx.dt)
+        self._stored_initial = self.stored_energy()
+        self._boundary_energy = {
+            channel: self.input_field(field_id).require_units("W m^-2").scalar() * ctx.dt
+            for channel, field_id in (
+                ("radiation_down_toa", "toa_downward_radiation"),
+                ("radiation_up_toa", "toa_upward_radiation"),
+                ("radiation_down_surface", "surface_downward_radiation"),
+                ("radiation_up_surface", "surface_upward_radiation"),
+            )
+        }
+        return []
+
+    def advance_state(self, dt: float, contributions: list[TendencyContribution]) -> None:
+        initial = np.array(self.temperature, dtype=float)
+        total = np.zeros(self.n_layers)
+        for contribution in contributions:
+            total = total + np.broadcast_to(contribution.as_array(), (self.n_layers,))
+        self.temperature = initial + total * dt
+        self._budget = StateBudget(
+            state_id=ATMOSPHERE_TEMPERATURE_STATE,
+            initial_value=initial,
+            final_value=np.array(self.temperature, dtype=float),
+            dt=dt,
+            contributions=list(contributions),
+        )
+
+    def state_budgets(self) -> dict[str, Any]:
+        return {ATMOSPHERE_TEMPERATURE_STATE: self._budget} if self._budget else {}
+
+    # --- outputs ----------------------------------------------------------
+    def emit_state(self) -> dict[str, Field]:
+        provenance = Provenance(producer=self.module_id, derivation=EQUATION_IDS["hydrostatic"])
+        timestamp = self._context.time if self._context else 0.0
+        return {
+            ATMOSPHERE_TEMPERATURE_STATE: Field(
+                field_id=ATMOSPHERE_TEMPERATURE_STATE,
+                physical_name="atmospheric layer temperature",
+                symbol="T_a",
+                values=np.array(self.temperature),
+                units="K",
+                quantity_kind=QuantityKind.INTENSIVE_STATE,
+                time_semantics=TimeSemantics.INSTANTANEOUS,
+                timestamp=timestamp,
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                coordinate_system="pressure_layers",
+                provenance=provenance,
+                uncertainty=Uncertainty(
+                    method="none",
+                    unresolved=("initial_condition", "vertical_resolution"),
+                ),
+            ),
+            "atmosphere_layer_mass": Field(
+                field_id="atmosphere_layer_mass",
+                physical_name="dry air mass per unit area in each layer",
+                symbol="m_i",
+                values=np.array(self.layer_mass),
+                units="kg m^-2",
+                quantity_kind=QuantityKind.EXTENSIVE_STATE,
+                time_semantics=TimeSemantics.INSTANTANEOUS,
+                timestamp=timestamp,
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                coordinate_system="pressure_layers",
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                provenance=provenance,
+            ),
+            "atmosphere_layer_heat_capacity": Field(
+                field_id="atmosphere_layer_heat_capacity",
+                physical_name="areal heat capacity of each layer",
+                symbol="C_i",
+                values=np.array(self.layer_heat_capacity),
+                units="J m^-2 K^-1",
+                quantity_kind=QuantityKind.EXTENSIVE_STATE,
+                time_semantics=TimeSemantics.INSTANTANEOUS,
+                timestamp=timestamp,
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                coordinate_system="pressure_layers",
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                provenance=provenance,
+            ),
+            "atmosphere_interface_pressure": Field(
+                field_id="atmosphere_interface_pressure",
+                physical_name="pressure at layer interfaces, surface first",
+                symbol="p",
+                values=np.array(self.interface_pressure),
+                units="Pa",
+                quantity_kind=QuantityKind.INTENSIVE_STATE,
+                time_semantics=TimeSemantics.INSTANTANEOUS,
+                timestamp=timestamp,
+                spatial_support=SpatialSupport.FACE_CENTERED,
+                dimensions=("interface",),
+                coordinate_system="pressure_layers",
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                provenance=provenance,
+            ),
+        }
+
+    def emit_outputs(self) -> dict[str, Field]:
+        ctx = self.context
+        return {
+            "atmosphere_column_energy": Field(
+                field_id="atmosphere_column_energy",
+                physical_name="column internal energy per unit area",
+                symbol="E_a",
+                values=np.array(self.stored_energy()),
+                units="J m^-2",
+                quantity_kind=QuantityKind.EXTENSIVE_STATE,
+                time_semantics=TimeSemantics.START_OF_STEP,
+                timestamp=ctx.time,
+                spatial_support=SpatialSupport.DOMAIN_INTEGRAL,
+                provenance=Provenance(
+                    producer=self.module_id, derivation=EQUATION_IDS["layer_energy_balance"]
+                ),
+            )
+        }
+
+    def report_transfers(self) -> tuple[list[Transfer], list[Transfer]]:
+        """The column's own record of what crossed its two interfaces.
+
+        Computed from the flux fields the radiation module published, not from
+        the radiation module's internals, so the reconciliation against the
+        surface's and the boundary sink's records is an independent check.
+        """
+        start, end = self._interval
+        common = {
+            "quantity": ConservedQuantity.ENERGY,
+            "units": "J m^-2",
+            "start_time": start,
+            "end_time": end,
+            "spatial_mapping": "global_mean_over_planetary_surface",
+        }
+        imports = [
+            Transfer(
+                transfer_id=f"radiation_down_toa@{start:g}",
+                sender_module=self.source_module_id,
+                receiver_module=self.module_id,
+                amount=self._boundary_energy["radiation_down_toa"],
+                channel="radiation_down_toa",
+                **common,  # type: ignore[arg-type]
+            ),
+            Transfer(
+                transfer_id=f"radiation_up_surface@{start:g}",
+                sender_module=self.surface_module_id,
+                receiver_module=self.module_id,
+                amount=self._boundary_energy["radiation_up_surface"],
+                channel="radiation_up_surface",
+                **common,  # type: ignore[arg-type]
+            ),
+        ]
+        exports = [
+            Transfer(
+                transfer_id=f"radiation_down_surface@{start:g}",
+                sender_module=self.module_id,
+                receiver_module=self.surface_module_id,
+                amount=self._boundary_energy["radiation_down_surface"],
+                channel="radiation_down_surface",
+                **common,  # type: ignore[arg-type]
+            ),
+            Transfer(
+                transfer_id=f"radiation_up_toa@{start:g}",
+                sender_module=self.module_id,
+                receiver_module=self.space_module_id,
+                amount=self._boundary_energy["radiation_up_toa"],
+                channel="radiation_up_toa",
+                **common,  # type: ignore[arg-type]
+            ),
+        ]
+        return (exports, imports)
+
+    def report_conservation(self) -> list[ModuleBudget]:
+        return [
+            ModuleBudget(
+                module_id=self.module_id,
+                quantity=ConservedQuantity.ENERGY,
+                units="J m^-2",
+                stored_initial=self._stored_initial,
+                stored_final=self.stored_energy(),
+            ),
+            # Mass is conserved trivially at this fidelity -- the column neither
+            # gains nor loses air -- but the budget is published rather than
+            # assumed, so a later module that does move mass has a line to use.
+            ModuleBudget(
+                module_id=self.module_id,
+                quantity=ConservedQuantity.MASS,
+                units="kg m^-2",
+                stored_initial=self.column_mass,
+                stored_final=self.column_mass,
+            ),
+        ]
+
+    def report_uncertainty(self) -> UncertaintyReport:
+        return UncertaintyReport(
+            module_id=self.module_id,
+            quantified={"column_mass_kg_m2": self.column_mass},
+            method="none propagated at this fidelity",
+            distributional_assumptions="unresolved",
+            correlations="unresolved",
+            unresolved=(
+                "initial_condition_uncertainty",
+                "specific_heat_parameter_uncertainty",
+                "vertical_resolution_uncertainty",
+                "structural_uncertainty_of_omitting_convection_and_dynamics",
+            ),
+        )
+
+    def parameters(self) -> dict[str, Any]:
+        return {
+            **dict(self.configuration),
+            "n_layers": self.n_layers,
+            "surface_pressure_Pa": self.surface_pressure,
+            "top_pressure_Pa": self.top_pressure,
+            "specific_heat_J_kg_K": self.specific_heat,
+            "gravity_m_s2": self.gravity,
+            "column_mass_kg_m2": self.column_mass,
+            "initial_temperature_K": np.asarray(self.initial_temperature, dtype=float)
+            .reshape(-1)
+            .tolist(),
+            "time_integration": "forward_euler",
+        }
+
+    def checkpoint(self) -> dict[str, Any]:
+        return {ATMOSPHERE_TEMPERATURE_STATE: np.array(self.temperature)}
+
+    def restore(self, checkpoint: dict[str, Any]) -> None:
+        self.temperature = np.array(checkpoint[ATMOSPHERE_TEMPERATURE_STATE], dtype=float)

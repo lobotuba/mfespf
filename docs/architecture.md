@@ -50,6 +50,94 @@ Nothing in the upper layers can bypass the lower ones. A module has no method
 that writes another module's state; the only path is a labeled tendency the
 owner commits.
 
+## Stage 2: the radiating column
+
+```
+solar ─▶ orbit ─▶ radiation ─▶ atmosphere ─▶ surface ─▶ space
+```
+
+| Module | Status | Owns | Role |
+| --- | --- | --- | --- |
+| `radiation` | ACTIVE | — | solves the whole column, hands out labeled heating |
+| `atmosphere` | ACTIVE | `atmosphere_layer_temperature` | hydrostatic layers, commits what radiation contributes |
+| `surface` | ACTIVE | `surface_temperature` | publishes optical properties, consumes its fluxes |
+
+### One spectrum, not two
+
+The solver has no shortwave/longwave split. There is radiation in band *b* with
+two sources — sunlight arriving at the top, and thermal emission from the layers
+and the surface — and a greenhouse configuration is an absorption coefficient
+that is small where the solar spectrum lives and large where the terrestrial one
+does. The SW/LW diagnostics RAD-002 and CLD-001 require are recovered by
+partitioning bands at a declared 4 µm cutoff *after* the solve.
+
+That choice has a consequence the tests measure rather than hide: the two
+spectra overlap. About 0.9% of a 5772 K spectrum lies above 4 µm and about 0.07%
+of a 288 K spectrum lies below it. Any comparison against a textbook identity
+that assumes a clean split is therefore accurate only to that overlap, and the
+Stage 2 tests quantify the term instead of widening a tolerance until they pass.
+
+### Why radiation runs before the state owners
+
+A radiation solver needs current temperatures. If it were ordered after the
+owners it would see the previous step's values, and the lag would be a silent
+first-order error in the coupling.
+
+`Module.emit_state()` solves this: it publishes committed state at
+initialisation and again after every `advance_state`, so the bus always carries
+state as of the start of the next step. Fluxes stay in `emit_outputs()`,
+published mid-step in splitting order, because a flux must declare an averaging
+interval (DAT-006) and a state need not.
+
+### Closure by construction
+
+Layer heating is computed as the divergence of the interface fluxes. Whatever
+leaves one interface and does not arrive at the next is exactly what heated the
+layer between them, so the column's radiative budget closes identically rather
+than approximately. This is deliberate: it means a conservation failure in a
+coupled run points at the coupling or at another module, never at arithmetic
+inside the solver. `ColumnRadiationSolution.energy_residual` measures it anyway,
+because "by construction" is a claim about the code and the test is the evidence.
+
+### Kirchhoff caught a real inconsistency
+
+The column derives surface emissivity from albedo band by band. Running the
+transparent configuration with a genuinely grey albedo of 0.3 gives 278 K, not
+the textbook 254.6 K — because a grey surface reflecting 30% has an infrared
+emissivity of 0.7, and Stage 1's pairing of albedo 0.3 with unit emissivity is
+only self-consistent if the reflectance is confined to short wavelengths.
+
+Both readings are legitimate configurations. What the framework will not do is
+let the difference stay implicit: `shortwave_albedo` names the shortwave-only
+choice, a plain float gives the grey one, and the run manifest records which was
+used band by band.
+
+### The analytic gate, and where it lives
+
+For one layer transparent to sunlight and grey in the infrared, the steady state
+is `T_s⁴ = 2 T_e⁴ / (2 − ε)` and `T_a⁴ = T_s⁴ / 2`. The rigorous test evaluates
+the solver *at* those temperatures and requires the residuals to vanish — no
+coupler, no time stepping, no convergence question, so a failure can only be the
+solver. The coupled configuration is checked separately and more loosely, because
+it violates two of the identity's assumptions through the spectral overlap above.
+
+### Spectral convergence has two regimes
+
+A grey atmosphere is **exactly** band-count invariant: every band shares one
+emissivity and emission is normalised to σT⁴ whatever the grid, so the transfer
+is linear in band-summed quantities. Agreement to the last digit across 8 to 256
+bands is the strongest available statement that the spectral machinery adds no
+bias of its own.
+
+A spectrally structured atmosphere is not, and must not be. Its coefficient is
+discontinuous at the window edges, so a coarse grid genuinely cannot resolve it;
+refinement converges to within 0.1 W m⁻² between 256 and 512 bands, while 16
+bands is wrong by more than 10 W m⁻². `window_absorption` uses each band's
+*overlap fraction* with the window rather than sampling at the band centre —
+centre sampling makes the coefficient jump as edges move and produces a sawtooth
+that looks like non-convergence of the solver but is an artifact of how the
+coefficient was built.
+
 ## The Stage 1 configuration
 
 ```
@@ -253,8 +341,16 @@ rather than discovered in a result.
   than assumed.
 - Uncertainty is declared and marked UNRESOLVED, not propagated. UNC-005's
   ensemble and Monte Carlo methods have interfaces but no implementations.
-- No atmosphere, so nothing in Stage 2 onward is exercised.
-- Spectral absorption is implemented; spectral *emission* is grey. The grey
-  approximation is registered as such, with "systematically wrong outgoing
-  spectrum even when the broadband flux matches" listed among its known failure
-  modes.
+- The column has no dynamics, convection or water, so it reaches *pure radiative
+  equilibrium* — which is convectively unstable in the real lower troposphere.
+  That is a known wrong answer for the lapse rate, registered as a known failure
+  mode of `EQ-LAYER-ENERGY-BALANCE` rather than presented as a result.
+- No scattering anywhere. A scattering atmosphere is outside scope rather than
+  approximated badly, and the radiation contract says so.
+- Absorption coefficients are free parameters of the reduced model, not measured
+  properties of any gas. Nothing in the framework yet connects them to a
+  molecular spectroscopic database.
+- One diffusivity factor serves both the solar beam and the diffuse thermal
+  field, which is a parameterization with a declared few-percent accuracy.
+- Nothing in Stage 3 onward (moist thermodynamics, clouds, ocean transport) is
+  exercised.

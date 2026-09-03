@@ -13,12 +13,18 @@ from pathlib import Path
 
 from mfespf import __version__
 from mfespf.core.errors import MFESPFError
-from mfespf.run import configurations
+from mfespf.run import column_configurations, configurations
 
 _CONFIGURATIONS = {
+    # Stage 1: the airless radiating body.
     "airless": configurations.airless_radiating_body,
     "airless-banded": configurations.banded_variant,
     "null-control": configurations.null_control,
+    # Stage 2: the radiating atmospheric column.
+    "transparent": column_configurations.transparent_atmosphere,
+    "absorbing": column_configurations.absorbing_emitting_atmosphere,
+    "window": column_configurations.window_atmosphere,
+    "grey-layer": column_configurations.single_grey_layer,
 }
 
 
@@ -29,6 +35,8 @@ def _run(args: argparse.Namespace) -> int:
         kwargs["solar_step_multiple"] = args.steps_per_solar_exchange
     if args.eccentricity is not None:
         kwargs["eccentricity"] = args.eccentricity
+    if args.heat_capacity is not None:
+        kwargs["areal_heat_capacity"] = args.heat_capacity
     kernel = builder(**kwargs)  # type: ignore[arg-type]
 
     try:
@@ -42,10 +50,22 @@ def _run(args: argparse.Namespace) -> int:
         print()
         print(result.final_conservation.describe())
     if result.steps:
-        surface = result.steps[-1].outputs.get("surface_temperature")
+        outputs = result.steps[-1].outputs
+        surface = outputs.get("surface_temperature")
         if surface is not None:
             print()
             print(f"final surface temperature: {surface.scalar():.4f} K")
+        layers = outputs.get("atmosphere_layer_temperature")
+        if layers is not None:
+            profile = ", ".join(f"{v:.2f}" for v in layers.values)
+            print(f"layer temperatures (surface first): {profile} K")
+        olr = outputs.get("outgoing_longwave_radiation")
+        reflected = outputs.get("reflected_shortwave_radiation")
+        if olr is not None and reflected is not None:
+            print(
+                f"outgoing longwave: {olr.scalar():.4f} W m^-2   "
+                f"reflected shortwave: {reflected.scalar():.4f} W m^-2"
+            )
 
     if args.manifest:
         path = Path(args.manifest)
@@ -76,6 +96,13 @@ def main(argv: list[str] | None = None) -> int:
         help="master steps between solar/orbit exchanges (multirate demonstration)",
     )
     run.add_argument("--eccentricity", type=float, help="orbital eccentricity")
+    run.add_argument(
+        "--heat-capacity",
+        type=float,
+        dest="heat_capacity",
+        help="areal heat capacity of the surface slab in J m^-2 K^-1; lowering it "
+        "shortens the response time and so the run needed to reach equilibrium",
+    )
     run.add_argument(
         "--allow-residual",
         action="store_true",

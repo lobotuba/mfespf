@@ -36,6 +36,12 @@ EQUATION_IDS = {
     "forward_euler": "EQ-NUM-FORWARD-EULER",
     "equilibrium_temperature": "EQ-RADIATIVE-EQUILIBRIUM-TEMPERATURE",
     "boundary_accumulation": "EQ-BOUNDARY-ACCUMULATION",
+    "hydrostatic": "EQ-HYDROSTATIC-LAYER-MASS",
+    "layer_energy_balance": "EQ-LAYER-ENERGY-BALANCE",
+    "schwarzschild": "EQ-SCHWARZSCHILD-TRANSFER",
+    "beer_lambert": "EQ-BEER-LAMBERT-EXTINCTION",
+    "diffusivity": "EQ-DIFFUSIVITY-APPROXIMATION",
+    "grey_greenhouse": "EQ-GREY-SINGLE-LAYER-GREENHOUSE",
 }
 
 
@@ -391,6 +397,254 @@ def build_equation_registry() -> EquationRegistry:
             conserved_quantities=("energy",),
             correctness_tests=("test_space_accumulates_exactly_what_surface_exports",),
             source="Definition",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["hydrostatic"],
+            version=V1,
+            name="Hydrostatic layer mass",
+            category=EquationCategory.FUNDAMENTAL_LAW,
+            mathematical_form="dp = -rho g dz  =>  m_layer = dp / g",
+            physical_basis=(
+                "Balance of the vertical pressure gradient against gravity in a fluid "
+                "with no vertical acceleration."
+            ),
+            variables=(
+                ("p", "pressure", "Pa"),
+                ("m_layer", "layer mass per unit area", "kg m^-2"),
+                ("g", "gravitational acceleration", "m s^-2"),
+            ),
+            parameters=(("earth_standard_gravity", "fundamental", "CGPM 1901"),),
+            assumptions=(
+                "no vertical acceleration",
+                "gravity constant over the depth of the column",
+            ),
+            approximations=(
+                "Constant gravity introduces an error of order z / R_earth: about 1.5 "
+                "percent at 100 km and negligible through the troposphere.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("p", 0.0, 1.2e5, "Pa"),),
+                conditions=("hydrostatic, non-accelerating column",),
+            ),
+            limiting_cases=("total column mass equals (p_surface - p_top) / g exactly",),
+            conserved_quantities=("mass",),
+            correctness_tests=("test_column_mass_is_hydrostatic",),
+            known_failure_modes=(
+                "invalid where vertical accelerations matter, such as deep convection, "
+                "which this fidelity does not represent in any case",
+            ),
+            source="Standard atmospheric thermodynamics",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["layer_energy_balance"],
+            version=V1,
+            name="Atmospheric layer energy balance",
+            category=EquationCategory.REDUCED_PHYSICAL_EQUATION,
+            mathematical_form="c_p m_i dT_i/dt = H_i",
+            physical_basis=(
+                "First law applied to an isothermal layer of fixed mass, with the net "
+                "radiative flux divergence as the only heating term."
+            ),
+            variables=(
+                ("T_i", "layer temperature", "K"),
+                ("m_i", "layer mass per unit area", "kg m^-2"),
+                ("H_i", "net radiative heating of the layer", "W m^-2"),
+            ),
+            parameters=(("specific_heat_dry_air", "measured", "thermodynamic tables"),),
+            assumptions=(
+                "the layer is isothermal",
+                "dry air with constant specific heat at constant pressure",
+                "no advection, convection, latent heating or kinetic energy",
+            ),
+            approximations=(
+                "Omitting convection makes the solution pure radiative equilibrium, which "
+                "is convectively unstable in the real lower troposphere. That is a known "
+                "wrong answer for the lapse rate and is declared rather than hidden.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T_i", 100.0, 400.0, "K"),),
+                conditions=("radiative-only column experiments",),
+            ),
+            limiting_cases=(
+                "zero heating leaves the layer temperature unchanged",
+                "the sum over layers equals the column net radiative gain",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("forward Euler", "implicit Euler"),
+            correctness_tests=(
+                "test_column_energy_budget_closes",
+                "test_zero_insolation_column_only_cools",
+            ),
+            known_failure_modes=(
+                "produces a super-adiabatic lapse rate that convection would remove",
+            ),
+            source="First law of thermodynamics applied to a lumped layer",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["beer_lambert"],
+            version=V1,
+            name="Beer-Lambert extinction",
+            category=EquationCategory.FUNDAMENTAL_LAW,
+            mathematical_form="tau = kappa * m ;  transmittance = exp(-tau)",
+            physical_basis=(
+                "Exponential attenuation along a path through an absorbing medium, from "
+                "the independence of successive absorption events."
+            ),
+            variables=(
+                ("tau", "optical depth", "1"),
+                ("kappa", "mass absorption coefficient", "m^2 kg^-1"),
+                ("m", "absorber mass per unit area", "kg m^-2"),
+            ),
+            assumptions=("no scattering", "no stimulated emission along the path"),
+            validity_domain=ValidityDomain(
+                ranges=(("tau", 0.0, 100.0, "1"),),
+                conditions=("absorbing, non-scattering medium",),
+            ),
+            limiting_cases=(
+                "tau = 0 gives unit transmittance",
+                "tau -> infinity gives zero transmittance",
+            ),
+            conserved_quantities=("energy",),
+            correctness_tests=(
+                "test_transparent_column_recovers_the_airless_result",
+                "test_incident_equals_absorbed_plus_reflected_plus_transmitted",
+            ),
+            known_failure_modes=(
+                "a band-mean transmittance is not the mean of the transmittances, so "
+                "coarse bands bias the flux; the spectral convergence test measures it",
+            ),
+            source="Standard radiative transfer",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["schwarzschild"],
+            version=V1,
+            name="Schwarzschild two-stream transfer with emission",
+            category=EquationCategory.REDUCED_PHYSICAL_EQUATION,
+            mathematical_form=("F(i+1) = F(i) * (1 - e_i) + e_i * B_i ;  H_i = dF_up + dF_down"),
+            physical_basis=(
+                "Radiative transfer through an absorbing and emitting medium in local "
+                "thermodynamic equilibrium, where emissivity equals absorptivity."
+            ),
+            variables=(
+                ("F", "hemispheric flux at an interface", "W m^-2"),
+                ("e_i", "layer emissivity in the band", "1"),
+                ("B_i", "band-integrated Planck exitance of the layer", "W m^-2"),
+                ("H_i", "net radiative heating of the layer", "W m^-2"),
+            ),
+            assumptions=(
+                "plane-parallel, horizontally homogeneous layers",
+                "no scattering",
+                "local thermodynamic equilibrium, so Kirchhoff's law holds",
+                "each layer emits at a single temperature",
+            ),
+            approximations=(
+                "The hemispheric angular integral is replaced by one diffusivity factor.",
+                "Layer emission uses the layer-mean temperature rather than integrating "
+                "the Planck function across the layer's internal gradient.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("e_i", 0.0, 1.0, "1"), ("T", 100.0, 400.0, "K")),
+                conditions=("non-scattering column in local thermodynamic equilibrium",),
+            ),
+            limiting_cases=(
+                "zero opacity transmits the incident field unchanged and emits nothing",
+                "one fully absorbing layer reproduces the analytic grey greenhouse",
+                "flux divergence summed over layers equals the column net radiative gain",
+            ),
+            symmetries=("Kirchhoff: absorptivity equals emissivity in every band",),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("layer-interface sweep, downward then upward",),
+            correctness_tests=(
+                "test_transparent_column_recovers_the_airless_result",
+                "test_single_grey_layer_matches_the_analytic_greenhouse",
+                "test_radiation_flux_divergence_closes_identically",
+                "test_spectral_convergence_of_the_column_solution",
+            ),
+            known_failure_modes=(
+                "cannot represent scattering at all, so a scattering atmosphere is out of "
+                "scope rather than approximated",
+                "coarse layers bias emission where the internal gradient is large",
+            ),
+            source="Schwarzschild 1906; standard two-stream formulation",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["diffusivity"],
+            version=V1,
+            name="Diffusivity approximation to the hemispheric transmission integral",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form=(
+                "integral over the hemisphere of exp(-tau/mu) ~ exp(-D tau), D ~ 1.66"
+            ),
+            physical_basis=(
+                "The exact hemispheric integral of exponential transmission is the "
+                "exponential integral E3; one effective slant path reproduces it closely "
+                "over the optical depths that matter."
+            ),
+            variables=(("D", "diffusivity factor", "1"), ("tau", "vertical optical depth", "1")),
+            parameters=(("radiative_diffusivity_factor", "parameterized", "Elsasser 1942"),),
+            assumptions=("isotropic radiance within each hemisphere",),
+            approximations=(
+                "Accurate to a few percent near unit optical depth, degrading toward both "
+                "the optically thin and optically thick limits.",
+            ),
+            validity_domain=ValidityDomain(ranges=(("tau", 0.01, 10.0, "1"),)),
+            limiting_cases=("D approaches 2 as tau -> 0 and 1.66 near unit optical depth",),
+            conserved_quantities=("energy",),
+            correctness_tests=("test_diffusivity_is_a_declared_parameterization",),
+            known_failure_modes=(
+                "biases heating rates in optically very thin or very thick layers",
+            ),
+            source="Elsasser 1942; standard in reduced radiation schemes",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["grey_greenhouse"],
+            version=V1,
+            name="Analytic single-layer grey greenhouse",
+            category=EquationCategory.DIAGNOSTIC_IDENTITY,
+            mathematical_form="T_s^4 = 2 T_e^4 / (2 - eps_a) ;  T_a^4 = T_s^4 / 2",
+            physical_basis=(
+                "Steady state of one isothermal grey layer transparent to sunlight that "
+                "absorbs a fraction eps_a of the surface emission and radiates equally up "
+                "and down."
+            ),
+            variables=(
+                ("T_s", "surface temperature", "K"),
+                ("T_a", "layer temperature", "K"),
+                ("T_e", "planetary emission temperature", "K"),
+                ("eps_a", "layer longwave emissivity", "1"),
+            ),
+            assumptions=(
+                "a single layer",
+                "the layer is transparent to the solar spectrum",
+                "grey longwave emissivity",
+                "steady state",
+            ),
+            validity_domain=ValidityDomain(ranges=(("eps_a", 0.0, 1.0, "1"),)),
+            limiting_cases=(
+                "eps_a = 0 recovers the airless result T_s = T_e",
+                "eps_a = 1 gives T_s = 2^(1/4) T_e",
+            ),
+            conserved_quantities=("energy",),
+            correctness_tests=("test_single_grey_layer_matches_the_analytic_greenhouse",),
+            source="Closed form of EQ-SCHWARZSCHILD-TRANSFER for one grey layer",
         )
     )
 

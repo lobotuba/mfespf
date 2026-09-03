@@ -23,7 +23,13 @@ saying out loud.
 - **Numerical sources stay separate from physical ones.** Anything a limiter,
   filter or clip does to a conserved quantity is a numerical source.
 - **No fixed spectra.** Spectral fields travel with their grid. Regridding
-  conserves the integral and logs its residual.
+  conserves the integral and logs its residual. There is no shortwave/longwave
+  split in the radiative transfer -- only radiation per band, with solar and
+  thermal sources. Keep it that way; the SW/LW split is a diagnostic formed
+  after the solve.
+- **Emissivity follows from albedo band by band** (Kirchhoff). Do not add a
+  free-standing emissivity parameter to a spectral surface; if a configuration
+  wants a reflective-but-black surface, it says so spectrally.
 - **Calibration data is never independent validation.** The dataset registry
   enforces it per claim, at variable granularity.
 - **Withheld data is unreadable before the claim freezes.** Do not add a
@@ -59,7 +65,8 @@ def test_matched_transfers_reconcile_to_zero(): ...
 Citing an ID that does not exist in `requirements/` fails
 `tools/traceability.py --check`. Layout:
 
-- `tests/unit/` — one component, no coupled run
+- `tests/unit/` — one component, no coupled run; analytic identities belong
+  here, evaluated directly against the solver rather than through a coupled run
 - `tests/integration/` — a coupled configuration end to end
 - `tests/acceptance/` — the IRS §22 acceptance criteria, including the failure
   detection ones
@@ -83,7 +90,7 @@ fields are preserved across regeneration — they are the human record).
 
 ## Adding a validation-ladder stage
 
-Stages 2 onward are unimplemented. Follow charter §20 rather than writing the
+Stages 3 onward are unimplemented. Follow charter §20 rather than writing the
 physics first: define the claim, derive the equation, declare its validity
 domain, implement the simplest valid form, verify units and limiting cases,
 verify conservation, verify convergence, compare against an independent

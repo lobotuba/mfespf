@@ -5,7 +5,7 @@ registry under `requirements/` or the `@pytest.mark.req` markers in the tests.
 
 - requirements: **197**
 - mandatory (SHALL / SHALL NOT): **189**
-- mandatory with a bound test: **122** (65%)
+- mandatory with a bound test: **125** (66%)
 
 Coverage below 100% is expected while the reference kernel is incomplete.
 A requirement with no bound test and no waiver is unverified, and this table
@@ -18,7 +18,7 @@ is where that shows.
 | ACC-001 | mandatory | TEST | not_started | — |
 | ACC-002 | optional | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_writing_another_modules_state_is_refused_at_run_time` |
 | ACC-003 | optional | TEST | not_started | — |
-| ACC-004 | mandatory | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_stage1_energy_budget_closes_at_every_coupling_interval` |
+| ACC-004 | mandatory | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_stage1_energy_budget_closes_at_every_coupling_interval`<br>`tests/integration/test_stage2_column.py::test_column_energy_budget_closes` |
 | ACC-005 | mandatory | TEST | not_started | — |
 | ACC-006 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_an_unaccounted_energy_source_is_detected_and_not_reported_as_support`<br>`tests/acceptance/test_failure_detection.py::test_the_leaky_run_stops_when_conservation_is_enforced`<br>`tests/acceptance/test_failure_detection.py::test_a_double_counted_transfer_is_detected` |
 | ACC-007 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_a_numerically_unstable_run_is_labeled_invalid_for_inference`<br>`tests/acceptance/test_failure_detection.py::test_a_marginally_unstable_run_fails_the_time_step_convergence_gate` |
@@ -26,13 +26,13 @@ is where that shows.
 | ACC-009 | mandatory | TEST | test_bound | `tests/acceptance/test_provenance_and_audit.py::test_a_parent_child_run_pair_produces_an_accurate_difference_record` |
 | ACC-010 | mandatory | TEST | not_started | — |
 
-## ATM — Atmospheric interface (mandatory covered: 0/3)
+## ATM — Atmospheric interface (mandatory covered: 1/3)
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
 | ATM-001 | mandatory | TEST | not_started | — |
 | ATM-002 | mandatory | TEST | not_started | — |
-| ATM-003 | mandatory | TEST | not_started | — |
+| ATM-003 | mandatory | TEST | test_bound | `tests/integration/test_stage2_column.py::test_column_mass_is_hydrostatic` |
 
 ## AUD — Run manifest and audit requirements (mandatory covered: 8/8)
 
@@ -72,11 +72,11 @@ is where that shows.
 | --- | --- | --- | --- | --- |
 | CHM-001 | mandatory | TEST | not_started | — |
 
-## CLD — Cloud interface (mandatory covered: 0/2)
+## CLD — Cloud interface (mandatory covered: 1/2)
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| CLD-001 | mandatory | TEST | not_started | — |
+| CLD-001 | mandatory | TEST | test_bound | `tests/unit/test_radiative_transfer.py::test_shortwave_and_longwave_are_separately_available` |
 | CLD-002 | mandatory | TEST | not_started | — |
 
 ## CLM — Claim requirements (mandatory covered: 3/3)
@@ -85,7 +85,7 @@ is where that shows.
 | --- | --- | --- | --- | --- |
 | CLM-001 | mandatory | TEST | test_bound | `tests/acceptance/test_provenance_and_audit.py::test_a_claim_without_a_failure_criterion_cannot_be_registered`<br>`tests/acceptance/test_provenance_and_audit.py::test_a_claim_cannot_list_one_dataset_as_both_calibration_and_withheld` |
 | CLM-002 | mandatory | TEST | test_bound | `tests/acceptance/test_provenance_and_audit.py::test_a_prediction_outside_the_declared_threshold_is_refuted` |
-| CLM-003 | mandatory | TEST | test_bound | `tests/acceptance/test_provenance_and_audit.py::test_a_frozen_claim_evaluates_against_withheld_data_exactly_once` |
+| CLM-003 | mandatory | TEST | test_bound | `tests/acceptance/test_provenance_and_audit.py::test_a_frozen_claim_evaluates_against_withheld_data_exactly_once`<br>`tests/integration/test_stage2_column.py::test_the_greenhouse_response_has_the_declared_sign_and_magnitude` |
 
 ## CMP — Computational resource requirements (mandatory covered: 4/8)
 
@@ -105,15 +105,15 @@ is where that shows.
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| CON-001 | mandatory | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_system_energy_is_conserved_across_the_boundary` |
+| CON-001 | mandatory | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_system_energy_is_conserved_across_the_boundary`<br>`tests/integration/test_stage2_column.py::test_column_system_energy_is_conserved_across_the_boundary`<br>`tests/integration/test_stage2_column.py::test_column_mass_is_hydrostatic` |
 | CON-002 | mandatory | TEST | test_bound | `tests/unit/test_conservation.py::test_transfer_declares_both_parties_and_its_interval`<br>`tests/unit/test_conservation.py::test_a_module_cannot_transfer_to_itself` |
 | CON-003 | mandatory | TEST | test_bound | `tests/unit/test_conservation.py::test_transfer_declares_both_parties_and_its_interval` |
 | CON-004 | mandatory | TEST | test_bound | `tests/integration/test_multirate_coupling.py::test_the_budget_closes_across_a_multirate_coupling_interval`<br>`tests/integration/test_stage1_airless_body.py::test_stage1_energy_budget_closes_at_every_coupling_interval`<br>`tests/unit/test_conservation.py::test_matched_transfers_reconcile_to_zero`<br>`tests/unit/test_conservation.py::test_sender_receiver_mismatch_is_reported_as_a_coupling_residual`<br>`tests/unit/test_conservation.py::test_a_transfer_recorded_by_only_one_side_is_unmatched` |
 | CON-005 | mandatory | TEST | test_bound | `tests/unit/test_conservation.py::test_sender_receiver_mismatch_is_reported_as_a_coupling_residual` |
-| CON-006 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_a_double_counted_transfer_is_detected`<br>`tests/unit/test_conservation.py::test_overlapping_records_of_one_transaction_are_a_double_count`<br>`tests/unit/test_conservation.py::test_tiled_substep_records_are_not_a_double_count` |
+| CON-006 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_a_double_counted_transfer_is_detected`<br>`tests/unit/test_conservation.py::test_overlapping_records_of_one_transaction_are_a_double_count`<br>`tests/unit/test_conservation.py::test_tiled_substep_records_are_not_a_double_count`<br>`tests/unit/test_radiative_transfer.py::test_incident_equals_absorbed_plus_reflected_plus_transmitted` |
 | CON-007 | mandatory | TEST | not_started | — |
 | CON-008 | mandatory | TEST | test_bound | `tests/unit/test_conservation.py::test_numerical_sources_are_accounted_separately_from_physical_ones`<br>`tests/unit/test_conservation.py::test_a_numerical_transfer_must_name_its_operator` |
-| CON-009 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_an_unaccounted_energy_source_is_detected_and_not_reported_as_support`<br>`tests/integration/test_multirate_coupling.py::test_an_unreconciled_trailing_interval_is_reported_not_ignored`<br>`tests/integration/test_stage1_airless_body.py::test_stage1_energy_budget_closes_at_every_coupling_interval`<br>`tests/integration/test_stage1_airless_body.py::test_system_energy_is_conserved_across_the_boundary`<br>`tests/unit/test_conservation.py::test_budget_publishes_every_line_of_the_accounting`<br>`tests/unit/test_conservation.py::test_residual_is_scaled_against_the_largest_budget_term_not_the_net` |
+| CON-009 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_an_unaccounted_energy_source_is_detected_and_not_reported_as_support`<br>`tests/integration/test_multirate_coupling.py::test_an_unreconciled_trailing_interval_is_reported_not_ignored`<br>`tests/integration/test_stage1_airless_body.py::test_stage1_energy_budget_closes_at_every_coupling_interval`<br>`tests/integration/test_stage1_airless_body.py::test_system_energy_is_conserved_across_the_boundary`<br>`tests/integration/test_stage2_column.py::test_column_energy_budget_closes`<br>`tests/integration/test_stage2_column.py::test_column_system_energy_is_conserved_across_the_boundary`<br>`tests/unit/test_conservation.py::test_budget_publishes_every_line_of_the_accounting`<br>`tests/unit/test_conservation.py::test_residual_is_scaled_against_the_largest_budget_term_not_the_net`<br>`tests/unit/test_radiative_transfer.py::test_radiation_flux_divergence_closes_identically` |
 | CON-010 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_an_unaccounted_energy_source_is_detected_and_not_reported_as_support`<br>`tests/unit/test_conservation.py::test_a_residual_as_large_as_the_claimed_effect_invalidates_it` |
 
 ## DAT — Common field and data requirements (mandatory covered: 8/9)
@@ -135,8 +135,8 @@ is where that shows.
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
 | EQR-001 | mandatory | TEST | test_bound | `tests/unit/test_registries.py::test_the_stage1_equation_set_registers_and_binds` |
-| EQR-002 | mandatory | TEST | test_bound | `tests/unit/test_registries.py::test_an_equation_without_a_correctness_test_is_refused` |
-| EQR-003 | mandatory | TEST | test_bound | `tests/unit/test_registries.py::test_fitted_equations_are_identifiable_for_the_independence_statement` |
+| EQR-002 | mandatory | TEST | test_bound | `tests/unit/test_radiative_transfer.py::test_single_grey_layer_matches_the_analytic_greenhouse`<br>`tests/unit/test_registries.py::test_an_equation_without_a_correctness_test_is_refused` |
+| EQR-003 | mandatory | TEST | test_bound | `tests/unit/test_radiative_transfer.py::test_diffusivity_is_a_declared_parameterization`<br>`tests/unit/test_registries.py::test_fitted_equations_are_identifiable_for_the_independence_statement` |
 | EQR-004 | mandatory | TEST | test_bound | `tests/unit/test_registries.py::test_a_calibrated_parameter_cannot_be_declared_a_fundamental_law` |
 | EQR-005 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_every_cited_equation_exists_in_the_registry` |
 | EQR-006 | mandatory | TEST | test_bound | `tests/unit/test_registries.py::test_a_registered_version_cannot_be_silently_changed` |
@@ -207,10 +207,10 @@ is where that shows.
 | KER-006 | mandatory | TEST | not_started | — |
 | KER-007 | mandatory | TEST | test_bound | `tests/unit/test_registries.py::test_preflight_estimates_cost_per_module` |
 | KER-008 | mandatory | TEST | test_bound | `tests/acceptance/test_provenance_and_audit.py::test_withheld_data_cannot_be_read_before_the_claim_is_frozen`<br>`tests/acceptance/test_provenance_and_audit.py::test_a_frozen_claim_evaluates_against_withheld_data_exactly_once`<br>`tests/acceptance/test_provenance_and_audit.py::test_a_prediction_outside_the_declared_threshold_is_refuted` |
-| KER-009 | mandatory | TEST | test_bound | `tests/integration/test_spectral_interchangeability.py::test_grey_albedo_gives_the_same_answer_at_two_spectral_resolutions`<br>`tests/integration/test_spectral_interchangeability.py::test_a_wavelength_dependent_albedo_changes_the_result`<br>`tests/unit/test_spectral.py::test_regridding_conserves_the_integrated_quantity` |
+| KER-009 | mandatory | TEST | test_bound | `tests/integration/test_spectral_interchangeability.py::test_grey_albedo_gives_the_same_answer_at_two_spectral_resolutions`<br>`tests/integration/test_spectral_interchangeability.py::test_a_wavelength_dependent_albedo_changes_the_result`<br>`tests/integration/test_stage2_column.py::test_a_spectral_window_changes_the_equilibrium_at_equal_opacity`<br>`tests/unit/test_radiative_transfer.py::test_a_grey_atmosphere_is_exactly_band_count_invariant`<br>`tests/unit/test_spectral.py::test_regridding_conserves_the_integrated_quantity` |
 | KER-010 | mandatory | TEST | test_bound | `tests/integration/test_spectral_interchangeability.py::test_two_solar_implementations_satisfy_one_interface` |
 | KER-011 | mandatory | TEST | test_bound | `tests/integration/test_multirate_coupling.py::test_modules_advance_at_different_rates_within_one_schedule`<br>`tests/integration/test_multirate_coupling.py::test_the_budget_closes_across_a_multirate_coupling_interval`<br>`tests/integration/test_multirate_coupling.py::test_a_faster_exchange_reduces_the_interpolation_error` |
-| KER-012 | mandatory | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_slab_reaches_analytic_equilibrium`<br>`tests/integration/test_stage1_airless_body.py::test_slab_relaxation_timescale_matches_the_linearised_prediction`<br>`tests/integration/test_stage1_airless_body.py::test_zero_insolation_null_control` |
+| KER-012 | mandatory | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_slab_reaches_analytic_equilibrium`<br>`tests/integration/test_stage1_airless_body.py::test_slab_relaxation_timescale_matches_the_linearised_prediction`<br>`tests/integration/test_stage1_airless_body.py::test_zero_insolation_null_control`<br>`tests/integration/test_stage2_column.py::test_transparent_column_recovers_the_airless_result`<br>`tests/integration/test_stage2_column.py::test_the_shortwave_only_albedo_differs_from_a_grey_one_by_the_spectral_overlap`<br>`tests/integration/test_stage2_column.py::test_column_energy_budget_closes`<br>`tests/integration/test_stage2_column.py::test_the_greenhouse_response_has_the_declared_sign_and_magnitude`<br>`tests/integration/test_stage2_column.py::test_zero_insolation_column_only_cools`<br>`tests/unit/test_radiative_transfer.py::test_transparent_column_transmits_the_incident_field_unchanged` |
 | KER-013 | mandatory | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_slab_reaches_analytic_equilibrium`<br>`tests/integration/test_stage1_airless_body.py::test_stage1_energy_budget_closes_at_every_coupling_interval` |
 | KER-014 | mandatory | TEST | not_started | — |
 
@@ -225,19 +225,19 @@ is where that shows.
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
 | MOD-001 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_every_kernel_module_publishes_a_complete_contract` |
-| MOD-002 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_every_kernel_module_publishes_a_complete_contract`<br>`tests/integration/test_intervention_and_contracts.py::test_every_cited_equation_exists_in_the_registry`<br>`tests/unit/test_orbit.py::test_eccentricity_outside_the_validity_domain_is_refused`<br>`tests/unit/test_radiation_physics.py::test_greybody_refuses_an_emissivity_outside_its_validity_domain`<br>`tests/unit/test_registries.py::test_validity_domain_reports_which_variable_left_its_range` |
+| MOD-002 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_every_kernel_module_publishes_a_complete_contract`<br>`tests/integration/test_intervention_and_contracts.py::test_every_cited_equation_exists_in_the_registry`<br>`tests/unit/test_orbit.py::test_eccentricity_outside_the_validity_domain_is_refused`<br>`tests/unit/test_radiation_physics.py::test_greybody_refuses_an_emissivity_outside_its_validity_domain`<br>`tests/unit/test_radiative_transfer.py::test_mismatched_array_lengths_are_refused`<br>`tests/unit/test_registries.py::test_validity_domain_reports_which_variable_left_its_range` |
 | MOD-003 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_every_kernel_module_publishes_a_complete_contract` |
 | MOD-004 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_every_kernel_module_publishes_a_complete_contract` |
 | MOD-005 | mandatory | TEST | not_started | — |
 | MOD-006 | mandatory | TEST | not_started | — |
 | MOD-007 | mandatory | TEST | not_started | — |
-| MOD-008 | recommended | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_checkpoint_and_restore_round_trip_exactly` |
+| MOD-008 | recommended | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_checkpoint_and_restore_round_trip_exactly`<br>`tests/integration/test_stage2_column.py::test_column_checkpoint_and_restore_round_trip` |
 | MOD-009 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_every_module_reports_its_unresolved_uncertainty` |
 | MOD-010 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_writing_another_modules_state_is_refused_at_run_time`<br>`tests/unit/test_ownership.py::test_a_module_cannot_write_state_it_does_not_own` |
-| MOD-011 | optional | TEST | test_bound | `tests/unit/test_ownership.py::test_unauthorized_tendency_provider_is_refused` |
+| MOD-011 | optional | TEST | test_bound | `tests/integration/test_stage2_column.py::test_radiation_supplies_the_labeled_tendency_the_column_commits`<br>`tests/unit/test_ownership.py::test_unauthorized_tendency_provider_is_refused` |
 | MOD-012 | mandatory | TEST | not_started | — |
 | MOD-013 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_a_contract_without_a_cost_declaration_is_refused`<br>`tests/unit/test_registries.py::test_cost_scales_by_the_declared_scaling_variables_only` |
-| MOD-014 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_a_contract_without_a_null_or_limiting_case_test_is_refused`<br>`tests/integration/test_stage1_airless_body.py::test_zero_insolation_null_control` |
+| MOD-014 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_a_contract_without_a_null_or_limiting_case_test_is_refused`<br>`tests/integration/test_stage1_airless_body.py::test_zero_insolation_null_control`<br>`tests/integration/test_stage2_column.py::test_zero_insolation_column_only_cools` |
 
 ## OCN — Ocean interface (mandatory covered: 0/2)
 
@@ -264,7 +264,7 @@ is where that shows.
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
 | RAD-001 | mandatory | TEST | not_started | — |
-| RAD-002 | mandatory | TEST | test_bound | `tests/unit/test_radiation_physics.py::test_planck_integrates_to_stefan_boltzmann` |
+| RAD-002 | mandatory | TEST | test_bound | `tests/unit/test_radiation_physics.py::test_planck_integrates_to_stefan_boltzmann`<br>`tests/unit/test_radiative_transfer.py::test_radiation_flux_divergence_closes_identically`<br>`tests/unit/test_radiative_transfer.py::test_incident_equals_absorbed_plus_reflected_plus_transmitted`<br>`tests/unit/test_radiative_transfer.py::test_transparent_column_transmits_the_incident_field_unchanged`<br>`tests/unit/test_radiative_transfer.py::test_single_grey_layer_matches_the_analytic_greenhouse`<br>`tests/unit/test_radiative_transfer.py::test_zero_emissivity_layer_recovers_the_airless_balance`<br>`tests/unit/test_radiative_transfer.py::test_shortwave_and_longwave_are_separately_available` |
 | RAD-003 | mandatory | TEST | test_bound | `tests/unit/test_radiation_physics.py::test_planck_wien_displacement` |
 
 ## SOL — Solar source interface (mandatory covered: 1/1)
@@ -295,9 +295,9 @@ is where that shows.
 | SPC-004 | mandatory | TEST | test_bound | `tests/integration/test_spectral_interchangeability.py::test_spectral_fields_travel_with_their_grid`<br>`tests/unit/test_spectral.py::test_grid_declares_edges_widths_and_ordering`<br>`tests/unit/test_spectral.py::test_unordered_edges_are_rejected_rather_than_sorted`<br>`tests/unit/test_spectral.py::test_integration_convention_decides_whether_width_is_applied` |
 | SPC-005 | mandatory | TEST | test_bound | `tests/unit/test_radiation_physics.py::test_band_weights_sum_to_the_captured_fraction`<br>`tests/unit/test_spectral.py::test_regridding_conserves_the_integrated_quantity`<br>`tests/unit/test_spectral.py::test_regridding_to_a_single_bin_preserves_the_total`<br>`tests/unit/test_spectral.py::test_source_content_outside_the_target_support_is_reported_not_discarded` |
 | SPC-006 | mandatory | TEST | test_bound | `tests/unit/test_spectral.py::test_regridding_conserves_the_integrated_quantity`<br>`tests/unit/test_spectral.py::test_source_content_outside_the_target_support_is_reported_not_discarded` |
-| SPC-007 | mandatory | TEST | test_bound | `tests/integration/test_spectral_interchangeability.py::test_grey_albedo_gives_the_same_answer_at_two_spectral_resolutions`<br>`tests/unit/test_spectral.py::test_negotiation_records_an_unmet_resolution_request`<br>`tests/unit/test_spectral.py::test_negotiation_prefers_the_cheapest_adequate_grid` |
+| SPC-007 | mandatory | TEST | test_bound | `tests/integration/test_spectral_interchangeability.py::test_grey_albedo_gives_the_same_answer_at_two_spectral_resolutions`<br>`tests/unit/test_radiative_transfer.py::test_a_grey_atmosphere_is_exactly_band_count_invariant`<br>`tests/unit/test_radiative_transfer.py::test_spectral_convergence_of_the_column_solution`<br>`tests/unit/test_spectral.py::test_negotiation_records_an_unmet_resolution_request`<br>`tests/unit/test_spectral.py::test_negotiation_prefers_the_cheapest_adequate_grid` |
 | SPC-008 | mandatory | TEST | test_bound | `tests/unit/test_spectral.py::test_negotiation_records_an_unmet_resolution_request` |
-| SPC-009 | mandatory | TEST | test_bound | `tests/integration/test_spectral_interchangeability.py::test_a_wavelength_dependent_albedo_changes_the_result` |
+| SPC-009 | mandatory | TEST | test_bound | `tests/integration/test_spectral_interchangeability.py::test_a_wavelength_dependent_albedo_changes_the_result`<br>`tests/integration/test_stage2_column.py::test_the_shortwave_only_albedo_differs_from_a_grey_one_by_the_spectral_overlap`<br>`tests/integration/test_stage2_column.py::test_a_spectral_window_changes_the_equilibrium_at_equal_opacity`<br>`tests/unit/test_radiative_transfer.py::test_equal_opacity_distributed_differently_gives_a_different_answer` |
 | SPC-010 | mandatory | TEST | not_started | — |
 
 ## STA — State ownership requirements (mandatory covered: 7/7)
@@ -306,22 +306,22 @@ is where that shows.
 | --- | --- | --- | --- | --- |
 | STA-001 | mandatory | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_owner_commits_state_from_labeled_contributions_only`<br>`tests/unit/test_ownership.py::test_a_module_cannot_write_state_it_does_not_own`<br>`tests/unit/test_ownership.py::test_duplicate_ownership_is_rejected_before_initialization` |
 | STA-002 | mandatory | TEST | test_bound | `tests/unit/test_ownership.py::test_tendency_units_must_match_the_state_or_its_rate` |
-| STA-003 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_writing_another_modules_state_is_refused_at_run_time`<br>`tests/unit/test_ownership.py::test_unauthorized_tendency_provider_is_refused` |
+| STA-003 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_writing_another_modules_state_is_refused_at_run_time`<br>`tests/integration/test_stage2_column.py::test_radiation_supplies_the_labeled_tendency_the_column_commits`<br>`tests/unit/test_ownership.py::test_unauthorized_tendency_provider_is_refused` |
 | STA-004 | mandatory | TEST | test_bound | `tests/unit/test_ownership.py::test_duplicate_ownership_is_rejected_before_initialization` |
 | STA-005 | mandatory | TEST | test_bound | `tests/unit/test_ownership.py::test_an_unclaimed_prognostic_state_is_rejected` |
-| STA-006 | mandatory | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_owner_commits_state_from_labeled_contributions_only`<br>`tests/unit/test_ownership.py::test_state_budget_reconstructs_the_update_from_labeled_contributions`<br>`tests/unit/test_ownership.py::test_state_budget_residual_exposes_an_unlabeled_update` |
+| STA-006 | mandatory | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_owner_commits_state_from_labeled_contributions_only`<br>`tests/integration/test_stage2_column.py::test_radiation_supplies_the_labeled_tendency_the_column_commits`<br>`tests/unit/test_ownership.py::test_state_budget_reconstructs_the_update_from_labeled_contributions`<br>`tests/unit/test_ownership.py::test_state_budget_residual_exposes_an_unlabeled_update` |
 | STA-007 | mandatory | TEST | test_bound | `tests/unit/test_ownership.py::test_registry_reports_the_owner_for_a_derived_view` |
 
 ## SYS — System-level requirements (mandatory covered: 6/8)
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| SYS-001 | mandatory | TEST | test_bound | `tests/integration/test_spectral_interchangeability.py::test_two_solar_implementations_satisfy_one_interface` |
+| SYS-001 | mandatory | TEST | test_bound | `tests/integration/test_spectral_interchangeability.py::test_two_solar_implementations_satisfy_one_interface`<br>`tests/integration/test_stage2_column.py::test_transparent_column_recovers_the_airless_result` |
 | SYS-002 | mandatory | TEST | not_started | — |
 | SYS-003 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_every_kernel_module_publishes_a_complete_contract`<br>`tests/integration/test_intervention_and_contracts.py::test_the_manifest_declares_a_status_for_every_known_module` |
 | SYS-004 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_stub_output_is_marked_and_cannot_support_a_claim` |
 | SYS-005 | mandatory | TEST | test_bound | `tests/unit/test_registries.py::test_the_reference_kernel_fits_a_workstation_budget` |
-| SYS-006 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_the_leaky_run_stops_when_conservation_is_enforced`<br>`tests/unit/test_orbit.py::test_eccentricity_outside_the_validity_domain_is_refused` |
+| SYS-006 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_the_leaky_run_stops_when_conservation_is_enforced`<br>`tests/unit/test_orbit.py::test_eccentricity_outside_the_validity_domain_is_refused`<br>`tests/unit/test_radiative_transfer.py::test_mismatched_array_lengths_are_refused` |
 | SYS-007 | mandatory | TEST | not_started | — |
 | SYS-008 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_a_numerically_unstable_run_is_labeled_invalid_for_inference`<br>`tests/acceptance/test_failure_detection.py::test_a_marginally_unstable_run_fails_the_time_step_convergence_gate`<br>`tests/acceptance/test_provenance_and_audit.py::test_a_failed_gate_invalidates_the_run_for_inference` |
 
@@ -344,21 +344,21 @@ is where that shows.
 | --- | --- | --- | --- | --- |
 | UNC-001 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_every_module_reports_its_unresolved_uncertainty` |
 | UNC-002 | mandatory | TEST | not_started | — |
-| UNC-003 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_a_stable_configuration_passes_the_convergence_gate_at_first_order` |
+| UNC-003 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_a_stable_configuration_passes_the_convergence_gate_at_first_order`<br>`tests/unit/test_radiative_transfer.py::test_diffusivity_is_a_declared_parameterization` |
 | UNC-004 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_every_module_reports_its_unresolved_uncertainty` |
 | UNC-005 | mandatory | TEST | not_started | — |
 | UNC-006 | mandatory | TEST | not_started | — |
 | UNC-007 | mandatory | TEST | not_started | — |
 | UNC-008 | recommended | TEST | not_started | — |
 
-## VAL — Validation requirements (mandatory covered: 3/7)
+## VAL — Validation requirements (mandatory covered: 4/7)
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| VAL-001 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_a_marginally_unstable_run_fails_the_time_step_convergence_gate`<br>`tests/acceptance/test_failure_detection.py::test_a_stable_configuration_passes_the_convergence_gate_at_first_order`<br>`tests/integration/test_intervention_and_contracts.py::test_a_contract_without_a_null_or_limiting_case_test_is_refused`<br>`tests/integration/test_stage1_airless_body.py::test_slab_reaches_analytic_equilibrium`<br>`tests/unit/test_orbit.py::test_intercepted_equals_distributed_power`<br>`tests/unit/test_orbit.py::test_kepler_circular_limit`<br>`tests/unit/test_orbit.py::test_kepler_solver_residual_below_tolerance`<br>`tests/unit/test_orbit.py::test_inverse_square_scaling`<br>`tests/unit/test_radiation_physics.py::test_planck_integrates_to_stefan_boltzmann`<br>`tests/unit/test_radiation_physics.py::test_planck_rayleigh_jeans_limit`<br>`tests/unit/test_radiation_physics.py::test_greybody_zero_emissivity_is_null`<br>`tests/unit/test_radiation_physics.py::test_equilibrium_temperature_matches_the_closed_form`<br>`tests/unit/test_registries.py::test_an_equation_without_a_correctness_test_is_refused` |
+| VAL-001 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_a_marginally_unstable_run_fails_the_time_step_convergence_gate`<br>`tests/acceptance/test_failure_detection.py::test_a_stable_configuration_passes_the_convergence_gate_at_first_order`<br>`tests/integration/test_intervention_and_contracts.py::test_a_contract_without_a_null_or_limiting_case_test_is_refused`<br>`tests/integration/test_stage1_airless_body.py::test_slab_reaches_analytic_equilibrium`<br>`tests/unit/test_orbit.py::test_intercepted_equals_distributed_power`<br>`tests/unit/test_orbit.py::test_kepler_circular_limit`<br>`tests/unit/test_orbit.py::test_kepler_solver_residual_below_tolerance`<br>`tests/unit/test_orbit.py::test_inverse_square_scaling`<br>`tests/unit/test_radiation_physics.py::test_planck_integrates_to_stefan_boltzmann`<br>`tests/unit/test_radiation_physics.py::test_planck_rayleigh_jeans_limit`<br>`tests/unit/test_radiation_physics.py::test_greybody_zero_emissivity_is_null`<br>`tests/unit/test_radiation_physics.py::test_equilibrium_temperature_matches_the_closed_form`<br>`tests/unit/test_radiative_transfer.py::test_transparent_column_transmits_the_incident_field_unchanged`<br>`tests/unit/test_radiative_transfer.py::test_single_grey_layer_matches_the_analytic_greenhouse`<br>`tests/unit/test_radiative_transfer.py::test_zero_emissivity_layer_recovers_the_airless_balance`<br>`tests/unit/test_registries.py::test_an_equation_without_a_correctness_test_is_refused` |
 | VAL-002 | mandatory | TEST | not_started | — |
-| VAL-003 | mandatory | TEST | not_started | — |
-| VAL-004 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_disabling_a_declared_edge_withholds_the_field_rather_than_zeroing_it`<br>`tests/integration/test_stage1_airless_body.py::test_zero_insolation_null_control` |
+| VAL-003 | mandatory | TEST | test_bound | `tests/unit/test_radiative_transfer.py::test_a_grey_atmosphere_is_exactly_band_count_invariant`<br>`tests/unit/test_radiative_transfer.py::test_spectral_convergence_of_the_column_solution` |
+| VAL-004 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_disabling_a_declared_edge_withholds_the_field_rather_than_zeroing_it`<br>`tests/integration/test_stage1_airless_body.py::test_zero_insolation_null_control`<br>`tests/integration/test_stage2_column.py::test_transparent_column_recovers_the_airless_result`<br>`tests/integration/test_stage2_column.py::test_zero_insolation_column_only_cools` |
 | VAL-005 | mandatory | TEST | not_started | — |
 | VAL-006 | mandatory | TEST | test_bound | `tests/acceptance/test_provenance_and_audit.py::test_calibration_data_cannot_be_reported_as_independent_validation` |
 | VAL-007 | mandatory | TEST | not_started | — |

@@ -188,6 +188,43 @@ CONSTANTS: dict[str, Constant] = {
             0.0,
             notes="Conventional, not local. The gravity module (GRV-001) supersedes it.",
         ),
+        _c(
+            "specific_heat_dry_air",
+            1004.6,
+            "J kg^-1 K^-1",
+            ParameterClass.MEASURED,
+            "Standard thermodynamic tables near 273 K, isobaric",
+            0.5,
+            notes="Weakly temperature dependent; held constant at this fidelity.",
+        ),
+        _c(
+            "gas_constant_dry_air",
+            287.052874,
+            "J kg^-1 K^-1",
+            ParameterClass.DERIVED,
+            "Universal gas constant over the standard dry-air molar mass",
+            1.0e-5,
+        ),
+        _c(
+            "standard_surface_pressure",
+            101325.0,
+            "Pa",
+            ParameterClass.FUNDAMENTAL,
+            "ISO 2533 standard atmosphere (exact by definition)",
+            0.0,
+            notes="A reference value, not Earth's global-mean surface pressure.",
+        ),
+        _c(
+            "radiative_diffusivity_factor",
+            1.66,
+            "1",
+            ParameterClass.PARAMETERIZED,
+            "Elsasser diffusivity approximation to the hemispheric transmission integral",
+            0.05,
+            notes="Replaces the angular integral of transmission with one effective slant "
+            "path. Accurate to a few percent near unit optical depth and degrading "
+            "outside that range; it is a parameterization, not a measured quantity.",
+        ),
     )
 }
 

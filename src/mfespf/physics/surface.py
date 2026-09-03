@@ -411,7 +411,7 @@ class SlabSurfaceModule(Module):
                 start_time=start,
                 end_time=end,
                 spatial_mapping="global_mean_over_planetary_surface",
-                channel="incident_shortwave",
+                channel="radiation_down_toa",
             )
         ]
         return (exports, imports)
