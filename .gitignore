@@ -30,3 +30,8 @@ data/cache/
 Thumbs.db
 desktop.ini
 ~$*
+
+# Fetched datasets. The record of what belongs here is data/sources.yaml, which
+# is committed; the bytes are not, because fetching a copy for your own use is
+# not the same permission as redistributing one. See data/README.md.
+data/raw/

@@ -1,0 +1,152 @@
+# Declared external data sources -- the record, not the bytes.
+#
+# `data/raw/` is git-ignored, so a checkout fetches its own copies with
+# tools/fetch_data.py and verifies them against the checksums below. That keeps
+# two things apart that are easy to conflate: the provenance of a dataset, which
+# belongs under version control because a result is not reproducible without it,
+# and the dataset itself, whose redistribution terms belong to whoever produced
+# it. See data/README.md for the reasoning and the licence position.
+#
+# `provenance_class` is the framework's own classification (INF-002), not the
+# provider's. It says what kind of thing the record is, and the dataset registry
+# refuses an undeclared one in any evidence role.
+#
+# Edited by tools/fetch_data.py, which rewrites only the sha256 and retrieved
+# lines and leaves everything else -- including this header -- alone.
+
+version: 1
+retrieved_with: tools/fetch_data.py
+sources:
+- dataset_id: HADCRUT5-GLOBAL-MONTHLY
+  title: HadCRUT5 global-mean surface temperature anomaly, monthly
+  filename: hadcrut5_global_monthly.csv
+  url: https://www.metoffice.gov.uk/hadobs/hadcrut5/data/HadCRUT.5.0.2.0/analysis/diagnostics/HadCRUT.5.0.2.0.analysis.summary_series.global.monthly.csv
+  provider: Met Office Hadley Centre and Climatic Research Unit, UEA
+  provenance_class: observational
+  variables:
+  - surface_temperature_anomaly
+  units:
+  - K
+  temporal_coverage: 1850-01 to present, monthly
+  spatial_coverage: global mean
+  uncertainty: 2.5 and 97.5 percentile columns from the 200-member ensemble
+  licence: British Crown Copyright, Met Office, provided under the Open Government Licence v3. Check the
+    HadOBS terms page before redistributing.
+  citation: 'Morice, C. P. et al. (2021), An updated assessment of near-surface temperature change from
+    1850: the HadCRUT5 data set, JGR Atmospheres.'
+  notes: Anomalies relative to 1961-1990, not absolute temperatures. A model producing absolute temperature
+    must be differenced against its own baseline over the same window before comparison, and that differencing
+    is a transformation the adapter has to record.
+  sha256: 75673adde85c4a3a52c8bd987d4ff643c6fc4fc3174a6168ace10dc1b5a70a99
+  retrieved: '2026-09-04T23:49:58+00:00'
+- dataset_id: BERKELEY-GLOBAL-ANNUAL
+  title: Berkeley Earth global land and ocean temperature, annual summary
+  filename: berkeley_global_annual.txt
+  url: https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Global/Land_and_Ocean_summary.txt
+  provider: Berkeley Earth
+  provenance_class: observational
+  variables:
+  - surface_temperature_anomaly
+  units:
+  - K
+  temporal_coverage: 1850 to present, annual
+  spatial_coverage: global mean
+  uncertainty: 1-sigma column beside each annual value
+  licence: Creative Commons BY 4.0.
+  citation: Rohde, R. A. and Hausfather, Z. (2020), The Berkeley Earth Land/Ocean Temperature Record,
+    Earth System Science Data.
+  notes: An independent estimate of the same quantity as HADCRUT5, built from a different method. Registering
+    both is what makes a disagreement between them visible as observational uncertainty rather than absorbed
+    into the model's error.
+  sha256: 8f4b3f37846f0aacc270a3cf0090c1d94e857c8b2c7b8d8cdb081134781e819f
+  retrieved: '2026-09-04T23:49:58+00:00'
+- dataset_id: NOAA-OHC-0-700M-ANNUAL
+  title: NOAA/NCEI world ocean heat content, 0-700 m, yearly
+  filename: noaa_ohc_0700m_yearly.dat
+  url: https://www.ncei.noaa.gov/data/oceans/woa/DATA_ANALYSIS/3M_HEAT_CONTENT/DATA/basin/yearly/h22-w0-700m.dat
+  provider: NOAA National Centers for Environmental Information
+  provenance_class: observational
+  variables:
+  - ocean_heat_content_anomaly
+  units:
+  - ZJ
+  temporal_coverage: 1955 to present, yearly
+  spatial_coverage: world ocean, and northern and southern hemispheres separately
+  uncertainty: standard error columns beside each value
+  licence: US Government work, no copyright asserted. NCEI requests citation.
+  citation: Levitus, S. et al., NOAA/NCEI World Ocean Database heat content time series (h22 series).
+  notes: Units are 10^22 J for the whole ocean, not J m^-2. Converting to the framework's areal basis
+    needs a declared ocean area, and that conversion is a transformation with its own uncertainty.
+  sha256: 29114e2df7b856f88876f97ca4f073b5a04786ca86c0d643565a9f035046489b
+  retrieved: '2026-09-04T23:49:58+00:00'
+- dataset_id: NOAA-OHC-0-2000M-PENTADAL
+  title: NOAA/NCEI world ocean heat content, 0-2000 m, pentadal
+  filename: noaa_ohc_02000m_pentadal.dat
+  url: https://www.ncei.noaa.gov/data/oceans/woa/DATA_ANALYSIS/3M_HEAT_CONTENT/DATA/basin/pentad/pent_h22-w0-2000m.dat
+  provider: NOAA National Centers for Environmental Information
+  provenance_class: observational
+  variables:
+  - ocean_heat_content_anomaly
+  units:
+  - ZJ
+  temporal_coverage: 1957 to present, five-year running means
+  spatial_coverage: world ocean
+  uncertainty: standard error columns beside each value
+  licence: US Government work, no copyright asserted. NCEI requests citation.
+  citation: Levitus, S. et al., NOAA/NCEI World Ocean Database heat content time series (h22 series).
+  notes: Pentadal means, so the series has already been smoothed before it reaches the framework. Any
+    resampling of it compounds a filter that is not recorded here, and the lost frequency content of the
+    first filter is not recoverable from this file.
+  sha256: 2160656a7afed5d87e95b079374efb83e3ade2f9d1a58e0649290ce0eddf73b4
+  retrieved: '2026-09-04T23:49:58+00:00'
+- dataset_id: NRLTSI2-ANNUAL
+  title: NRLTSI2 total solar irradiance reconstruction, annual
+  filename: nrl2_tsi_annual.csv
+  url: https://lasp.colorado.edu/lisird/latis/dap/nrl2_tsi_P1Y.csv
+  provider: LASP Interactive Solar Irradiance Datacenter, University of Colorado
+  provenance_class: proxy
+  variables:
+  - total_solar_irradiance
+  units:
+  - W m^-2
+  temporal_coverage: 1610 to present, annual
+  spatial_coverage: global scalar at 1 au
+  uncertainty: per-sample uncertainty column
+  licence: Freely available from LASP; acknowledgement requested. Check the LISIRD terms before redistributing.
+  citation: Coddington, O. et al., NRLTSI2 solar irradiance model; LASP LISIRD.
+  notes: 'Classified PROXY rather than OBSERVATIONAL: before the satellite era this is a model reconstruction
+    driven by sunspot and facular indices, not a measurement. The framework will let it constrain the
+    world, but a claim resting on the pre-1978 part inherits the reconstruction''s assumptions.'
+  sha256: 48bada9d40d3a86d21b87f4356defde899fe73825bd64ebf0a34f945ed16e16d
+  retrieved: '2026-09-04T23:49:58+00:00'
+- dataset_id: NRLTSI2-MONTHLY
+  title: NRLTSI2 total solar irradiance reconstruction, monthly
+  filename: nrl2_tsi_monthly.csv
+  url: https://lasp.colorado.edu/lisird/latis/dap/nrl2_tsi_P1M.csv
+  provider: LASP Interactive Solar Irradiance Datacenter, University of Colorado
+  provenance_class: proxy
+  variables:
+  - total_solar_irradiance
+  units:
+  - W m^-2
+  temporal_coverage: 1882 to present, monthly
+  spatial_coverage: global scalar at 1 au
+  uncertainty: per-sample uncertainty column
+  licence: Freely available from LASP; acknowledgement requested. Check the LISIRD terms before redistributing.
+  citation: Coddington, O. et al., NRLTSI2 solar irradiance model; LASP LISIRD.
+  notes: Times are days since 1610-01-01, which the loader must convert to the master coordinate rather
+    than assuming an epoch. The direct replacement for the synthetic record the framework currently ships.
+  sha256: ecdbd2c09f2c79881e3e70dca3d483e40091518c191c78e1c16c88ecb5cc4f32
+  retrieved: '2026-09-04T23:49:58+00:00'
+
+# --- not fetchable without credentials --------------------------------------
+#
+# CERES EBAF is the single most valuable dataset for this framework: it reports
+# top-of-atmosphere longwave and shortwave, all-sky and clear-sky separately,
+# which is exactly how Stage 4 publishes them. It is absent because it needs a
+# NASA Earthdata login and the CERES ordering tool. To add it: order EBAF-TOA
+# monthly global means, put the file in data/raw/, add an entry above, and run
+# tools/fetch_data.py --update.
+#
+# Absent for the same reason: the CMIP6 solar and volcanic forcing datasets on
+# input4MIPs (ESGF authentication) and HITRAN line parameters (registration).
