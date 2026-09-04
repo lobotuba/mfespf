@@ -22,7 +22,8 @@ import numpy as np
 from mfespf.core.errors import ProvenanceError
 from mfespf.core.hashing import digest
 from mfespf.registries.claims import ClaimRecord, ClaimStatus
-from mfespf.registries.datasets import DatasetRegistry
+from mfespf.registries.datasets import DatasetRegistry, ProvenanceClass
+from mfespf.registries.equations import EquationRegistry
 
 __all__ = ["EvaluationResult", "FreezeRecord", "WithheldDataset", "WithheldEvaluator"]
 
@@ -37,6 +38,14 @@ class FreezeRecord:
     configuration_hash: str
     parameter_set_hash: str
     criteria_hash: str
+    equation_set_hash: str = ""
+    """Charter stage 6's *frozen equations*, as one hash over the whole registry.
+
+    Empty means the equation set was not pinned, which is permitted for a claim
+    that does not rest on one but is checked when it is supplied. Pinning the
+    named equations individually would not do: a claim frozen against three
+    equations says nothing about a fourth that was edited before evaluation.
+    """
     frozen_at: str = ""
     note: str = ""
 
@@ -55,6 +64,7 @@ class FreezeRecord:
             f"  configuration hash:  {self.configuration_hash}\n"
             f"  parameter set hash:  {self.parameter_set_hash}\n"
             f"  criteria hash:       {self.criteria_hash}\n"
+            f"  equation set hash:   {self.equation_set_hash or 'not pinned'}\n"
             f"  fingerprint:         {self.fingerprint()}"
         )
 
@@ -77,10 +87,12 @@ class WithheldDataset:
         claim_id: str,
         variables: Sequence[str] = (),
         description: str = "",
+        provenance_class: ProvenanceClass = ProvenanceClass.UNDECLARED,
     ) -> None:
         self.dataset_id = dataset_id
         self.version = version
         self.claim_id = claim_id
+        self.provenance_class = provenance_class
         self.variables = tuple(variables)
         self.description = description
         self._loader = loader
@@ -130,6 +142,7 @@ class EvaluationResult:
     status: ClaimStatus
     predictive_interval_coverage: float | None = None
     nominal_coverage: float | None = None
+    provenance_class: ProvenanceClass = ProvenanceClass.UNDECLARED
     notes: list[str] = dc_field(default_factory=list)
 
     @property
@@ -140,9 +153,14 @@ class EvaluationResult:
         lines = [
             f"claim {self.claim_id}: {self.status.value}",
             f"  {self.metric_name} = {self.metric_value:.6g} (threshold {self.threshold:.6g})",
-            f"  observations: {self.n_observations}",
+            f"  observations: {self.n_observations} ({self.provenance_class.value})",
             f"  freeze fingerprint: {self.freeze.fingerprint()}",
         ]
+        if not self.provenance_class.constrains_the_world:
+            lines.append(
+                "  this comparison is against a record that does not constrain the world; "
+                "it tests the evaluation pathway, not the physics"
+            )
         if self.predictive_interval_coverage is not None:
             lines.append(
                 f"  predictive interval coverage: {self.predictive_interval_coverage:.3f} "
@@ -157,8 +175,13 @@ class EvaluationResult:
 class WithheldEvaluator:
     """The only path by which withheld data may reach a claim (KER-008)."""
 
-    def __init__(self, datasets: DatasetRegistry | None = None) -> None:
+    def __init__(
+        self,
+        datasets: DatasetRegistry | None = None,
+        equations: EquationRegistry | None = None,
+    ) -> None:
         self.datasets = datasets
+        self.equations = equations
         self.freezes: dict[str, FreezeRecord] = {}
 
     def freeze(self, claim: ClaimRecord, freeze: FreezeRecord) -> FreezeRecord:
@@ -170,6 +193,14 @@ class WithheldEvaluator:
                 f"{claim.record_id!r} ({claim.criteria_hash()}); the thresholds moved between "
                 f"registration and freeze (HYP-009)"
             )
+        if self.equations is not None and freeze.equation_set_hash:
+            live = self.equations.content_hash()
+            if freeze.equation_set_hash != live:
+                raise ProvenanceError(
+                    f"freeze record for claim {claim.record_id!r} pins equation set "
+                    f"{freeze.equation_set_hash} but the registry holds {live}; freeze against "
+                    f"the equations the run will actually use"
+                )
         self.freezes[claim.record_id] = freeze
         return freeze
 
@@ -204,6 +235,14 @@ class WithheldEvaluator:
                 f"claim {claim.record_id!r} criteria changed after freeze; register a new claim "
                 f"version (HYP-009)"
             )
+        if self.equations is not None and freeze.equation_set_hash:
+            live = self.equations.content_hash()
+            if freeze.equation_set_hash != live:
+                raise ProvenanceError(
+                    f"the equation set changed between the freeze and the evaluation of claim "
+                    f"{claim.record_id!r} ({freeze.equation_set_hash} -> {live}); the model "
+                    f"being tested is not the model that was frozen (charter 19 stage 6)"
+                )
         if self.datasets is not None:
             self.datasets.assert_clean(claim.record_id)
             roles = {
@@ -218,6 +257,7 @@ class WithheldEvaluator:
                     f"claim {claim.record_id!r}; declare its role before evaluating (INF-001)"
                 )
 
+        provenance = self._provenance_of(withheld)
         withheld.release(freeze)
         observations = withheld.values()
         predicted = np.asarray(prediction, dtype=float)
@@ -254,6 +294,25 @@ class WithheldEvaluator:
         else:
             status = ClaimStatus.REFUTED
 
+        # A generated record cannot support an empirical claim however well the
+        # metric passes: agreement with numbers a computation produced is a test
+        # of the evaluation pathway, not of the physics against the world. The
+        # metric is still reported, because the numerical check is real; what is
+        # withheld is the empirical conclusion.
+        if status is ClaimStatus.SUPPORTED_WITHIN_SCOPE and not provenance.constrains_the_world:
+            status = ClaimStatus.EMPIRICALLY_UNRESOLVED
+            notes.append(
+                f"the withheld record is {provenance.value}, so it does not constrain the "
+                f"world; the comparison passed its threshold but supports no empirical claim "
+                f"(INF-002, VAL-006)"
+            )
+        elif status is ClaimStatus.REFUTED and not provenance.constrains_the_world:
+            notes.append(
+                f"the withheld record is {provenance.value}: this disagreement is between the "
+                f"model and a generated reference, and refutes the pathway rather than the "
+                f"physics"
+            )
+
         return EvaluationResult(
             claim_id=claim.record_id,
             freeze=freeze,
@@ -264,5 +323,12 @@ class WithheldEvaluator:
             status=status,
             predictive_interval_coverage=coverage,
             nominal_coverage=nominal_coverage,
+            provenance_class=provenance,
             notes=notes,
         )
+
+    def _provenance_of(self, withheld: WithheldDataset) -> ProvenanceClass:
+        """The provenance the registry holds, or the dataset's own declaration."""
+        if self.datasets is not None and withheld.dataset_id in self.datasets:
+            return self.datasets.provenance_class_of(withheld.dataset_id, withheld.version)
+        return withheld.provenance_class

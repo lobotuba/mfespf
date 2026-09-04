@@ -27,6 +27,7 @@ from mfespf.registries.datasets import DatasetRegistry
 from mfespf.registries.equations import EquationRegistry
 from mfespf.registries.states import StateRegistry
 from mfespf.run.manifest import RunManifest, RunStatus
+from mfespf.run.modes import OperatingMode
 from mfespf.run.preflight import assert_within_budget, estimate_cost
 
 __all__ = ["Kernel", "RunResult"]
@@ -45,6 +46,14 @@ class RunResult:
     @property
     def may_support_a_claim(self) -> bool:
         return self.manifest.may_support_a_claim
+
+    @property
+    def operating_mode(self) -> OperatingMode:
+        return self.manifest.operating_mode
+
+    def assert_may_be_reported_as(self, claimed: OperatingMode) -> None:
+        """TIM-006 / VAL-007: refuse a description the run does not support."""
+        self.manifest.assert_may_be_reported_as(claimed)
 
     @property
     def conservation_reports(self) -> list[ConservationReport]:
@@ -85,6 +94,7 @@ class Kernel:
     boundary_state: dict[str, Any] = dc_field(default_factory=dict)
     conservation_tolerance: float = 1e-10
     spectral_bins: int = 1
+    operating_mode: OperatingMode = OperatingMode.CONTROLLED_EXPERIMENT
     coupler: Coupler | None = None
 
     def build_manifest(self) -> RunManifest:
@@ -96,6 +106,7 @@ class Kernel:
         """
         modules = [s.module for s in self.schedule.ordered()]
         manifest = self.manifest or RunManifest(run_id=self.run_id, purpose=self.purpose)
+        manifest.operating_mode = self.operating_mode
         manifest.module_status = {m.module_id: m.status.value for m in modules}
         manifest.module_implementations = {m.module_id: m.contract.module_name for m in modules}
         manifest.module_versions = {m.module_id: str(m.contract.module_version) for m in modules}
@@ -200,6 +211,10 @@ class Kernel:
             manifest.status = RunStatus.FAILED
             manifest.warnings.append(str(exc))
             coupler.finalize()
+            # The steps completed before the failure are kept. They are not
+            # evidence -- the manifest marks the run unusable -- but discarding
+            # them would leave nothing to diagnose the failure from.
+            steps = coupler.step_reports
             return RunResult(
                 manifest=manifest,
                 steps=steps,

@@ -59,6 +59,19 @@ saying out loud.
 - **An experiment's threshold is frozen before the run.** `ExperimentProtocol`
   hashes the declaration; editing it invalidates the evaluation. Do not add a
   path that evaluates an unfrozen protocol (EXP-001).
+- **A dataset offered as evidence declares its provenance class.** Role and
+  provenance answer different questions. A generated record cannot support an
+  empirical claim, and the evaluator caps the status rather than trusting the
+  reader to notice (INF-002).
+- **Resampling reports its lost frequency content.** Do not add a path that
+  resamples without producing a report, and do not average instantaneous samples
+  or interpolate interval means — the convention is carried for a reason
+  (charter §11.4).
+- **A run cannot read past a record's coverage.** No held last value, no
+  extrapolation. The failure is the feature (DAT-007).
+- **The operating mode governs what a run may be called.** A prescribed-history
+  or reconstruction run cannot be reported as a hindcast or a prediction
+  (TIM-006, VAL-007).
 - **Calibration data is never independent validation.** The dataset registry
   enforces it per claim, at variable granularity.
 - **Withheld data is unreadable before the claim freezes.** Do not add a
@@ -119,7 +132,7 @@ fields are preserved across regeneration — they are the human record).
 
 ## Adding a validation-ladder stage
 
-Stages 6 onward are unimplemented. Follow charter §20 rather than writing the
+Stage 7 is unimplemented. Follow charter §20 rather than writing the
 physics first: define the claim, derive the equation, declare its validity
 domain, implement the simplest valid form, verify units and limiting cases,
 verify conservation, verify convergence, compare against an independent

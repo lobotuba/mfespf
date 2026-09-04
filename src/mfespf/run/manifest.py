@@ -25,10 +25,18 @@ from typing import Any
 from mfespf.contracts.cost import ResourceClass
 from mfespf.core.errors import ProvenanceError
 from mfespf.core.hashing import canonical_json, digest, file_digest
+from mfespf.run.modes import OperatingMode
 
-__all__ = ["DifferenceReport", "EnvironmentRecord", "RunManifest", "RunStatus", "diff_manifests"]
+__all__ = [
+    "DifferenceReport",
+    "EnvironmentRecord",
+    "RunManifest",
+    "RunStatus",
+    "diff_manifests",
+    "lineage",
+]
 
-FRAMEWORK_VERSION = "0.5.0"
+FRAMEWORK_VERSION = "0.6.0"
 
 
 class RunStatus:
@@ -95,6 +103,14 @@ class RunManifest:
     source_revision: str = "unknown"
     execution_time: str = ""
     reason_for_change: str = ""
+    operating_mode: OperatingMode = OperatingMode.CONTROLLED_EXPERIMENT
+    """TIM-005.  What kind of run this is, in the sense evidence cares about.
+
+    Deliberately outside ``configuration_payload``: two runs differing only in
+    their declared mode produce identical numbers, and the configuration hash is
+    for numbers. What the mode governs is which language a report may use about
+    them, which ``assert_may_be_reported_as`` checks.
+    """
 
     module_status: dict[str, str] = dc_field(default_factory=dict)
     module_implementations: dict[str, str] = dc_field(default_factory=dict)
@@ -182,6 +198,10 @@ class RunManifest:
             length=16,
         )
 
+    def assert_may_be_reported_as(self, claimed: OperatingMode) -> None:
+        """TIM-006 / VAL-007, checked against what the run actually was."""
+        self.operating_mode.assert_may_be_reported_as(claimed)
+
     # --- status -----------------------------------------------------------
     def invalidate(self, reason: str) -> None:
         """SYS-008 / AUD-007: mark a run unusable for supporting or refuting a claim."""
@@ -210,6 +230,7 @@ class RunManifest:
             "claim_ids": list(self.claim_ids),
             "execution_time": self.execution_time,
             "reason_for_change": self.reason_for_change,
+            "operating_mode": self.operating_mode.value,
             "status": self.status,
             "invalidation_reasons": list(self.invalidation_reasons),
             "configuration_hash": self.configuration_hash(),
@@ -371,3 +392,33 @@ def _diff_mappings(label: str, old: dict[str, Any], new: dict[str, Any]) -> list
 def _short(value: Any, limit: int = 80) -> str:
     text = str(value)
     return text if len(text) <= limit else text[: limit - 3] + "..."
+
+
+def lineage(manifest: RunManifest, known: dict[str, RunManifest]) -> list[RunManifest]:
+    """The ancestry of a run, oldest first (KER-006, AUD-005).
+
+    A manifest names its parents; this walks them into the chain a reader needs
+    to answer "what did this result descend from". A parent that is not in
+    ``known`` stops that branch rather than being invented, and a cycle raises:
+    a run cannot be its own ancestor, and a lineage that says otherwise is
+    corrupt rather than merely odd.
+    """
+    order: list[RunManifest] = []
+    seen: set[str] = set()
+
+    def walk(current: RunManifest, path: tuple[str, ...]) -> None:
+        if current.run_id in path:
+            raise ProvenanceError(
+                f"run {current.run_id!r} appears in its own ancestry "
+                f"({' -> '.join([*path, current.run_id])}); a lineage cannot contain a cycle"
+            )
+        for parent_id in current.parent_run_ids:
+            parent = known.get(parent_id)
+            if parent is not None:
+                walk(parent, (*path, current.run_id))
+        if current.run_id not in seen:
+            seen.add(current.run_id)
+            order.append(current)
+
+    walk(manifest, ())
+    return order

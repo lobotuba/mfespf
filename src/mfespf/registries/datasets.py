@@ -28,8 +28,52 @@ __all__ = [
     "DatasetRegistry",
     "DatasetRole",
     "DatasetUse",
+    "ProvenanceClass",
     "TransformationStep",
 ]
+
+
+class ProvenanceClass(StrEnum):
+    """What kind of thing a record is, independently of what it was used for.
+
+    The roles below say how a dataset was *used*; this says what it *is*, and
+    neither implies the other. A record can be correctly declared as withheld
+    evaluation data and still be something a model produced, in which case
+    comparing against it tests the evaluation pathway and not the physics. Both
+    facts have to travel, because a role alone cannot carry the second.
+    """
+
+    UNDECLARED = "undeclared"
+    OBSERVATIONAL = "observational"
+    PROXY = "proxy"
+    REANALYSIS = "reanalysis"
+    MODEL_OUTPUT = "model_output"
+    SYNTHETIC = "synthetic"
+    IDEALISED = "idealised"
+
+    @property
+    def constrains_the_world(self) -> bool:
+        """Whether agreement with this record says anything about the Earth.
+
+        Reanalysis is included, with a caveat that belongs in the record's own
+        uncertainty statement rather than in this predicate: it carries the
+        structure of the model that assimilated the observations, so it is
+        weaker evidence than a direct measurement and stronger than none.
+        """
+        return self in (
+            ProvenanceClass.OBSERVATIONAL,
+            ProvenanceClass.PROXY,
+            ProvenanceClass.REANALYSIS,
+        )
+
+    @property
+    def is_generated(self) -> bool:
+        """Whether the numbers came out of a computation rather than an instrument."""
+        return self in (
+            ProvenanceClass.MODEL_OUTPUT,
+            ProvenanceClass.SYNTHETIC,
+            ProvenanceClass.IDEALISED,
+        )
 
 
 class DatasetRole(StrEnum):
@@ -102,6 +146,7 @@ class DatasetRecord:
     acquisition_record: str = ""
     transformations: tuple[TransformationStep, ...] = ()
     path: str | None = None
+    provenance_class: ProvenanceClass = ProvenanceClass.UNDECLARED
 
     def __post_init__(self) -> None:
         if not self.checksum:
@@ -181,10 +226,27 @@ class DatasetRegistry(Registry[DatasetRecord]):
         self._uses: list[DatasetUse] = []
 
     def declare_use(self, use: DatasetUse) -> DatasetUse:
-        """Record an evidentiary use.  The dataset must already be registered."""
-        self.entry(use.dataset_id, use.dataset_version)
+        """Record an evidentiary use.  The dataset must already be registered.
+
+        A dataset offered as evidence must say what kind of thing it is. The
+        role alone does not: a synthetic record can be correctly declared as
+        withheld evaluation data, and a reader who sees only the role has no way
+        to tell that agreement with it says nothing about the world. INF-002
+        asks for the roles to be distinguished; this makes the distinction
+        useless to hide behind.
+        """
+        entry = self.entry(use.dataset_id, use.dataset_version)
+        if use.role.is_evidence and entry.record.provenance_class is ProvenanceClass.UNDECLARED:
+            raise ProvenanceError(
+                f"dataset {use.dataset_id!r} is offered as {use.role.value} for claim "
+                f"{use.claim_id!r} but declares no provenance class; a record used as evidence "
+                f"must say whether it was measured, reanalysed or generated (INF-002)"
+            )
         self._uses.append(use)
         return use
+
+    def provenance_class_of(self, dataset_id: str, version: str) -> ProvenanceClass:
+        return self.entry(dataset_id, version).record.provenance_class
 
     def uses(
         self, *, claim_id: str | None = None, dataset_id: str | None = None

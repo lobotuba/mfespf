@@ -130,6 +130,16 @@ class Registry(Generic[R]):
             for rid, ver in sorted(self._entries)
         }
 
+    def content_hash(self) -> str:
+        """One hash over every registered record, for pinning a whole registry.
+
+        The charter's stage 6 asks for *frozen equations*, and pinning them one
+        by one is not the same thing: a claim frozen against three named
+        equations says nothing about a fourth that was added, edited or
+        superseded before the evaluation ran. This covers the set.
+        """
+        return digest(self.bindings(), length=32)
+
     def __contains__(self, record_id: object) -> bool:
         return any(rid == record_id for rid, _ in self._entries)
 

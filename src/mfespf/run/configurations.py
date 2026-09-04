@@ -31,6 +31,7 @@ from mfespf.physics.radiation import equilibrium_temperature
 from mfespf.physics.solar import (
     ConstantSpectrumSolarSource,
     ForcedSolarSource,
+    SolarSource,
     banded_grid,
     broadband_grid,
 )
@@ -39,8 +40,10 @@ from mfespf.physics.surface import (
     SlabSurfaceModule,
     surface_state_entry,
 )
+from mfespf.registries.datasets import DatasetRegistry
 from mfespf.registries.states import StateRegistry
 from mfespf.run.driver import Kernel
+from mfespf.run.modes import OperatingMode
 
 __all__ = [
     "airless_radiating_body",
@@ -333,6 +336,9 @@ def airless_radiating_body(
     deep_ocean_exchange: float | None = None,
     initial_deep_temperature: float | None = None,
     purpose: str | None = None,
+    solar_source: SolarSource | None = None,
+    operating_mode: OperatingMode = OperatingMode.CONTROLLED_EXPERIMENT,
+    datasets: DatasetRegistry | None = None,
     budget: ResourceBudget | None = None,
 ) -> Kernel:
     """KER-012 configuration 1: an airless sphere in radiative balance.
@@ -348,7 +354,7 @@ def airless_radiating_body(
     # An unforced run uses the constant source rather than a forced one carrying
     # a zero perturbation: the two are bit-identical, and the contract of the
     # first does not have to explain a forcing that is not there.
-    solar = (
+    solar = solar_source or (
         ConstantSpectrumSolarSource(
             grid=grid, total_irradiance=total_irradiance, status=ModuleStatus.PRESCRIBED
         )
@@ -424,6 +430,8 @@ def airless_radiating_body(
         initial_deep_temperature if initial_deep_temperature is not None else initial_temperature
     )
     return Kernel(
+        operating_mode=operating_mode,
+        datasets=datasets or DatasetRegistry(),
         run_id=run_id,
         purpose=purpose
         or (

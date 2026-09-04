@@ -21,6 +21,7 @@ from mfespf.registries.datasets import (
     DatasetRegistry,
     DatasetRole,
     DatasetUse,
+    ProvenanceClass,
 )
 from mfespf.run.configurations import airless_radiating_body
 from mfespf.run.manifest import RunManifest, diff_manifests
@@ -30,15 +31,23 @@ pytestmark = pytest.mark.stage(0)
 V1 = Version(1, 0, 0)
 
 
-def _dataset(dataset_id: str, variables: tuple[str, ...] = ("temperature",)) -> DatasetRecord:
+def _dataset(
+    dataset_id: str,
+    variables: tuple[str, ...] = ("temperature",),
+    provenance_class: ProvenanceClass = ProvenanceClass.OBSERVATIONAL,
+) -> DatasetRecord:
+    # These records stand in for measured ones, so they declare themselves
+    # observational: a record offered as evidence must say what kind of thing it
+    # is, and the registry refuses an undeclared one in an evidence role.
     return DatasetRecord(
         record_id=dataset_id,
         version=V1,
         title=f"observations {dataset_id}",
-        source="synthetic test record",
+        source="stand-in for a measured record",
         checksum="0" * 16,
         variables=variables,
         uncertainty_record="declared in the source record",
+        provenance_class=provenance_class,
     )
 
 

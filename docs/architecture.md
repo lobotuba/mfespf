@@ -50,6 +50,137 @@ Nothing in the upper layers can bypass the lower ones. A module has no method
 that writes another module's state; the only path is a labeled tendency the
 owner commits.
 
+## Stage 6: historical replay
+
+```
+record ─▶ adapter ─▶ solar ─▶ orbit ─▶ surface ─▶ space
+declared  resamples  plays     the physics is Stage 1's
+input     and        the
+          reports    record
+```
+
+The physics of this stage is the physics of Stage 1. Everything that is new sits
+around it: where the boundary condition came from, what was done to it on the way
+in, whether the equations were still the frozen ones when the evaluation ran,
+whether the budget closes over the whole replay rather than interval by interval,
+and what the run is allowed to be called afterwards.
+
+### The record the framework ships is synthetic, and that is enforced
+
+There is no observational dataset in this repository. Inventing numbers that look
+like a solar composite would be worse than having none: a plausible record with
+an instrument's name on it is the one thing a provenance system cannot protect a
+reader from.
+
+So the shipped record is generated, says so in its source field, its note and its
+quality flags, and is classified `SYNTHETIC`. Three things follow, and none of
+them is a comment:
+
+- the dataset registry refuses a record with no declared provenance class in any
+  evidence role;
+- the withheld evaluator caps a claim tested against a generated record at
+  `EMPIRICALLY_UNRESOLVED` however well the metric passes, with the metric still
+  reported -- the numerical check is real, the empirical conclusion is not;
+- the run's operating mode refuses to be described as a hindcast or a prediction.
+
+What that buys is a Stage 6 that is honestly what it is: the replay pathway run
+end to end and shown to work, with no claim about the Earth in it. Registering an
+observational record in its place changes the provenance class and nothing else,
+and the cap lifts on its own.
+
+### Provenance class and role answer different questions
+
+INF-002 asks the framework to distinguish dataset roles: calibration, boundary
+condition, validation, withheld evaluation. That is what a dataset was *used
+for*. It does not say what the dataset *is*.
+
+A synthetic record can be correctly declared as withheld evaluation data. The
+role is right, the declaration is honest, and a reader who sees only the role has
+no way to tell that agreement with it means nothing about the world. So both
+facts travel: a `DatasetRole` and a `ProvenanceClass`, neither implying the
+other.
+
+### The resampling reports what it removed
+
+Charter 11.4 asks a resampling to declare aggregation, interpolation, uncertainty
+and lost frequency content. The first three are bookkeeping. The fourth decides
+whether a later comparison means anything.
+
+A record averaged onto a coarser model clock has had variance taken out of it. A
+model that then reproduces the resampled series has reproduced a smoother signal
+than the instrument recorded, and the difference is invisible in the output. The
+report therefore states which band of periods no longer exists and what fraction
+of the record's variance went with it -- and converts to a `TransformationStep`
+on the dataset record, so the registry alone says what was done and can be
+replayed to the same numbers (DAT-008).
+
+The sampling convention is carried for the same reason. Averaging instantaneous
+samples and interpolating interval means are both wrong, both produce a plausible
+array, and neither leaves a trace in it. A method the convention does not permit
+is refused rather than accepted.
+
+### Frozen equations means the set, not the citations
+
+A claim frozen against the three equations it names says nothing about a fourth
+that was added, edited or superseded before the evaluation ran. `FreezeRecord`
+therefore pins one hash over the whole equation registry, and the evaluator
+refuses when it has moved between the freeze and the evaluation: the model being
+tested is not the model that was frozen.
+
+### Reconstructing the budget over the whole run
+
+The coupler checks conservation at every synchronization point and those checks
+pass to round-off. This asks a question they cannot: over the entire replay, does
+the change in stored energy equal the net energy that crossed the boundary?
+
+The distinction matters because a residual of 1e-16 per interval accumulated over
+fifty thousand intervals is 1e-16 *per interval*, and whether it matters against
+the run depends on whether the errors are biased. A drift that leans one way
+grows linearly; a random one grows as a square root. Neither is visible in a
+per-interval report, and a slow drift is exactly what would first be mistaken for
+a trend.
+
+Nothing is recomputed. The coupling residuals say what crossed the boundary and
+the module budgets say what is stored, so a disagreement is between the run and
+itself. Which stores count as *inside* is a modelling decision and is named
+rather than inferred -- counting the space boundary inside the system would make
+every run conserve trivially and check nothing.
+
+The result is reported as a mean imbalance in W m^-2 as well as a residual,
+because that is the form a reader can weigh: a drift of 0.01 W m^-2 would matter,
+and the replay's 1e-13 does not.
+
+### Running past the end of a record fails
+
+A framework that held the last value would produce a longer run that looks the
+same and is partly fabricated. The recorded source requires the *whole* step
+interval to be covered, not merely its start, because a step is an integration
+over `[t, t + dt]` and running one whose second half the record does not reach
+would extend the record by half a step under the zero-order hold.
+
+The steps taken before the failure are kept. They are not evidence -- the
+manifest marks the run unusable and that is what a consumer checks -- but a
+failed run whose trajectory has been discarded cannot be diagnosed, and charter
+3.5 asks for negative results to be preserved.
+
+### What a run may be called
+
+TIM-005 lists seven operating modes; TIM-006 adds the rule that makes the list
+worth keeping, that a report may not describe one mode in the evidentiary
+language of another; VAL-007 names the case that matters most.
+
+The modes are ordered by how much information about the compared period was
+available when the model ran. A run may be described as a mode of equal or lower
+standing -- claiming less than you are entitled to is not a misrepresentation --
+and never a higher one. Prescribed history is deliberately the lowest of the
+comparison modes: a run handed the boundary conditions of the period it
+reproduces has been told part of the answer, and its agreement is correspondingly
+cheap.
+
+The ordering does not rank quality. A controlled experiment is a better thing to
+run than a bad hindcast. What it ranks is the strength of the claim the mode
+licenses.
+
 ## Stage 5: thermal storage and response timescales
 
 ```
@@ -615,9 +746,16 @@ is deleted from this list, and where a stage removed one the entry says so.
   the full-fidelity module.
 - The forcing perturbation is spectrally flat, so no experiment about the
   wavelength dependence of solar forcing can be run with it.
-- Stages 6 and 7 are unexercised. The withheld-data path and the freeze records
-  exist and are tested, but no historical dataset has been registered against
-  them, so nothing in the framework has yet been compared with an observation.
+- **No observational dataset is registered.** The Stage 6 replay runs against a
+  record the framework generates, so nothing here has been compared with a
+  measurement. The provenance machinery enforces the consequence rather than
+  noting it: a generated record cannot support an empirical claim.
+- The recorded solar source is broadband, so the spectral shape of the imposed
+  irradiance is assumed rather than recorded, and no claim about spectral solar
+  forcing is admissible from a replay.
+- Stage 7 is unexercised. The freeze records and the information-cutoff field
+  exist and are tested, but no prediction has been registered before its
+  evaluation period.
 
 Removed by later stages, recorded because the reasoning still matters:
 

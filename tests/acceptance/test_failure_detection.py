@@ -166,8 +166,14 @@ def test_a_numerically_unstable_run_is_labeled_invalid_for_inference():
     assert result.manifest.status == RunStatus.FAILED
     assert not result.may_support_a_claim
     assert any("unphysical" in w for w in result.manifest.warnings)
-    # No step survived, so nothing is available to be misread as a result.
-    assert result.steps == []
+
+    # The steps taken before the refusal are kept rather than discarded. They
+    # are not evidence -- the status above is what a consumer checks, and it
+    # says so -- but a failed run whose trajectory has been thrown away cannot
+    # be diagnosed, and charter 3.5 asks for negative results to be preserved.
+    assert result.steps
+    assert len(result.steps) < 20
+    assert result.steps[0].outputs["surface_temperature"].scalar() > 0.0
 
 
 def _final_temperature_at(dt: float, *, end_time: float, heat_capacity: float) -> float:

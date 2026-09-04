@@ -15,6 +15,7 @@ import numpy as np
 
 from mfespf import __version__
 from mfespf.core.errors import MFESPFError
+from mfespf.evaluation.reconstruction import reconstruct_budget
 from mfespf.evaluation.timescales import (
     ExponentialFit,
     TimescaleMeasurement,
@@ -30,7 +31,7 @@ from mfespf.experiments.forcing import (
     PulseForcing,
     StepForcing,
 )
-from mfespf.run import column_configurations, configurations
+from mfespf.run import column_configurations, configurations, historical
 
 _CONFIGURATIONS = {
     # Stage 1: the airless radiating body.
@@ -52,6 +53,8 @@ _CONFIGURATIONS = {
     "surface-storage": configurations.surface_thermal_storage,
     "ocean": configurations.reduced_ocean_heat_storage,
     "column-ocean": column_configurations.column_over_reduced_ocean,
+    # Stage 6: historical replay of a declared record.
+    "replay": historical.historical_replay,
 }
 
 # Configurations whose surface temperature is worth analysing for response
@@ -164,8 +167,24 @@ def _run(args: argparse.Namespace) -> int:
         kwargs["forcing"] = forcing
     kernel = builder(**kwargs)  # type: ignore[arg-type]
 
+    adapter = getattr(kernel, "adapter", None)
+    steps = args.steps
+    if adapter is not None:
+        # The record's coverage, not a step count, is what bounds a replay: a run
+        # asked for a boundary condition past the end of the record fails rather
+        # than extrapolating, and saying so here is friendlier than the failure.
+        available = historical.replay_steps(
+            adapter, "total_solar_irradiance", kernel.schedule.master_dt
+        )
+        if steps > available:
+            print(
+                f"the record supports {available} master steps at "
+                f"{kernel.schedule.master_dt:g} s; running {available} instead of {steps}"
+            )
+            steps = available
+
     try:
-        result = kernel.run(args.steps, assert_conservation=not args.allow_residual)
+        result = kernel.run(steps, assert_conservation=not args.allow_residual)
     except MFESPFError as exc:
         print(f"run failed: {exc}", file=sys.stderr)
         return 2
@@ -228,6 +247,20 @@ def _run(args: argparse.Namespace) -> int:
 
     if args.configuration in _TIMESCALE_CONFIGURATIONS and forcing is not None:
         _report_timescales(result, forcing.regime)
+
+    if adapter is not None:
+        print()
+        print(adapter.describe())
+
+    if result.conservation_reports and (adapter is not None or args.reconstruct):
+        # The per-interval checks have already passed; this asks the different
+        # question of whether the budget closes when summed over the whole run,
+        # where a bias too small to see in one interval would have accumulated.
+        print()
+        print(reconstruct_budget(result.conservation_reports).describe())
+
+    print()
+    print(f"  {result.operating_mode.describe()}")
 
     if args.manifest:
         path = Path(args.manifest)
@@ -297,6 +330,11 @@ def main(argv: list[str] | None = None) -> int:
         type=float,
         default=3.456e7,
         help="period of a periodic forcing in seconds",
+    )
+    run.add_argument(
+        "--reconstruct",
+        action="store_true",
+        help="reconstruct the energy budget over the whole run, not per interval",
     )
     run.add_argument(
         "--allow-residual",

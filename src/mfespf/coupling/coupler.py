@@ -169,6 +169,7 @@ class Coupler:
         self._budgets: dict[tuple[str, ConservedQuantity], ModuleBudget] = {}
         self._interval_start = start_time
         self.reports: list[ConservationReport] = []
+        self.step_reports: list[StepReport] = []
 
     # --- setup ------------------------------------------------------------
     def validate_configuration(self) -> None:
@@ -339,7 +340,13 @@ class Coupler:
         )
 
     def run(self, n_steps: int, *, assert_conservation: bool = True) -> list[StepReport]:
-        reports = []
+        # Published on the coupler as it goes, not only returned at the end: a run
+        # that fails partway has still produced everything up to the failure, and
+        # that is the part a reader needs in order to see what went wrong. Charter
+        # 3.5 asks for negative results to be preserved, and a trajectory discarded
+        # because the run did not finish is a negative result thrown away.
+        reports: list[StepReport] = []
+        self.step_reports = reports
         for _ in range(n_steps):
             report = self.step()
             if assert_conservation and report.conservation is not None:
