@@ -391,3 +391,39 @@ def test_the_entraining_target_is_declared_and_needs_a_surface():
         ConvectiveAdjustmentModule(
             surface_based=True, target="moist_adiabat"
         ).validate_configuration()
+
+
+@pytest.mark.req("VAL-001", "CLM-003", "HYP-005")
+def test_freezing_the_vapour_freezes_the_lapse_rate_it_sets():
+    """The control has to hold every consequence of the thing it holds.
+
+    Water vapour acts on this column twice: radiatively through the absorption,
+    and dynamically because the entraining lapse rate depends on the saturation
+    humidity. Freezing only the first left the frozen run with the entire
+    lapse-rate response, which showed up as a feedback parameter of
+    12.4 W m^-2 K^-1 against a Planck response of 3.2 -- an absurdity rather
+    than a subtlety, which is the only reason it was caught.
+
+    What stays free is the geometry. The column still expands as it warms,
+    because that is hypsometry and not the vapour's doing, so the *rate* is
+    frozen and the offsets it integrates to are not.
+    """
+    warm = PROFILE + 6.0
+
+    free = ConvectiveAdjustmentModule(surface_based=True, target="entraining_plume")
+    cold_rate = free._plume_offsets(PROFILE, PRESSURE)
+    warm_rate = free._plume_offsets(warm, PRESSURE)
+    assert not np.allclose(cold_rate, warm_rate)  # responds, as the free run must
+
+    held = ConvectiveAdjustmentModule(
+        surface_based=True, target="entraining_plume", target_responds_to_temperature=False
+    )
+    held._plume_offsets(PROFILE, PRESSURE)
+    captured = np.array(held._held_rate)
+    held._plume_offsets(warm, PRESSURE)
+
+    assert np.array_equal(held._held_rate, captured)  # the rate is pinned
+    assert held.parameters()["target_responds_to_temperature"] is False
+    # And the frozen target is the one the *unfrozen* column started from, not
+    # some other profile: a control that begins somewhere else is not a control.
+    assert np.allclose(captured, entraining_lapse_rate(PROFILE, PRESSURE, BULK_PLUME_PARAMETER))

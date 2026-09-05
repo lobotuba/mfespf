@@ -769,6 +769,9 @@ def radiating_column(
                     surface_pressure=surface_pressure,
                     target=convective_target,
                     bulk_plume_parameter=bulk_plume_parameter,
+                    # One switch, because holding the vapour is one physical
+                    # intervention even though it now has two consequences.
+                    target_responds_to_temperature=humidity_responds_to_temperature,
                 ),
                 step_multiple=1,
             )

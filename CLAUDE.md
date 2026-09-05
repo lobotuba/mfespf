@@ -6,7 +6,9 @@ every disagreement — charter v0.2 plus Amendment 1, and the v1.0 Interface
 Requirements Specification (197 numbered requirements, 189 mandatory).
 
 Read [`docs/architecture.md`](docs/architecture.md) before changing anything in
-`coupling/` or `registries/`.
+`coupling/` or `registries/`. [`docs/todo.md`](docs/todo.md) is the open-work
+list: an item goes there only when something measured says it matters, and it
+carries that measurement with it.
 
 ## Non-negotiables
 

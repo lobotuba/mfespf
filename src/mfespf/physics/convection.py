@@ -114,6 +114,7 @@ class ConvectiveAdjustmentModule(Module):
         surface_pressure: float | None = None,
         target: str = "dry_adiabat",
         bulk_plume_parameter: float = BULK_PLUME_PARAMETER,
+        target_responds_to_temperature: bool = True,
         reference_pressure: float | None = None,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
@@ -202,6 +203,10 @@ class ConvectiveAdjustmentModule(Module):
                 "bulk-plume humidity should use it: measured at 20 layers, the dry "
                 "target leaves 9.68 K/km against the 6.33 the same plume parameter "
                 "predicts, so the two closures contradict each other.",
+                "The entraining target makes the stratification depend on the "
+                "saturation humidity, so any experiment holding the vapour fixed must "
+                "set target_responds_to_temperature=False as well. A control that "
+                "freezes only the radiative half of the vapour is not a control.",
                 "Instantaneous mixing means the result is independent of the timestep, "
                 "which is convenient and physically wrong at short timesteps.",
                 "The surface exchange coefficient is a free parameter with no wind or "
@@ -257,6 +262,8 @@ class ConvectiveAdjustmentModule(Module):
         self.surface_pressure = surface_pressure
         self.target = target
         self.bulk_plume_parameter = bulk_plume_parameter
+        self.target_responds_to_temperature = target_responds_to_temperature
+        self._held_rate: np.ndarray | None = None
         self._mixing_groups: tuple[tuple[int, int], ...] = ()
         self._vapour_moved = 0.0
         self._surface_adjustment = 0.0
@@ -316,7 +323,24 @@ class ConvectiveAdjustmentModule(Module):
         """
         surface_pressure = self._reference_surface_pressure()
         height = hydrostatic_heights(temperature, pressure, surface_pressure)
-        rate = entraining_lapse_rate(temperature, pressure, self.bulk_plume_parameter)
+        if self.target_responds_to_temperature:
+            rate = entraining_lapse_rate(temperature, pressure, self.bulk_plume_parameter)
+        else:
+            # The null control. Water vapour acts on this column twice -- once
+            # radiatively through the absorption, and once dynamically because
+            # the entraining lapse rate depends on the saturation humidity -- so
+            # a control that holds the vapour has to hold both, or it is not
+            # holding the vapour. Freezing only the radiative half left the
+            # frozen run with the entire lapse-rate response and a feedback
+            # parameter of 12.4 W m^-2 K^-1 against a Planck response of 3.2.
+            #
+            # The *rate* is frozen and not the offsets: the column still expands
+            # as it warms, which is hypsometry and not the vapour's doing.
+            if self._held_rate is None:
+                self._held_rate = entraining_lapse_rate(
+                    temperature, pressure, self.bulk_plume_parameter
+                )
+            rate = self._held_rate
         # The surface joins as the bottom of the column, at zero height and
         # carrying the lowest layer's lapse rate.
         return lapse_rate_offsets(
@@ -651,6 +675,7 @@ class ConvectiveAdjustmentModule(Module):
             "bulk_plume_parameter": (
                 self.bulk_plume_parameter if self.target == "entraining_plume" else None
             ),
+            "target_responds_to_temperature": self.target_responds_to_temperature,
             "surface_based": self.surface_based,
             "transport_vapour": self.transport_vapour,
             "surface_pressure_Pa": (

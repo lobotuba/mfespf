@@ -38,6 +38,9 @@ record — on top of the full Version 1.0 interface spine.
 | 6 — historical replay: declared inputs, frozen equations, withheld records, whole-run budget | implemented, and running on real irradiance, temperature and ocean-heat records |
 | 7 — hindcast and registered prediction | machinery present (freeze records), not exercised |
 
+Work deliberately left open, with the measurement that motivates each item, is
+in [`docs/todo.md`](docs/todo.md).
+
 189 mandatory requirements are tracked; 160 currently have a bound acceptance
 test. All eight KER-012 reference configurations exist and run. See
 [`docs/traceability.md`](docs/traceability.md) — the uncovered requirements are
@@ -59,9 +62,12 @@ zero-buoyancy bulk-plume closure whose single unfitted parameter predicts a
 relative humidity of 0.417 **and** a lapse rate of 6.33 K/km — both of which land
 near observations, which is the falsification test a prescribed humidity cannot
 be given. The grid dependence that disqualified the previous mechanism is gone.
-Nothing from it is quotable yet: the one assumed parameter spans 8 K of surface
-temperature, and the column still relaxes to a dry adiabat and so contradicts its
-own closure. See
+The column now relaxes to that same lapse rate, and the feedback measured
+through a control that holds every consequence of the vapour is **+1.29 W m⁻² K⁻¹**
+— within four percent of both the prescribed-humidity control and published
+estimates, from a closure with nothing fitted. It is still not quotable: the one
+assumed parameter spans eleven kelvin of surface temperature and a factor of 2.7
+in that feedback. See
 [`docs/architecture.md`](docs/architecture.md#the-water-vapour-pathway-and-the-two-walls-it-hit).
 
 ## Install and run

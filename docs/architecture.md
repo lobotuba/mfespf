@@ -526,13 +526,59 @@ response of 3.2 -- so the amplification of 13x it implies measures nothing. A
 null control that is not exactly null is a bug, and this one is recorded rather
 than reported.
 
-Underneath it is a limitation the equation registry declared before any of this
-ran: the zero-buoyancy plume predicts a stratification but not the height
-convection reaches. With the shallower target the adjustment mixes sixteen of
-twenty layers and the column has no real tropopause, so the whole depth is
-slaved to a surface temperature through a lapse rate that itself responds
-strongly to warming. Giving the scheme a level of neutral buoyancy, and a
-control that freezes the target along with the vapour, are the next two pieces.
+The first explanation offered for it was wrong, and the correction is worth
+keeping. It was attributed to convection reaching too high -- the adjustment
+mixes sixteen of twenty layers, which was read as the column having no real
+tropopause. Layer sixteen is at 186 hPa and 12.1 km, which is a perfectly
+ordinary tropopause; the layer count had been read without checking what
+pressure it corresponded to. Convective depth had nothing to do with it, and the
+broken control was the whole of the problem.
+
+#### The control repaired, and the number it now yields
+
+Holding the vapour has to hold everything the vapour does. It acts on this
+column twice -- radiatively through the absorption, and dynamically because the
+entraining lapse rate depends on the saturation humidity -- so the control now
+freezes both through one switch, since holding the vapour is one physical
+intervention even if it has two consequences. What stays free is the geometry:
+the *rate* is frozen and not the offsets it integrates to, because a warming
+column expands and that is hypsometry rather than the vapour's doing.
+
+| | broken control | repaired |
+|---|---:|---:|
+| dT_2x held (K) | 0.299 | 1.663 |
+| lambda held (W m^-2 K^-1) | 12.43 | 2.22 |
+| amplification | 13.23x | 2.38x |
+| feedback (W m^-2 K^-1) | +11.433 | +1.289 |
+
+The repaired number is grid-stable -- +1.289 at 20 layers and +1.241 at 40 --
+and it agrees to within four percent with the +1.251 the prescribed-humidity
+control measures and with published water-vapour-plus-lapse-rate estimates near
++1.2. From a closure with nothing fitted, that is the best agreement this
+project has produced.
+
+It is still not a result, for the reason the closure's own uncertainty makes
+plain.
+
+| alpha | 0.1 | 0.3 | 0.5 |
+|---|---:|---:|---:|
+| surface temperature (K) | 284.47 | 289.35 | 295.54 |
+| dT_2x free (K) | 2.843 | 3.957 | 7.010 |
+| dT_2x held (K) | 1.834 | 1.663 | 1.516 |
+| feedback (W m^-2 K^-1) | +0.716 | +1.289 | +1.911 |
+
+Eleven kelvin of surface temperature and a factor of 2.7 in the feedback, across
+a range nobody has narrowed. The held column is steady at 1.5 to 1.8 K
+throughout, which is what a working control looks like -- the spread is the
+feedback responding to the assumption, not the control wobbling.
+
+There is a temptation here that has to be named and refused. The upper end of
+the range gives dT_2x of 7 K, which is outside any defensible sensitivity, so
+the model's own temperature response would narrow `alpha` considerably. Using it
+that way would be calibrating against the thing being predicted, which is
+exactly what INF-003 forbids and what this project has already caught itself
+doing twice. `alpha` has to come from precipitation-efficiency measurements or
+stay wide.
 
 #### The base state looks right and that means nothing yet
 
@@ -1401,16 +1447,17 @@ is deleted from this list, and where a stage removed one the entry says so.
   evaporation is the only source of water and convection the only transport. A
   real atmosphere moistens its middle troposphere by detrainment from deep
   convection and by large-scale ascent, neither of which exists here.
-- With the entraining-plume target the adjustment mixes sixteen of twenty
-  layers, because the zero-buoyancy plume predicts a stratification but not the
-  height convection reaches. The column has no real tropopause, and its whole
-  depth is slaved to the surface through a temperature-dependent lapse rate.
-- **The vapour feedback control is broken in plume-target configurations** and
-  its numbers must not be quoted. Freezing the vapour no longer changes one
-  thing, because the entraining lapse rate depends on the saturation humidity,
-  so the frozen run keeps the full lapse-rate response: it gives dT_2x of
-  0.299 K and an implied feedback parameter of 12.4 W m^-2 K^-1 against a Planck
-  response of 3.2. The control needs to freeze the target as well as the vapour.
+- The zero-buoyancy plume predicts a stratification but not the height
+  convection reaches, so the convective top is set by where the profile becomes
+  stable with respect to the target rather than by a criterion of its own. It
+  lands at 186 hPa and 12.1 km, which is reasonable, and an undilute-parcel
+  criterion would change nothing -- see [`todo.md`](todo.md).
+- The vapour feedback measured through the repaired control is
+  **+1.29 W m^-2 K^-1 at the assumed midpoint and +0.72 to +1.91 across the
+  range the evaporating fraction is asserted over**. The midpoint agrees with
+  the prescribed-humidity control and with published estimates; the range is
+  wide enough that the agreement is not yet evidence. Constraining the
+  evaporating fraction is the highest-value open item.
 - The bulk-plume humidity closure once ran in a column that relaxed to the dry
   adiabat at 9.68 K/km while its humidity assumed 6.33, so the model
   contradicted its own closure. That is fixed -- `convective_target=
