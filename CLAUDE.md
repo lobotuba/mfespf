@@ -69,6 +69,18 @@ saying out loud.
   (charter §11.4).
 - **A run cannot read past a record's coverage.** No held last value, no
   extrapolation. The failure is the feature (DAT-007).
+- **An uncertainty column declares its kind.** A standard error and a 95 percent
+  half-width differ by a factor of two and the numbers do not say which. A
+  series carrying uncertainties without an `UncertaintyKind` is refused
+  (UNC-002).
+- **Loaders put every record on one declared epoch** (`EPOCH`, 1850-01-01) and
+  timestamp interval means at interval *midpoints*. A series timestamped at
+  interval starts resamples half an interval early, which survives every check
+  that does not look at a calendar.
+- **Anomalies are kelvin, not degC.** A difference carries no 273.15 offset, and
+  declaring one `degC` makes the unit registry add it.
+- **Verify a file's checksum before parsing it, not after.** Reading first means
+  the values reached the caller before anyone knew they were the wrong ones.
 - **The operating mode governs what a run may be called.** A prescribed-history
   or reconstruction run cannot be reported as a hindcast or a prediction
   (TIM-006, VAL-007).

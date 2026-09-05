@@ -42,10 +42,41 @@ __all__ = [
     "ResamplingReport",
     "SamplingConvention",
     "TimeSeries",
+    "UncertaintyKind",
     "resample",
 ]
 
 SOFTWARE = "mfespf.data.records.resample"
+
+
+class UncertaintyKind(StrEnum):
+    """What a record's uncertainty column means (UNC-002).
+
+    Added because real records disagree. HadCRUT5 publishes a 95 percent
+    interval, Berkeley Earth a 95 percent interval it calls an uncertainty,
+    NOAA's heat content a standard error, and NRLTSI2 a standard uncertainty.
+    Combining them as though they were the same quantity would understate some
+    by a factor of two, and nothing in the numbers says which is which -- so the
+    meaning travels with the array rather than living in whoever loaded it.
+    """
+
+    UNDECLARED = "undeclared"
+    STANDARD_UNCERTAINTY = "standard_uncertainty"
+    STANDARD_ERROR = "standard_error"
+    HALF_WIDTH_95 = "half_width_95"
+
+    @property
+    def is_one_sigma(self) -> bool:
+        """Whether the value may be used directly in a quadrature combination.
+
+        A half-width of a 95 percent interval may not: it is roughly two sigma
+        for a normal distribution, and treating it as one would halve the
+        combined uncertainty of anything it entered (UNC-006).
+        """
+        return self in (
+            UncertaintyKind.STANDARD_UNCERTAINTY,
+            UncertaintyKind.STANDARD_ERROR,
+        )
 
 
 class SamplingConvention(StrEnum):
@@ -81,6 +112,7 @@ class TimeSeries:
     dataset_version: str = ""
     provenance_class: ProvenanceClass = ProvenanceClass.UNDECLARED
     uncertainty: np.ndarray | None = None
+    uncertainty_kind: UncertaintyKind = UncertaintyKind.UNDECLARED
     note: str = ""
 
     def __post_init__(self) -> None:
@@ -113,6 +145,12 @@ class TimeSeries:
                 raise ConfigurationError(
                     f"series {self.variable!r} has {uncertainty.shape} uncertainties for "
                     f"{values.shape} values"
+                )
+            if self.uncertainty_kind is UncertaintyKind.UNDECLARED:
+                raise ConfigurationError(
+                    f"series {self.variable!r} carries uncertainties but does not say what "
+                    f"they are; a standard error and a 95 percent half-width differ by a "
+                    f"factor of two and nothing in the numbers distinguishes them (UNC-002)"
                 )
 
     # --- coverage ---------------------------------------------------------
@@ -177,6 +215,7 @@ class TimeSeries:
             "dataset_id": self.dataset_id,
             "dataset_version": self.dataset_version,
             "provenance_class": self.provenance_class,
+            "uncertainty_kind": self.uncertainty_kind,
             "note": self.note,
         }
         fields.update(overrides)

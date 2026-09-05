@@ -55,6 +55,7 @@ _CONFIGURATIONS = {
     "column-ocean": column_configurations.column_over_reduced_ocean,
     # Stage 6: historical replay of a declared record.
     "replay": historical.historical_replay,
+    "replay-observed": historical.observed_replay,
 }
 
 # Configurations whose surface temperature is worth analysing for response
@@ -165,7 +166,14 @@ def _run(args: argparse.Namespace) -> int:
     forcing = _build_forcing(args)
     if forcing is not None:
         kwargs["forcing"] = forcing
-    kernel = builder(**kwargs)  # type: ignore[arg-type]
+    try:
+        kernel = builder(**kwargs)  # type: ignore[arg-type]
+    except MFESPFError as exc:
+        # Assembling a configuration can fail before anything runs: a replay
+        # whose record has not been fetched is the common case, and the message
+        # says what to do about it.
+        print(f"cannot assemble {args.configuration!r}: {exc}", file=sys.stderr)
+        return 2
 
     adapter = getattr(kernel, "adapter", None)
     steps = args.steps

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mfespf"
-version = "0.6.0"
+version = "0.6.1"
 description = "Modular Falsifiable Earth-System Physics Framework"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -50,6 +50,11 @@ src = ["src", "tests", "tools"]
 select = ["E", "F", "W", "I", "B", "UP", "N", "RUF"]
 ignore = ["N803", "N806"]  # physics notation: uppercase symbols are intentional
 
+[tool.ruff.lint.per-file-ignores]
+# Verbatim excerpts of real data files, kept in their providers' column layout.
+# Reformatting them to fit would make the fixtures test a format nobody ships.
+"tests/unit/test_loaders.py" = ["E501"]
+
 [tool.mypy]
 # Deliberately not pinned to 3.11: mypy must analyse the installed
 # dependencies' stubs under the interpreter they were installed for, and
@@ -59,3 +64,10 @@ mypy_path = "src"
 strict_equality = true
 warn_unused_ignores = true
 disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# PyYAML ships no stubs. Adding types-PyYAML to the dev extra would pull a
+# second package in for one import; the module is used for exactly one call
+# whose return type is checked at the boundary anyway.
+module = "yaml"
+ignore_missing_imports = true

@@ -337,6 +337,7 @@ def airless_radiating_body(
     initial_deep_temperature: float | None = None,
     purpose: str | None = None,
     solar_source: SolarSource | None = None,
+    start_time: float = 0.0,
     operating_mode: OperatingMode = OperatingMode.CONTROLLED_EXPERIMENT,
     datasets: DatasetRegistry | None = None,
     budget: ResourceBudget | None = None,
@@ -430,6 +431,7 @@ def airless_radiating_body(
         initial_deep_temperature if initial_deep_temperature is not None else initial_temperature
     )
     return Kernel(
+        start_time=start_time,
         operating_mode=operating_mode,
         datasets=datasets or DatasetRegistry(),
         run_id=run_id,

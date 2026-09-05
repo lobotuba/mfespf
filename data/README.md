@@ -11,6 +11,18 @@ python tools/fetch_data.py --update   # accept a new version of a file
 `sources.yaml` holds the URL, provider, provenance class, licence, citation and
 SHA-256 of every declared dataset. `raw/` holds the bytes and is git-ignored.
 
+Once fetched, they load through the framework's provenance path:
+
+```python
+from mfespf.data.loaders import available, load_declared
+
+available()                              # what is present and matches its record
+adapter = load_declared("NRLTSI2-MONTHLY")   # checksum verified before parsing
+```
+
+`mfespf run replay-observed` runs the Stage 6 replay on the real irradiance
+record instead of the synthetic one.
+
 ## Why the bytes are not in the repository
 
 Two things are easy to conflate and are kept apart here.

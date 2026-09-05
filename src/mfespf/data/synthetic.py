@@ -33,7 +33,12 @@ from mfespf.core.errors import ConfigurationError
 from mfespf.core.hashing import digest
 from mfespf.core.versioning import Version
 from mfespf.data.adapter import HistoricalDataAdapter
-from mfespf.data.records import ProvenanceClass, SamplingConvention, TimeSeries
+from mfespf.data.records import (
+    ProvenanceClass,
+    SamplingConvention,
+    TimeSeries,
+    UncertaintyKind,
+)
 from mfespf.registries.datasets import DatasetRecord
 
 __all__ = ["SYNTHETIC_RECORD_ID", "synthetic_irradiance_adapter", "synthetic_irradiance_series"]
@@ -87,6 +92,11 @@ def synthetic_irradiance_series(
         dataset_version=str(V1),
         provenance_class=ProvenanceClass.SYNTHETIC,
         uncertainty=np.full(n_samples, noise_amplitude),
+        # The generator's noise term is drawn from a standard normal scaled by
+        # this amplitude, so the amplitude is a standard deviation. Declaring it
+        # is not a formality: a half-width of a 95 percent interval would be
+        # about twice this, and nothing in the array says which it is (UNC-002).
+        uncertainty_kind=UncertaintyKind.STANDARD_UNCERTAINTY,
         note=(
             "GENERATED, NOT MEASURED. Produced by "
             f"mfespf.data.synthetic.synthetic_irradiance_series(seed={seed}). "
@@ -127,8 +137,9 @@ def synthetic_irradiance_adapter(**kwargs: object) -> HistoricalDataAdapter:
         temporal_coverage=(f"{series.coverage[0]:g} s", f"{series.coverage[1]:g} s"),
         spatial_coverage="global scalar at 1 au",
         uncertainty_record=(
-            "the declared per-sample uncertainty is the amplitude of the generator's own "
-            "noise term; it is not a measurement uncertainty and must not be reported as one"
+            "standard_uncertainty: the declared per-sample uncertainty is the standard "
+            "deviation of the generator's own noise term. It is not a measurement "
+            "uncertainty and must not be reported as one"
         ),
         quality_flags=("synthetic", "no_missing_values", "uniform_sampling"),
         acquisition_record=(

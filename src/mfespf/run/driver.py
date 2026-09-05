@@ -94,8 +94,19 @@ class Kernel:
     boundary_state: dict[str, Any] = dc_field(default_factory=dict)
     conservation_tolerance: float = 1e-10
     spectral_bins: int = 1
+    start_time: float = 0.0
+    """Where the master clock begins (TIM-001).
+
+    Zero for a controlled experiment, whose time origin is arbitrary. A replay
+    of a dated record needs the run to start where the record does, or every
+    lookup lands outside its coverage.
+    """
     operating_mode: OperatingMode = OperatingMode.CONTROLLED_EXPERIMENT
     coupler: Coupler | None = None
+
+    def declared_boundary_state(self) -> dict[str, Any]:
+        """Boundary conditions as the modules receive them, clock origin included."""
+        return {**self.boundary_state, "master_start_time": self.start_time}
 
     def build_manifest(self) -> RunManifest:
         """Assemble the manifest from what the configuration actually declares.
@@ -154,7 +165,10 @@ class Kernel:
             "on_exceed": self.budget.on_exceed,
         }
         manifest.initial_conditions = dict(self.initial_state)
-        manifest.boundary_conditions = dict(self.boundary_state)
+        # The clock origin is a boundary condition of the run, not a detail of
+        # the driver: two replays over different periods of one record are
+        # different configurations and must not hash alike.
+        manifest.boundary_conditions = self.declared_boundary_state()
         manifest.dependency_graph = self.graph.to_dict()
         self.manifest = manifest
         return manifest
@@ -166,6 +180,7 @@ class Kernel:
             schedule=self.schedule,
             state_registry=self.states,
             graph=self.graph,
+            start_time=self.start_time,
         )
         coupler.auditor.tolerance = self.conservation_tolerance
 
@@ -193,7 +208,7 @@ class Kernel:
             raise
         manifest.warnings.extend(estimate.warnings)
 
-        coupler.initialize(self.initial_state, self.boundary_state)
+        coupler.initialize(self.initial_state, self.declared_boundary_state())
         self.coupler = coupler
         return coupler, estimate
 

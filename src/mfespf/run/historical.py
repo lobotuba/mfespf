@@ -34,7 +34,13 @@ from mfespf.run.configurations import airless_radiating_body
 from mfespf.run.driver import Kernel
 from mfespf.run.modes import OperatingMode
 
-__all__ = ["REPLAY_CLAIM_ID", "historical_replay", "replay_clock"]
+__all__ = [
+    "REPLAY_CLAIM_ID",
+    "historical_replay",
+    "observed_replay",
+    "replay_clock",
+    "replay_steps",
+]
 
 REPLAY_CLAIM_ID = "CLM-STAGE6-REPLAY-001"
 
@@ -105,6 +111,10 @@ def historical_replay(
     kwargs.setdefault("solar_step_multiple", 1)
     kwargs["spectral_grid"] = grid
     kwargs["master_dt"] = master_dt
+    # The clock starts where the record does. A replay of a dated record whose
+    # run began at zero would ask for a boundary condition outside the record's
+    # coverage on its very first step (TIM-001).
+    kwargs["start_time"] = float(clock[0])
     kwargs["solar_source"] = RecordedSolarSource(grid=grid, adapter=working, variable=variable)
     # Prescribed history, not reconstruction: the run is driven by a record and
     # is not being compared with one here. What it may be called afterwards is
@@ -121,3 +131,30 @@ def historical_replay(
 def replay_steps(adapter: HistoricalDataAdapter, variable: str, master_dt: float) -> int:
     """How many master steps the record can support."""
     return int(replay_clock(adapter, variable, master_dt).size) - 1
+
+
+def observed_replay(dataset_id: str = "NRLTSI2-MONTHLY", **kwargs: Any) -> Kernel:
+    """The same replay, driven by a real irradiance record instead of a synthetic one.
+
+    Nothing in the pathway changes. The record is loaded through the same
+    adapter, resampled by the same function, registered with the same role --
+    and because its provenance class is ``PROXY`` rather than ``SYNTHETIC``, the
+    cap the evaluator places on what a comparison may conclude lifts by itself.
+    That was the design claim Stage 6 made with the synthetic record, and this is
+    the thing that tests it.
+
+    NRLTSI2 is a reconstruction, not a measurement, before the satellite era. It
+    is classified ``PROXY`` for that reason, and a claim resting on the early
+    part of the record inherits the reconstruction's assumptions rather than
+    only an instrument's uncertainty.
+    """
+    from mfespf.data.loaders import load_declared
+
+    kwargs.setdefault("run_id", f"STAGE6-REPLAY-{dataset_id}")
+    kwargs.setdefault(
+        "purpose",
+        f"Stage 6 historical replay of {dataset_id}: a measured-lineage irradiance record "
+        f"played through the airless body, with the transformation, the operating mode and "
+        f"the whole-run energy budget recorded.",
+    )
+    return historical_replay(adapter=load_declared(dataset_id), **kwargs)

@@ -184,7 +184,10 @@ class SolarSource(Module):
 
     # --- lifecycle --------------------------------------------------------
     def initialize(self, initial_state: dict[str, Any], boundary_state: dict[str, Any]) -> None:
-        self._update(0.0)
+        # Not zero: a run replaying a dated record starts its master clock where
+        # the record does, and a source that published its value for t = 0 would
+        # be publishing one from outside the record entirely (TIM-001).
+        self._update(float(boundary_state.get("master_start_time", 0.0)))
         self.mark_initialized()
 
     def compute_tendencies(self) -> list[Any]:

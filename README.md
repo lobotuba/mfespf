@@ -35,7 +35,7 @@ record — on top of the full Version 1.0 interface spine.
 | 3 — atmospheric thermodynamics: hydrostatic balance, dry convection, water vapour, phase-change energy | implemented |
 | 4 — clouds: no-cloud control, prescribed and time-varying cloud state, separate SW and LW effects | implemented |
 | 5 — thermal storage: surface heat capacity, two-reservoir ocean, step/pulse/impulse/periodic forcing, measured timescales | implemented |
-| 6 — historical replay: declared inputs, frozen equations, withheld records, whole-run budget | implemented, on a **synthetic** record — no observational dataset is registered |
+| 6 — historical replay: declared inputs, frozen equations, withheld records, whole-run budget | implemented, and running on real irradiance, temperature and ocean-heat records |
 | 7 — hindcast and registered prediction | machinery present (freeze records), not exercised |
 
 189 mandatory requirements are tracked; 147 currently have a bound acceptance
@@ -43,23 +43,26 @@ test. All eight KER-012 reference configurations exist and run. See
 [`docs/traceability.md`](docs/traceability.md) — the uncovered requirements are
 listed there rather than left implicit.
 
-**Nothing in this framework has yet been compared with an observation.** The
-Stage 6 replay runs against a record the framework generates itself, and the
-provenance machinery refuses to let that support any empirical claim. That
-refusal is the deliverable; the physics is Stage 1's.
+Six real global-mean records are declared in
+[`data/sources.yaml`](data/sources.yaml) and load through the framework's
+provenance path. **No physical claim has been registered against them yet** —
+the replay reproduces the equilibrium its own input implies, which tests the
+pathway, not the physics.
 
 ## Install and run
 
 ```bash
 python -m pip install -e ".[dev]"     # Python 3.11+
-python -m pytest                       # 305 tests, ~2 min on a workstation
+python -m pytest                       # 323 tests, ~2 min on a workstation
+python tools/fetch_data.py             # optional: fetch the declared datasets
 mfespf run airless --steps 4800        # Stage 1: 200 simulated days
 mfespf run window --steps 6000 --heat-capacity 1e6            # Stage 2 column
 mfespf run moist  --steps 4000 --heat-capacity 1e6            # Stage 3 moist column
 mfespf run cloud  --steps 3000 --heat-capacity 1e6            # Stage 4 cloudy column
 mfespf run ocean  --steps 16000 --master-dt 864000 --steps-per-solar-exchange 1 \
                   --forcing step                              # Stage 5 step response
-mfespf run replay --steps 500                                 # Stage 6 historical replay
+mfespf run replay --steps 500                                 # Stage 6, synthetic record
+mfespf run replay-observed --steps 2000                       # Stage 6, real NRLTSI2 record
 ```
 
 ```
@@ -75,7 +78,8 @@ run STAGE1-AIRLESS-001 [complete]
 Configurations: `airless`, `airless-banded`, `null-control` (Stage 1);
 `transparent`, `absorbing`, `window`, `grey-layer` (Stage 2);
 `radiative-convective`, `moist` (Stage 3); `no-cloud`, `cloud` (Stage 4);
-`surface-storage`, `ocean`, `column-ocean` (Stage 5); `replay` (Stage 6).
+`surface-storage`, `ocean`, `column-ocean` (Stage 5); `replay`, `replay-observed`
+(Stage 6).
 Add `--manifest run.json` to write the run record. The Stage 5 configurations
 take `--forcing step|pulse|impulse|periodic|none` and report the response
 timescales they measure; `--reconstruct` adds the whole-run energy budget to any
@@ -179,11 +183,22 @@ energy reconstruction over [0, 1.24157e+09] s (479 coupling intervals)
   operating mode: prescribed_history; inputs taken from the compared period
 ```
 
-The record is **synthetic**, which the framework treats as a fact with
-consequences rather than a caveat in prose: the evaluator caps what this stage
-may conclude at `EMPIRICALLY_UNRESOLVED` however well the comparison goes, and
-the run refuses to be described as a hindcast or a prediction. Registering an
-observational record in its place changes the provenance class and nothing else.
+That record is **synthetic**, which the framework treats as a fact with
+consequences rather than a caveat in prose: the evaluator caps what a comparison
+against it may conclude at `EMPIRICALLY_UNRESOLVED` however well the metric
+passes, and the run refuses to be described as a hindcast or a prediction.
+
+`mfespf run replay-observed` is the same configuration driven by the real
+NRLTSI2 irradiance reconstruction — 1727 monthly steps from 1882, budget closing
+to 4.7e-16 over the whole replay. Only the record changed, and because its
+provenance class is `PROXY` rather than `SYNTHETIC`, the evaluator's cap lifts by
+itself. That was the design claim Stage 6 made with a generated record, and it is
+now tested rather than asserted.
+
+The operating-mode rule does *not* lift with it. A replay is still a run handed
+the irradiance of the period it covers, so it still cannot be reported as a
+hindcast. Two guards against two different mistakes, and a real record relaxes
+only one.
 
 The physics is deliberately small; the point is that it is **accounted**. The
 coupled energy budget closes to ~1e-16 relative at every coupling interval.
@@ -233,6 +248,7 @@ The interface spine is the substantial part. See
 | Declared experiments | [`experiments/protocol.py`](src/mfespf/experiments/protocol.py) | the threshold is hashed before the run; editing it invalidates the evaluation |
 | Timescales | [`evaluation/timescales.py`](src/mfespf/evaluation/timescales.py) | measured per mechanism; one universal climate index is refused |
 | Historical records | [`data/records.py`](src/mfespf/data/records.py) | resampling reports the variability it removed, and replays from its own record |
+| Record readers | [`data/loaders.py`](src/mfespf/data/loaders.py) | four formats onto one declared epoch; the checksum is verified before the file is parsed |
 | Data adapter | [`data/adapter.py`](src/mfespf/data/adapter.py) | a run cannot read past a record's coverage, or a variable the record does not declare |
 | Operating modes | [`run/modes.py`](src/mfespf/run/modes.py) | a reconstruction cannot be reported as a prediction |
 | Whole-run budget | [`evaluation/reconstruction.py`](src/mfespf/evaluation/reconstruction.py) | a drift too small to see per interval is visible over the run |
@@ -340,6 +356,18 @@ Sun. The registry refuses an undeclared provenance in any evidence role, and the
 evaluator caps a claim tested against a generated record at
 `EMPIRICALLY_UNRESOLVED` — the metric is still reported, because the numerical
 check is real; what is withheld is the empirical conclusion.
+
+**An uncertainty column says what kind of uncertainty it is.** Real records
+forced this. HadCRUT5 publishes a 95 percent interval, NOAA's ocean heat content
+a standard error, NRLTSI2 a standard uncertainty — and combining them as though
+they were the same quantity would understate some by a factor of two. Nothing in
+the numbers distinguishes them, so `UncertaintyKind` travels with the array and a
+series carrying uncertainties without declaring their meaning is refused.
+
+**A temperature anomaly is in kelvin, not degrees Celsius.** HadCRUT5's column
+heading says "deg C" and the value is a *difference*; a difference of one degree
+Celsius is one kelvin exactly. Declaring it `degC` would make the unit registry
+apply the 273.15 offset at the first conversion and be wrong by 273.15 K.
 
 **A resampling reports the variability it removed.** Charter §11.4 asks for
 aggregation, interpolation, uncertainty *and lost frequency content*. The fourth

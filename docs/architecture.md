@@ -163,6 +163,43 @@ manifest marks the run unusable and that is what a consumer checks -- but a
 failed run whose trajectory has been discarded cannot be diagnosed, and charter
 3.5 asks for negative results to be preserved.
 
+### Reading four formats onto one clock
+
+The four declared records agree on nothing. HadCRUT5 writes `1850-01`, Berkeley
+Earth writes percent-commented fixed columns with `NaN` where it has no value,
+NOAA writes decimal years, LISIRD writes days since 1610. One parser each, and
+each converts to seconds since a declared epoch of 1850-01-01. Two records
+loaded through this module are then on the same clock and can be compared
+without anyone doing calendar arithmetic by hand, which is the arithmetic that
+silently puts a series a year out.
+
+Interval means are timestamped at interval *midpoints*, because `resample`
+builds its cells centred on the sample times. A series timestamped at interval
+starts resamples half an interval early -- a small error, and one that survives
+every check that does not look at a calendar.
+
+Three things real data forced that the synthetic record had not:
+
+- **An uncertainty column has to say what it is.** HadCRUT5 publishes a 95
+  percent interval, NOAA's heat content a standard error, NRLTSI2 a standard
+  uncertainty. Combining them as though they were one quantity would understate
+  some by a factor of two, and nothing in the numbers distinguishes them. So
+  `UncertaintyKind` travels with the array, and a series carrying uncertainties
+  without one is refused.
+- **An anomaly is in kelvin.** HadCRUT5's heading says "deg C" and the value is a
+  difference; a difference of one degree Celsius is one kelvin exactly.
+  Declaring it `degC` would make the unit registry apply the 273.15 offset at
+  the first conversion.
+- **The clock origin is a boundary condition.** A record covering 1882 onward is
+  not at zero on a coordinate whose epoch is 1850, so a run replaying it starts
+  its master clock where the record does -- and that origin is in the manifest
+  and the configuration hash, because two replays over different periods of one
+  record are different runs.
+
+The checksum is verified before the file is parsed. Reading first and noticing
+second would mean the values had already reached the caller by the time anyone
+knew they were the wrong ones.
+
 ### What a run may be called
 
 TIM-005 lists seven operating modes; TIM-006 adds the rule that makes the list
