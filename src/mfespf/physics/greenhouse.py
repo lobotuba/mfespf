@@ -183,12 +183,32 @@ mattering. What the fitted numbers below control is where the wings cross unit
 optical depth.
 """
 
-VAPOUR_WING_DECAY_PER_METRE = 2.442e3
-"""Wing decay of both vapour bands, about 24 cm^-1. Calibrated.
+VAPOUR_WING_DECAY_PER_METRE = 3.617e3
+"""Wing decay of both vapour bands, about 36 cm^-1. Calibrated.
 
-Fitted against a *published radiation observation* -- the CERES clear-sky
-outgoing longwave flux of about 265 W m^-2 -- and never against a temperature
+Fitted against a *published radiation observation* -- the CERES all-sky
+outgoing longwave flux of about 240 W m^-2 -- and never against a temperature
 record, which is what keeps HadCRUT5 available as validation (INF-003).
+
+**All-sky, not clear-sky, and the difference is not a detail.** It was fitted to
+the clear-sky 265 first, and that was wrong: these columns carry an albedo of
+0.3, which is the *all-sky* planetary albedo, so they absorb 238 W m^-2 and in
+equilibrium must emit 238. Pairing a clear-sky radiative target with an all-sky
+albedo gives a column the cloud's cooling without the cloud's warming, and it
+settled 7.5 K below its own calibration point -- which then halved the feedback,
+because Clausius-Clapeyron is exponential and a cold column is a dry one.
+
+So the vapour opacity here stands in for the cloud longwave effect as well as
+its own. That is a stand-in with a name rather than a hidden one.
+
+It weakens the base state as a prediction without abolishing it. Equilibrium
+requires the outgoing flux to equal the absorbed flux, and the fit sets the
+outgoing flux at 288 K -- but it sets it for the *prescribed* profile the
+calibration uses, and a coupled column builds its own profile by convective
+adjustment. So the column does not arrive at 288 K by construction: it arrives
+at 293.0, five kelvin warm, with a greenhouse effect of 38 K against an observed
+33. What is constructed is the flux at one profile; what remains predicted is
+everything the column does with a different one.
 
 One decay serves both bands. Line strengths do not really fall away from the
 rotational and the vibrational band at the same rate, and giving each its own
@@ -209,7 +229,7 @@ vapour amount, because it is dominated by self-broadening. Both are declared
 approximations of the reduced model and both are listed in the equation record.
 """
 
-CO2_WING_DECAY_WITH_VAPOUR_PER_METRE = 1.227e3
+CO2_WING_DECAY_WITH_VAPOUR_PER_METRE = 1.273e3
 """The CO2 wing decay for a column whose infrared background *is* the vapour.
 
 A band's fitted width depends on what else is absorbing around it. With water

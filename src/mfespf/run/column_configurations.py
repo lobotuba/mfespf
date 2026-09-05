@@ -19,6 +19,7 @@ from mfespf.contracts.cost import ResourceBudget, ResourceClass
 from mfespf.contracts.module import ModuleStatus
 from mfespf.contracts.spectral import SpectralGrid
 from mfespf.core.constants import value_of
+from mfespf.core.errors import ConfigurationError
 from mfespf.coupling.coupler import CouplingSchedule, ModuleSchedule
 from mfespf.coupling.graph import Cycle, DependencyGraph, Edge, EdgeType, Node, NodeType
 from mfespf.physics.atmosphere import (
@@ -49,7 +50,12 @@ from mfespf.physics.surface import (
     surface_state_entry,
     surface_water_state_entry,
 )
-from mfespf.physics.water import VAPOUR_STATE, WaterModule, vapour_state_entry
+from mfespf.physics.water import (
+    VAPOUR_STATE,
+    PrescribedHumidityModule,
+    WaterModule,
+    vapour_state_entry,
+)
 from mfespf.registries.datasets import DatasetRegistry
 from mfespf.registries.states import StateRegistry
 from mfespf.run.driver import Kernel
@@ -594,6 +600,8 @@ def radiating_column(
     convection: bool = False,
     water: bool = False,
     radiative_vapour: bool = False,
+    prescribed_humidity: float | None = None,
+    humidity_responds_to_temperature: bool = True,
     cloud: CloudProfile | None = None,
     greenhouse: Any = None,
     volcanic: Any = None,
@@ -685,7 +693,29 @@ def radiating_column(
     # before convection so that convection stabilises the profile condensation
     # has already produced, rather than one it is about to destabilise.
     order = order_head
-    if water:
+    if water and prescribed_humidity is not None:
+        raise ConfigurationError(
+            "a column runs the water module or a prescribed humidity profile, never "
+            "both: they publish the same field, and two producers of one field is an "
+            "ownership question the coupler cannot answer"
+        )
+    if prescribed_humidity is not None:
+        # The control for the feedback. It publishes the same field the water
+        # module does, so radiation needs no second input and the only
+        # difference between the two configurations is where the humidity
+        # distribution came from -- which is the thing being controlled for.
+        schedules.append(
+            ModuleSchedule(
+                PrescribedHumidityModule(
+                    n_layers=n_layers,
+                    relative_humidity=prescribed_humidity,
+                    respond_to_temperature=humidity_responds_to_temperature,
+                ),
+                step_multiple=1,
+            )
+        )
+        order.append("water")
+    elif water:
         schedules.append(
             ModuleSchedule(
                 WaterModule(n_layers=n_layers, evaporation_coefficient=evaporation_coefficient),
@@ -744,7 +774,7 @@ def radiating_column(
         configuration_id=run_id,
         coupling_frequency=coupling_frequency,
         convection=convection,
-        water=water,
+        water=water or prescribed_humidity is not None,
         clouds=cloud is not None,
         deep_ocean=deep_ocean,
         greenhouse=greenhouse is not None,
@@ -762,7 +792,10 @@ def radiating_column(
         purpose=purpose,
         schedule=schedule,
         states=_build_state_registry(
-            n_layers=n_layers, convection=convection, water=water, deep_ocean=deep_ocean
+            n_layers=n_layers,
+            convection=convection,
+            water=water,
+            deep_ocean=deep_ocean,
         ),
         equations=build_equation_registry(),
         graph=graph,

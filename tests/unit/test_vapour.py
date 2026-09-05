@@ -18,8 +18,16 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from mfespf.contracts.module import StepContext
 from mfespf.core.errors import ConfigurationError
-from mfespf.physics.atmosphere import hydrostatic_layer_masses
+from mfespf.core.quantities import (
+    Field,
+    Provenance,
+    QuantityKind,
+    SpatialSupport,
+    TimeSemantics,
+)
+from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE, hydrostatic_layer_masses
 from mfespf.physics.greenhouse import (
     CO2_WING_DECAY_PER_METRE,
     CO2_WING_DECAY_WITH_VAPOUR_PER_METRE,
@@ -32,6 +40,7 @@ from mfespf.physics.greenhouse import (
 )
 from mfespf.physics.radiative_transfer import solve_column_radiation
 from mfespf.physics.thermodynamics import saturation_specific_humidity
+from mfespf.physics.water import VAPOUR_STATE, PrescribedHumidityModule
 
 pytestmark = pytest.mark.stage(6)
 
@@ -188,18 +197,27 @@ def test_unphysical_vapour_parameters_are_refused():
 
 
 @pytest.mark.req("EQR-004", "INF-003", "VAL-002")
-def test_the_clear_sky_outgoing_longwave_matches_the_calibration_target():
+def test_the_outgoing_longwave_matches_the_flux_the_column_absorbs():
     """The calibration target is a radiation observation, not a temperature.
 
-    CERES measures a clear-sky outgoing longwave flux near 265 W m^-2. Fitting
-    to that leaves the surface-temperature record untouched and therefore still
-    available as independent validation, which is the whole of INF-003.
-    """
-    assert _olr(0.0, follow=True) == pytest.approx(265.0, abs=2.0)
+    CERES measures an all-sky outgoing longwave flux near 240 W m^-2. Fitting to
+    that leaves the surface-temperature record untouched and so still available
+    as independent validation, which is the whole of INF-003.
 
-    # The clear-sky greenhouse effect follows from it rather than being a second
-    # target: sigma T^4 at 288 K is 390 W m^-2, and the observed value is ~125.
-    assert 390.1 - _olr(0.0, follow=True) == pytest.approx(125.0, abs=5.0)
+    **All-sky and not clear-sky, because of the albedo these columns carry.**
+    An albedo of 0.3 is the all-sky planetary value, so the column absorbs
+    340.25 * 0.7 = 238 W m^-2 and in equilibrium must emit exactly that. It was
+    fitted to the clear-sky 265 first, which gave the column the cloud's cooling
+    without the cloud's warming: it settled 7.5 K below its own calibration
+    point, and the feedback measured there was half the right size, because
+    Clausius-Clapeyron is exponential and a cold column is a dry one.
+    """
+    absorbed = 340.25 * (1.0 - 0.3)
+    assert _olr(0.0, follow=True) == pytest.approx(absorbed, abs=2.0)
+
+    # The greenhouse effect follows from it rather than being a second target:
+    # sigma T^4 at 288 K is 390 W m^-2, and the observed all-sky value is ~155.
+    assert 390.1 - _olr(0.0, follow=True) == pytest.approx(155.0, abs=6.0)
 
 
 @pytest.mark.req("EQR-004", "SYS-006")
@@ -245,7 +263,7 @@ def test_letting_the_vapour_follow_the_temperature_amplifies_the_response():
     assert free < held  # and it is amplifying
 
     feedback = held - free
-    assert feedback == pytest.approx(2.3, abs=0.4)
+    assert feedback == pytest.approx(2.29, abs=0.25)
     # Published clear-sky estimates are near 1.8 W m^-2 K^-1. This is larger
     # because the configuration has no lapse-rate feedback, which in the real
     # atmosphere cancels a substantial part of it -- declared, not tuned away.
@@ -292,3 +310,125 @@ def test_vapour_confined_to_the_lowest_layer_has_no_feedback_at_all():
 
     assert amplification(_vapour) > 2.0  # the feedback the relation can produce
     assert amplification(confine) == pytest.approx(1.0, abs=1e-3)  # and none of it survives
+
+
+# --- the prescribed-humidity control ----------------------------------------
+
+
+def _humidity_inputs(temperature: np.ndarray) -> dict[str, Field]:
+    """The three fields the control module reads, built directly."""
+    common = {
+        "quantity_kind": QuantityKind.DIAGNOSTIC,
+        "time_semantics": TimeSemantics.INSTANTANEOUS,
+        "timestamp": 0.0,
+        "spatial_support": SpatialSupport.LAYER_AVERAGE,
+        "dimensions": ("layer",),
+        "provenance": Provenance(producer="test", derivation="test fixture"),
+    }
+    return {
+        ATMOSPHERE_TEMPERATURE_STATE: Field(
+            field_id=ATMOSPHERE_TEMPERATURE_STATE,
+            physical_name="layer temperature",
+            symbol="T",
+            values=np.asarray(temperature, dtype=float),
+            units="K",
+            **common,  # type: ignore[arg-type]
+        ),
+        "atmosphere_layer_mass": Field(
+            field_id="atmosphere_layer_mass",
+            physical_name="layer mass",
+            symbol="m",
+            values=MASS,
+            units="kg m^-2",
+            **common,  # type: ignore[arg-type]
+        ),
+        "atmosphere_layer_pressure": Field(
+            field_id="atmosphere_layer_pressure",
+            physical_name="layer pressure",
+            symbol="p",
+            values=PRESSURE,
+            units="Pa",
+            **common,  # type: ignore[arg-type]
+        ),
+    }
+
+
+def _stepped(module: PrescribedHumidityModule, temperature: np.ndarray, step: int) -> np.ndarray:
+    module.begin_step(StepContext(time=float(step) * 3600.0, dt=3600.0, step_index=step))
+    module.receive_inputs(_humidity_inputs(temperature))
+    module.compute_tendencies()
+    return np.asarray(module.emit_outputs()[VAPOUR_STATE].values, dtype=float)
+
+
+@pytest.mark.req("EQR-002", "WAT-002", "CLM-003")
+def test_the_prescribed_profile_follows_clausius_clapeyron():
+    """What is prescribed is the distribution; what is not is the amount.
+
+    Relative humidity is imposed uniformly, so the vapour a layer carries is a
+    fixed fraction of what it *can* carry -- and how much it can carry comes
+    from Clausius-Clapeyron. The seven percent per kelvin that results is
+    therefore not imposed, which is the whole reason this counts as a control
+    for a feedback rather than a way of writing one in.
+    """
+    module = PrescribedHumidityModule(n_layers=N_LAYERS, relative_humidity=0.7)
+    module.validate_configuration()
+    module.initialize({}, {"master_start_time": 0.0})
+
+    cool = _stepped(module, PROFILE, 0)
+    warm = _stepped(module, PROFILE + 4.0, 1)
+
+    assert warm.sum() > cool.sum()
+    per_kelvin = (warm.sum() / cool.sum()) ** 0.25 - 1.0
+    assert 0.06 < per_kelvin < 0.09
+
+    # And the relative humidity really is what was asked for, in every layer.
+    published = np.asarray(module.emit_outputs()["atmosphere_relative_humidity"].values)
+    assert np.allclose(published, 0.7)
+
+    with pytest.raises(ConfigurationError, match="fraction"):
+        PrescribedHumidityModule(relative_humidity=1.4).validate_configuration()
+
+
+@pytest.mark.req("VAL-001", "CLM-003", "HYP-007")
+def test_holding_the_vapour_removes_the_feedback_and_nothing_else():
+    """The null control for the control.
+
+    Freezing the vapour has to change exactly one thing: whether the humidity
+    is allowed to answer the temperature. The frozen module sees the same warmer
+    column and publishes the same vapour it published before, so a difference
+    between the two runs is the feedback and cannot be anything else.
+    """
+    frozen = PrescribedHumidityModule(
+        n_layers=N_LAYERS, relative_humidity=0.7, respond_to_temperature=False
+    )
+    frozen.initialize({}, {"master_start_time": 0.0})
+    first = _stepped(frozen, PROFILE, 0)
+    later = _stepped(frozen, PROFILE + 4.0, 1)
+    assert np.array_equal(first, later)  # the column warmed; the vapour did not
+
+    free = PrescribedHumidityModule(n_layers=N_LAYERS, relative_humidity=0.7)
+    free.initialize({}, {"master_start_time": 0.0})
+    assert np.array_equal(_stepped(free, PROFILE, 0), first)  # identical at the start
+    assert _stepped(free, PROFILE + 4.0, 1).sum() > later.sum()  # and only then differ
+
+    assert frozen.parameters()["respond_to_temperature"] is False
+    assert frozen.contract.conserved_quantities == ()  # it moves no water and says so
+
+
+@pytest.mark.req("MOD-006", "AUD-002")
+def test_the_prescribed_profile_is_republished_every_step():
+    """The trap a PRESCRIBED module falls into, and this one must not.
+
+    ``emit_state`` runs at initialisation. A module that published its profile
+    only there would freeze the humidity at whatever the first step implied and
+    supply no feedback at all, while looking exactly like a module that did --
+    which is how the cloud module once went wrong.
+    """
+    module = PrescribedHumidityModule(n_layers=N_LAYERS, relative_humidity=0.7)
+    module.initialize({}, {"master_start_time": 0.0})
+
+    warmer = [_stepped(module, PROFILE + shift, i) for i, shift in enumerate((0.0, 2.0, 4.0))]
+    assert warmer[0].sum() < warmer[1].sum() < warmer[2].sum()
+
+    # And it owns nothing: the vapour it publishes is not a state it advances.
+    assert module.contract.owned_state_ids == frozenset()

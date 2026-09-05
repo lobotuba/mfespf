@@ -63,6 +63,7 @@ from mfespf.registries.states import (
 __all__ = [
     "VAPOUR_STATE",
     "WATER_INTERFACE",
+    "PrescribedHumidityModule",
     "WaterModule",
     "vapour_state_entry",
 ]
@@ -625,3 +626,282 @@ class WaterModule(Module):
 
     def restore(self, checkpoint: dict[str, Any]) -> None:
         self.vapour = np.array(checkpoint[VAPOUR_STATE], dtype=float)
+
+
+class PrescribedHumidityModule(Module):
+    """A humidity profile imposed at fixed relative humidity (WAT-002, HYP-005).
+
+    **This is a control, not a better water module.** It exists because two
+    untested things were entangled: whether the vapour absorption relation gives
+    the right feedback when the humidity distribution is realistic, and whether
+    this model can produce a realistic humidity distribution. ``WaterModule``
+    has no vertical transport, so it cannot -- all its vapour ends up in the
+    lowest layer -- and a feedback measured through it tells you nothing about
+    the radiation. Imposing the distribution pins the second question so the
+    first can be answered on its own.
+
+    So the *distribution* is prescribed and the *amount* is not. Relative
+    humidity is held fixed and Clausius-Clapeyron does the rest, which is the
+    idealisation Manabe and Wetherald used in 1967 and for the same reason. The
+    feedback that results is therefore not a prediction of this configuration:
+    its size follows largely from the assumption that relative humidity is
+    conserved, and a claim registered against it would be confirming what was
+    put in. What it *is* good for is a reference number -- the feedback the
+    radiation produces when the humidity is right by construction -- against
+    which a real transport scheme can later be judged.
+
+    ``respond_to_temperature=False`` freezes the vapour at the profile the first
+    step implies, which removes the feedback while changing nothing else. That
+    is the null control for the control. Start it from the responding run's own
+    equilibrium: freezing at a cold initial guess makes the control carry a
+    spin-up transient the experiment does not, and their difference then is not
+    the feedback.
+
+    **The reference numbers this module exists to produce**, measured in an
+    eight-layer convecting column at 0.7 relative humidity::
+
+        vapour free      dT_2x 4.394 K   lambda 0.842 W m^-2 K^-1
+        vapour frozen    dT_2x 1.768 K   lambda 2.093
+        amplification    2.49x           feedback +1.251 W m^-2 K^-1
+
+    The amplification agrees with the 2.51x a fixed-profile radiative
+    calculation gives, which is the check that says the coupled column is doing
+    what the absorption relation implies. The feedback is smaller than that
+    calculation's +2.29 because this column convects: convective adjustment
+    supplies something close to a lapse-rate feedback, and published estimates
+    put water vapour and lapse rate together near +1.2 W m^-2 K^-1.
+
+    Two caveats on using these as a target. The base state is 293.0 K against an
+    observed 288, and sensitivity rises with base temperature because
+    Clausius-Clapeyron is exponential, so a transport scheme that lands at a
+    different temperature is not being compared like for like. And dT_2x of
+    4.39 K is high for a column with no cloud and no surface-albedo feedback --
+    higher than the real system's, which has both. Neither is tuned away here.
+
+    Owns no state. It publishes ``atmosphere_water_vapour`` the way the
+    prescribed cloud and greenhouse modules publish fields they do not own, so a
+    configuration runs this module or ``WaterModule``, never both.
+    """
+
+    def __init__(
+        self,
+        *,
+        module_id: str = "water",
+        radiation_module_id: str = "radiation",
+        atmosphere_module_id: str = "atmosphere",
+        n_layers: int = 8,
+        relative_humidity: float = 0.7,
+        respond_to_temperature: bool = True,
+        status: ModuleStatus = ModuleStatus.PRESCRIBED,
+    ) -> None:
+        contract = ModuleContract(
+            module_id=module_id,
+            module_name="prescribed fixed-relative-humidity vapour profile",
+            module_version=V1,
+            interface_version=V1,
+            fidelity_level=FidelityLevel.PRESCRIBED,
+            physical_basis=(
+                "Relative humidity held fixed, so the vapour a layer carries is a fixed "
+                "fraction of what it can carry. The saturation value comes from "
+                "Clausius-Clapeyron, so the vapour amount rises with temperature at "
+                "about seven percent per kelvin without that rate being imposed."
+            ),
+            governing_equation_ids=(
+                EQUATION_IDS["clausius_clapeyron"],
+                EQUATION_IDS["vapour_band_absorption"],
+            ),
+            assumptions=(
+                "relative humidity is uniform in height and constant in time",
+                "no water mass budget: this module moves no water and closes none",
+                "no latent heat, so the energy a real phase change carries is absent",
+            ),
+            validity_domain=(
+                "A reference distribution for measuring the radiative water-vapour "
+                "feedback. Nothing about the water cycle, precipitation, latent heating "
+                "or the humidity distribution itself is in scope, because all of those "
+                "are imposed here rather than computed."
+            ),
+            required_inputs=(
+                ATMOSPHERE_TEMPERATURE_STATE,
+                "atmosphere_layer_mass",
+                "atmosphere_layer_pressure",
+            ),
+            produced_outputs=(
+                VAPOUR_STATE,
+                "atmosphere_specific_humidity",
+                "atmosphere_relative_humidity",
+                "atmosphere_precipitable_water",
+            ),
+            conserved_quantities=(),
+            uncertainty_outputs=("prescribed_relative_humidity_boundary_condition",),
+            correctness_tests=(
+                "test_the_prescribed_profile_follows_clausius_clapeyron",
+                "test_holding_the_vapour_removes_the_feedback_and_nothing_else",
+                "test_the_prescribed_profile_is_republished_every_step",
+            ),
+            known_limitations=(
+                "Prescribed, so the humidity distribution is an input. The feedback that "
+                "follows is not a prediction of this configuration: its magnitude comes "
+                "largely from the assumption that relative humidity is conserved, so no "
+                "claim about the water-vapour feedback can be registered against it.",
+                "No water or latent-energy budget at all. Vapour appears and disappears "
+                "with the temperature and nothing accounts for it, which is why this "
+                "module conserves nothing and says so.",
+                "Relative humidity is uniform in height. The real profile falls through "
+                "the mid-troposphere, so this overstates the vapour aloft, which is "
+                "where the feedback is most sensitive.",
+            ),
+            cost=CostDeclaration(
+                module_id=module_id,
+                time_complexity="O(n_layers)",
+                memory_complexity="O(n_layers)",
+                scaling_variables=("n_layers",),
+                work_units_per_step=0.3,
+                benchmark_configuration=f"{n_layers} layers, global scalar column",
+                peak_memory_bytes=8 * n_layers + 4096,
+                supported_resource_classes=(
+                    ResourceClass.LAPTOP,
+                    ResourceClass.ENGINEERING_WORKSTATION,
+                ),
+                lower_fidelity_alternatives=("dry_column_no_water",),
+            ),
+        )
+        super().__init__(contract, status=status)
+        self.radiation_module_id = radiation_module_id
+        self.atmosphere_module_id = atmosphere_module_id
+        self.n_layers = n_layers
+        self.relative_humidity = relative_humidity
+        self.respond_to_temperature = respond_to_temperature
+        self.vapour = np.zeros(n_layers)
+        self._specific_humidity = np.zeros(n_layers)
+        self._held: np.ndarray | None = None
+
+    def validate_configuration(self) -> None:
+        super().validate_configuration()
+        if not 0.0 <= self.relative_humidity <= 1.0:
+            raise ConfigurationError(
+                f"relative humidity {self.relative_humidity} is not a fraction between zero and one"
+            )
+        if self.n_layers < 1:
+            raise ConfigurationError("a humidity profile needs at least one layer")
+
+    def initialize(self, initial_state: dict[str, Any], boundary_state: dict[str, Any]) -> None:
+        self.vapour = np.zeros(self.n_layers)
+        self._specific_humidity = np.zeros(self.n_layers)
+        self._held = None
+        self.mark_initialized()
+
+    def compute_tendencies(self) -> list[Any]:
+        temperature = self.input_field(ATMOSPHERE_TEMPERATURE_STATE).require_units("K").values
+        layer_mass = self.input_field("atmosphere_layer_mass").require_units("kg m^-2").values
+        pressure = self.input_field("atmosphere_layer_pressure").require_units("Pa").values
+
+        saturation = saturation_specific_humidity(
+            np.asarray(temperature, dtype=float), np.asarray(pressure, dtype=float)
+        )
+        self._specific_humidity = self.relative_humidity * saturation
+        vapour = self._specific_humidity * np.asarray(layer_mass, dtype=float)
+
+        if self.respond_to_temperature:
+            self.vapour = vapour
+        else:
+            # The null control: frozen at what the first step implied, so the
+            # column warms without its vapour being allowed to answer.
+            if self._held is None:
+                self._held = np.array(vapour)
+            self.vapour = np.array(self._held)
+            self._specific_humidity = self.vapour / np.asarray(layer_mass, dtype=float)
+        return []
+
+    def precipitable_water(self) -> float:
+        return float(np.sum(self.vapour))
+
+    def _fields(self, timestamp: float) -> dict[str, Field]:
+        provenance = Provenance(
+            producer=self.module_id,
+            derivation=EQUATION_IDS["clausius_clapeyron"],
+            notes="prescribed distribution; relative humidity is imposed, not computed",
+        )
+        profile = {
+            "quantity_kind": QuantityKind.BOUNDARY_VALUE,
+            "time_semantics": TimeSemantics.INSTANTANEOUS,
+            "timestamp": timestamp,
+            "spatial_support": SpatialSupport.LAYER_AVERAGE,
+            "dimensions": ("layer",),
+            "coordinate_system": "pressure_layers",
+            "sign_convention": SignConvention.POSITIVE_DEFINITE,
+            "provenance": provenance,
+        }
+        return {
+            VAPOUR_STATE: Field(
+                field_id=VAPOUR_STATE,
+                physical_name="water vapour mass per unit area in each layer",
+                symbol="w",
+                values=np.array(self.vapour),
+                units="kg m^-2",
+                phase_or_species="water_vapour",
+                **profile,  # type: ignore[arg-type]
+            ),
+            "atmosphere_specific_humidity": Field(
+                field_id="atmosphere_specific_humidity",
+                physical_name="specific humidity",
+                symbol="q",
+                values=np.array(self._specific_humidity),
+                units="1",
+                **profile,  # type: ignore[arg-type]
+            ),
+            "atmosphere_relative_humidity": Field(
+                field_id="atmosphere_relative_humidity",
+                physical_name="relative humidity",
+                symbol="RH",
+                values=np.full(self.n_layers, self.relative_humidity)
+                if self.respond_to_temperature
+                else np.array(self._specific_humidity),
+                units="1",
+                **profile,  # type: ignore[arg-type]
+            ),
+            "atmosphere_precipitable_water": Field(
+                field_id="atmosphere_precipitable_water",
+                physical_name="column integrated water vapour",
+                symbol="W",
+                values=np.array(self.precipitable_water()),
+                units="kg m^-2",
+                quantity_kind=QuantityKind.DIAGNOSTIC,
+                time_semantics=TimeSemantics.END_OF_STEP,
+                timestamp=timestamp,
+                spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                provenance=provenance,
+            ),
+        }
+
+    def emit_state(self) -> dict[str, Field]:
+        return self._fields(self._context.time if self._context else 0.0)
+
+    def emit_outputs(self) -> dict[str, Field]:
+        # Republished every step, because the profile follows a temperature that
+        # changes. A PRESCRIBED module whose emit_state ran only at
+        # initialisation would silently freeze the feedback it exists to supply.
+        return self._fields(self.context.time)
+
+    def report_uncertainty(self) -> UncertaintyReport:
+        return UncertaintyReport(
+            module_id=self.module_id,
+            method="none; the humidity distribution is imposed",
+            distributional_assumptions="unresolved",
+            correlations="unresolved",
+            unresolved=(
+                "structural_uncertainty_of_a_prescribed_uniform_relative_humidity",
+                "the observed profile falls through the mid-troposphere and this does not",
+            ),
+        )
+
+    def parameters(self) -> dict[str, Any]:
+        return {
+            **dict(self.configuration),
+            "relative_humidity": self.relative_humidity,
+            "respond_to_temperature": self.respond_to_temperature,
+            "n_layers": self.n_layers,
+            "water_budget": "not_represented",
+            "latent_energy": "not_represented",
+        }

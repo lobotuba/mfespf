@@ -1407,7 +1407,9 @@ def build_equation_registry() -> EquationRegistry:
                 (
                     "vapour_wing_decay",
                     "calibrated",
-                    "fitted to the CERES clear-sky outgoing longwave flux, about 265 W m^-2",
+                    "fitted to the CERES all-sky outgoing longwave flux, about "
+                    "240 W m^-2, which is what a column carrying the all-sky "
+                    "albedo of 0.3 must emit in equilibrium",
                 ),
                 (
                     "vapour_window_continuum",
@@ -1427,6 +1429,10 @@ def build_equation_registry() -> EquationRegistry:
                 "fast the window closes as the atmosphere moistens.",
                 "Near-infrared vapour absorption is omitted entirely, so the shortwave "
                 "heating of moist air is absent and only the longwave effect is present.",
+                "Calibrated against the all-sky outgoing longwave while the column "
+                "carries no cloud, so this opacity stands in for the cloud longwave "
+                "effect as well as the vapour's own. A configuration that also ran "
+                "the cloud module would double-count it.",
                 "The envelope reproduces where the wings cross unit optical depth, not "
                 "the line structure inside them; spectrally resolved radiance is out of "
                 "scope.",
@@ -1452,7 +1458,7 @@ def build_equation_registry() -> EquationRegistry:
                 "test_a_dry_column_absorbs_nothing_and_the_window_is_open",
                 "test_the_window_closes_as_the_column_moistens",
                 "test_the_bands_are_saturated_and_confined_to_the_infrared",
-                "test_the_clear_sky_outgoing_longwave_matches_the_calibration_target",
+                "test_the_outgoing_longwave_matches_the_flux_the_column_absorbs",
                 "test_letting_the_vapour_follow_the_temperature_amplifies_the_response",
             ),
             known_failure_modes=(
