@@ -1310,7 +1310,9 @@ def build_equation_registry() -> EquationRegistry:
             ),
             source=(
                 "Standard band-model treatment; the wing decay is calibrated against a "
-                "published 3.7 W m^-2 forcing per doubling and achieves 3.58"
+                "published 3.7 W m^-2 forcing per doubling and achieves 3.58 at that "
+                "calibration's background opacity; see the module docstring for why "
+                "the configurations do not run at it"
             ),
         )
     )

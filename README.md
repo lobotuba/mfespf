@@ -241,13 +241,27 @@ is right and the *response* is not. A stratospheric optical depth of 0.15 gives
 record supplies the optical depth and the two-stream solver does the rest. But
 the modelled cooling after Pinatubo is 0.68 K against an observed 0.3–0.5 K.
 
-The cause is measurable: this column's feedback parameter is **0.907 W m⁻² K⁻¹**
-(3.58 W m⁻² per doubling ÷ 3.945 K response) against an accepted ≈1.2, so it is
-about 30% over-sensitive to *any* forcing. A volcanic pulse has a known
-amplitude and a short duration, so it exposes that directly where a slow CO₂
-ramp did not. The earlier agreement was partly a cancellation between an
-over-sensitive column and under-represented forcing, and the eruptions
-separated the two.
+The cause is measurable, and chasing it found a defect in the CO₂ band as well.
+
+**The band was calibrated at one opacity and run at another.** The wing decay
+was fitted against a published forcing per doubling using
+`co2_band_absorption`'s default background of 1e-4 m² kg⁻¹, and every
+configuration runs at `GREENHOUSE_BACKGROUND = 3e-5`. A thinner background
+masks less of the band, so the forcing per doubling in the runs is **6.28 W m⁻²,
+not the 3.58 previously reported here** — a factor of 1.75, and 70% above the
+accepted 3.7.
+
+**The column is about twice as sensitive as it should be.** Its feedback
+parameter is 6.28 ÷ 3.945 = **1.59 W m⁻² K⁻¹**. The right reference for a column
+with no water-vapour, cloud or albedo feedback is the Planck response, ≈3.2 —
+not the ≈1.2 quoted in an earlier version of this file, which is the *net*
+parameter including exactly the feedbacks this configuration does not have.
+
+So two errors compound, both inflating the response: a forcing 1.7× too large
+and a sensitivity 2× too large. A volcanic pulse has a known amplitude and a
+short duration, so it measures the second directly where a slow CO₂ ramp could
+not — and the earlier agreement was partly those two errors cancelling against
+the mechanisms the configuration omits.
 
 Adding CO₂ takes the model from explaining **3%** of the observed variance to
 **61%**. Adding the two-reservoir ocean takes it to **76%** — and I had
@@ -494,11 +508,12 @@ than a result of it, and the question this framework asks is whether the physics
 produces the observed behaviour.
 
 **A right forcing does not make a right response.** The volcanic forcing is
-correct to within a few percent of a published value and the modelled cooling is
-still half again too large, because the column's feedback parameter is 0.907
-W m⁻² K⁻¹ rather than ≈1.2. A short pulse of known amplitude separates the two
-where a slow ramp cannot, which is why a mechanism that made the fit worse was
-worth adding.
+correct to within a few percent of a published value — it needed no calibration,
+because the record *is* the optical depth — and the modelled cooling is still
+half again too large, because the column's feedback parameter is 1.59 W m⁻² K⁻¹
+against a no-feedback Planck response of ≈3.2. A short pulse of known amplitude
+separates forcing from response where a slow ramp cannot, which is why a
+mechanism that made the fit worse was worth adding.
 
 **A calibration target must not be the thing being predicted.** The CO₂ band's
 one fitted parameter is calibrated against a published forcing per doubling.

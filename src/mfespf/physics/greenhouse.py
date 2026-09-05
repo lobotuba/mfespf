@@ -100,6 +100,14 @@ displacement depends on the logarithm of this number, not on the number.
 CO2_WING_DECAY_PER_METRE = 3.6e3
 """Wing decay scale in inverse metres, equivalent to 36 cm^-1.
 
+**Known defect: this is calibrated at a background opacity the configurations do
+not use.** It was fitted with ``background`` at this function's default of
+1e-4 m^2 kg^-1, where it gives 3.58 W m^-2 per doubling. Every greenhouse
+configuration passes 3e-5, where the same wing decay gives 6.28 -- 70 percent
+above the accepted value, because a thinner background masks less of the band.
+Recalibrating at the background actually used would narrow the band and change
+every result that rests on it.
+
 The one number calibrated here, and it is calibrated against a *published
 radiative-forcing value* -- 3.7 W m^-2 for a doubling -- never against a
 temperature record. That is what keeps a temperature record available as

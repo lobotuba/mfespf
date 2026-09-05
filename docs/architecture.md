@@ -88,8 +88,15 @@ grid bands against 3.5780 at 109.
 
 One parameter: the wing decay scale, 36 cm^-1. It is calibrated against a
 *published radiative-forcing value* of 3.7 W m^-2 per doubling and achieves 3.58
--- a three percent shortfall reported rather than tuned away by adding a second
-knob.
+at the background opacity it was fitted against.
+
+**It is not fitted at the opacity the configurations run at, and that is a
+defect.** ``co2_band_absorption`` defaults to a background of 1e-4 m^2 kg^-1 and
+every greenhouse configuration passes 3e-5. A thinner background masks less of
+the band, so the same wing decay gives 6.28 W m^-2 per doubling in the runs --
+1.75 times the calibrated figure and 70 percent above the accepted value. The
+calibration and the use were never matched, and the number this document
+previously quoted was the one the runs did not use.
 
 The calibration target matters more than the number. Fitting it to a temperature
 record would have spent that record: the dataset registry enforces INF-003 one
@@ -198,11 +205,16 @@ here, against an accepted value near -3. Nothing was calibrated to that.
 
 The modelled cooling after Pinatubo is 0.68 K, against an observed 0.3 to 0.5.
 The cause is measurable rather than speculative: this column's feedback
-parameter is 3.578 W m^-2 per doubling divided by a 3.945 K response, which is
-0.907 W m^-2 K^-1 against an accepted figure near 1.2. The column is about
-thirty percent over-sensitive to *any* forcing, and that traces back to the same
-band-width compromise that put the base state 27 K too warm: a wider band raises
-the emission level, which lowers the feedback parameter.
+parameter is 6.28 W m^-2 per doubling divided by a 3.945 K response, which is
+1.59 W m^-2 K^-1. The right reference for a column with no water-vapour, cloud
+or albedo feedback is the Planck response near 3.2, so it is roughly twice as
+sensitive as it should be.
+
+An earlier version of this section quoted 0.907 against an accepted 1.2 and
+called the column thirty percent over-sensitive. Both halves were wrong: the
+forcing was the calibrated figure rather than the one the runs used, and 1.2 is
+the *net* feedback parameter including the feedbacks this configuration does not
+have.
 
 ### Why a mechanism that made the fit worse was worth adding
 
