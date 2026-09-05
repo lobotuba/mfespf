@@ -68,9 +68,12 @@ from mfespf.core.quantities import (
 from mfespf.core.versioning import InterfaceContract, Version, VersionRange
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.equations import EQUATION_IDS
+from mfespf.physics.plume import BULK_PLUME_PARAMETER, entraining_lapse_rate
 from mfespf.physics.surface import SURFACE_TEMPERATURE_STATE
 from mfespf.physics.thermodynamics import (
     convective_adjustment_with_groups,
+    hydrostatic_heights,
+    lapse_rate_offsets,
     potential_temperature,
     surface_coupled_adjustment,
 )
@@ -80,6 +83,9 @@ from mfespf.registries.states import TendencyContribution
 __all__ = ["CONVECTION_INTERFACE", "ConvectiveAdjustmentModule"]
 
 V1 = Version(1, 0, 0)
+
+#: Profiles the adjustment can relax a column to.
+_TARGETS = frozenset({"dry_adiabat", "entraining_plume"})
 
 CONVECTION_INTERFACE = InterfaceContract(
     interface_id="convective_adjustment",
@@ -106,6 +112,8 @@ class ConvectiveAdjustmentModule(Module):
         transport_vapour: bool = False,
         surface_based: bool = False,
         surface_pressure: float | None = None,
+        target: str = "dry_adiabat",
+        bulk_plume_parameter: float = BULK_PLUME_PARAMETER,
         reference_pressure: float | None = None,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
@@ -125,12 +133,16 @@ class ConvectiveAdjustmentModule(Module):
                 EQUATION_IDS["potential_temperature"],
                 EQUATION_IDS["convective_adjustment"],
                 EQUATION_IDS["sensible_heat"],
+                *((EQUATION_IDS["entraining_lapse_rate"],) if target == "entraining_plume" else ()),
             ),
             assumptions=(
                 "the surface exchange coefficient absorbs wind speed and stability",
                 "convective mixing is instantaneous on the coupling timestep",
                 "mixing is complete within an unstable group and absent outside it",
-                "dry adiabatic neutrality is the target, with no moist correction",
+                "dry adiabatic neutrality is the target, with no moist correction"
+                if target == "dry_adiabat"
+                else "the neutral profile is the one an entraining plume leaves, which "
+                "is more stable than a moist adiabat and less stable than a dry one",
                 "no momentum, moisture or tracer transport accompanies the heat mixing",
                 *(
                     (
@@ -184,8 +196,12 @@ class ConvectiveAdjustmentModule(Module):
                 "test_convection_changes_the_profile_it_is_given",
             ),
             known_limitations=(
-                "Targets the dry adiabat, so a saturated troposphere is left more stable "
-                "than the moist adiabat it should relax to.",
+                "Targets the dry adiabat by default, so a saturated troposphere is left "
+                "more stable than the moist adiabat it should relax to. The "
+                "entraining-plume target removes that, and a column carrying the "
+                "bulk-plume humidity should use it: measured at 20 layers, the dry "
+                "target leaves 9.68 K/km against the 6.33 the same plume parameter "
+                "predicts, so the two closures contradict each other.",
                 "Instantaneous mixing means the result is independent of the timestep, "
                 "which is convenient and physically wrong at short timesteps.",
                 "The surface exchange coefficient is a free parameter with no wind or "
@@ -239,6 +255,8 @@ class ConvectiveAdjustmentModule(Module):
         self.transport_vapour = transport_vapour
         self.surface_based = surface_based
         self.surface_pressure = surface_pressure
+        self.target = target
+        self.bulk_plume_parameter = bulk_plume_parameter
         self._mixing_groups: tuple[tuple[int, int], ...] = ()
         self._vapour_moved = 0.0
         self._surface_adjustment = 0.0
@@ -256,6 +274,19 @@ class ConvectiveAdjustmentModule(Module):
             raise ConfigurationError(
                 f"sensible heat coefficient {self.sensible_heat_coefficient} cannot be negative"
             )
+        if self.target not in _TARGETS:
+            raise ConfigurationError(
+                f"unknown convective target {self.target!r}; expected one of "
+                f"{', '.join(sorted(_TARGETS))}"
+            )
+        if self.target == "entraining_plume" and not self.surface_based:
+            # The plume target is a lapse rate measured upward from the ground,
+            # so a scheme that cannot see the ground has nothing to measure it
+            # from. Refused rather than silently anchored to the lowest layer.
+            raise ConfigurationError(
+                "the entraining-plume target needs surface_based convection, because "
+                "its lapse rate is anchored at the surface"
+            )
 
     def initialize(self, initial_state: dict[str, Any], boundary_state: dict[str, Any]) -> None:
         self.mark_initialized()
@@ -271,6 +302,25 @@ class ConvectiveAdjustmentModule(Module):
             self.surface_pressure
             if self.surface_pressure is not None
             else value_of("standard_surface_pressure")
+        )
+
+    def _plume_offsets(self, temperature: np.ndarray, pressure: np.ndarray) -> np.ndarray:
+        """The temperature drop the entraining plume implies, surface upward.
+
+        Built from the column's own temperature at every step rather than once,
+        because the target lapse rate depends on the saturation humidity and so
+        on the profile it is adjusting. That makes the adjustment a fixed point
+        rather than a relaxation to a fixed profile, which is the honest form:
+        a warmer column has a smaller entraining lapse rate, and pretending
+        otherwise would freeze the lapse-rate feedback this is meant to supply.
+        """
+        surface_pressure = self._reference_surface_pressure()
+        height = hydrostatic_heights(temperature, pressure, surface_pressure)
+        rate = entraining_lapse_rate(temperature, pressure, self.bulk_plume_parameter)
+        # The surface joins as the bottom of the column, at zero height and
+        # carrying the lowest layer's lapse rate.
+        return lapse_rate_offsets(
+            np.concatenate(([rate[0]], rate)), np.concatenate(([0.0], height))
         )
 
     def _vapour_transport(
@@ -380,6 +430,11 @@ class ConvectiveAdjustmentModule(Module):
                 surface_temperature=provisional_surface,
                 surface_heat_capacity=surface_heat_capacity,
                 surface_pressure=self._reference_surface_pressure(),
+                target_offsets=(
+                    self._plume_offsets(provisional, pressure)
+                    if self.target == "entraining_plume"
+                    else None
+                ),
                 reference_pressure=self.reference_pressure,
             )
             self._surface_adjustment = (adjusted_surface - provisional_surface) / ctx.dt
@@ -592,7 +647,10 @@ class ConvectiveAdjustmentModule(Module):
     def parameters(self) -> dict[str, Any]:
         return {
             **dict(self.configuration),
-            "target": "dry_adiabat",
+            "target": self.target,
+            "bulk_plume_parameter": (
+                self.bulk_plume_parameter if self.target == "entraining_plume" else None
+            ),
             "surface_based": self.surface_based,
             "transport_vapour": self.transport_vapour,
             "surface_pressure_Pa": (

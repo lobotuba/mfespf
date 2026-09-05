@@ -614,6 +614,7 @@ def radiating_column(
     radiative_vapour: bool = False,
     vapour_transport: bool = False,
     surface_based_convection: bool = False,
+    convective_target: str = "dry_adiabat",
     prescribed_humidity: float | None = None,
     plume_humidity: bool = False,
     bulk_plume_parameter: float = BULK_PLUME_PARAMETER,
@@ -766,6 +767,8 @@ def radiating_column(
                     transport_vapour=vapour_transport,
                     surface_based=surface_based_convection,
                     surface_pressure=surface_pressure,
+                    target=convective_target,
+                    bulk_plume_parameter=bulk_plume_parameter,
                 ),
                 step_multiple=1,
             )

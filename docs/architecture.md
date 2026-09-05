@@ -488,6 +488,52 @@ rate far larger than the one its own humidity closure assumes. Wiring
 `EQ-ENTRAINING-LAPSE-RATE` into the adjustment is the obvious next step, and the
 measurement above is what makes it obvious.
 
+#### Making the column consistent, and what that revealed
+
+Wiring `EQ-ENTRAINING-LAPSE-RATE` into the adjustment removes the
+contradiction: the convective closure and the humidity closure now share one
+parameter, and both are used.
+
+| target | surface (K) | precipitable water | diagnosed | predicted |
+|---|---:|---:|---:|---:|
+| dry adiabat | 288.11 | 8.02 | 9.68 K/km | 6.33 K/km |
+| entraining plume | 289.35 | 14.28 | 5.63 K/km | 5.48 K/km |
+
+Three things came out of it, and only the first was expected.
+
+**The lapse-rate prediction is weaker than it first appeared.** Measured against
+the dry-adiabat column it looked like a hit -- 6.33 K/km against a standard
+atmosphere's 6.5 -- but that was the closure evaluated on a profile it
+disagreed with. Run self-consistently it settles at 5.5, about fifteen percent
+shallower than observed. That is a real disagreement, and it only became visible
+once the closure was made to live with its own answer.
+
+**The two errors that were cancelling were not independent.** Fixing the
+stratification fixed most of the dryness by itself: precipitable water went from
+8.0 to 14.3 kg m^-2, from a factor of 2.9 below observation to 1.75, because a
+shallower lapse rate warms the upper column and raises the saturation humidity
+the closure fills. The surface moved 1.2 K through all of that. **The surface
+temperature was the least sensitive quantity in the column**, which is exactly
+why it looked right while the interior was wrong in two ways at once.
+
+**The feedback decomposition broke, and its numbers are not quotable.** With the
+dry target, freezing the vapour changed one thing. It no longer does: the
+entraining lapse rate depends on the saturation humidity, so a frozen-vapour run
+still gets the full lapse-rate response, and the control is no longer null. It
+shows up as an absurdity rather than a subtlety -- the held run gives
+dT_2x = 0.299 K, a feedback parameter of 12.4 W m^-2 K^-1 against a Planck
+response of 3.2 -- so the amplification of 13x it implies measures nothing. A
+null control that is not exactly null is a bug, and this one is recorded rather
+than reported.
+
+Underneath it is a limitation the equation registry declared before any of this
+ran: the zero-buoyancy plume predicts a stratification but not the height
+convection reaches. With the shallower target the adjustment mixes sixteen of
+twenty layers and the column has no real tropopause, so the whole depth is
+slaved to a surface temperature through a lapse rate that itself responds
+strongly to warming. Giving the scheme a level of neutral buoyancy, and a
+control that freezes the target along with the vapour, are the next two pieces.
+
 #### The base state looks right and that means nothing yet
 
 The column reaches 288.1 K and a greenhouse effect of 33.1 K, against observed
@@ -1355,11 +1401,23 @@ is deleted from this list, and where a stage removed one the entry says so.
   evaporation is the only source of water and convection the only transport. A
   real atmosphere moistens its middle troposphere by detrainment from deep
   convection and by large-scale ascent, neither of which exists here.
-- The bulk-plume humidity closure predicts a relative humidity of 0.417 and a
-  lapse rate of 6.33 K/km from one unfitted parameter, and both land near
-  observations -- but the column it runs in still relaxes to the dry adiabat at
-  9.68 K/km, so **the model contradicts its own closure** until
-  `EQ-ENTRAINING-LAPSE-RATE` is wired into the convective adjustment.
+- With the entraining-plume target the adjustment mixes sixteen of twenty
+  layers, because the zero-buoyancy plume predicts a stratification but not the
+  height convection reaches. The column has no real tropopause, and its whole
+  depth is slaved to the surface through a temperature-dependent lapse rate.
+- **The vapour feedback control is broken in plume-target configurations** and
+  its numbers must not be quoted. Freezing the vapour no longer changes one
+  thing, because the entraining lapse rate depends on the saturation humidity,
+  so the frozen run keeps the full lapse-rate response: it gives dT_2x of
+  0.299 K and an implied feedback parameter of 12.4 W m^-2 K^-1 against a Planck
+  response of 3.2. The control needs to freeze the target as well as the vapour.
+- The bulk-plume humidity closure once ran in a column that relaxed to the dry
+  adiabat at 9.68 K/km while its humidity assumed 6.33, so the model
+  contradicted its own closure. That is fixed -- `convective_target=
+  "entraining_plume"` makes both use the same parameter -- and the fix cost the
+  lapse-rate prediction its apparent accuracy, since 6.33 was the closure
+  evaluated on a profile it disagreed with and 5.5 is what it gives when made to
+  live with its own answer, against an observed 6.5.
 - The evaporating condensate fraction is assumed rather than measured, over the
   range 0.1 to 0.5, and that range spans 8 K of surface temperature and a factor
   of three in the vapour feedback. No result from a plume-humidity

@@ -135,6 +135,17 @@ saying out loud.
   Quoting the midpoint would be false precision, and *choosing* the midpoint
   because it reproduced the observed temperature would be calibrating against
   the temperature record by the back door. Sweep the range and report it.
+- **Evaluate a closure on a profile it agrees with, or not at all.** The
+  entraining lapse rate looked accurate at 6.33 K/km against an observed 6.5 --
+  measured in a column that was relaxing to a dry adiabat, which the closure
+  disagreed with. Made self-consistent it gives 5.5, and the apparent agreement
+  was an artefact of the profile it was evaluated on.
+- **Adding a temperature dependence can break a null control that used to
+  work.** Freezing the vapour isolated the feedback while the lapse rate did not
+  depend on humidity. The entraining target depends on saturation humidity, so
+  the frozen run keeps the full lapse-rate response and the control stops being
+  null -- visibly, at 12.4 W m^-2 K^-1 against a Planck response of 3.2. Re-check
+  every control after adding a coupling, not only the runs it was controlling.
 - **A base state that looks right is not evidence until you know why.** The
   plume column lands at 288.1 K with a 33.1 K greenhouse effect while carrying a
   third of the observed water and a lapse rate 3.2 K/km too steep -- two large

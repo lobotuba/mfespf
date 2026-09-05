@@ -26,6 +26,7 @@ from mfespf.core.quantities import (
     TimeSemantics,
 )
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
+from mfespf.physics.convection import ConvectiveAdjustmentModule
 from mfespf.physics.plume import (
     BULK_PLUME_PARAMETER,
     EVAPORATING_CONDENSATE_FRACTION,
@@ -361,3 +362,32 @@ def test_a_column_takes_its_humidity_from_exactly_one_place():
     # And each on its own is accepted.
     for single in ({"water": True}, {"prescribed_humidity": 0.7}, {"plume_humidity": True}):
         radiating_column(run_id="OK", purpose="one humidity source", **common, **single)
+
+
+@pytest.mark.req("ATM-002", "MOD-006", "DAT-007")
+def test_the_entraining_target_is_declared_and_needs_a_surface():
+    """The target belongs in the parameters, and it cannot float free of the ground.
+
+    Two runs differing only in what their convection relaxes to must not hash
+    alike, so the target and its parameter go into ``parameters()``. And the
+    plume's lapse rate is measured upward from the surface, so a layer-only
+    adjustment has no anchor for it -- refused rather than quietly anchored to
+    the lowest layer, which would put the whole profile a layer's thickness out.
+    """
+    plume = ConvectiveAdjustmentModule(surface_based=True, target="entraining_plume")
+    plume.validate_configuration()
+    assert plume.parameters()["target"] == "entraining_plume"
+    assert plume.parameters()["bulk_plume_parameter"] == BULK_PLUME_PARAMETER
+    assert "EQ-ENTRAINING-LAPSE-RATE" in plume.contract.governing_equation_ids
+
+    dry = ConvectiveAdjustmentModule()
+    assert dry.parameters()["target"] == "dry_adiabat"
+    assert dry.parameters()["bulk_plume_parameter"] is None
+    assert "EQ-ENTRAINING-LAPSE-RATE" not in dry.contract.governing_equation_ids
+
+    with pytest.raises(ConfigurationError, match="needs surface_based convection"):
+        ConvectiveAdjustmentModule(target="entraining_plume").validate_configuration()
+    with pytest.raises(ConfigurationError, match="unknown convective target"):
+        ConvectiveAdjustmentModule(
+            surface_based=True, target="moist_adiabat"
+        ).validate_configuration()

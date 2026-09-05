@@ -13,6 +13,9 @@ from mfespf.physics.thermodynamics import (
     dry_adiabatic_lapse_rate,
     dry_convective_adjustment,
     exner,
+    hydrostatic_heights,
+    lapse_rate_adjustment_with_groups,
+    lapse_rate_offsets,
     moist_adiabatic_lapse_rate,
     potential_temperature,
     saturation_specific_humidity,
@@ -317,3 +320,107 @@ def test_a_surface_colder_than_the_air_is_left_alone_and_bad_geometry_refused():
             surface_heat_capacity=0.0,
             surface_pressure=P0,
         )
+
+
+# --- adjusting toward a target other than the dry adiabat --------------------
+
+
+@pytest.mark.req("ATM-002", "VAL-001")
+def test_hydrostatic_heights_match_the_isothermal_closed_form():
+    """An isothermal column has an exact answer, so the integrator is checked on it.
+
+    ``z = (R T / g) ln(p_s / p)`` is the whole of the hypsometric equation when
+    the temperature does not vary, which makes it the one case where the
+    layer-by-layer integration can be compared against something rather than
+    against itself.
+    """
+    isothermal = np.full(8, 260.0)
+    interfaces = np.linspace(P0, 1.0e4, 9)
+    pressure = 0.5 * (interfaces[:-1] + interfaces[1:])
+
+    heights = hydrostatic_heights(isothermal, pressure, P0)
+    scale = value_of("gas_constant_dry_air") * 260.0 / value_of("earth_standard_gravity")
+
+    assert heights == pytest.approx(scale * np.log(P0 / pressure), rel=1e-12)
+    assert np.all(np.diff(heights) > 0.0)
+
+
+@pytest.mark.req("ATM-002", "CON-009", "VAL-001")
+def test_a_profile_already_at_the_target_lapse_rate_is_left_alone():
+    """The null control for a new target: it must do nothing where nothing is wrong.
+
+    A column built to sit exactly on the target rate has no instability with
+    respect to it, however far that rate is from a dry adiabat. Getting this
+    wrong would make the adjustment relax a correct profile, which is the way a
+    convective scheme most easily hides a bias.
+    """
+    pressure, capacity = _column()
+    rate = np.full(pressure.size, 6.5e-3)  # K/m, constant
+    T = np.linspace(288.0, 288.0, pressure.size)
+    height = hydrostatic_heights(T, pressure, P0)
+    offsets = lapse_rate_offsets(rate, height)
+    on_target = 288.0 - offsets
+
+    adjusted, groups = lapse_rate_adjustment_with_groups(on_target, capacity, offsets)
+
+    assert groups == ()
+    assert adjusted == pytest.approx(on_target, rel=1e-14)
+
+
+@pytest.mark.req("ATM-002", "CON-009", "CLM-003")
+def test_a_steeper_profile_relaxes_to_the_target_and_keeps_its_enthalpy():
+    """The adjustment's one guarantee has to survive the change of target.
+
+    Mixing to a prescribed lapse rate conserves the group's enthalpy for the
+    same reason mixing to a dry adiabat does -- the mixed value is defined as
+    the one that leaves ``sum(C T)`` unchanged -- so the new target must not
+    weaken it. It is checked here against a profile steeper than the target,
+    which is the case the scheme exists to act on.
+    """
+    pressure, capacity = _column()
+    rate = np.full(pressure.size, 6.5e-3)
+    steep = 300.0 - 9.0e-3 * np.linspace(0.0, 1.2e4, pressure.size)  # steeper than target
+    height = hydrostatic_heights(steep, pressure, P0)
+    offsets = lapse_rate_offsets(rate, height)
+
+    adjusted, groups = lapse_rate_adjustment_with_groups(steep, capacity, offsets)
+
+    assert groups  # there was something to do
+    before = float(np.sum(capacity * steep))
+    after = float(np.sum(capacity * adjusted))
+    assert after == pytest.approx(before, rel=1e-14)
+
+    # Inside a mixed group the profile now follows the target exactly.
+    low, high = groups[0]
+    span = slice(low, high + 1)
+    assert np.allclose((adjusted + offsets)[span], (adjusted + offsets)[low], rtol=1e-12)
+
+    # And it is less steep than it was, in K per metre through the real column.
+    # Per-layer temperature steps will not do: the layers are equally spaced in
+    # pressure and so grow thicker with height, which makes the step size grow
+    # even where the lapse rate is constant.
+    def rate_over(profile: np.ndarray) -> np.ndarray:
+        return -np.diff(profile[span]) / np.diff(height[span])
+
+    assert np.mean(rate_over(steep)) > 6.5e-3
+    assert rate_over(adjusted) == pytest.approx(6.5e-3, rel=1e-9)
+
+
+@pytest.mark.req("ATM-002", "DAT-007")
+def test_the_target_offsets_must_cover_the_surface_and_every_layer():
+    """A mismatched target is a silent bias, so it is refused rather than broadcast."""
+    pressure, capacity = _column()
+    T = np.linspace(290.0, 240.0, pressure.size)
+
+    with pytest.raises(ConfigurationError, match="one more value than there are layers"):
+        surface_coupled_adjustment(
+            T,
+            capacity,
+            pressure,
+            surface_temperature=300.0,
+            surface_heat_capacity=1.0e7,
+            surface_pressure=P0,
+            target_offsets=np.zeros(T.size),  # missing the surface element
+        )
+    with pytest.raises(ConfigurationError, match="same layers"):
+        lapse_rate_adjustment_with_groups(T, capacity, np.zeros(T.size - 1))
