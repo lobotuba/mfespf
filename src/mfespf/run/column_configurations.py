@@ -50,8 +50,10 @@ from mfespf.physics.surface import (
     surface_water_state_entry,
 )
 from mfespf.physics.water import VAPOUR_STATE, WaterModule, vapour_state_entry
+from mfespf.registries.datasets import DatasetRegistry
 from mfespf.registries.states import StateRegistry
 from mfespf.run.driver import Kernel
+from mfespf.run.modes import OperatingMode
 
 __all__ = [
     "absorbing_emitting_atmosphere",
@@ -201,8 +203,9 @@ def _build_graph(
     coupling_frequency: str,
     convection: bool = False,
     water: bool = False,
-    clouds: bool = False,
     deep_ocean: bool = False,
+    clouds: bool = False,
+    greenhouse: bool = False,
     splitting_order: tuple[str, ...] = _SPLITTING_ORDER,
 ) -> DependencyGraph:
     graph = DependencyGraph(configuration_id)
@@ -222,6 +225,8 @@ def _build_graph(
         modules.append(("cloud", "prescribed cloud state"))
     if deep_ocean:
         modules.append(("ocean", "reduced deep-ocean reservoir"))
+    if greenhouse:
+        modules.append(("greenhouse", "prescribed carbon dioxide"))
     for module_id, label in modules:
         graph.add_node(Node(module_id, NodeType.MODULE, label))
     graph.add_node(Node(SURFACE_TEMPERATURE_STATE, NodeType.STATE, "slab temperature"))
@@ -509,6 +514,20 @@ def _build_graph(
             equation_ids=("EQ-NUM-FORWARD-EULER",),
         )
 
+    if greenhouse:
+        edge(
+            "greenhouse",
+            "radiation",
+            "co2_mole_fraction",
+            edge_type=EdgeType.PARAMETER_DEPENDENCY,
+            units="ppm",
+            equation_ids=(EQUATION_IDS["co2_band_absorption"],),
+            uncertainty_rule=(
+                "prescribed; the concentration responds to nothing, so no carbon-cycle "
+                "feedback path exists"
+            ),
+        )
+
     declare_explicit_cycles(
         graph,
         splitting_order=splitting_order,
@@ -542,6 +561,11 @@ def radiating_column(
     convection: bool = False,
     water: bool = False,
     cloud: CloudProfile | None = None,
+    greenhouse: Any = None,
+    solar_source: Any = None,
+    start_time: float = 0.0,
+    operating_mode: OperatingMode = OperatingMode.CONTROLLED_EXPERIMENT,
+    datasets: DatasetRegistry | None = None,
     deep_ocean: bool = False,
     deep_ocean_depth: float = 1200.0,
     deep_ocean_exchange: float | None = None,
@@ -563,7 +587,7 @@ def radiating_column(
     # physically distinguishable -- surface; see ``shortwave_albedo``.
     surface_reflectance = shortwave_albedo(working_grid) if albedo is None else albedo
 
-    solar = ConstantSpectrumSolarSource(
+    solar = solar_source or ConstantSpectrumSolarSource(
         grid=working_grid, total_irradiance=total_irradiance, status=ModuleStatus.PRESCRIBED
     )
     orbit = OrbitalGeometryModule(eccentricity=eccentricity, receiver_module_id="atmosphere")
@@ -572,6 +596,7 @@ def radiating_column(
         absorption_coefficient=kappa,
         diffusivity_factor=diffusivity_factor,
         couple_clouds=cloud is not None,
+        couple_greenhouse=greenhouse is not None,
     )
     atmosphere = AtmosphericColumnModule(
         n_layers=n_layers,
@@ -599,6 +624,11 @@ def radiating_column(
         ModuleSchedule(orbit, step_multiple=solar_step_multiple),
     ]
     order_head = ["solar", "orbit"]
+    if greenhouse is not None:
+        # Published before radiation reads it: a prescribed concentration is a
+        # boundary condition on the transfer, not a response to it.
+        schedules.append(ModuleSchedule(greenhouse, step_multiple=1))
+        order_head.append("greenhouse")
     if cloud is not None:
         # The cloud is published before radiation reads it: a prescribed state is
         # a boundary condition on the radiation, not a response to it.
@@ -677,11 +707,15 @@ def radiating_column(
         water=water,
         clouds=cloud is not None,
         deep_ocean=deep_ocean,
+        greenhouse=greenhouse is not None,
         splitting_order=tuple(order),
     )
 
     initial_air = np.asarray(initial_air_temperature, dtype=float)
     return Kernel(
+        start_time=start_time,
+        operating_mode=operating_mode,
+        datasets=datasets or DatasetRegistry(),
         run_id=run_id,
         purpose=purpose,
         schedule=schedule,

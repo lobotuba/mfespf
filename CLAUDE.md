@@ -95,6 +95,15 @@ saying out loud.
   error.** The solar-only threshold is the record's own mean 95% half-width over
   the compared period, and the compared period is fixed by the records' overlap
   before anything runs.
+- **A mechanism enters through a constitutive relation, a tendency, a boundary
+  or a source — never as a fitted forcing added to a budget.** CO₂ changes an
+  absorption coefficient; the transfer solver is unchanged and unaware.
+- **Calibrate against something other than the thing being predicted.** The CO₂
+  band's wing decay is fitted to a published forcing per doubling, never to a
+  temperature record (INF-003, EQR-004).
+- **A grid must resolve what the physics depends on.** The logarithmic forcing
+  comes from the band wings; a grid that cannot resolve them gives linear growth
+  or complete saturation instead, and `greenhouse_grid` refuses too few bands.
 - **A null control that is not exactly null is a bug.** The constant-irradiance
   control gives zero modelled range. Anything else means something other than
   the mechanism is moving the model, and it contaminates the forced run too.

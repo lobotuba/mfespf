@@ -145,6 +145,49 @@ sources:
   sha256: ecdbd2c09f2c79881e3e70dca3d483e40091518c191c78e1c16c88ecb5cc4f32
   retrieved: '2026-09-04T23:49:58+00:00'
 
+- dataset_id: LAWDOME-CO2-ANNUAL
+  loader: law_dome_co2
+  title: Law Dome ice-core CO2 spline, annual
+  filename: lawdome_co2_annual.txt
+  url: https://www.ncei.noaa.gov/pub/data/paleo/icecore/antarctica/law/law2006.txt
+  provider: CSIRO / NOAA World Data Center for Paleoclimatology
+  provenance_class: proxy
+  variables:
+  - co2_mole_fraction
+  units:
+  - ppm
+  temporal_coverage: year 1 to 1978, annual
+  spatial_coverage: global mean, inferred from Antarctic firn and ice
+  uncertainty: none published per sample in this spline product
+  licence: US Government work, no copyright asserted. NOAA Paleo requests citation.
+  citation: MacFarling Meure, C. et al. (2006), Law Dome CO2, CH4 and N2O ice core records extended
+    to 2000 years BP, Geophysical Research Letters.
+  notes: A smoothed spline through ice-core air, not a direct atmospheric measurement, so it is
+    classified PROXY. Firn smoothing removes variability faster than roughly a decade, which is a
+    filter applied before the framework sees the record and is not recoverable from this file.
+  sha256: 19ac7863487268e9ebf046cfc0c4fc481858469d82b6388ceee786181b1b5f05
+  retrieved: '2026-09-05T01:06:15+00:00'
+- dataset_id: MLO-CO2-ANNUAL
+  loader: noaa_mlo_co2
+  title: Mauna Loa atmospheric CO2, annual means
+  filename: mlo_co2_annual.txt
+  url: https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_annmean_mlo.txt
+  provider: NOAA Global Monitoring Laboratory
+  provenance_class: observational
+  variables:
+  - co2_mole_fraction
+  units:
+  - ppm
+  temporal_coverage: 1959 to present, annual
+  spatial_coverage: single station at Mauna Loa, used as a global proxy
+  uncertainty: published per-year uncertainty column
+  licence: US Government work, no copyright asserted. NOAA GML requests citation.
+  citation: Lan, X., Tans, P. and Thoning, K., NOAA/GML, Trends in atmospheric carbon dioxide.
+  notes: One station, not a global mean. CO2 is well mixed on the timescales used here so the
+    substitution is defensible, but it is a substitution and the seasonal cycle and interhemispheric
+    gradient are absent from it.
+  sha256: d84833898a9131921065912a9a33a8e1c4fb5791b5cd4f77ba5f71761cd717e5
+
 # --- not fetchable without credentials --------------------------------------
 #
 # CERES EBAF is the single most valuable dataset for this framework: it reports
@@ -156,3 +199,4 @@ sources:
 #
 # Absent for the same reason: the CMIP6 solar and volcanic forcing datasets on
 # input4MIPs (ESGF authentication) and HITRAN line parameters (registration).
+  retrieved: '2026-09-05T01:06:15+00:00'

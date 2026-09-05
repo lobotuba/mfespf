@@ -44,6 +44,7 @@ __all__ = [
     "UncertaintyKind",
     "cell_edges",
     "resample",
+    "splice",
 ]
 
 SOFTWARE = "mfespf.data.records.resample"
@@ -400,6 +401,86 @@ def resample(
         ),
     )
     return resampled, report
+
+
+def splice(
+    early: TimeSeries, late: TimeSeries, *, at: float
+) -> tuple[TimeSeries, ResamplingReport]:
+    """Join two records at ``at``, and report how far apart they were there.
+
+    Merging two records is a transformation, and a common place for a
+    discontinuity to enter unannounced. The two are not adjusted to agree: the
+    offset where they meet is measured and reported, because it is a real
+    disagreement between two estimates of the same quantity, and smoothing it
+    into a seamless join would destroy the only evidence that it exists.
+
+    The overlap must be non-empty, so the offset is measured rather than
+    assumed, and the two must carry the same variable and units.
+    """
+    if early.variable != late.variable:
+        raise ProvenanceError(
+            f"cannot splice {early.variable!r} onto {late.variable!r}; they are not the "
+            f"same quantity"
+        )
+    if early.units != late.units:
+        raise ProvenanceError(
+            f"cannot splice {early.units!r} onto {late.units!r}; convert at a declared "
+            f"boundary first (DAT-004)"
+        )
+    overlap = (
+        max(early.coverage[0], late.coverage[0]),
+        min(early.coverage[1], late.coverage[1]),
+    )
+    if overlap[1] <= overlap[0]:
+        raise ProvenanceError(
+            f"the records cover {early.coverage} and {late.coverage} and do not overlap; a "
+            f"splice with no overlap cannot measure the step it introduces"
+        )
+    if not (early.covers(at, at) and late.covers(at, at)):
+        raise ProvenanceError(
+            f"the join at {at:g} s lies outside the overlap [{overlap[0]:g}, {overlap[1]:g}]"
+        )
+
+    offset = late.value_at(at) - early.value_at(at)
+    times = np.concatenate([early.times[early.times < at], late.times[late.times >= at]])
+    values = np.concatenate([early.values[early.times < at], late.values[late.times >= at]])
+
+    joined = early.with_values(
+        times,
+        values,
+        dataset_id=f"{early.dataset_id}+{late.dataset_id}",
+        provenance_class=(
+            early.provenance_class
+            if early.provenance_class is late.provenance_class
+            else ProvenanceClass.PROXY
+        ),
+        uncertainty_kind=UncertaintyKind.UNDECLARED,
+        note=(
+            f"spliced: {early.dataset_id} before the join and {late.dataset_id} after it. "
+            f"They differ by {offset:+.4g} {early.units} where they meet, and the step is "
+            f"left in rather than smoothed away"
+        ),
+    )
+    report = ResamplingReport(
+        variable=early.variable,
+        dataset_id=joined.dataset_id,
+        dataset_version=late.dataset_version,
+        source_coverage=(early.coverage[0], late.coverage[1]),
+        source_samples=int(early.times.size + late.times.size),
+        target_samples=int(times.size),
+        aggregation=f"splice_at_{at:g}",
+        interpolation="none",
+        source_resolved_period=max(early.resolved_period, late.resolved_period),
+        target_resolved_period=max(early.resolved_period, late.resolved_period),
+        input_variance=float(np.var(np.concatenate([early.values, late.values]))),
+        output_variance=float(np.var(values)),
+        uncertainty_effect=(
+            f"the two records disagree by {offset:+.4g} {early.units} at the join. That is a "
+            f"discontinuity in the merged series and a lower bound on the difference between "
+            f"two estimates of the same quantity; neither record was adjusted to remove it"
+        ),
+    )
+    return joined, report
 
 
 def cell_edges(times: np.ndarray) -> np.ndarray:

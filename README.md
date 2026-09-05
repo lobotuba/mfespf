@@ -21,7 +21,7 @@ specification governs.**
 
 ## Status
 
-Version 0.7.0 — the charter's validation ladder (§19) through **Stage 6**:
+Version 0.8.0 — the charter's validation ladder (§19) through **Stage 6**:
 the accounting kernel, the airless radiating body, the radiating atmospheric
 column, atmospheric thermodynamics with convection and water, clouds, thermal
 storage with measured response timescales, and historical replay of a declared
@@ -43,16 +43,16 @@ test. All eight KER-012 reference configurations exist and run. See
 [`docs/traceability.md`](docs/traceability.md) — the uncovered requirements are
 listed there rather than left implicit.
 
-Six real global-mean records are declared in
+Eight real global-mean records are declared in
 [`data/sources.yaml`](data/sources.yaml) and load through the framework's
-provenance path, and **the first registered claim against them has been
-refuted** — see below.
+provenance path. **Two claims have been registered against them and both have
+been refuted** — see below.
 
 ## Install and run
 
 ```bash
 python -m pip install -e ".[dev]"     # Python 3.11+
-python -m pytest                       # 354 tests, ~2 min on a workstation
+python -m pytest                       # 365 tests, ~3 min on a workstation
 python tools/fetch_data.py             # optional: fetch the declared datasets
 mfespf run airless --steps 4800        # Stage 1: 200 simulated days
 mfespf run window --steps 6000 --heat-capacity 1e6            # Stage 2 column
@@ -63,6 +63,7 @@ mfespf run ocean  --steps 16000 --master-dt 864000 --steps-per-solar-exchange 1 
 mfespf run replay --steps 500                                 # Stage 6, synthetic record
 mfespf run replay-observed --steps 2000                       # Stage 6, real NRLTSI2 record
 mfespf experiment solar-only                                  # the first registered claim
+mfespf experiment solar-and-co2                               # with a greenhouse pathway
 ```
 
 ```
@@ -200,6 +201,53 @@ the irradiance of the period it covers, so it still cannot be reported as a
 hindcast. Two guards against two different mistakes, and a real record relaxes
 only one.
 
+## Two registered claims, and what separated them
+
+Carbon dioxide enters through the **absorption coefficient**, so the radiative
+transfer computes its effect rather than being handed one. Four runs differ in
+exactly one driver each, and the control with both drivers held is flat to
+machine precision:
+
+```
+$ mfespf experiment solar-and-co2
+run                    range K     rms K  var. expl.
+solar + CO2             2.1123    0.2694      0.6086
+solar only              0.0651    0.3998      0.0345
+CO2 only                2.0725    0.2622      0.6222
+neither (control)       0.0000    0.4072      0.0000
+observed                2.3971
+
+threshold:    0.113716 K     measured rms: 0.269384 K
+claim status: refuted
+```
+
+Adding CO₂ takes the model from explaining **3%** of the observed variance to
+**61%**, and it still fails the threshold. Both claims are refuted; what changed
+is how far, and what the residual now points at.
+
+**The logarithm is a result, not an input.** The forcing per doubling is nearly
+constant — within 35% across a factor of eight in concentration — because the
+band core is saturated, so more gas widens the opaque region instead of
+deepening it. Nothing asserts that; the transfer solver produces it and the
+tests measure it. One parameter is calibrated, the wing decay scale, and it is
+calibrated against a **published forcing value** and never against a temperature
+record, which is what keeps HadCRUT5 available as independent validation.
+`fetch_data.py` and the dataset registry keep the two roles apart.
+
+**The base state is 27 K too warm, and that is declared.** Matching the accepted
+forcing per doubling in a column with eight layers and no stratosphere requires
+a band wider than the real 15 µm one, because this column's emission-height
+contrast is weaker. The comparison is of anomalies so a constant offset does not
+enter it, but the Planck response at 315 K is a third stronger than at 288 K, so
+the sensitivity is suppressed. That is in the hypothesis record's validity
+domain, not in a footnote.
+
+**What the residual points at.** The configuration has no aerosols, no volcanic
+forcing, no water-vapour feedback and no ocean heat uptake below a 50 m slab.
+Two of those push the model warm and one pushes it cool, which is why the
+outcome was not predictable from the configuration alone — the first time that
+has been true here.
+
 ## The first registered claim, and its refutation
 
 ```
@@ -275,6 +323,7 @@ The interface spine is the substantial part. See
 | Claims | [`registries/claims.py`](src/mfespf/registries/claims.py) | no claim without a failure criterion; thresholds freeze before evaluation |
 | Hypotheses | [`registries/hypotheses.py`](src/mfespf/registries/hypotheses.py) | a mechanism must name its control and what its experiment cannot separate it from |
 | Model/record comparison | [`evaluation/comparison.py`](src/mfespf/evaluation/comparison.py) | anomalies differenced against the record's own baseline; the model moves to the data |
+| Greenhouse gases | [`physics/greenhouse.py`](src/mfespf/physics/greenhouse.py) | CO₂ enters as an absorption coefficient, never as a fitted forcing |
 | Transfers | [`coupling/transfers.py`](src/mfespf/coupling/transfers.py) | both parties record each exchange; overlapping records are double counts |
 | Conservation | [`coupling/conservation.py`](src/mfespf/coupling/conservation.py) | numerical sources tracked apart from physical ones |
 | Dependency graph | [`coupling/graph.py`](src/mfespf/coupling/graph.py) | undeclared feedback cycles fail; edges can be disabled for controls |
@@ -402,6 +451,18 @@ Sun. The registry refuses an undeclared provenance in any evidence role, and the
 evaluator caps a claim tested against a generated record at
 `EMPIRICALLY_UNRESOLVED` — the metric is still reported, because the numerical
 check is real; what is withheld is the empirical conclusion.
+
+**A mechanism enters through a constitutive relation, not as a forcing.** CO₂
+changes an absorption coefficient and the transfer solver computes the
+consequence — it is unchanged and unaware. Adding a fitted forcing to an energy
+budget instead would make the greenhouse effect an input to the model rather
+than a result of it, and the question this framework asks is whether the physics
+produces the observed behaviour.
+
+**A calibration target must not be the thing being predicted.** The CO₂ band's
+one fitted parameter is calibrated against a published forcing per doubling.
+Calibrating it against the temperature record would have spent that record, and
+`check_contamination` would have said so at the next evaluation.
 
 **A hypothesis must say what its experiment cannot separate it from.** HYP-008
 is the field most likely to be left vague and the one that decides the

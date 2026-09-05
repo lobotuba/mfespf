@@ -54,6 +54,7 @@ EQUATION_IDS = {
     "cloud_radiative_effect": "EQ-CLOUD-RADIATIVE-EFFECT",
     "two_stream": "EQ-TWO-STREAM-LAYER-COEFFICIENTS",
     "deep_ocean_exchange": "EQ-TWO-RESERVOIR-OCEAN-EXCHANGE",
+    "co2_band_absorption": "EQ-CO2-BAND-ABSORPTION",
 }
 
 
@@ -1244,6 +1245,72 @@ def build_equation_registry() -> EquationRegistry:
                 "timescale, which is set by the mixed layer and not by this equation",
             ),
             source="Gregory 2000; Held et al. 2010 two-layer energy-balance formulation",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["co2_band_absorption"],
+            version=V1,
+            name="Carbon dioxide band absorption coefficient",
+            category=EquationCategory.CONSTITUTIVE_RELATION,
+            mathematical_form=("kappa(v) = kappa_bg + k0 (M_CO2/M_air) x exp(-|v - v0| / D)"),
+            physical_basis=(
+                "A vibration-rotation band whose line strengths fall away from the band "
+                "centre, represented as a single exponential envelope in wavenumber. The "
+                "coefficient is per kilogram of air, so it multiplies the layer mass the "
+                "radiation module already carries."
+            ),
+            variables=(
+                ("kappa", "mass absorption coefficient of air", "m^2 kg^-1"),
+                ("v", "wavenumber", "m^-1"),
+                ("x", "carbon dioxide mole fraction", "1"),
+            ),
+            parameters=(
+                ("co2_band_centre_absorption", "parameterized", "set for a saturated core"),
+                ("co2_wing_decay", "calibrated", "fitted to a published forcing per doubling"),
+                ("infrared_background_absorption", "parameterized", "stands for water vapour"),
+            ),
+            assumptions=(
+                "carbon dioxide uniformly mixed through the column",
+                "only the 15 micron band; the 4.3 micron band is omitted",
+                "a single exponential wing envelope in place of a line-by-line spectrum",
+            ),
+            approximations=(
+                "The wing envelope is an envelope, not a spectrum: it reproduces how the "
+                "opaque width grows with concentration and not the line structure inside "
+                "it, so nothing about spectrally resolved outgoing radiance is in scope.",
+                "The background coefficient is held fixed, so there is no water-vapour "
+                "feedback and a change between two runs is attributable to CO2 alone.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("x", 5.0e-5, 2.0e-3, "1"),),
+                conditions=(
+                    "concentrations within roughly a factor of four of present day, where "
+                    "the wings stay inside the resolved spectral range",
+                ),
+            ),
+            limiting_cases=(
+                "zero concentration leaves only the background coefficient",
+                "a saturated core makes the forcing depend on the logarithm of "
+                "concentration rather than on concentration",
+            ),
+            conserved_quantities=("energy",),
+            correctness_tests=(
+                "test_forcing_per_doubling_is_nearly_constant",
+                "test_zero_concentration_leaves_only_the_background",
+                "test_the_band_is_confined_to_the_infrared",
+            ),
+            known_failure_modes=(
+                "a grid that does not resolve the wings gives linear growth or complete "
+                "saturation instead of a logarithm",
+                "extrapolating far outside the calibrated range moves the wings outside "
+                "the resolved band, which weakens the logarithm for a numerical reason",
+            ),
+            source=(
+                "Standard band-model treatment; the wing decay is calibrated against a "
+                "published 3.7 W m^-2 forcing per doubling and achieves 3.58"
+            ),
         )
     )
 

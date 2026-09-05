@@ -55,6 +55,8 @@ __all__ = [
     "load_berkeley",
     "load_declared",
     "load_hadcrut5",
+    "load_law_dome_co2",
+    "load_noaa_mlo_co2",
     "load_noaa_ohc",
     "load_nrltsi2",
     "seconds_since_epoch",
@@ -285,11 +287,81 @@ def load_nrltsi2(path: str | Path, **identity: object) -> TimeSeries:
     )
 
 
+def load_law_dome_co2(path: str | Path, **identity: object) -> TimeSeries:
+    """The Law Dome ice-core CO2 spline: column 6 of a ten-column file.
+
+    The file carries three gases side by side, each with its own year column,
+    because the splines were fitted separately. Reading column 1 as the year for
+    column 6 happens to work here and would break silently if the CH4 record
+    were ever trimmed, so the CO2 year column is used.
+    """
+    times: list[float] = []
+    values: list[float] = []
+    for line in Path(path).read_text(encoding="utf-8", errors="replace").splitlines():
+        fields = line.split()
+        if len(fields) < 7:
+            continue
+        try:
+            year, co2 = float(fields[4]), float(fields[5])
+        except ValueError:
+            continue
+        if not 0.0 < year < 2100.0 or not 150.0 < co2 < 1000.0:
+            continue
+        times.append(_mid_year(int(year)))
+        values.append(co2)
+
+    return TimeSeries(
+        variable="co2_mole_fraction",
+        times=np.array(times),
+        values=np.array(values),
+        units="ppm",
+        sampling=SamplingConvention.INTERVAL_MEAN,
+        note=(
+            "a smoothed spline through ice-core air, not a direct atmospheric measurement; "
+            "firn smoothing has already removed variability faster than roughly a decade, "
+            "and that filter is not recorded in this file or recoverable from it"
+        ),
+        **identity,  # type: ignore[arg-type]
+    )
+
+
+def load_noaa_mlo_co2(path: str | Path, **identity: object) -> TimeSeries:
+    """Mauna Loa annual means: year, mean, uncertainty, hash-commented."""
+    times: list[float] = []
+    values: list[float] = []
+    uncertainties: list[float] = []
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        fields = stripped.split()
+        times.append(_mid_year(int(float(fields[0]))))
+        values.append(float(fields[1]))
+        uncertainties.append(float(fields[2]))
+
+    return TimeSeries(
+        variable="co2_mole_fraction",
+        times=np.array(times),
+        values=np.array(values),
+        units="ppm",
+        sampling=SamplingConvention.INTERVAL_MEAN,
+        uncertainty=np.array(uncertainties),
+        uncertainty_kind=UncertaintyKind.STANDARD_UNCERTAINTY,
+        note=(
+            "one station used as a global mean; CO2 is well mixed on the timescales used "
+            "here, but the seasonal cycle and the interhemispheric gradient are absent"
+        ),
+        **identity,  # type: ignore[arg-type]
+    )
+
+
 LOADERS: dict[str, Callable[..., TimeSeries]] = {
     "hadcrut5": load_hadcrut5,
     "berkeley": load_berkeley,
     "noaa_ohc": load_noaa_ohc,
     "nrltsi2": load_nrltsi2,
+    "law_dome_co2": load_law_dome_co2,
+    "noaa_mlo_co2": load_noaa_mlo_co2,
 }
 
 

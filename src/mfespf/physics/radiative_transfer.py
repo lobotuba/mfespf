@@ -456,6 +456,9 @@ class SpectralRadiationModule(Module):
         shortwave_cutoff_m: float = _DEFAULT_SW_LW_CUTOFF_M,
         couple_clouds: bool = False,
         cloud_module_id: str = "cloud",
+        couple_greenhouse: bool = False,
+        greenhouse_module_id: str = "greenhouse",
+        greenhouse_background: float = 1.0e-4,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         n_bands = grid.n_bins
@@ -510,6 +513,7 @@ class SpectralRadiationModule(Module):
                 "surface_temperature",
                 "surface_spectral_albedo",
                 *(("cloud_fraction",) if couple_clouds else ()),
+                *(("co2_mole_fraction",) if couple_greenhouse else ()),
             ),
             produced_outputs=(
                 "layer_radiative_heating",
@@ -602,6 +606,10 @@ class SpectralRadiationModule(Module):
         )
         self.shortwave_cutoff_m = shortwave_cutoff_m
         self.couple_clouds = couple_clouds
+        self.couple_greenhouse = couple_greenhouse
+        self.greenhouse_module_id = greenhouse_module_id
+        self.greenhouse_background = greenhouse_background
+        self.co2_mole_fraction = 0.0
         self.cloud_module_id = cloud_module_id
         self.solution: ColumnRadiationSolution | None = None
         self.clear_sky: ColumnRadiationSolution | None = None
@@ -644,12 +652,28 @@ class SpectralRadiationModule(Module):
                 f"configured for {self.grid.n_bins}; regrid at a declared boundary (SPC-005)"
             )
 
+        # A greenhouse gas enters as a constitutive relation on the absorption
+        # coefficient, not as a forcing added to a budget. The transfer solver is
+        # unchanged and unaware: it is handed a different kappa and computes the
+        # consequence, which is what makes the greenhouse effect a result of this
+        # configuration rather than an input to it.
+        kappa = self.absorption_coefficient
+        if self.couple_greenhouse:
+            from mfespf.physics.greenhouse import co2_band_absorption
+
+            self.co2_mole_fraction = (
+                self.input_field("co2_mole_fraction").require_units("ppm").scalar()
+            )
+            kappa = co2_band_absorption(
+                self.grid, self.co2_mole_fraction, background=self.greenhouse_background
+            )
+
         common = dict(
             grid=self.grid,
             incident_spectral_irradiance=incident.values,
             layer_temperature=temperature.values,
             layer_mass=mass.values,
-            absorption_coefficient=self.absorption_coefficient,
+            absorption_coefficient=kappa,
             surface_temperature=surface_temperature,
             surface_albedo=albedo.values,
             diffusivity_factor=self.diffusivity_factor,
@@ -881,6 +905,12 @@ class SpectralRadiationModule(Module):
             if self.couple_clouds
             else "no_clouds_active",
             "couple_clouds": self.couple_clouds,
+            "couple_greenhouse": self.couple_greenhouse,
+            **(
+                {"greenhouse_background_m2_kg": self.greenhouse_background}
+                if self.couple_greenhouse
+                else {}
+            ),
         }
 
     def _cloud_optics(self) -> tuple[float, Any] | None:

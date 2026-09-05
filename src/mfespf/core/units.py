@@ -219,6 +219,12 @@ _register("C", CHARGE)
 _register("kg m^-2 s^-1", MASS_FLUX)
 _register("kg m^-2", Dimension.of(mass=1, length=-2))
 _register("kg kg^-1", DIMENSIONLESS)
+_register("mol mol^-1", DIMENSIONLESS)
+# A mole fraction in parts per million. Dimensionless with a scale, so a
+# conversion to mol mol^-1 happens at a declared boundary and is logged rather
+# than being a factor someone remembers to apply.
+_register("ppm", DIMENSIONLESS, scale=1.0e-6)
+_register("ppb", DIMENSIONLESS, scale=1.0e-9)
 _register("K s^-1", Dimension.of(temperature=1, time=-1))
 _register("W m^-2 K^-4", Dimension.of(mass=1, time=-3, temperature=-4))
 _register("W m^-2 K^-1", Dimension.of(mass=1, time=-3, temperature=-1))

@@ -361,6 +361,19 @@ class AtmosphericColumnModule(Module):
         for contribution in contributions:
             total = total + np.broadcast_to(contribution.as_array(), (self.n_layers,))
         self.temperature = initial + total * dt
+        # Charter 15.2: refuse an impossible state rather than integrating on
+        # from it. Forward Euler beyond its stability limit produces negative
+        # temperatures, and a column that keeps going produces numbers whose
+        # budget still closes -- the accounting is consistent about nonsense --
+        # so nothing downstream would have caught it.
+        if np.any(self.temperature <= 0.0):
+            worst = float(np.min(self.temperature))
+            raise ConfigurationError(
+                f"layer temperature reached {worst:.4g} K, which is unphysical. Forward "
+                f"Euler is unstable when the step approaches a layer's radiative "
+                f"relaxation time; reduce the master step or the opacity, and note that "
+                f"conservation closing is not evidence the answer is physical"
+            )
         self._budget = StateBudget(
             state_id=ATMOSPHERE_TEMPERATURE_STATE,
             initial_value=initial,

@@ -376,6 +376,12 @@ class ColumnSurfaceModule(Module):
         thermal = [c for c in contributions if c.state_id == SURFACE_TEMPERATURE_STATE]
         initial = np.asarray(self.temperature, dtype=float)
         self.temperature = float(initial + sum(float(np.asarray(c.value)) for c in thermal) * dt)
+        if self.temperature <= 0.0:
+            raise ConfigurationError(
+                f"surface temperature reached {self.temperature:.4g} K, which is "
+                f"unphysical; the run is stopped rather than continued from an "
+                f"impossible state (charter 15.2)"
+            )
         self._budget = StateBudget(
             state_id=SURFACE_TEMPERATURE_STATE,
             initial_value=initial,

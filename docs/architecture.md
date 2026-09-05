@@ -50,6 +50,90 @@ Nothing in the upper layers can bypass the lower ones. A module has no method
 that writes another module's state; the only path is a labeled tendency the
 owner commits.
 
+## The greenhouse pathway
+
+```
+CO2 record ─▶ greenhouse ─▶ radiation ─▶ atmosphere ─▶ surface
+              publishes a   rebuilds     the transfer solver is
+              concentration its kappa    unchanged and unaware
+```
+
+Carbon dioxide enters through a constitutive relation on the absorption
+coefficient. That is the charter's answer to where a mechanism may act (HYP-005),
+and it is the difference between a model that produces the greenhouse effect and
+one that is handed it: a fitted forcing added to an energy budget would make the
+effect an input, and the question this framework asks is whether the physics
+produces the observed behaviour.
+
+### Where the logarithm comes from
+
+The near-constant forcing per doubling is not written in. Absorption is strongest
+at the band centre and falls exponentially into the wings *in wavenumber*, which
+is how a vibration-rotation band's line strengths fall away. The optical depth at
+a displacement `dv` from the centre is `tau_0 exp(-dv / D)`, so the displacement
+at which the atmosphere stops being opaque is `D ln(tau_0)`, and the opaque width
+grows by `2 D ln 2` per doubling whatever the starting concentration.
+
+The transfer solver produces the consequence and the tests measure it: four
+doublings spanning a factor of eight in concentration give forcings within 35
+percent of each other, and the spread grows when the grid is coarsened until the
+wings are no longer resolved. `greenhouse_grid` refuses fewer than eight bands
+across the band for that reason -- with the wings unresolved the model gives
+linear growth or complete saturation, and neither is what carbon dioxide does.
+
+The forcing is converged in spectral resolution: 3.5786 W m^-2 per doubling at 67
+grid bands against 3.5780 at 109.
+
+### What is calibrated, and against what
+
+One parameter: the wing decay scale, 36 cm^-1. It is calibrated against a
+*published radiative-forcing value* of 3.7 W m^-2 per doubling and achieves 3.58
+-- a three percent shortfall reported rather than tuned away by adding a second
+knob.
+
+The calibration target matters more than the number. Fitting it to a temperature
+record would have spent that record: the dataset registry enforces INF-003 one
+way and at variable granularity, so HadCRUT5 would have stopped being available
+as independent validation for the very claim it was needed for. Calibrating
+against a forcing value keeps the two roles apart, and the registry's
+`assert_clean` is what confirms it.
+
+The band-centre absorption is *not* fitted. It is set to make the core deeply
+saturated -- an optical depth of order ten thousand through the column -- which
+is a qualitative fact about the real 15 micron band. Once the core is saturated
+its exact value stops mattering: the forcing depends on where the wings cross
+unit optical depth, which depends on the logarithm of that number.
+
+### The base state is wrong, and the reason is structural
+
+This column equilibrates near 315 K rather than 288 K. The cause is not the
+concentration but the band's *width*. A reduced column with eight layers and no
+stratosphere has a weaker contrast between the surface and the level it radiates
+from than the real atmosphere, so reproducing the accepted forcing per doubling
+requires a band opaque over a wider range of wavelengths than the real one. The
+forcing is right, the width is not, and the surplus width closes part of the
+atmospheric window.
+
+Two consequences, and they pull in opposite directions. The comparison is of
+anomalies differenced against the model's own baseline, so a constant offset does
+not enter it. But the Planck response at 315 K is about a third stronger than at
+288 K, so the sensitivity is suppressed relative to what this configuration would
+give at the right base state. That is in the hypothesis record's validity domain.
+
+### Four runs, differing in one thing each
+
+Both drivers varying, solar held, CO2 held, both held. The last produces a range
+of exactly zero and explains exactly zero of the observed variance, which is what
+makes a difference between any pair attributable to the driver that changed.
+
+Getting there took two corrections, both found by the control rather than by
+inspection. The replay was starting from a guessed initial state and spending its
+first decades relaxing -- seventeen kelvin of it, appearing as a trend. And the
+controls were holding their drivers at the record *mean* while the spin-up had
+equilibrated to the record's *first* value, which left a transient belonging to
+neither run in the difference between them. The control is now flat because both
+were fixed.
+
 ## The first registered claim
 
 ```
@@ -870,14 +954,20 @@ is deleted from this list, and where a stage removed one the entry says so.
   the full-fidelity module.
 - The forcing perturbation is spectrally flat, so no experiment about the
   wavelength dependence of solar forcing can be run with it.
-- **One claim has been registered against observations, and it was refuted.**
-  The solar-only experiment compares against HadCRUT5 and NRLTSI2. Nothing has
+- **Two claims have been registered against observations, and both were
+  refuted.** The solar-only experiment explains 3 percent of the observed
+  variance; adding carbon dioxide takes that to 61 percent and still fails the
+  threshold. Nothing has
   been *supported* by observation, and nothing can be until a prospective
   comparison exists -- a reconstruction pass earns QUALIFIED at most.
-- The configuration behind that experiment is the airless body, so the
-  refutation bears on its sufficiency and not on solar physics. No configuration
-  containing greenhouse, aerosol or volcanic forcing has been run against a
-  record, because none of those mechanisms is implemented.
+- The greenhouse configuration's base state is about 27 K too warm, which
+  suppresses its sensitivity; the cause is the band width required to match the
+  forcing in a column with no stratosphere.
+- No aerosol, volcanic or land-use forcing exists in any configuration, and
+  there is no water-vapour or cloud feedback in the greenhouse one. Two of those
+  omissions push the model warm and one pushes it cool.
+- Ocean heat uptake below a 50 m slab is absent from the greenhouse
+  configuration, although the two-reservoir module exists and would drop in.
 - The recorded solar source is broadband, so the spectral shape of the imposed
   irradiance is assumed rather than recorded, and no claim about spectral solar
   forcing is admissible from a replay.
