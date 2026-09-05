@@ -21,7 +21,7 @@ specification governs.**
 
 ## Status
 
-Version 0.9.0 — the charter's validation ladder (§19) through **Stage 6**:
+Version 0.10.0 — the charter's validation ladder (§19) through **Stage 6**:
 the accounting kernel, the airless radiating body, the radiating atmospheric
 column, atmospheric thermodynamics with convection and water, clouds, thermal
 storage with measured response timescales, and historical replay of a declared
@@ -43,16 +43,16 @@ test. All eight KER-012 reference configurations exist and run. See
 [`docs/traceability.md`](docs/traceability.md) — the uncovered requirements are
 listed there rather than left implicit.
 
-Eight real global-mean records are declared in
+Nine real global-mean records are declared in
 [`data/sources.yaml`](data/sources.yaml) and load through the framework's
-provenance path. **Three claims have been registered against them and all three
-have been refuted** — see below.
+provenance path. **Four claims have been registered against them and all four have
+been refuted** — see below.
 
 ## Install and run
 
 ```bash
 python -m pip install -e ".[dev]"     # Python 3.11+
-python -m pytest                       # 371 tests, ~3 min on a workstation
+python -m pytest                       # 382 tests, ~4 min on a workstation
 python tools/fetch_data.py             # optional: fetch the declared datasets
 mfespf run airless --steps 4800        # Stage 1: 200 simulated days
 mfespf run window --steps 6000 --heat-capacity 1e6            # Stage 2 column
@@ -65,6 +65,7 @@ mfespf run replay-observed --steps 2000                       # Stage 6, real NR
 mfespf experiment solar-only                                  # the first registered claim
 mfespf experiment solar-and-co2                               # with a greenhouse pathway
 mfespf experiment solar-co2-ocean                             # and with deep-ocean heat uptake
+mfespf experiment solar-co2-volcanic                          # and with volcanic aerosol
 ```
 
 ```
@@ -202,7 +203,7 @@ the irradiance of the period it covers, so it still cannot be reported as a
 hindcast. Two guards against two different mistakes, and a real record relaxes
 only one.
 
-## Three registered claims, and what separated them
+## Four registered claims, and what separated them
 
 Carbon dioxide enters through the **absorption coefficient**, so the radiative
 transfer computes its effect rather than being handed one. Four runs differ in
@@ -216,8 +217,37 @@ machine precision:
 | solar + CO₂ + deep ocean | 1.829 | **0.214** | **+0.759** | refuted |
 | *observed* | *2.397* | | | |
 
-All three fail the same threshold, 0.1137 K, taken from the record's own
+All fail the same threshold, 0.1137 K, taken from the record's own
 uncertainty. What changes is how far, and what the residual points at.
+
+Adding volcanic aerosol is the fourth, and it makes the fit **worse**. Over its
+own period (1882–2012, where the aerosol record ends) the variance explained
+falls from 0.674 with the aerosol held to 0.571 with it varying:
+
+```
+$ mfespf experiment solar-co2-volcanic
+run                    range K     rms K  var. expl.
+everything varying      2.1699    0.2224      0.5710
+volcanic held           1.4780    0.2134      0.6742
+solar only              0.0572    0.3374      0.0391
+CO2 only                2.1536    0.2177      0.5845
+neither (control)       0.0000    0.3459      0.0000
+observed                1.9379
+```
+
+That is the most useful thing the framework has produced, because the *forcing*
+is right and the *response* is not. A stratospheric optical depth of 0.15 gives
+−2.87 W m⁻² here against an accepted ≈−3, with nothing calibrated to it — the
+record supplies the optical depth and the two-stream solver does the rest. But
+the modelled cooling after Pinatubo is 0.68 K against an observed 0.3–0.5 K.
+
+The cause is measurable: this column's feedback parameter is **0.907 W m⁻² K⁻¹**
+(3.58 W m⁻² per doubling ÷ 3.945 K response) against an accepted ≈1.2, so it is
+about 30% over-sensitive to *any* forcing. A volcanic pulse has a known
+amplitude and a short duration, so it exposes that directly where a slow CO₂
+ramp did not. The earlier agreement was partly a cancellation between an
+over-sensitive column and under-represented forcing, and the eruptions
+separated the two.
 
 Adding CO₂ takes the model from explaining **3%** of the observed variance to
 **61%**. Adding the two-reservoir ocean takes it to **76%** — and I had
@@ -327,6 +357,7 @@ The interface spine is the substantial part. See
 | Hypotheses | [`registries/hypotheses.py`](src/mfespf/registries/hypotheses.py) | a mechanism must name its control and what its experiment cannot separate it from |
 | Model/record comparison | [`evaluation/comparison.py`](src/mfespf/evaluation/comparison.py) | anomalies differenced against the record's own baseline; the model moves to the data |
 | Greenhouse gases | [`physics/greenhouse.py`](src/mfespf/physics/greenhouse.py) | CO₂ enters as an absorption coefficient, never as a fitted forcing |
+| Volcanic aerosol | [`physics/volcanic.py`](src/mfespf/physics/volcanic.py) | a scatterer; the record *is* the optical property, so little is constructed |
 | Transfers | [`coupling/transfers.py`](src/mfespf/coupling/transfers.py) | both parties record each exchange; overlapping records are double counts |
 | Conservation | [`coupling/conservation.py`](src/mfespf/coupling/conservation.py) | numerical sources tracked apart from physical ones |
 | Dependency graph | [`coupling/graph.py`](src/mfespf/coupling/graph.py) | undeclared feedback cycles fail; edges can be disabled for controls |
@@ -461,6 +492,13 @@ consequence — it is unchanged and unaware. Adding a fitted forcing to an energ
 budget instead would make the greenhouse effect an input to the model rather
 than a result of it, and the question this framework asks is whether the physics
 produces the observed behaviour.
+
+**A right forcing does not make a right response.** The volcanic forcing is
+correct to within a few percent of a published value and the modelled cooling is
+still half again too large, because the column's feedback parameter is 0.907
+W m⁻² K⁻¹ rather than ≈1.2. A short pulse of known amplitude separates the two
+where a slow ramp cannot, which is why a mechanism that made the fit worse was
+worth adding.
 
 **A calibration target must not be the thing being predicted.** The CO₂ band's
 one fitted parameter is calibrated against a published forcing per doubling.

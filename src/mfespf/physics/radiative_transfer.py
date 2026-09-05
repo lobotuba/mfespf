@@ -264,6 +264,34 @@ class ColumnRadiationSolution:
         return float(np.sum(self.layer_heating)) - net_in
 
 
+def combine_scatterers(
+    *contributions: tuple[np.ndarray, np.ndarray, np.ndarray],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Add two or more scatterers occupying the same layers.
+
+    Each contribution is ``(absorption, scattering, asymmetry)`` on the same
+    ``(n_layers, n_bands)`` grid. Optical depths add; the asymmetry does not.
+    It is a property of the scattered light, so the combination is weighted by
+    how much each contributor scatters -- a thin, strongly forward-scattering
+    aerosol beneath a thick cloud must not drag the layer's asymmetry towards
+    its own value.
+
+    Where nothing scatters the weighted mean is undefined, and zero is returned
+    rather than a division by zero: with no scattering the asymmetry multiplies
+    nothing and any value would do, so the one that cannot mislead is best.
+    """
+    if not contributions:
+        raise ConfigurationError("combine_scatterers needs at least one contribution")
+    absorption = np.sum([np.asarray(a, dtype=float) for a, _s, _g in contributions], axis=0)
+    scattering = np.sum([np.asarray(s, dtype=float) for _a, s, _g in contributions], axis=0)
+    weighted = np.sum(
+        [np.asarray(s, dtype=float) * np.asarray(g, dtype=float) for _a, s, g in contributions],
+        axis=0,
+    )
+    asymmetry = np.divide(weighted, scattering, out=np.zeros_like(weighted), where=scattering > 0.0)
+    return absorption, scattering, asymmetry
+
+
 def solve_column_radiation(
     *,
     grid: SpectralGrid,
@@ -273,9 +301,9 @@ def solve_column_radiation(
     absorption_coefficient: np.ndarray,
     surface_temperature: float,
     surface_albedo: np.ndarray,
-    cloud_absorption_optical_depth: np.ndarray | None = None,
-    cloud_scattering_optical_depth: np.ndarray | None = None,
-    cloud_asymmetry: np.ndarray | None = None,
+    absorption_optical_depth: np.ndarray | None = None,
+    scattering_optical_depth: np.ndarray | None = None,
+    asymmetry: np.ndarray | None = None,
     diffusivity_factor: float | None = None,
     shortwave_cutoff_m: float = _DEFAULT_SW_LW_CUTOFF_M,
 ) -> ColumnRadiationSolution:
@@ -286,9 +314,14 @@ def solve_column_radiation(
     with the incident field. That handles multiple reflection between layers
     exactly, which a pair of independent sweeps cannot once anything scatters.
 
-    ``cloud_*`` arrays are optional and shaped ``(n_layers, n_bands)``. Omitting
-    them leaves the column non-scattering, in which case the result is the
-    absorption-only solution to floating-point round-off.
+    The optical-property arrays are optional and shaped ``(n_layers, n_bands)``.
+    Omitting them leaves the column non-scattering, in which case the result is
+    the absorption-only solution to floating-point round-off.
+
+    They describe *a layer*, not a cloud. Cloud droplets and volcanic aerosol
+    scatter in the same layers and their contributions add, so the caller
+    combines them with ``combine_scatterers`` before calling here -- the solver
+    has no business knowing which scatterer is which.
     """
     n_layers = int(np.asarray(layer_mass).size)
     n_bands = grid.n_bins
@@ -331,12 +364,12 @@ def solve_column_radiation(
             raise ConfigurationError("cloud optical depths cannot be negative")
         return array
 
-    cloud_absorption = _optional(cloud_absorption_optical_depth)
-    cloud_scattering = _optional(cloud_scattering_optical_depth)
+    cloud_absorption = _optional(absorption_optical_depth)
+    cloud_scattering = _optional(scattering_optical_depth)
     asymmetry = (
         np.zeros(shape)
-        if cloud_asymmetry is None
-        else np.broadcast_to(np.asarray(cloud_asymmetry, dtype=float), shape)
+        if asymmetry is None
+        else np.broadcast_to(np.asarray(asymmetry, dtype=float), shape)
     )
 
     gas_absorption = kappa[None, :] * mass[:, None]
@@ -458,6 +491,9 @@ class SpectralRadiationModule(Module):
         cloud_module_id: str = "cloud",
         couple_greenhouse: bool = False,
         greenhouse_module_id: str = "greenhouse",
+        couple_volcanic: bool = False,
+        volcanic_module_id: str = "volcanic",
+        stratospheric_layers: int = 1,
         greenhouse_background: float = 1.0e-4,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
@@ -514,6 +550,7 @@ class SpectralRadiationModule(Module):
                 "surface_spectral_albedo",
                 *(("cloud_fraction",) if couple_clouds else ()),
                 *(("co2_mole_fraction",) if couple_greenhouse else ()),
+                *(("stratospheric_aerosol_optical_depth",) if couple_volcanic else ()),
             ),
             produced_outputs=(
                 "layer_radiative_heating",
@@ -606,6 +643,11 @@ class SpectralRadiationModule(Module):
         )
         self.shortwave_cutoff_m = shortwave_cutoff_m
         self.couple_clouds = couple_clouds
+        self.couple_volcanic = couple_volcanic
+        self.volcanic_optics: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
+        self.volcanic_module_id = volcanic_module_id
+        self.stratospheric_layers = stratospheric_layers
+        self.volcanic_optical_depth = 0.0
         self.couple_greenhouse = couple_greenhouse
         self.greenhouse_module_id = greenhouse_module_id
         self.greenhouse_background = greenhouse_background
@@ -680,6 +722,26 @@ class SpectralRadiationModule(Module):
             shortwave_cutoff_m=self.shortwave_cutoff_m,
         )
 
+        # Volcanic aerosol is in the clear sky as well as under the cloud, so it
+        # goes into the base optical properties rather than into the cloudy solve.
+        # A clear-sky diagnostic that excluded it would attribute the eruption's
+        # reflection to the cloud.
+        if self.couple_volcanic:
+            from mfespf.physics.volcanic import stratospheric_aerosol_optics
+
+            self.volcanic_optical_depth = (
+                self.input_field("stratospheric_aerosol_optical_depth").require_units("1").scalar()
+            )
+            self.volcanic_optics = stratospheric_aerosol_optics(
+                self.grid,
+                self.volcanic_optical_depth,
+                int(np.asarray(mass.values).size),
+                stratospheric_layers=self.stratospheric_layers,
+            )
+            common["absorption_optical_depth"] = self.volcanic_optics[0]
+            common["scattering_optical_depth"] = self.volcanic_optics[1]
+            common["asymmetry"] = self.volcanic_optics[2]
+
         # The clear-sky column is always solved. It is the reference the cloud
         # radiative effect is defined against, and when no cloud is active it is
         # also the answer -- so a no-cloud run costs exactly what it did before.
@@ -692,11 +754,25 @@ class SpectralRadiationModule(Module):
         else:
             fraction, optics = cloud
             self._cloud_fraction = fraction
+            # Cloud droplets and volcanic aerosol occupy the same layers, so
+            # their optical depths add and the layer's asymmetry is the
+            # scattering-weighted mean of theirs. Passing the cloud's properties
+            # alone would silently remove the aerosol from under the cloud.
+            absorption, scattering, asymmetry = combine_scatterers(
+                (optics.absorption, optics.scattering, optics.asymmetry),
+                *(
+                    (self.volcanic_optics,)
+                    if self.couple_volcanic and self.volcanic_optical_depth > 0.0
+                    else ()
+                ),
+            )
             overcast = solve_column_radiation(
-                cloud_absorption_optical_depth=optics.absorption,
-                cloud_scattering_optical_depth=optics.scattering,
-                cloud_asymmetry=optics.asymmetry,
-                **common,  # type: ignore[arg-type]
+                **{
+                    **common,
+                    "absorption_optical_depth": absorption,
+                    "scattering_optical_depth": scattering,
+                    "asymmetry": asymmetry,
+                }  # type: ignore[arg-type]
             )
             self.solution = _mix_columns(self.clear_sky, overcast, fraction)
 
@@ -906,6 +982,8 @@ class SpectralRadiationModule(Module):
             else "no_clouds_active",
             "couple_clouds": self.couple_clouds,
             "couple_greenhouse": self.couple_greenhouse,
+            "couple_volcanic": self.couple_volcanic,
+            **({"stratospheric_layers": self.stratospheric_layers} if self.couple_volcanic else {}),
             **(
                 {"greenhouse_background_m2_kg": self.greenhouse_background}
                 if self.couple_greenhouse

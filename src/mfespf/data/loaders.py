@@ -54,6 +54,7 @@ __all__ = [
     "available",
     "load_berkeley",
     "load_declared",
+    "load_giss_saod",
     "load_hadcrut5",
     "load_law_dome_co2",
     "load_noaa_mlo_co2",
@@ -355,12 +356,56 @@ def load_noaa_mlo_co2(path: str | Path, **identity: object) -> TimeSeries:
     )
 
 
+def load_giss_saod(path: str | Path, *, column: str = "global", **identity: object) -> TimeSeries:
+    """GISS stratospheric aerosol optical depth: decimal year and three columns.
+
+    ``column`` picks the global mean or a hemisphere. The default is the global
+    mean, which is what a single-column model can use; the hemispheric pair is
+    there because a volcanic cloud is not symmetric, and a configuration that
+    could represent that difference should be able to read it.
+    """
+    columns = {"global": 1, "northern": 2, "southern": 3}
+    if column not in columns:
+        raise ConfigurationError(f"column must be one of {sorted(columns)}, got {column!r}")
+    index = columns[column]
+
+    times: list[float] = []
+    values: list[float] = []
+    for line in Path(path).read_text(encoding="utf-8", errors="replace").splitlines():
+        fields = line.split()
+        if len(fields) < 4:
+            continue
+        try:
+            when, tau = float(fields[0]), float(fields[index])
+        except ValueError:
+            continue
+        if not 1000.0 < when < 2200.0:
+            continue
+        times.append(_decimal_year(when))
+        values.append(tau)
+
+    return TimeSeries(
+        variable="stratospheric_aerosol_optical_depth",
+        times=np.array(times),
+        values=np.array(values),
+        units="1",
+        sampling=SamplingConvention.INTERVAL_MEAN,
+        note=(
+            f"{column} mean at 550 nm. Before the satellite era this is assembled from "
+            "ground-based and indirect evidence rather than measured, so the early part "
+            "inherits those assumptions"
+        ),
+        **identity,  # type: ignore[arg-type]
+    )
+
+
 LOADERS: dict[str, Callable[..., TimeSeries]] = {
     "hadcrut5": load_hadcrut5,
     "berkeley": load_berkeley,
     "noaa_ohc": load_noaa_ohc,
     "nrltsi2": load_nrltsi2,
     "law_dome_co2": load_law_dome_co2,
+    "giss_saod": load_giss_saod,
     "noaa_mlo_co2": load_noaa_mlo_co2,
 }
 

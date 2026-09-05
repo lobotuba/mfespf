@@ -188,6 +188,29 @@ sources:
     gradient are absent from it.
   sha256: d84833898a9131921065912a9a33a8e1c4fb5791b5cd4f77ba5f71761cd717e5
 
+- dataset_id: GISS-SAOD-MONTHLY
+  loader: giss_saod
+  title: Stratospheric aerosol optical depth at 550 nm, global mean, monthly
+  filename: giss_saod_monthly.txt
+  url: https://data.giss.nasa.gov/modelforce/strataer/original_GISS_data/tau.line_2012.12.txt
+  provider: NASA Goddard Institute for Space Studies
+  provenance_class: proxy
+  variables:
+  - stratospheric_aerosol_optical_depth
+  units:
+  - '1'
+  temporal_coverage: 1850-01 to 2012-09, monthly
+  spatial_coverage: global mean, with hemispheric columns also present
+  uncertainty: none published per sample in this product
+  licence: US Government work, no copyright asserted. GISS requests citation.
+  citation: Sato, M. et al. (1993), Stratospheric aerosol optical depths 1850-1990, JGR; updated
+    through 2012.
+  notes: 'Classified PROXY rather than OBSERVATIONAL: before the satellite era it is assembled
+    from ground-based and indirect evidence rather than measured directly, and the pre-1979 part
+    inherits those assumptions. It ends in 2012, so any comparison using it covers a shorter period
+    than one using the solar and CO2 records alone.'
+  sha256: 40b245c8fc871b75da40803c8dffee78fe9707758702297b6b9945e5ed003393
+
 # --- not fetchable without credentials --------------------------------------
 #
 # CERES EBAF is the single most valuable dataset for this framework: it reports
@@ -199,4 +222,4 @@ sources:
 #
 # Absent for the same reason: the CMIP6 solar and volcanic forcing datasets on
 # input4MIPs (ESGF authentication) and HITRAN line parameters (registration).
-  retrieved: '2026-09-05T01:06:15+00:00'
+  retrieved: '2026-09-05T02:41:50+00:00'

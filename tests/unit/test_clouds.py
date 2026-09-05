@@ -137,9 +137,9 @@ def test_flux_divergence_still_closes_with_scattering_present():
         absorption_coefficient=grey_absorption(GRID, 1.0e-4),
         surface_temperature=292.0,
         surface_albedo=np.full(GRID.n_bins, 0.1),
-        cloud_absorption_optical_depth=optics.absorption,
-        cloud_scattering_optical_depth=optics.scattering,
-        cloud_asymmetry=optics.asymmetry,
+        absorption_optical_depth=optics.absorption,
+        scattering_optical_depth=optics.scattering,
+        asymmetry=optics.asymmetry,
     )
     assert solution.energy_residual() == pytest.approx(0.0, abs=1e-9)
 

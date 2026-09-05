@@ -55,6 +55,7 @@ EQUATION_IDS = {
     "two_stream": "EQ-TWO-STREAM-LAYER-COEFFICIENTS",
     "deep_ocean_exchange": "EQ-TWO-RESERVOIR-OCEAN-EXCHANGE",
     "co2_band_absorption": "EQ-CO2-BAND-ABSORPTION",
+    "volcanic_aerosol_optics": "EQ-VOLCANIC-AEROSOL-OPTICS",
 }
 
 
@@ -1311,6 +1312,67 @@ def build_equation_registry() -> EquationRegistry:
                 "Standard band-model treatment; the wing decay is calibrated against a "
                 "published 3.7 W m^-2 forcing per doubling and achieves 3.58"
             ),
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["volcanic_aerosol_optics"],
+            version=V1,
+            name="Stratospheric volcanic aerosol optical properties",
+            category=EquationCategory.CONSTITUTIVE_RELATION,
+            mathematical_form=(
+                "tau_scat(lambda) = tau_550 (lambda / 550 nm)^-alpha ; tau_abs = 0 ; g = g_s"
+            ),
+            physical_basis=(
+                "Sulfate droplets in the stratosphere scatter sunlight with a "
+                "single-scattering albedo very near one. The record supplies the optical "
+                "depth at a reference wavelength directly, so only the spectral shape and "
+                "the vertical placement are constructed."
+            ),
+            variables=(
+                ("tau_scat", "scattering optical depth", "1"),
+                ("tau_550", "optical depth at 550 nm, from the record", "1"),
+                ("lambda", "wavelength", "m"),
+                ("g", "scattering asymmetry", "1"),
+            ),
+            parameters=(
+                ("sulfate_angstrom_exponent", "parameterized", "typical of stratospheric sulfate"),
+                ("sulfate_asymmetry", "parameterized", "typical of stratospheric sulfate"),
+            ),
+            assumptions=(
+                "a pure scatterer in the shortwave; single-scattering albedo taken as one",
+                "no longwave effect, so no stratospheric warming after an eruption",
+                "globally uniform and spread evenly through the declared layers",
+            ),
+            approximations=(
+                "A single Angstrom exponent replaces a size distribution, so the spectral "
+                "shape is an envelope rather than a spectrum.",
+                "Vertical placement is crude in a column whose top layer is not a "
+                "stratosphere; it matters for the omitted longwave effect and much less "
+                "for the shortwave reflection this represents.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("tau_550", 0.0, 0.5, "1"),),
+                conditions=("global-mean shortwave reflection by stratospheric aerosol",),
+            ),
+            limiting_cases=(
+                "zero optical depth scatters nothing and changes no flux",
+                "the scattering is confined to the shortwave and to the declared layers",
+            ),
+            conserved_quantities=("energy",),
+            correctness_tests=(
+                "test_zero_optical_depth_scatters_nothing",
+                "test_the_aerosol_is_confined_to_the_shortwave_and_the_stratosphere",
+                "test_a_volcanic_layer_reflects_and_cools",
+            ),
+            known_failure_modes=(
+                "representing the aerosol as partly absorbing would put energy into the "
+                "layer that in reality leaves the planet",
+                "an asymmetry taken from cloud droplets rather than sulfate would halve "
+                "the reflected fraction for the same optical depth",
+            ),
+            source="Sato et al. 1993 record; standard Mie parameters for stratospheric sulfate",
         )
     )
 

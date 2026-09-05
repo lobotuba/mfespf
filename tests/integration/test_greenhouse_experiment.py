@@ -24,6 +24,7 @@ from mfespf.evaluation.comparison import (
 from mfespf.experiments.solar_and_co2 import (
     CLAIM_ID,
     OCEAN_CLAIM_ID,
+    VOLCANIC_CLAIM_ID,
     solar_and_co2_claim,
     solar_and_co2_hypothesis,
     solar_and_co2_protocol,
@@ -61,15 +62,15 @@ def _anomaly(kernel):
 
 
 @pytest.mark.req("HYP-001", "HYP-005", "CLM-001")
-def test_one_hypothesis_carries_two_claims():
+def test_one_hypothesis_carries_a_claim_per_configuration():
     """The mechanism is the same; the configurations are not.
 
     Carbon dioxide absorbing in a saturated band is one hypothesis. A claim
-    names a configuration, and reusing one claim id for two of them would make
-    the second silently supersede the first's result.
+    names a configuration, and reusing one claim id across them would make each
+    silently supersede the last one's result.
     """
     hypothesis = solar_and_co2_hypothesis()
-    assert set(hypothesis.claim_ids) == {CLAIM_ID, OCEAN_CLAIM_ID}
+    assert set(hypothesis.claim_ids) == {CLAIM_ID, OCEAN_CLAIM_ID, VOLCANIC_CLAIM_ID}
     assert hypothesis.is_frozen
     assert hypothesis.entry_point is EntryPoint.CONSTITUTIVE_RELATION
     assert "absorption coefficient" in hypothesis.entry_point_detail
@@ -101,10 +102,16 @@ def test_the_ocean_version_no_longer_lists_heat_uptake_as_unseparated():
     assert ocean.version > plain.version
     assert ocean.criteria_hash() != plain.criteria_hash()
 
-    # Everything the configuration still cannot separate is unchanged.
-    for hypothesis in (plain, ocean):
+    # A third version drops the volcanic entry for the same reason.
+    volcanic = solar_and_co2_hypothesis(deep_ocean=True, volcanic=True)
+    assert any("volcanic forcing" in a for a in ocean.cannot_distinguish_from)
+    assert not any("volcanic forcing" in a for a in volcanic.cannot_distinguish_from)
+    assert volcanic.version > ocean.version
+
+    # Everything no configuration can separate is unchanged throughout.
+    for hypothesis in (plain, ocean, volcanic):
         unseparated = " ".join(hypothesis.cannot_distinguish_from)
-        assert "aerosol" in unseparated
+        assert "aerosol forcing" in unseparated
         assert "water-vapour feedback" in unseparated
         assert "internal variability" in unseparated
 

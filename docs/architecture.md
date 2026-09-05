@@ -161,6 +161,65 @@ inside the frozen criteria hash, so the difference has to be a new version --
 which is what HYP-009 is for, and the first time the registry's versioning has
 been used for its actual purpose rather than tested.
 
+## The volcanic pathway, and the result it exposed
+
+Volcanic aerosol was the cheapest mechanism left to add and it was expected to
+help: the observed record has decadal dips the model had none of. It made the
+fit worse, and that is the most useful thing the framework has produced.
+
+### Almost nothing had to be constructed
+
+Unlike carbon dioxide, whose absorption coefficient had to be built and
+calibrated, the volcanic record *is* the optical property -- 550 nm
+stratospheric aerosol optical depth. What is assumed is only how to spread it
+across wavelength and where to put it vertically, and both are declared.
+
+The two-stream solver needed no change at all. It has handled scattering since
+Stage 4, and the aerosol contributes an optical depth and an asymmetry in the
+same layers a cloud would. What did change is the solver's *argument names*:
+they had been `cloud_*`, and once two different scatterers occupy one layer that
+naming is a lie. They now describe a layer, and `combine_scatterers` adds the
+contributions -- optical depths summing, asymmetry weighted by how much each one
+scatters, because a thin aerosol beneath a thick cloud must not drag the layer's
+asymmetry towards its own value.
+
+One correction came from a magnitude check. An uncapped Angstrom power law puts
+two or three times the reference optical depth into the blue and ultraviolet,
+where there is a great deal of solar energy. Post-eruption droplets are large
+compared with visible light, so their extinction efficiency has already reached
+the geometric-optics limit at 550 nm and stops rising as the wavelength falls.
+Capping it there is physics, not tuning, and it removed about a third of a
+too-large cooling.
+
+### The forcing is right and the response is not
+
+A stratospheric optical depth of 0.15 -- roughly Pinatubo -- gives -2.87 W m^-2
+here, against an accepted value near -3. Nothing was calibrated to that.
+
+The modelled cooling after Pinatubo is 0.68 K, against an observed 0.3 to 0.5.
+The cause is measurable rather than speculative: this column's feedback
+parameter is 3.578 W m^-2 per doubling divided by a 3.945 K response, which is
+0.907 W m^-2 K^-1 against an accepted figure near 1.2. The column is about
+thirty percent over-sensitive to *any* forcing, and that traces back to the same
+band-width compromise that put the base state 27 K too warm: a wider band raises
+the emission level, which lowers the feedback parameter.
+
+### Why a mechanism that made the fit worse was worth adding
+
+A slow carbon dioxide ramp and an over-sensitive column are partly degenerate: a
+forcing that is too small and a response that is too large produce a curve that
+looks about right. Nothing in the carbon dioxide comparison could separate them,
+and its 76 percent of variance explained was partly that cancellation.
+
+A volcanic pulse breaks the degeneracy. Its amplitude is known independently,
+its duration is short compared with the mixed layer's response time, and the
+model's answer to it therefore measures the sensitivity almost directly. Adding
+it lowered the variance explained from 0.674 to 0.571 -- and told us why.
+
+That is what the charter means by preserving a negative result. The right
+response is not to remove the volcanic pathway; it is to record that the
+configuration is over-sensitive, which the earlier claims could not have shown.
+
 ## The first registered claim
 
 ```
@@ -981,10 +1040,12 @@ is deleted from this list, and where a stage removed one the entry says so.
   the full-fidelity module.
 - The forcing perturbation is spectrally flat, so no experiment about the
   wavelength dependence of solar forcing can be run with it.
-- **Three claims have been registered against observations, and all three were
+- **Four claims have been registered against observations, and all four were
   refuted.** Solar alone explains 3 percent of the observed variance, adding
   carbon dioxide takes that to 61, and adding deep-ocean heat uptake to 76.
-  Each still fails the threshold. Nothing has
+  Adding volcanic aerosol *lowers* it, because the column is about thirty
+  percent over-sensitive and a short pulse exposes that where a slow ramp does
+  not. Nothing has
   been *supported* by observation, and nothing can be until a prospective
   comparison exists -- a reconstruction pass earns QUALIFIED at most.
 - The greenhouse configuration's base state is about 27 K too warm, which

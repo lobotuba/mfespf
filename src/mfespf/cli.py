@@ -288,6 +288,7 @@ _EXPERIMENTS = {
     "solar-only": "mfespf.experiments.solar_only:run_solar_only_experiment",
     "solar-and-co2": "mfespf.experiments.solar_and_co2:run_solar_and_co2_experiment",
     "solar-co2-ocean": "mfespf.experiments.solar_and_co2:run_solar_co2_ocean_experiment",
+    "solar-co2-volcanic": ("mfespf.experiments.solar_and_co2:run_solar_co2_volcanic_experiment"),
 }
 
 

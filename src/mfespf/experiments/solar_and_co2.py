@@ -62,9 +62,11 @@ __all__ = [
     "HYPOTHESIS_ID",
     "OCEAN_CLAIM_ID",
     "OCEAN_EXPERIMENT_ID",
+    "VOLCANIC_CLAIM_ID",
     "SolarAndCO2Result",
     "run_solar_and_co2_experiment",
     "run_solar_co2_ocean_experiment",
+    "run_solar_co2_volcanic_experiment",
     "solar_and_co2_claim",
     "solar_and_co2_hypothesis",
     "solar_and_co2_protocol",
@@ -75,16 +77,24 @@ CLAIM_ID = "CLM-SOLAR-CO2-001"
 OCEAN_CLAIM_ID = "CLM-SOLAR-CO2-OCEAN-001"
 EXPERIMENT_ID = "EXP-SOLAR-CO2-001"
 OCEAN_EXPERIMENT_ID = "EXP-SOLAR-CO2-OCEAN-001"
+VOLCANIC_CLAIM_ID = "CLM-SOLAR-CO2-VOLCANIC-001"
+VOLCANIC_EXPERIMENT_ID = "EXP-SOLAR-CO2-VOLCANIC-001"
 
 
-def _ids(deep_ocean: bool) -> tuple[str, str]:
-    """One hypothesis, two claims.
+def _ids(deep_ocean: bool, volcanic: bool = False) -> tuple[str, str]:
+    """One hypothesis, three claims.
 
-    The mechanism is the same in both -- carbon dioxide absorbing in a saturated
-    band -- so it is one hypothesis. What differs is the configuration the claim
-    is about, and a claim names a configuration. Reusing one claim id for two
-    configurations would make the second silently supersede the first's result.
+    The mechanism is the same in all three -- carbon dioxide absorbing in a
+    saturated band -- so it is one hypothesis. What differs is the configuration
+    the claim is about, and a claim names a configuration. Reusing one claim id
+    across them would make each silently supersede the last one's result.
+
+    The volcanic configuration also compares over a shorter period, because the
+    aerosol record ends in 2012 and a replay is bounded by the shortest record
+    driving it. That alone would make its numbers a different claim.
     """
+    if volcanic:
+        return (VOLCANIC_CLAIM_ID, VOLCANIC_EXPERIMENT_ID)
     return (OCEAN_CLAIM_ID, OCEAN_EXPERIMENT_ID) if deep_ocean else (CLAIM_ID, EXPERIMENT_ID)
 
 
@@ -93,7 +103,9 @@ TEMPERATURE = "HADCRUT5-GLOBAL-MONTHLY"
 DAY = 86400.0
 
 
-def solar_and_co2_hypothesis(*, deep_ocean: bool = False) -> HypothesisRecord:
+def solar_and_co2_hypothesis(
+    *, deep_ocean: bool = False, volcanic: bool = False
+) -> HypothesisRecord:
     """One mechanism, two versions, differing in what the experiment can separate.
 
     The physics is identical. What differs is the configuration it is tested in,
@@ -105,13 +117,15 @@ def solar_and_co2_hypothesis(*, deep_ocean: bool = False) -> HypothesisRecord:
     """
     return HypothesisRecord(
         record_id=HYPOTHESIS_ID,
-        version=Version(1, 1, 0) if deep_ocean else Version(1, 0, 0),
+        version=Version(1, 2, 0)
+        if volcanic
+        else (Version(1, 1, 0) if deep_ocean else Version(1, 0, 0)),
         statement=(
             "Variation in total solar irradiance together with the observed rise in "
             "carbon dioxide is sufficient to account for the observed change in "
             "global-mean surface temperature since 1882."
         ),
-        claim_ids=(CLAIM_ID, OCEAN_CLAIM_ID),
+        claim_ids=(CLAIM_ID, OCEAN_CLAIM_ID, VOLCANIC_CLAIM_ID),
         physical_basis=(
             "Radiative-convective equilibrium of a hydrostatic column. Carbon dioxide "
             "absorbs in a band near 15 microns whose core is saturated, so raising the "
@@ -186,7 +200,14 @@ def solar_and_co2_hypothesis(*, deep_ocean: bool = False) -> HypothesisRecord:
         ),
         cannot_distinguish_from=(
             "aerosol forcing, which is absent and would have cooled",
-            "volcanic forcing, which is absent and would have added decadal structure",
+            *(
+                ()
+                if volcanic
+                else (
+                    "volcanic forcing, which is absent from this configuration and "
+                    "would have added decadal structure",
+                )
+            ),
             *(
                 ()
                 if deep_ocean
@@ -216,8 +237,10 @@ def solar_and_co2_hypothesis(*, deep_ocean: bool = False) -> HypothesisRecord:
     ).freeze()
 
 
-def solar_and_co2_claim(threshold: float, *, deep_ocean: bool = False) -> ClaimRecord:
-    claim_id, _ = _ids(deep_ocean)
+def solar_and_co2_claim(
+    threshold: float, *, deep_ocean: bool = False, volcanic: bool = False
+) -> ClaimRecord:
+    claim_id, _ = _ids(deep_ocean, volcanic)
     ocean = (
         " over a two-reservoir ocean, so that heat taken up below the mixed layer "
         "delays the response,"
@@ -296,8 +319,10 @@ def solar_and_co2_claim(threshold: float, *, deep_ocean: bool = False) -> ClaimR
     ).freeze()
 
 
-def solar_and_co2_protocol(threshold: float, *, deep_ocean: bool = False) -> ExperimentProtocol:
-    _, experiment_id = _ids(deep_ocean)
+def solar_and_co2_protocol(
+    threshold: float, *, deep_ocean: bool = False, volcanic: bool = False
+) -> ExperimentProtocol:
+    _, experiment_id = _ids(deep_ocean, volcanic)
     protocol = ExperimentProtocol(
         experiment_id=experiment_id,
         question=(
@@ -317,6 +342,7 @@ def solar_and_co2_protocol(threshold: float, *, deep_ocean: bool = False) -> Exp
             "variance_explained",
             "variance_explained_solar_only",
             "variance_explained_co2_only",
+            *(("variance_explained_volcanic_held",) if volcanic else ()),
         ),
         expected_result=(
             "carbon dioxide accounts for most of the modelled response and solar variation "
@@ -377,6 +403,8 @@ class SolarAndCO2Result:
     worst_relative_residual: float
     co2_join_offset_ppm: float
     deep_ocean: bool = False
+    volcanic: bool = False
+    volcanic_held: Comparison | None = None
 
     @property
     def refuted(self) -> bool:
@@ -384,7 +412,8 @@ class SolarAndCO2Result:
 
     def describe(self) -> str:
         rows = (
-            ("solar + CO2", self.comparison),
+            ("everything varying", self.comparison),
+            *((("volcanic held", self.volcanic_held),) if self.volcanic_held is not None else ()),
             ("solar only", self.solar_only),
             ("CO2 only", self.co2_only),
             ("neither (control)", self.control),
@@ -410,6 +439,7 @@ class SolarAndCO2Result:
                 f"claim status: {self.claim_status.value}",
                 f"operating mode: {self.operating_mode.value}",
                 f"deep ocean: {'present' if self.deep_ocean else 'absent'}",
+                f"volcanic aerosol: {'present' if self.volcanic else 'absent'}",
                 f"CO2 records disagree by {self.co2_join_offset_ppm:+.3f} ppm at the join",
                 "",
                 "this experiment cannot distinguish the mechanism from:",
@@ -432,31 +462,65 @@ def _compare(kernel: Kernel, observed: TimeSeries, master_dt: float) -> tuple[Co
 
 
 def run_solar_and_co2_experiment(
-    *, master_dt: float = 2.0 * DAY, deep_ocean: bool = False, **kwargs: Any
+    *,
+    master_dt: float = 2.0 * DAY,
+    deep_ocean: bool = False,
+    volcanic: bool = False,
+    **kwargs: Any,
 ) -> SolarAndCO2Result:
     """Declare, freeze, run four configurations, compare, and record."""
-    claim_id, experiment_id = _ids(deep_ocean)
+    claim_id, experiment_id = _ids(deep_ocean, volcanic)
     observed = next(iter(load_declared(TEMPERATURE)._series.values()))
     irradiance = load_declared(IRRADIANCE).series("total_solar_irradiance")
     threshold = observational_threshold(observed, over=compared_period(irradiance, observed))
 
     registry = HypothesisRegistry()
-    hypothesis = registry.register(solar_and_co2_hypothesis(deep_ocean=deep_ocean)).record
-    claim = solar_and_co2_claim(threshold, deep_ocean=deep_ocean)
-    protocol = solar_and_co2_protocol(threshold, deep_ocean=deep_ocean)
+    hypothesis = registry.register(
+        solar_and_co2_hypothesis(deep_ocean=deep_ocean, volcanic=volcanic)
+    ).record
+    claim = solar_and_co2_claim(threshold, deep_ocean=deep_ocean, volcanic=volcanic)
+    protocol = solar_and_co2_protocol(threshold, deep_ocean=deep_ocean, volcanic=volcanic)
     _, join = co2_record()
 
     runs = {}
     residuals = []
     for name, options in (
         ("both", {}),
-        ("solar_only", {"hold_co2": True, "run_id": f"{experiment_id}-HOLD-CO2"}),
+        *(
+            (
+                (
+                    "volcanic_held",
+                    {"hold_volcanic": True, "run_id": f"{experiment_id}-HOLD-VOLCANIC"},
+                ),
+            )
+            if volcanic
+            else ()
+        ),
+        (
+            "solar_only",
+            {
+                "hold_co2": True,
+                "hold_volcanic": True,
+                "run_id": f"{experiment_id}-HOLD-CO2",
+            },
+        ),
         ("co2_only", {"hold_solar": True, "run_id": f"{experiment_id}-HOLD-SOLAR"}),
-        ("neither", {"hold_co2": True, "hold_solar": True, "run_id": f"{experiment_id}-CONTROL"}),
+        (
+            "neither",
+            {
+                "hold_co2": True,
+                "hold_solar": True,
+                "hold_volcanic": True,
+                "run_id": f"{experiment_id}-CONTROL",
+            },
+        ),
     ):
         options.setdefault("run_id", experiment_id)
         kernel = greenhouse_replay(
-            master_dt=master_dt, deep_ocean=deep_ocean, **{**kwargs, **options}
+            master_dt=master_dt,
+            deep_ocean=deep_ocean,
+            volcanic=volcanic,
+            **{**kwargs, **options},
         )
         if name == "both":
             kernel.claims.register(claim)
@@ -497,6 +561,11 @@ def run_solar_and_co2_experiment(
             "variance_explained": comparison.explained_fraction(),
             "variance_explained_solar_only": runs["solar_only"].explained_fraction(),
             "variance_explained_co2_only": runs["co2_only"].explained_fraction(),
+            **(
+                {"variance_explained_volcanic_held": runs["volcanic_held"].explained_fraction()}
+                if volcanic
+                else {}
+            ),
         },
         summary=(
             f"modelled range {comparison.modelled_range:.4f} K against an observed "
@@ -514,11 +583,13 @@ def run_solar_and_co2_experiment(
         solar_only=runs["solar_only"],
         co2_only=runs["co2_only"],
         control=runs["neither"],
+        volcanic_held=runs.get("volcanic_held"),
         threshold=threshold,
         claim_status=OperatingMode.PRESCRIBED_HISTORY.status_for_result(passed),
         operating_mode=OperatingMode.PRESCRIBED_HISTORY,
         worst_relative_residual=max(residuals),
         deep_ocean=deep_ocean,
+        volcanic=volcanic,
         co2_join_offset_ppm=float(
             join.uncertainty_effect.split("disagree by ")[1].split(" ppm")[0]
         ),
@@ -528,3 +599,13 @@ def run_solar_and_co2_experiment(
 def run_solar_co2_ocean_experiment(**kwargs: Any) -> SolarAndCO2Result:
     """The same experiment with the two-reservoir ocean under the column."""
     return run_solar_and_co2_experiment(deep_ocean=True, **kwargs)
+
+
+def run_solar_co2_volcanic_experiment(**kwargs: Any) -> SolarAndCO2Result:
+    """The same experiment with volcanic aerosol as well.
+
+    Its compared period ends in 2012 where the aerosol record does, so its
+    numbers are not directly comparable with the other two. That is why it is a
+    third claim rather than a revision of the second.
+    """
+    return run_solar_and_co2_experiment(deep_ocean=True, volcanic=True, **kwargs)

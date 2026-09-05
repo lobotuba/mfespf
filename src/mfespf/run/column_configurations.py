@@ -206,6 +206,7 @@ def _build_graph(
     deep_ocean: bool = False,
     clouds: bool = False,
     greenhouse: bool = False,
+    volcanic: bool = False,
     splitting_order: tuple[str, ...] = _SPLITTING_ORDER,
 ) -> DependencyGraph:
     graph = DependencyGraph(configuration_id)
@@ -227,6 +228,8 @@ def _build_graph(
         modules.append(("ocean", "reduced deep-ocean reservoir"))
     if greenhouse:
         modules.append(("greenhouse", "prescribed carbon dioxide"))
+    if volcanic:
+        modules.append(("volcanic", "prescribed stratospheric aerosol"))
     for module_id, label in modules:
         graph.add_node(Node(module_id, NodeType.MODULE, label))
     graph.add_node(Node(SURFACE_TEMPERATURE_STATE, NodeType.STATE, "slab temperature"))
@@ -528,6 +531,19 @@ def _build_graph(
             ),
         )
 
+    if volcanic:
+        edge(
+            "volcanic",
+            "radiation",
+            "stratospheric_aerosol_optical_depth",
+            edge_type=EdgeType.PARAMETER_DEPENDENCY,
+            units="1",
+            equation_ids=(EQUATION_IDS["volcanic_aerosol_optics"],),
+            uncertainty_rule=(
+                "prescribed; eruptions are an input and nothing here explains their timing"
+            ),
+        )
+
     declare_explicit_cycles(
         graph,
         splitting_order=splitting_order,
@@ -562,6 +578,7 @@ def radiating_column(
     water: bool = False,
     cloud: CloudProfile | None = None,
     greenhouse: Any = None,
+    volcanic: Any = None,
     solar_source: Any = None,
     start_time: float = 0.0,
     operating_mode: OperatingMode = OperatingMode.CONTROLLED_EXPERIMENT,
@@ -597,6 +614,7 @@ def radiating_column(
         diffusivity_factor=diffusivity_factor,
         couple_clouds=cloud is not None,
         couple_greenhouse=greenhouse is not None,
+        couple_volcanic=volcanic is not None,
     )
     atmosphere = AtmosphericColumnModule(
         n_layers=n_layers,
@@ -629,6 +647,9 @@ def radiating_column(
         # boundary condition on the transfer, not a response to it.
         schedules.append(ModuleSchedule(greenhouse, step_multiple=1))
         order_head.append("greenhouse")
+    if volcanic is not None:
+        schedules.append(ModuleSchedule(volcanic, step_multiple=1))
+        order_head.append("volcanic")
     if cloud is not None:
         # The cloud is published before radiation reads it: a prescribed state is
         # a boundary condition on the radiation, not a response to it.
@@ -708,6 +729,7 @@ def radiating_column(
         clouds=cloud is not None,
         deep_ocean=deep_ocean,
         greenhouse=greenhouse is not None,
+        volcanic=volcanic is not None,
         splitting_order=tuple(order),
     )
 

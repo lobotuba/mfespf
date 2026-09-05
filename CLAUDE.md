@@ -104,6 +104,12 @@ saying out loud.
 - **A grid must resolve what the physics depends on.** The logarithmic forcing
   comes from the band wings; a grid that cannot resolve them gives linear growth
   or complete saturation instead, and `greenhouse_grid` refuses too few bands.
+- **Optical properties describe a layer, not a contributor.** Cloud droplets and
+  volcanic aerosol scatter in the same layers; combine them with
+  `combine_scatterers`, which weights asymmetry by how much each one scatters.
+- **A right forcing does not make a right response.** Check both separately: the
+  volcanic forcing matched a published value while the modelled cooling was half
+  again too large, and only measuring the feedback parameter found it.
 - **A null control that is not exactly null is a bug.** The constant-irradiance
   control gives zero modelled range. Anything else means something other than
   the mechanism is moving the model, and it contaminates the forced run too.

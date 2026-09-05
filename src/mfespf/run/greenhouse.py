@@ -30,10 +30,12 @@ from typing import Any
 
 import numpy as np
 
+from mfespf.core.errors import ConfigurationError
 from mfespf.data.adapter import HistoricalDataAdapter, RecordedSolarSource
 from mfespf.data.loaders import load_declared
 from mfespf.data.records import TimeSeries, splice
 from mfespf.physics.greenhouse import PrescribedGreenhouseModule, greenhouse_grid
+from mfespf.physics.volcanic import PrescribedVolcanicModule
 from mfespf.registries.datasets import DatasetRegistry, DatasetRole
 from mfespf.run.column_configurations import radiating_column, window_absorption
 from mfespf.run.driver import Kernel
@@ -81,7 +83,14 @@ def co2_record(join_year: int = CO2_JOIN_YEAR) -> tuple[TimeSeries, Any]:
 
 
 def spin_up(
-    *, master_dt: float, n_layers: int, n_band: int, ppm: float, irradiance: float, steps: int
+    *,
+    master_dt: float,
+    n_layers: int,
+    n_band: int,
+    ppm: float,
+    irradiance: float,
+    steps: int,
+    optical_depth: float = 0.0,
 ) -> tuple[float, np.ndarray]:
     """Equilibrate the column at fixed drivers and return the state it reaches.
 
@@ -95,6 +104,12 @@ def spin_up(
     guess, and the constant-driver control then produces a flat line, which is
     the only thing that makes a difference between two runs attributable to the
     driver that changed.
+
+    ``optical_depth`` is here for the same reason. A stratosphere is never quite
+    clear, so a control holding the aerosol at the record's background level
+    would start slightly dimmed relative to a spin-up that had none, and drift
+    by a few hundredths of a kelvin. Small, and it is the whole of what a control
+    is supposed to show.
     """
     from mfespf.physics.solar import ConstantSpectrumSolarSource
 
@@ -109,6 +124,9 @@ def spin_up(
         master_dt=master_dt,
         convection=True,
         greenhouse=PrescribedGreenhouseModule(concentration=ppm),
+        volcanic=(
+            PrescribedVolcanicModule(optical_depth=optical_depth) if optical_depth > 0.0 else None
+        ),
         solar_source=ConstantSpectrumSolarSource(grid=grid, total_irradiance=irradiance),
         initial_surface_temperature=300.0,
         initial_air_temperature=270.0,
@@ -133,6 +151,8 @@ def greenhouse_replay(
     n_band: int = 48,
     spin_up_steps: int = 1500,
     deep_ocean: bool = False,
+    volcanic: bool = False,
+    hold_volcanic: bool = False,
     **kwargs: Any,
 ) -> Kernel:
     """The column driven by the irradiance and CO2 records together.
@@ -165,6 +185,18 @@ def greenhouse_replay(
             note="constant irradiance at the record's first value; the solar control",
         )
         solar_adapter = HistoricalDataAdapter(solar_adapter.record, {flat.variable: flat})
+    aerosol = None
+    if volcanic:
+        aerosol = next(iter(load_declared("GISS-SAOD-MONTHLY")._series.values()))
+        quiet = float(np.median(aerosol.values))
+        # A replay driven by several records is bounded by the shortest of them.
+        # The aerosol record ends in 2012, so a run using it covers less than one
+        # using the solar and CO2 records alone -- which is why the volcanic
+        # experiment reports its own compared period rather than borrowing one.
+        clock = clock[clock <= aerosol.coverage[1]]
+        if clock.size < 2:
+            raise ConfigurationError("the aerosol record does not overlap the replay clock")
+
     solar_adapter.prepare("total_solar_irradiance", clock, target_interval=master_dt)
 
     co2, _ = co2_record()
@@ -172,6 +204,13 @@ def greenhouse_replay(
 
     def concentration(time: float) -> float:
         return initial_co2 if hold_co2 else co2.value_at(time)
+
+    def optical_depth(time: float) -> float:
+        # Held at the record's *median*, not its first value: the first value
+        # may sit inside an eruption's decay, and a control that started there
+        # would be permanently dimmed relative to a quiet stratosphere.
+        assert aerosol is not None
+        return quiet if hold_volcanic else aerosol.value_at(time)
 
     datasets = DatasetRegistry()
     run_id = str(kwargs.setdefault("run_id", "STAGE6-GREENHOUSE-001"))
@@ -199,6 +238,7 @@ def greenhouse_replay(
             ppm=float(co2.value_at(clock[0])),
             irradiance=float(solar_adapter.prepared("total_solar_irradiance").values[0]),
             steps=spin_up_steps,
+            optical_depth=(quiet if volcanic else 0.0),
         )
         kwargs["initial_surface_temperature"] = surface
         kwargs["initial_air_temperature"] = layers
@@ -214,6 +254,7 @@ def greenhouse_replay(
         operating_mode=OperatingMode.PRESCRIBED_HISTORY,
         datasets=datasets,
         greenhouse=PrescribedGreenhouseModule(concentration=concentration),
+        volcanic=(PrescribedVolcanicModule(optical_depth=optical_depth) if volcanic else None),
         solar_source=RecordedSolarSource(
             grid=grid, adapter=solar_adapter, variable="total_solar_irradiance"
         ),

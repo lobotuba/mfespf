@@ -25,7 +25,7 @@ from typing import Any
 
 import numpy as np
 
-from mfespf.core.errors import ConfigurationError
+from mfespf.core.errors import ConfigurationError, ProvenanceError
 from mfespf.data.adapter import HistoricalDataAdapter, RecordedSolarSource
 from mfespf.data.synthetic import synthetic_irradiance_adapter
 from mfespf.physics.solar import broadband_grid
@@ -140,7 +140,15 @@ def replay_steps(adapter: HistoricalDataAdapter | None, variable: str, master_dt
             "this kernel has no declared record; replay_steps applies to a replay "
             "configuration, and a run without one has no record length to be bounded by"
         )
-    return int(replay_clock(adapter, variable, master_dt).size) - 1
+    try:
+        prepared = adapter.prepared(variable)
+    except ProvenanceError:
+        return int(replay_clock(adapter, variable, master_dt).size) - 1
+    # The prepared clock, not the raw record's: a replay driven by several
+    # records is bounded by the shortest of them, and the configuration clips
+    # the clock before preparing. Reading the raw coverage here would offer more
+    # steps than the run can actually take.
+    return int(prepared.times.size) - 1
 
 
 def observed_replay(dataset_id: str = "NRLTSI2-MONTHLY", **kwargs: Any) -> Kernel:
