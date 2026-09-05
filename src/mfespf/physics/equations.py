@@ -703,12 +703,17 @@ def build_equation_registry() -> EquationRegistry:
             category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
             mathematical_form=(
                 "where theta decreases with height, set theta = "
-                "sum(C_i T_i) / sum(C_i pi_i) over the unstable group"
+                "sum(C_i T_i) / sum(C_i pi_i) over the unstable group; in the "
+                "surface-based form the surface is element zero of the profile, with "
+                "C_s and pi_s = pi(p_surface)"
             ),
             physical_basis=(
                 "A column whose potential temperature decreases with height is unstable "
                 "to vertical displacement; convection is assumed to have mixed such "
-                "layers to neutrality within the coupling interval."
+                "layers to neutrality within the coupling interval. The instability that "
+                "drives it is usually between the ground and the air above rather than "
+                "between two layers of air, so the surface is admitted to the profile as "
+                "its bottom element and the same criterion decides whether it convects."
             ),
             variables=(
                 ("theta", "potential temperature", "K"),
@@ -719,6 +724,8 @@ def build_equation_registry() -> EquationRegistry:
                 "mixing is instantaneous on the coupling timestep",
                 "mixing is complete inside an unstable group and absent outside it",
                 "the neutral target is the dry adiabat",
+                "in the surface-based form the surface is a well-mixed slab that exchanges "
+                "with the air by the same mixing, so no exchange coefficient sets the rate",
             ),
             approximations=(
                 "Replaces resolved convective motion with an instantaneous adjustment. "
@@ -734,6 +741,7 @@ def build_equation_registry() -> EquationRegistry:
             ),
             limiting_cases=(
                 "a stable profile is left exactly unchanged",
+                "a surface colder than the air above it takes no part in the mixing",
                 "a wholly unstable column mixes to a single potential temperature",
                 "column enthalpy sum(C_i T_i) is conserved exactly",
             ),
@@ -744,9 +752,18 @@ def build_equation_registry() -> EquationRegistry:
                 "test_convective_adjustment_leaves_a_stable_profile",
                 "test_an_already_stable_profile_is_left_untouched",
                 "test_convection_adds_no_energy_to_the_column",
+                "test_the_surface_mixing_conserves_the_enthalpy_of_the_surface_and_the_air",
+                "test_an_inversion_between_layers_cannot_hide_a_buoyant_surface",
+                "test_a_surface_colder_than_the_air_is_left_alone_and_bad_geometry_refused",
             ),
             known_failure_modes=(
                 "predicts a dry lapse rate where the real atmosphere follows a moist one",
+                "the layer-only form compares each layer with its neighbour, so an "
+                "inversion at the bottom of the column makes it inactive however buoyant "
+                "the surface underneath is -- measured as a 50 K potential-temperature "
+                "step that the surface-based form removes entirely",
+                "the surface-based form mixes completely rather than entraining, so it is "
+                "an upper bound on how much the surface moistens the air above it",
                 "no convective timescale, so it cannot represent the diurnal cycle of "
                 "convection or any transient adjustment",
             ),

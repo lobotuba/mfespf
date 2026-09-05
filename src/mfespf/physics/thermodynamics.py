@@ -31,6 +31,7 @@ __all__ = [
     "potential_temperature",
     "saturation_specific_humidity",
     "saturation_vapour_pressure",
+    "surface_coupled_adjustment",
 ]
 
 _CP_DRY = value_of("specific_heat_dry_air")
@@ -193,6 +194,76 @@ def convective_adjustment_with_groups(
         f"convective adjustment did not stabilise in {max_passes} passes; the profile or "
         f"the tolerance is outside the scheme's validity domain"
     )
+
+
+def surface_coupled_adjustment(
+    temperature: np.ndarray,
+    heat_capacity: np.ndarray,
+    layer_pressure: np.ndarray,
+    *,
+    surface_temperature: float,
+    surface_heat_capacity: float,
+    surface_pressure: float,
+    reference_pressure: float | None = None,
+    tolerance: float = 1e-12,
+    max_passes: int = 1000,
+) -> tuple[float, np.ndarray, tuple[tuple[int, int], ...], bool]:
+    """The same adjustment with the surface as the column's bottom element.
+
+    ``convective_adjustment_with_groups`` mixes air with air, so it can only act
+    on an instability *between layers*. But the instability that drives real
+    convection is not between layers, it is between the ground and the air on
+    top of it: the surface is heated, the air in contact with it becomes
+    buoyant, and the plume that rises carries heat and moisture through whatever
+    stratification happens to lie above. A scheme that cannot see the surface
+    cannot see the cause.
+
+    So the surface is prepended as element zero of the profile, with its own
+    heat capacity and its own Exner factor at surface pressure, and the existing
+    algorithm runs unchanged. Nothing is added: the mixed value is still defined
+    by enthalpy conservation, now over the surface and the air together, and no
+    parameter enters that the layer-only adjustment did not already have. This
+    is what makes it worth trying before an eddy diffusivity -- the diffusivity
+    would have to be fitted, and this does not.
+
+    It is the parameter-free counterpart of the bulk sensible heat flux, and the
+    two differ in exactly the way that matters here. The flux moves energy at a
+    rate set by a fitted coefficient, so a layer that radiates hard enough can
+    stay far colder than the surface for ever. The adjustment asserts that where
+    the ground is buoyant relative to the air, mixing has already removed the
+    instability, at whatever rate that took.
+
+    Returns the adjusted surface temperature, the adjusted layer temperatures,
+    the mixed groups in *layer* indices, and whether the surface took part in
+    any of them.
+    """
+    T = np.asarray(temperature, dtype=float)
+    C = np.asarray(heat_capacity, dtype=float)
+    p = np.asarray(layer_pressure, dtype=float)
+    if surface_heat_capacity <= 0.0:
+        raise ConfigurationError("the surface heat capacity must be positive")
+    if surface_pressure <= 0.0:
+        raise ConfigurationError("the surface pressure must be positive")
+    if T.size and surface_pressure < float(np.max(p)):
+        raise ConfigurationError(
+            f"the surface pressure {surface_pressure} lies above the lowest layer "
+            f"at {float(np.max(p))}; the surface must be the bottom of the column"
+        )
+
+    extended, groups = convective_adjustment_with_groups(
+        np.concatenate(([float(surface_temperature)], T)),
+        np.concatenate(([float(surface_heat_capacity)], C)),
+        np.concatenate(([float(surface_pressure)], p)),
+        reference_pressure=reference_pressure,
+        tolerance=tolerance,
+        max_passes=max_passes,
+    )
+
+    # Back to layer indices. A group that reaches the surface starts at layer 0
+    # by construction, since the surface is element zero and groups are runs.
+    surface_mixed = any(low == 0 for low, _ in groups)
+    layer_groups = tuple((max(low - 1, 0), high - 1) for low, high in groups if high >= 1)
+    return float(extended[0]), extended[1:], layer_groups, surface_mixed
 
 
 def saturation_vapour_pressure(temperature: np.ndarray) -> np.ndarray:

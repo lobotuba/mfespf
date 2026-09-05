@@ -608,6 +608,7 @@ def radiating_column(
     water: bool = False,
     radiative_vapour: bool = False,
     vapour_transport: bool = False,
+    surface_based_convection: bool = False,
     prescribed_humidity: float | None = None,
     humidity_responds_to_temperature: bool = True,
     cloud: CloudProfile | None = None,
@@ -734,7 +735,11 @@ def radiating_column(
     if convection:
         schedules.append(
             ModuleSchedule(
-                ConvectiveAdjustmentModule(transport_vapour=vapour_transport),
+                ConvectiveAdjustmentModule(
+                    transport_vapour=vapour_transport,
+                    surface_based=surface_based_convection,
+                    surface_pressure=surface_pressure,
+                ),
                 step_multiple=1,
             )
         )

@@ -12,6 +12,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+import mfespf
 from mfespf.core.errors import ProvenanceError
 from mfespf.core.versioning import Version
 from mfespf.evaluation.withheld import FreezeRecord, WithheldDataset, WithheldEvaluator
@@ -24,7 +25,7 @@ from mfespf.registries.datasets import (
     ProvenanceClass,
 )
 from mfespf.run.configurations import airless_radiating_body
-from mfespf.run.manifest import RunManifest, diff_manifests
+from mfespf.run.manifest import FRAMEWORK_VERSION, RunManifest, diff_manifests
 
 pytestmark = pytest.mark.stage(0)
 
@@ -353,3 +354,18 @@ def test_a_claim_without_a_failure_criterion_cannot_be_registered():
 def test_a_claim_cannot_list_one_dataset_as_both_calibration_and_withheld():
     with pytest.raises(Exception, match="INF-003"):
         _claim("CLM-BAD2", calibration_data=("OBS-A",), withheld_data=("OBS-A",))
+
+
+@pytest.mark.req("AUD-008", "SYS-008")
+def test_the_manifest_records_the_version_of_the_code_that_produced_the_run():
+    """A manifest whose framework version is a separate literal will go stale.
+
+    This one did. It was a third copy of the version string beside the one in
+    ``pyproject.toml`` and the one in ``mfespf.__version__``, and it stopped
+    being updated an entire release ago, so every run written after 0.11.0
+    recorded 0.10.0. Nothing failed, which is the problem: a manifest exists to
+    say which code produced a number, and one that says the wrong thing is worse
+    than one that says nothing.
+    """
+    assert FRAMEWORK_VERSION == mfespf.__version__
+    assert RunManifest(run_id="R", purpose="p").framework_version == mfespf.__version__

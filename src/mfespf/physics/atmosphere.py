@@ -282,6 +282,7 @@ class AtmosphericColumnModule(Module):
         self._boundary_energy: dict[str, float] = {}
         self._latent_received = 0.0
         self._sensible_received: float | None = None
+        self._convective_received: float | None = None
 
     # --- configuration ----------------------------------------------------
     def validate_configuration(self) -> None:
@@ -346,6 +347,13 @@ class AtmosphericColumnModule(Module):
         sensible = self._inputs.get("surface_sensible_heat_flux")
         self._sensible_received = (
             sensible.require_units("W m^-2").scalar() * ctx.dt if sensible is not None else None
+        )
+        # Present only when convection mixes the surface into the column. The
+        # energy is real and crosses a module boundary, so it is declared the
+        # same way the sensible flux is rather than folded into the mixing.
+        convective = self._inputs.get("surface_convective_heat_flux")
+        self._convective_received = (
+            convective.require_units("W m^-2").scalar() * ctx.dt if convective is not None else None
         )
         self._latent_received = (
             float(np.sum(self.input_field("latent_heating_rate").require_units("W m^-2").values))
@@ -548,6 +556,17 @@ class AtmosphericColumnModule(Module):
                     receiver_module=self.module_id,
                     amount=self._sensible_received,
                     channel="sensible_heat",
+                    **common,  # type: ignore[arg-type]
+                )
+            )
+        if self._convective_received is not None:
+            imports.append(
+                Transfer(
+                    transfer_id=f"surface_convective_heat@{start:g}",
+                    sender_module=self.surface_module_id,
+                    receiver_module=self.module_id,
+                    amount=self._convective_received,
+                    channel="surface_convective_heat",
                     **common,  # type: ignore[arg-type]
                 )
             )

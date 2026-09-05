@@ -596,6 +596,23 @@ class ColumnSurfaceModule(Module):
                     **common,  # type: ignore[arg-type]
                 )
             )
+        # Present when convection mixes the surface into the column rather than
+        # exchanging with it through a bulk coefficient. Both sides declare the
+        # transfer, so an exchange that only one module believed in shows up as
+        # an unmatched record instead of quietly balancing.
+        convective = self._inputs.get("surface_convective_heat_flux")
+        if convective is not None:
+            exports.append(
+                Transfer(
+                    transfer_id=f"surface_convective_heat@{start:g}",
+                    sender_module=self.module_id,
+                    receiver_module=self.atmosphere_module_id,
+                    amount=convective.require_units("W m^-2").scalar() * dt,
+                    channel="surface_convective_heat",
+                    equation_id=EQUATION_IDS["convective_adjustment"],
+                    **common,  # type: ignore[arg-type]
+                )
+            )
 
         if not self.couple_water:
             return (exports, imports)

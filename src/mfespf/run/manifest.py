@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from mfespf import __version__ as _package_version
 from mfespf.contracts.cost import ResourceClass
 from mfespf.core.errors import ProvenanceError
 from mfespf.core.hashing import canonical_json, digest, file_digest
@@ -36,7 +37,11 @@ __all__ = [
     "lineage",
 ]
 
-FRAMEWORK_VERSION = "0.10.0"
+# One version, not a copy of it. This was a hard-coded third copy and it went
+# stale: every manifest written after the 0.11.0 release recorded 0.10.0, so
+# runs carried a framework version that no longer identified the code that
+# produced them, which is the one thing a manifest exists to do (AUD-008).
+FRAMEWORK_VERSION = _package_version
 
 
 class RunStatus:

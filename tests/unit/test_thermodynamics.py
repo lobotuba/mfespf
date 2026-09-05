@@ -17,6 +17,7 @@ from mfespf.physics.thermodynamics import (
     potential_temperature,
     saturation_specific_humidity,
     saturation_vapour_pressure,
+    surface_coupled_adjustment,
 )
 
 pytestmark = pytest.mark.stage(3)
@@ -212,3 +213,107 @@ def test_kappa_matches_the_declared_constants():
     )
     assert KAPPA == pytest.approx(0.2857, rel=1e-3)
     assert EPSILON == pytest.approx(0.622, rel=1e-3)
+
+
+# --- the surface as the bottom of the column ---------------------------------
+
+
+def _surface_mixed(temperature, *, surface_temperature, surface_heat_capacity=1.0e7, n=8):
+    pressure, capacity = _column(n)
+    return surface_coupled_adjustment(
+        np.asarray(temperature, dtype=float),
+        capacity,
+        pressure,
+        surface_temperature=surface_temperature,
+        surface_heat_capacity=surface_heat_capacity,
+        surface_pressure=P0,
+    )
+
+
+@pytest.mark.req("ATM-002", "CON-009", "VAL-001")
+def test_the_surface_mixing_conserves_the_enthalpy_of_the_surface_and_the_air():
+    """The same conservation argument, now spanning a module boundary.
+
+    Prepending the surface does not weaken the guarantee that made the
+    layer-only adjustment safe: the mixed value is still defined as the one that
+    leaves the total unchanged. It matters more here, not less, because this
+    mixing moves energy between two modules rather than within one, and an
+    exchange that did not balance would be a leak the column budget has to see.
+    """
+    pressure, capacity = _column()
+    T = np.linspace(250.0, 220.0, pressure.size)
+    Cs, Ts = 1.0e7, 320.0
+
+    adjusted_surface, adjusted, groups, surface_mixed = _surface_mixed(
+        T, surface_temperature=Ts, surface_heat_capacity=Cs
+    )
+
+    assert surface_mixed and groups
+    before = Cs * Ts + float(np.sum(capacity * T))
+    after = Cs * adjusted_surface + float(np.sum(capacity * adjusted))
+    assert after == pytest.approx(before, rel=1e-14)
+    assert adjusted_surface < Ts  # the surface paid for the warming above it
+
+
+@pytest.mark.req("ATM-002", "CON-009", "CLM-003")
+def test_an_inversion_between_layers_cannot_hide_a_buoyant_surface():
+    """The failure this scheme exists to remove.
+
+    The layer-only adjustment compares each layer with the one above it, so a
+    profile whose potential temperature increases upward is stable by
+    construction and it does nothing -- however hot the ground underneath is.
+    That is the state a column with trapped radiatively active vapour settles
+    into, and it is self-sustaining: the adjustment is inactive exactly where
+    the water is, so nothing lifts the water, so the inversion stays.
+
+    Launching the mixing from the surface breaks it, because the surface is
+    buoyant against the whole profile rather than against its neighbour only.
+    """
+    pressure, capacity = _column()
+    inverted = np.array([240.0, 286.0, 283.0, 280.0, 277.0, 274.0, 271.0, 268.0])
+
+    # The layer-only scheme sees nothing to do. Compared to a tolerance rather
+    # than exactly, because the adjustment returns theta * exner and that round
+    # trip is not bit-exact; the claim is that it does not move the profile.
+    assert dry_convective_adjustment(inverted, capacity, pressure) == pytest.approx(
+        inverted, rel=1e-14
+    )
+
+    _, adjusted, groups, surface_mixed = _surface_mixed(inverted, surface_temperature=300.0)
+
+    assert surface_mixed
+    assert groups[0][0] == 0  # and it reaches the layer holding the water
+    assert adjusted[0] > inverted[0] + 20.0
+    theta = potential_temperature(adjusted, pressure)
+    assert np.all(np.diff(theta) >= -1e-9)  # and leaves a stable profile behind
+
+
+@pytest.mark.req("ATM-002", "VAL-001", "DAT-007")
+def test_a_surface_colder_than_the_air_is_left_alone_and_bad_geometry_refused():
+    """A stable surface must not be mixed, and the column must have one bottom."""
+    pressure, capacity = _column()
+    stable = np.linspace(250.0, 220.0, pressure.size)
+
+    surface, adjusted, groups, surface_mixed = _surface_mixed(stable, surface_temperature=200.0)
+    assert not surface_mixed and groups == ()
+    assert surface == 200.0
+    assert adjusted == pytest.approx(stable, rel=1e-14)
+
+    with pytest.raises(ConfigurationError, match="bottom of the column"):
+        surface_coupled_adjustment(
+            stable,
+            capacity,
+            pressure,
+            surface_temperature=300.0,
+            surface_heat_capacity=1.0e7,
+            surface_pressure=1.0e3,  # above the lowest layer, so not a surface
+        )
+    with pytest.raises(ConfigurationError, match="surface heat capacity"):
+        surface_coupled_adjustment(
+            stable,
+            capacity,
+            pressure,
+            surface_temperature=300.0,
+            surface_heat_capacity=0.0,
+            surface_pressure=P0,
+        )

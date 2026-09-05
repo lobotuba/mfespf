@@ -439,7 +439,9 @@ def test_the_prescribed_profile_is_republished_every_step():
 # --- convective moisture transport ------------------------------------------
 
 
-def _convection_inputs(temperature: np.ndarray, vapour: np.ndarray) -> dict[str, Field]:
+def _convection_inputs(
+    temperature: np.ndarray, vapour: np.ndarray, surface: float | None = None
+) -> dict[str, Field]:
     common = {
         "quantity_kind": QuantityKind.DIAGNOSTIC,
         "time_semantics": TimeSemantics.INSTANTANEOUS,
@@ -473,7 +475,7 @@ def _convection_inputs(temperature: np.ndarray, vapour: np.ndarray) -> dict[str,
             field_id=SURFACE_TEMPERATURE_STATE,
             physical_name="surface temperature",
             symbol="Ts",
-            values=np.array(float(temperature[0])),
+            values=np.array(float(temperature[0]) if surface is None else surface),
             units="K",
             **scalar,  # type: ignore[arg-type]
         ),
@@ -488,11 +490,22 @@ def _convection_inputs(temperature: np.ndarray, vapour: np.ndarray) -> dict[str,
     }
 
 
-def _transport(temperature: np.ndarray, vapour: np.ndarray):
-    module = ConvectiveAdjustmentModule(transport_vapour=True, sensible_heat_coefficient=0.0)
+def _transport(
+    temperature: np.ndarray,
+    vapour: np.ndarray,
+    *,
+    surface_based: bool = False,
+    surface: float | None = None,
+):
+    module = ConvectiveAdjustmentModule(
+        transport_vapour=True,
+        sensible_heat_coefficient=0.0,
+        surface_based=surface_based,
+        surface_pressure=float(INTERFACES[0]),
+    )
     module.initialize({}, {"master_start_time": 0.0})
     module.begin_step(StepContext(time=0.0, dt=3600.0, step_index=0))
-    module.receive_inputs(_convection_inputs(temperature, vapour))
+    module.receive_inputs(_convection_inputs(temperature, vapour, surface))
     tendencies = module.compute_tendencies()
     moved = [t for t in tendencies if t.state_id == VAPOUR_STATE]
     return module, (moved[0].as_array() * 3600.0 if moved else np.zeros(N_LAYERS))
@@ -554,3 +567,67 @@ def test_the_transport_moves_nothing_when_the_adjustment_is_inactive():
     assert module._mixing_groups == ()
     assert np.all(moved == 0.0)
     assert module._vapour_moved == 0.0
+
+
+@pytest.mark.req("CON-001", "WAT-002", "CLM-003")
+def test_a_buoyant_surface_lifts_the_water_the_layer_scheme_could_not_reach():
+    """The mechanism that answers the negative result above.
+
+    Same column, same trapped water, same inversion -- and the only change is
+    that the mixing is launched from the surface rather than from a comparison
+    between neighbouring layers. The surface is buoyant against the whole
+    profile, so it cannot be hidden by a step between two layers, and the group
+    it opens reaches the layer holding the water.
+
+    Both schemes are checked on the identical input, because the claim is about
+    the difference between them and not about either one alone.
+    """
+    inverted = np.array(PROFILE)
+    inverted[:2] = [240.0, 286.0]  # trapped vapour cools layer 0 below layer 1
+    vapour = np.zeros(N_LAYERS)
+    vapour[0] = 20.0
+
+    _, stuck = _transport(inverted, vapour, surface=300.0)
+    assert np.all(stuck == 0.0)  # the layer-only scheme, for the same column
+
+    module, moved = _transport(inverted, vapour, surface_based=True, surface=300.0)
+
+    assert module._surface_mixed
+    assert float(np.sum(moved)) == pytest.approx(0.0, abs=1e-12)  # still a redistribution
+    assert moved[0] < -1.0  # and now the water actually leaves layer 0
+    assert np.sum(moved[1:]) > 1.0
+    assert module._surface_convective_flux > 0.0  # paid for by the surface, upward
+
+
+@pytest.mark.req("VAL-002", "CLM-003", "WAT-002")
+def test_complete_mixing_oversaturates_the_top_of_the_group_it_moistens():
+    """Why the feedback this scheme produces is a property of the layer grid.
+
+    Mixing to a uniform specific humidity is what an overturning circulation
+    does to a conserved scalar, but a real plume entrains dry air as it rises
+    and detrains before it saturates, which is why the observed mid-troposphere
+    sits near thirty to fifty percent rather than at saturation. Mixing
+    completely instead drives the top of the group past saturation, and the
+    water module's condensation then clips it back.
+
+    So the water that survives aloft is set by where the group's top happens to
+    fall, which is a property of the discretisation rather than of the physics.
+    Measured in the coupled column, the amplification runs 1.10x, 1.22x, 1.88x,
+    1.28x and 1.30x at 10, 20, 30, 40 and 60 layers, with the spin-up converged
+    to three decimals at every one. The two finest grids agree, so a limit near
+    1.3x is likely; the 45 percent excursion at 30 layers is not explained, and
+    until it is the feedback is recorded rather than quoted.
+    """
+    inverted = np.array(PROFILE)
+    inverted[:2] = [240.0, 286.0]
+    vapour = np.zeros(N_LAYERS)
+    vapour[0] = 20.0
+
+    module, moved = _transport(inverted, vapour, surface_based=True, surface=300.0)
+    low, high = module._mixing_groups[0]
+
+    specific = (vapour + moved)[low : high + 1] / MASS[low : high + 1]
+    saturation = saturation_specific_humidity(inverted[low : high + 1], PRESSURE[low : high + 1])
+
+    assert np.allclose(specific, specific[0])  # mixed, by construction
+    assert specific[-1] > saturation[-1]  # and past saturation at the top

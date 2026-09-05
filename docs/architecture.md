@@ -296,6 +296,124 @@ explained -- 0.602 to 0.534 -- but the modelled Pinatubo cooling is 0.489 K
 inside an observed 0.3 to 0.5, so what the pathway now exposes is the missing
 warming rather than an excess of cooling.
 
+## The water-vapour pathway, and the two walls it hit
+
+Water vapour is the largest greenhouse gas and the largest feedback, and until
+now this framework had neither. The pathway was built in five steps, each of
+which produced a measurement, and two of the five produced a wall.
+
+### The relation is calibrated against radiation, never against temperature
+
+`EQ-VAPOUR-BAND-ABSORPTION` gives a mass absorption coefficient across the
+spectral grid: a window continuum, a rotational band below 200 cm^-1 and the
+bending band at 1595 cm^-1, each falling off as an exponential wing. Two numbers in it
+are fitted, and both are fitted to *published radiation observations* -- the
+CERES all-sky outgoing longwave near 240 W m^-2, and a window transmittance of
+0.65 at 10 micron -- never to a temperature record. That is INF-003, and it is
+what makes the feedback the relation produces a prediction rather than a
+restatement.
+
+Nothing in the relation knows about temperature. The feedback is emergent, and
+in isolation it measures **+2.29 W m^-2 K^-1**.
+
+### The first wall: a feedback the column could not use
+
+Coupled to a real column the same relation produced an amplification of
+**0.99x** and a surface 12 K *colder*. The diagnosis was structural rather than
+numerical. The water module puts all of the vapour in the lowest layer, because
+nothing in the framework lifted it; a layer at the surface's own temperature
+re-emits almost everything it absorbs, so a large opacity there traps nearly
+nothing. Radiatively active but confined vapour gives a 63 W m^-2 greenhouse
+effect against 125 W m^-2 for the same water spread through the column.
+
+### The control: what the feedback would be worth if the water were where it belongs
+
+`PrescribedHumidityModule` imposes a uniform relative humidity of 0.7 and lets
+Clausius-Clapeyron decide the amount -- the Manabe-Wetherald idealisation. It
+owns no state, conserves nothing and may not carry a claim; it exists to
+measure the target. Against it, dT_2x is 4.394 K with the humidity free and
+1.768 K with it held: amplification **2.49x**, feedback **+1.251 W m^-2 K^-1**.
+That is below the radiative +2.29 because convective adjustment supplies
+something like a lapse-rate feedback, and published water-vapour-plus-lapse-rate
+estimates are about +1.2, which is the right neighbourhood for the wrong-looking
+reason to be the right one.
+
+### The second wall: the transport that could not start
+
+The obvious next step was to let convection carry the water, reusing the closure
+that already mixes heat so that no new parameter enters. It moved nothing, and
+the reason is a loop rather than a bug. Vapour with nothing to lift it collects
+in the lowest layer; radiatively active, that layer becomes an efficient
+radiator; it cools far below the layer above; and the inversion decouples it
+from the neutral region higher up, so the adjustment is inactive exactly where
+the water is. **The missing transport sustained the stratification that blocked
+the transport.** At 20 layers the potential-temperature step across the lowest
+interface measured 50.23 K with the vapour radiatively active and 0.00 K with it
+inert -- which locates the cause in the trapped vapour and not in the closure.
+
+### Surface-based convection removes the blockage
+
+The layer-only adjustment compares each layer with its neighbour, so it cannot
+see the instability that actually drives convection: the one between the ground
+and the air on top of it. Admitting the surface as element zero of the profile,
+with its own heat capacity and its own Exner factor, fixes that without adding a
+parameter -- the mixed value is still defined by enthalpy conservation, now over
+the surface and the air together.
+
+| | layer-only | surface-based | surface-based, carrying water |
+|---|---:|---:|---:|
+| surface temperature | 273.02 K | 272.63 K | 278.57 K |
+| lowest layer | 240.69 K | 270.68 K | 276.59 K |
+| potential-temperature step | 50.23 K | 0.00 K | 0.00 K |
+| layers mixed | 0 | 5 | 5 |
+| vapour above the lowest layer | 0.0% | 0.0% | 78.7% |
+
+It also cost something the framework insisted on. Mixing the surface into the
+column moves energy across a module boundary, and the first version balanced its
+own arithmetic perfectly while failing conservation reconciliation at 3e-4. The
+exchange is now published as a flux and declared as a transfer by both the
+surface and the atmosphere.
+
+### The third wall is the one still standing
+
+With the water finally able to move, the column produces an emergent humidity
+profile for the first time -- and the feedback it gives is not safely converged
+in the layer grid.
+
+| layers | 10 | 20 | 30 | 40 | 60 |
+|---|---:|---:|---:|---:|---:|
+| surface temperature (K) | 275.82 | 278.57 | 279.56 | 280.75 | 280.94 |
+| precipitable water (kg m^-2) | 4.52 | 4.89 | 5.20 | 5.28 | 5.32 |
+| amplification | 1.10x | 1.22x | **1.88x** | 1.28x | 1.30x |
+| feedback (W m^-2 K^-1) | +0.214 | +0.402 | **+1.014** | +0.466 | +0.495 |
+
+The spin-up is not the explanation: at 20 layers, 2000, 4000 and 8000 steps give
+the same surface temperature and the same dT_2x to three decimals. Nor is it
+simple divergence -- read only to 30 layers the sequence looks like one, which
+is how it was first written down here, and 40 and 60 layers then land within two
+percent of each other in the amplification and six in the feedback. What is left is a 45 percent excursion at one resolution
+in an otherwise smooth sequence, which is an unexplained switch rather than a
+limit, and VAL-002 says a number in that state is recorded and not quoted.
+
+The physics behind it is visible in the humidity profile. Convective mixing is
+complete rather than entraining, so it drives the top of the mixed group past
+saturation; condensation clips it back; and which layer that happens in is set
+by the grid. Above the group, relative humidity is exactly zero, because
+evaporation is the only source of water in this framework and convection its
+only transport. So the emergent feedback comes to about +0.5 W m^-2 K^-1 against
++1.251 for the prescribed-humidity control -- roughly the fraction of the column
+the mixing reaches.
+
+Two numbers say the same thing more bluntly. The column settles at 280.9 K and
+5.3 kg m^-2 of precipitable water; the relation in it was calibrated on a column
+carrying 23.2. **The relation is being evaluated far outside the conditions it
+was fitted at** -- the same class of defect this project has already found twice,
+in the carbon dioxide band's background opacity and then in this relation's own
+clear-sky against all-sky pairing, appearing a third time. Closing that gap means
+entrainment and detrainment, and the cheapest form of those carries a fitted
+eddy diffusivity -- which is exactly the choice deferred when this pathway
+started, arriving now with a measurement attached to it.
+
 ## The first registered claim
 
 ```
@@ -741,7 +859,7 @@ solar ─▶ orbit ─▶ radiation ─▶ water ─▶ convection ─▶ atmosp
 | Module | Owns | Role |
 | --- | --- | --- |
 | `water` | `atmosphere_water_vapour` | vapour, evaporation, condensation, **and the latent energy** |
-| `convection` | — | surface sensible heat flux and dry convective adjustment |
+| `convection` | — | surface sensible heat flux and dry convective adjustment; optionally with the surface as the column's bottom element, and optionally carrying the vapour it mixes |
 | `surface` | `surface_temperature`, `surface_water_store` | as before, plus a water reservoir |
 
 ### Splitting order is physics, not bookkeeping
@@ -1104,9 +1222,35 @@ is deleted from this list, and where a stage removed one the entry says so.
   planetary albedo are missing. Cloud scattering *is* present as of Stage 4.
 - One effective radius per phase, no size distribution, no mixed phase. Ice
   differs from liquid only through a larger radius, which is a crude analogy.
-- Water vapour is radiatively inert: the absorption coefficient does not respond
-  to it, so no configuration has a water-vapour feedback and no claim about one
-  is in scope.
+- Water vapour is radiatively inert **in the claim-bearing configurations**. The
+  spectral relation and the coupling exist and are exercised, but every
+  configuration that carries a claim still runs with the fixed background
+  opacity it was calibrated against, so no registered claim depends on a
+  water-vapour feedback and none is in scope.
+- The vapour feedback the coupled column produces is **not safely converged in
+  the layer grid**. Amplification runs 1.10x, 1.22x, 1.88x, 1.28x and 1.30x at
+  10, 20, 30, 40 and 60 layers, with the spin-up converged to three decimals at
+  every one of them. The two finest grids agree to within two percent, so there
+  is probably a limit near 1.3x -- but a 45 percent excursion at 30 layers, in a
+  sequence that is otherwise smooth, is an unexplained resolution-sensitive
+  switch and not something to quote around. Under VAL-002 the number stays
+  recorded and unquoted until the excursion is understood.
+- Above the convecting layer the column is bone dry, and that is where the
+  feedback goes missing: the emergent scheme delivers about +0.5 W m^-2 K^-1
+  against +1.251 for the fixed-relative-humidity control, which is roughly the
+  fraction of the column the mixing reaches. Complete mixing without entrainment
+  drives the top of the group past saturation, condensation clips it there, and
+  nothing moistens anything above it.
+- Relative humidity above the convecting layer is exactly zero, because
+  evaporation is the only source of water and convection the only transport. A
+  real atmosphere moistens its middle troposphere by detrainment from deep
+  convection and by large-scale ascent, neither of which exists here.
+- **The vapour relation is being evaluated outside the conditions it was
+  calibrated at.** The fit was performed on a column carrying 23.2 kg m^-2 of
+  precipitable water; the coupled column settles at 5.3, and its surface at
+  280.9 K against an observed 288. This is the same defect pattern that the
+  carbon dioxide band had twice, in a third place, and it is why no claim has
+  been registered against the vapour pathway.
 - The ocean has two reservoirs and no vertical structure, so nothing about the
   profile of heat uptake is in scope. Its exchange coefficient is calibrated
   rather than measured, and constant, so the model cannot represent a change in

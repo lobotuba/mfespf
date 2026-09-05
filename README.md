@@ -38,7 +38,7 @@ record — on top of the full Version 1.0 interface spine.
 | 6 — historical replay: declared inputs, frozen equations, withheld records, whole-run budget | implemented, and running on real irradiance, temperature and ocean-heat records |
 | 7 — hindcast and registered prediction | machinery present (freeze records), not exercised |
 
-189 mandatory requirements are tracked; 147 currently have a bound acceptance
+189 mandatory requirements are tracked; 160 currently have a bound acceptance
 test. All eight KER-012 reference configurations exist and run. See
 [`docs/traceability.md`](docs/traceability.md) — the uncovered requirements are
 listed there rather than left implicit.
@@ -47,6 +47,18 @@ Nine real global-mean records are declared in
 [`data/sources.yaml`](data/sources.yaml) and load through the framework's
 provenance path. **Four claims have been registered against them and all four have
 been refuted** — see below.
+
+A water-vapour pathway is built and exercised but does not yet carry a claim.
+The spectral relation is calibrated against published *radiation* observations
+rather than any temperature record, and in isolation it gives a feedback of
++2.29 W m⁻² K⁻¹. Coupled to a column it hit two structural walls in a row —
+vapour trapped in the lowest layer traps no heat, and the convective scheme that
+should have lifted it was disabled by the inversion the trapped vapour itself
+created. Surface-based convection removes both, and the feedback that then
+emerges is about +0.5 W m⁻² K⁻¹ against +1.251 for the fixed-humidity control —
+**not safely converged in the layer grid**, and evaluated well outside the
+conditions the relation was calibrated at, so it is recorded and not quoted. See
+[`docs/architecture.md`](docs/architecture.md#the-water-vapour-pathway-and-the-two-walls-it-hit).
 
 ## Install and run
 

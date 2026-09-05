@@ -28,6 +28,17 @@ Convection moves energy between layers and across no module boundary, so its
 contribution to the column's *total* energy is exactly zero. That is checked,
 not assumed: a convection scheme that quietly created energy would otherwise be
 indistinguishable from one that did not.
+
+The surface-based option qualifies that last sentence, and had to declare itself
+to keep it true. Comparing each layer with the one above it makes an inversion at
+the bottom of the column invisible, however buoyant the ground underneath is, and
+that is the state a column with radiatively active vapour trapped in its lowest
+layer settles into. Admitting the surface as element zero of the profile removes
+the blind spot for the price of an exchange that *does* cross a module boundary,
+so the flux is published and both the surface and the atmosphere declare the
+transfer. The framework found the omission before the physics did: the first
+version balanced its own arithmetic perfectly and failed reconciliation at
+3e-4.
 """
 
 from __future__ import annotations
@@ -44,6 +55,7 @@ from mfespf.contracts.module import (
     ModuleStatus,
     UncertaintyReport,
 )
+from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError
 from mfespf.core.quantities import (
     Field,
@@ -60,6 +72,7 @@ from mfespf.physics.surface import SURFACE_TEMPERATURE_STATE
 from mfespf.physics.thermodynamics import (
     convective_adjustment_with_groups,
     potential_temperature,
+    surface_coupled_adjustment,
 )
 from mfespf.physics.water import VAPOUR_STATE
 from mfespf.registries.states import TendencyContribution
@@ -91,6 +104,8 @@ class ConvectiveAdjustmentModule(Module):
         surface_module_id: str = "surface",
         sensible_heat_coefficient: float = 10.0,
         transport_vapour: bool = False,
+        surface_based: bool = False,
+        surface_pressure: float | None = None,
         reference_pressure: float | None = None,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
@@ -117,6 +132,15 @@ class ConvectiveAdjustmentModule(Module):
                 "mixing is complete within an unstable group and absent outside it",
                 "dry adiabatic neutrality is the target, with no moist correction",
                 "no momentum, moisture or tracer transport accompanies the heat mixing",
+                *(
+                    (
+                        "the surface is a column element the mixing can reach, so a "
+                        "buoyant surface is coupled to the air above it at whatever rate "
+                        "instantaneous mixing implies rather than at a fitted one",
+                    )
+                    if surface_based
+                    else ()
+                ),
             ),
             validity_domain=(
                 "Dry columns, and moist columns only where the answer does not depend on "
@@ -138,6 +162,7 @@ class ConvectiveAdjustmentModule(Module):
                 "convective_layer_count",
                 "atmosphere_potential_temperature",
                 "surface_sensible_heat_flux",
+                *(("surface_convective_heat_flux",) if surface_based else ()),
             ),
             conserved_quantities=("energy",),
             internal_sources_and_sinks=(),
@@ -175,7 +200,22 @@ class ConvectiveAdjustmentModule(Module):
                 "moves nothing: the missing transport sustains the stratification that "
                 "blocks it. Measured at 20 layers, the potential-temperature step across "
                 "the lowest interface is 50 K with the vapour radiatively active and 0 K "
-                "with it inert.",
+                "with it inert. Removed by the surface-based option below, which is "
+                "why that option exists; the finding stands for the layer-only form.",
+                "Surface-based mixing is complete rather than entraining. Real plumes "
+                "dilute as they rise and detrain air that is not saturated; mixing "
+                "completely instead drives the top of the group past saturation, "
+                "condensation clips it there, and nothing moistens the column above it "
+                "at all. The vapour feedback that results is only about +0.5 W m^-2 "
+                "K^-1 against +1.251 for a fixed-relative-humidity control, and it is "
+                "not safely converged in the layer grid -- amplification runs 1.10x, "
+                "1.22x, 1.88x, 1.28x and 1.30x at 10, 20, 30, 40 and 60 layers, and the "
+                "excursion at 30 is unexplained.",
+                "The surface joins the mixing at a temperature this module forms from "
+                "the fluxes it can see -- its own sensible flux and the surface net "
+                "radiative flux. Any other tendency the surface carries, deep-ocean "
+                "exchange in particular, is left to the splitting, so in a coupled-ocean "
+                "configuration the surface convects from a slightly stale temperature.",
             ),
             cost=CostDeclaration(
                 module_id=module_id,
@@ -197,8 +237,13 @@ class ConvectiveAdjustmentModule(Module):
         self.surface_module_id = surface_module_id
         self.sensible_heat_coefficient = sensible_heat_coefficient
         self.transport_vapour = transport_vapour
+        self.surface_based = surface_based
+        self.surface_pressure = surface_pressure
         self._mixing_groups: tuple[tuple[int, int], ...] = ()
         self._vapour_moved = 0.0
+        self._surface_adjustment = 0.0
+        self._surface_convective_flux = 0.0
+        self._surface_mixed = False
         self.reference_pressure = reference_pressure
         self._tendency = np.zeros(0)
         self._adjusted_layers = 0
@@ -214,6 +259,19 @@ class ConvectiveAdjustmentModule(Module):
 
     def initialize(self, initial_state: dict[str, Any], boundary_state: dict[str, Any]) -> None:
         self.mark_initialized()
+
+    def _reference_surface_pressure(self) -> float:
+        """The pressure the surface element sits at, a boundary condition.
+
+        Defaults to the standard surface pressure, which is what the atmosphere
+        module builds its layers from; a configuration that moves one has to
+        move both, so the column keeps a single bottom.
+        """
+        return (
+            self.surface_pressure
+            if self.surface_pressure is not None
+            else value_of("standard_surface_pressure")
+        )
 
     def _vapour_transport(
         self, groups: tuple[tuple[int, int], ...], layer_mass: np.ndarray
@@ -297,12 +355,47 @@ class ConvectiveAdjustmentModule(Module):
         heating[0] += self._sensible_flux
 
         provisional = temperature + (heating / heat_capacity) * ctx.dt
-        adjusted, groups = convective_adjustment_with_groups(
-            provisional,
-            heat_capacity,
-            pressure,
-            reference_pressure=self.reference_pressure,
-        )
+        if self.surface_based:
+            # The surface enters the profile the adjustment acts on, so its own
+            # provisional temperature has to be formed the way the layers' is:
+            # the state at the start of the step plus every flux this module can
+            # see. The radiative flux is folded in here and subtracted again in
+            # the tendency, exactly as ``layer_radiative_heating`` is for the
+            # layers, so the surface module still commits its own radiation once
+            # and only once.
+            forcing = -self._sensible_flux
+            net = self._inputs.get("surface_net_radiative_flux")
+            if net is not None:
+                forcing += net.require_units("W m^-2").scalar()
+            provisional_surface = surface_temperature + (forcing / surface_heat_capacity) * ctx.dt
+            (
+                adjusted_surface,
+                adjusted,
+                groups,
+                self._surface_mixed,
+            ) = surface_coupled_adjustment(
+                provisional,
+                heat_capacity,
+                pressure,
+                surface_temperature=provisional_surface,
+                surface_heat_capacity=surface_heat_capacity,
+                surface_pressure=self._reference_surface_pressure(),
+                reference_pressure=self.reference_pressure,
+            )
+            self._surface_adjustment = (adjusted_surface - provisional_surface) / ctx.dt
+            # Positive upward: what the surface loses, the air gains, and the
+            # mixing conserves their sum by construction.
+            self._surface_convective_flux = -self._surface_adjustment * surface_heat_capacity
+        else:
+            adjusted, groups = convective_adjustment_with_groups(
+                provisional,
+                heat_capacity,
+                pressure,
+                reference_pressure=self.reference_pressure,
+            )
+            self._surface_adjustment = 0.0
+            self._surface_convective_flux = 0.0
+            self._surface_mixed = False
         self._mixing_groups = groups
 
         self._tendency = (adjusted - provisional) / ctx.dt
@@ -352,6 +445,20 @@ class ConvectiveAdjustmentModule(Module):
                 value=-self._sensible_flux / surface_heat_capacity,
                 units="K s^-1",
                 equation_id=EQUATION_IDS["sensible_heat"],
+            ),
+            *(
+                (
+                    TendencyContribution(
+                        state_id=SURFACE_TEMPERATURE_STATE,
+                        provider_module_id=self.module_id,
+                        label="surface_convective_adjustment",
+                        value=self._surface_adjustment,
+                        units="K s^-1",
+                        equation_id=EQUATION_IDS["convective_adjustment"],
+                    ),
+                )
+                if self.surface_based
+                else ()
             ),
             *(
                 (
@@ -421,6 +528,34 @@ class ConvectiveAdjustmentModule(Module):
                     producer=self.module_id, derivation=EQUATION_IDS["sensible_heat"]
                 ),
             ),
+            **(
+                {
+                    # Mixing the surface into the column moves energy across a
+                    # module boundary, which the sensible flux also does and
+                    # which the column's energy ledger has to see. Published as
+                    # a flux so the atmosphere can declare the import, rather
+                    # than left implicit in a temperature tendency: an exchange
+                    # no ledger records is indistinguishable from an invention.
+                    "surface_convective_heat_flux": Field(
+                        field_id="surface_convective_heat_flux",
+                        physical_name=(
+                            "heat carried from the surface into the air by convective mixing"
+                        ),
+                        symbol="H_conv",
+                        values=np.array(self._surface_convective_flux),
+                        units="W m^-2",
+                        quantity_kind=QuantityKind.FLUX,
+                        time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                        time_interval=ctx.dt,
+                        timestamp=ctx.time,
+                        spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                        sign_convention=SignConvention.POSITIVE_UPWARD,
+                        provenance=provenance,
+                    )
+                }
+                if self.surface_based
+                else {}
+            ),
             "convective_layer_count": Field(
                 field_id="convective_layer_count",
                 physical_name="layers the adjustment altered this step",
@@ -441,6 +576,8 @@ class ConvectiveAdjustmentModule(Module):
             quantified={
                 "layers_adjusted": float(self._adjusted_layers),
                 "sensible_heat_flux_W_m2": self._sensible_flux,
+                "surface_took_part_in_the_mixing": float(self._surface_mixed),
+                "surface_convective_flux_W_m2": self._surface_convective_flux,
             },
             method="none propagated; the closure's error is structural, not parametric",
             distributional_assumptions="unresolved",
@@ -456,6 +593,11 @@ class ConvectiveAdjustmentModule(Module):
         return {
             **dict(self.configuration),
             "target": "dry_adiabat",
+            "surface_based": self.surface_based,
+            "transport_vapour": self.transport_vapour,
+            "surface_pressure_Pa": (
+                self._reference_surface_pressure() if self.surface_based else None
+            ),
             "sensible_heat_coefficient_W_m2_K": self.sensible_heat_coefficient,
             "reference_pressure_Pa": self.reference_pressure,
             "mixing": "instantaneous_complete_within_unstable_groups",

@@ -114,6 +114,21 @@ saying out loud.
 - **Check convergence again after changing the physics, not only after changing
   the grid.** Narrowing the band made a previously converged grid inadequate
   without anything about the grid changing.
+- **Convergence applies to what the model produces, not only to what it is
+  given.** The spectral forcing was converged; the vapour feedback the coupled
+  column produced was not, and the spin-up being converged to three decimals at
+  every resolution said nothing about it. Take the study far enough to see the
+  shape: stopping at 10, 20 and 30 layers showed amplification climbing 1.10x,
+  1.22x, 1.88x and read as divergence, and 40 and 60 layers then landed at 1.28x
+  and 1.30x, making the 30-layer point a spike rather than a trend. An emergent
+  equilibrium quantity gets its own resolution study, with enough points to tell
+  a limit from an excursion, before it is quoted (VAL-002).
+- **A mechanism that moves a conserved quantity between two modules has to be
+  declared by both of them.** Mixing the surface into the convective adjustment
+  balanced its own arithmetic exactly and still failed reconciliation at 3e-4,
+  because an internal redistribution had quietly become a boundary crossing.
+  Publish the flux and declare the transfer on each side; the reconciler exists
+  to catch exactly this and it did.
 - **Optical properties describe a layer, not a contributor.** Cloud droplets and
   volcanic aerosol scatter in the same layers; combine them with
   `combine_scatterers`, which weights asymmetry by how much each one scatters.
