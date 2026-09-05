@@ -21,7 +21,7 @@ specification governs.**
 
 ## Status
 
-Version 0.6.0 — the charter's validation ladder (§19) through **Stage 6**:
+Version 0.7.0 — the charter's validation ladder (§19) through **Stage 6**:
 the accounting kernel, the airless radiating body, the radiating atmospheric
 column, atmospheric thermodynamics with convection and water, clouds, thermal
 storage with measured response timescales, and historical replay of a declared
@@ -45,15 +45,14 @@ listed there rather than left implicit.
 
 Six real global-mean records are declared in
 [`data/sources.yaml`](data/sources.yaml) and load through the framework's
-provenance path. **No physical claim has been registered against them yet** —
-the replay reproduces the equilibrium its own input implies, which tests the
-pathway, not the physics.
+provenance path, and **the first registered claim against them has been
+refuted** — see below.
 
 ## Install and run
 
 ```bash
 python -m pip install -e ".[dev]"     # Python 3.11+
-python -m pytest                       # 323 tests, ~2 min on a workstation
+python -m pytest                       # 354 tests, ~2 min on a workstation
 python tools/fetch_data.py             # optional: fetch the declared datasets
 mfespf run airless --steps 4800        # Stage 1: 200 simulated days
 mfespf run window --steps 6000 --heat-capacity 1e6            # Stage 2 column
@@ -63,6 +62,7 @@ mfespf run ocean  --steps 16000 --master-dt 864000 --steps-per-solar-exchange 1 
                   --forcing step                              # Stage 5 step response
 mfespf run replay --steps 500                                 # Stage 6, synthetic record
 mfespf run replay-observed --steps 2000                       # Stage 6, real NRLTSI2 record
+mfespf experiment solar-only                                  # the first registered claim
 ```
 
 ```
@@ -200,6 +200,50 @@ the irradiance of the period it covers, so it still cannot be reported as a
 hindcast. Two guards against two different mistakes, and a real record relaxes
 only one.
 
+## The first registered claim, and its refutation
+
+```
+$ mfespf experiment solar-only
+threshold:    0.113716 K   (the record's own mean 95% half-width)
+measured rms: 0.400214 K
+claim status: refuted
+
+observed range   2.397 K        modelled range  0.0638 K
+variance explained  +0.033      control (constant Sun)  +0.000
+```
+
+The hypothesis: *variation in total solar irradiance is sufficient to account
+for the observed change in global-mean surface temperature since 1882*. It is
+registered, frozen, and refuted against HadCRUT5 by a factor of 3.5 on a
+threshold taken from **the record's own uncertainty**, not from anything the
+model did.
+
+The kernel has no carbon dioxide, no aerosols and no volcanic forcing, so this
+outcome was expected. Recording it properly is the point:
+
+- **The threshold came first.** `ExperimentProtocol` hashes the declaration
+  before the run and refuses to evaluate against one that moved. The number is
+  the record's mean 95% half-width over the compared period — and the compared
+  period is the overlap of the two records' coverage, a property of the data.
+- **The control produces exactly nothing.** A constant-irradiance run gives zero
+  modelled range and zero variance explained. That is what caught a real defect:
+  the run had been starting away from equilibrium, and its first decade of
+  spin-up was showing up as a modelled range eight times larger than the actual
+  solar response.
+- **A refutation from a reconstruction is decisive where a pass would not be.**
+  The run was handed the irradiance of the period it is judged on. Succeeding
+  under those conditions earns `QUALIFIED` at best; failing under them earns
+  `REFUTED`. `OperatingMode.status_for_result` enforces the asymmetry rather
+  than leaving it to the reader.
+- **The result carries what the experiment could not settle.** It observes one
+  global-mean scalar, so it cannot separate the mechanism from greenhouse,
+  aerosol or volcanic forcing, or from internal variability. That list is a
+  required field of the hypothesis record, inside the frozen hash, and it is
+  printed with the verdict.
+
+What is refuted is *this configuration's sufficiency*, not the physics of solar
+forcing. The claim record says so in its own limitations field.
+
 The physics is deliberately small; the point is that it is **accounted**. The
 coupled energy budget closes to ~1e-16 relative at every coupling interval.
 Stage 1 reaches the closed-form equilibrium to 1e-9 relative and the analytic
@@ -229,6 +273,8 @@ The interface spine is the substantial part. See
 | Equations | [`registries/equations.py`](src/mfespf/registries/equations.py) | a calibrated correction cannot be declared a fundamental law |
 | Data provenance | [`registries/datasets.py`](src/mfespf/registries/datasets.py) | calibration data cannot be re-reported as independent validation |
 | Claims | [`registries/claims.py`](src/mfespf/registries/claims.py) | no claim without a failure criterion; thresholds freeze before evaluation |
+| Hypotheses | [`registries/hypotheses.py`](src/mfespf/registries/hypotheses.py) | a mechanism must name its control and what its experiment cannot separate it from |
+| Model/record comparison | [`evaluation/comparison.py`](src/mfespf/evaluation/comparison.py) | anomalies differenced against the record's own baseline; the model moves to the data |
 | Transfers | [`coupling/transfers.py`](src/mfespf/coupling/transfers.py) | both parties record each exchange; overlapping records are double counts |
 | Conservation | [`coupling/conservation.py`](src/mfespf/coupling/conservation.py) | numerical sources tracked apart from physical ones |
 | Dependency graph | [`coupling/graph.py`](src/mfespf/coupling/graph.py) | undeclared feedback cycles fail; edges can be disabled for controls |
@@ -356,6 +402,21 @@ Sun. The registry refuses an undeclared provenance in any evidence role, and the
 evaluator caps a claim tested against a generated record at
 `EMPIRICALLY_UNRESOLVED` — the metric is still reported, because the numerical
 check is real; what is withheld is the empirical conclusion.
+
+**A hypothesis must say what its experiment cannot separate it from.** HYP-008
+is the field most likely to be left vague and the one that decides the
+inference: a mechanism supported by an experiment that could not distinguish it
+from four alternatives is supported jointly with those four. It is required, it
+is inside the frozen hash — quietly shortening the list afterwards would
+strengthen the claim as surely as loosening the threshold — and it is printed
+with the verdict.
+
+**A failure is decisive where a pass would only be qualified.** A run handed the
+boundary conditions of the period it is judged on has been told part of the
+answer, so reproducing the observations is weak evidence. Failing to reproduce
+them is not weak at all. `OperatingMode.status_for_result` returns `REFUTED` for
+a failure in any comparison mode, `QUALIFIED` for a pass that used target-period
+inputs, and `SUPPORTED_WITHIN_SCOPE` only for a prospective one.
 
 **An uncertainty column says what kind of uncertainty it is.** Real records
 forced this. HadCRUT5 publishes a 95 percent interval, NOAA's ocean heat content

@@ -124,12 +124,22 @@ def historical_replay(
 
     kernel = airless_radiating_body(**kwargs)
     kernel.manifest = None  # rebuilt from the configuration on the next prepare()
-    kernel.adapter = working  # type: ignore[attr-defined]
+    kernel.adapter = working
     return kernel
 
 
-def replay_steps(adapter: HistoricalDataAdapter, variable: str, master_dt: float) -> int:
-    """How many master steps the record can support."""
+def replay_steps(adapter: HistoricalDataAdapter | None, variable: str, master_dt: float) -> int:
+    """How many master steps the record can support.
+
+    Accepts ``None`` only to refuse it: a kernel with no adapter is not a replay,
+    and answering "zero" would let a caller run a configuration that reads no
+    record and believe it had replayed one.
+    """
+    if adapter is None:
+        raise ConfigurationError(
+            "this kernel has no declared record; replay_steps applies to a replay "
+            "configuration, and a run without one has no record length to be bounded by"
+        )
     return int(replay_clock(adapter, variable, master_dt).size) - 1
 
 
@@ -150,6 +160,10 @@ def observed_replay(dataset_id: str = "NRLTSI2-MONTHLY", **kwargs: Any) -> Kerne
     """
     from mfespf.data.loaders import load_declared
 
+    # An override exists for one purpose: a control configuration built from the
+    # same record with its variation removed. Anything else passed here is not
+    # the dataset it claims to be, and the run_id should say so.
+    adapter = kwargs.pop("adapter", None) or load_declared(dataset_id)
     kwargs.setdefault("run_id", f"STAGE6-REPLAY-{dataset_id}")
     kwargs.setdefault(
         "purpose",
@@ -157,4 +171,4 @@ def observed_replay(dataset_id: str = "NRLTSI2-MONTHLY", **kwargs: Any) -> Kerne
         f"played through the airless body, with the transformation, the operating mode and "
         f"the whole-run energy budget recorded.",
     )
-    return historical_replay(adapter=load_declared(dataset_id), **kwargs)
+    return historical_replay(adapter=adapter, **kwargs)

@@ -284,6 +284,33 @@ def _run(args: argparse.Namespace) -> int:
     return 0
 
 
+_EXPERIMENTS = {"solar-only": "mfespf.experiments.solar_only:run_solar_only_experiment"}
+
+
+def _experiment(args: argparse.Namespace) -> int:
+    """Run a declared experiment and print its record, verdict and limits."""
+    import importlib
+
+    module_name, function_name = _EXPERIMENTS[args.experiment].split(":")
+    try:
+        runner = getattr(importlib.import_module(module_name), function_name)
+        result = runner()
+    except MFESPFError as exc:
+        print(f"cannot run {args.experiment!r}: {exc}", file=sys.stderr)
+        return 2
+
+    print(result.describe())
+    print()
+    print(result.outcome.describe())
+    print()
+    print(f"whole-run conservation residual: {result.worst_relative_residual:.3e}")
+
+    # A refuted claim is a result, not an error: it is what the framework is for,
+    # and exiting non-zero would make a successful refutation look like a broken
+    # run to anything reading the exit code.
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="mfespf", description=__doc__)
     parser.add_argument("--version", action="version", version=f"mfespf {__version__}")
@@ -350,6 +377,10 @@ def main(argv: list[str] | None = None) -> int:
         help="continue past a conservation failure and report it rather than stopping",
     )
     run.set_defaults(func=_run)
+
+    experiment = sub.add_parser("experiment", help="run a declared experiment")
+    experiment.add_argument("experiment", choices=sorted(_EXPERIMENTS))
+    experiment.set_defaults(func=_experiment)
 
     listing = sub.add_parser("configurations", help="list reference configurations")
     listing.set_defaults(func=lambda _a: (print("\n".join(sorted(_CONFIGURATIONS))), 0)[1])

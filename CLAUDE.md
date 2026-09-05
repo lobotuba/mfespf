@@ -84,6 +84,24 @@ saying out loud.
 - **The operating mode governs what a run may be called.** A prescribed-history
   or reconstruction run cannot be reported as a hindcast or a prediction
   (TIM-006, VAL-007).
+- **A failure is decisive; a pass is worth what the mode licenses.** Do not add
+  a path that returns `SUPPORTED_WITHIN_SCOPE` for a run that used inputs from
+  the period it was judged on — `OperatingMode.status_for_result` is where that
+  decision belongs.
+- **A hypothesis declares what its experiment cannot separate it from.**
+  Required, and inside the frozen hash: shortening the list afterwards
+  strengthens the claim as surely as loosening the threshold (HYP-008, HYP-009).
+- **An experiment's threshold comes from the data, never from the model's
+  error.** The solar-only threshold is the record's own mean 95% half-width over
+  the compared period, and the compared period is fixed by the records' overlap
+  before anything runs.
+- **A null control that is not exactly null is a bug.** The constant-irradiance
+  control gives zero modelled range. Anything else means something other than
+  the mechanism is moving the model, and it contaminates the forced run too.
+- **Interval-mean cells are centred on their sample times.** `cell_edges` puts
+  the boundaries halfway between samples, so resampling a series onto its own
+  clock is the identity. A zero-order hold is a different reconstruction and is
+  not interchangeable with it.
 - **Calibration data is never independent validation.** The dataset registry
   enforces it per claim, at variable granularity.
 - **Withheld data is unreadable before the claim freezes.** Do not add a

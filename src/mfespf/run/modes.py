@@ -25,6 +25,7 @@ from __future__ import annotations
 from enum import StrEnum
 
 from mfespf.core.errors import InvalidForScientificInferenceError
+from mfespf.registries.claims import ClaimStatus
 
 __all__ = ["OperatingMode"]
 
@@ -100,6 +101,28 @@ class OperatingMode(StrEnum):
             f"that would describe it with the evidentiary language of a mode it does not "
             f"support (TIM-006).{detail}"
         )
+
+    def status_for_result(self, passed: bool) -> ClaimStatus:
+        """What a pass or a fail in this mode is worth (CLM-002, VAL-007).
+
+        The asymmetry is the point. A failure is decisive in any mode: a
+        mechanism given every advantage the experiment could offer and still
+        unable to account for the observations has been refuted, and being handed
+        the boundary conditions of the period only makes that stronger.
+
+        A pass is worth what the mode's standing says. Reproducing observations
+        while holding the target period's own inputs is a qualified success, not
+        a supported claim -- the run was told part of the answer. Only a
+        prospective comparison earns SUPPORTED_WITHIN_SCOPE, and a mode that
+        compared against nothing earns nothing either way.
+        """
+        if not self.compares_against_a_record:
+            return ClaimStatus.EMPIRICALLY_UNRESOLVED
+        if not passed:
+            return ClaimStatus.REFUTED
+        if self.uses_target_period_inputs:
+            return ClaimStatus.QUALIFIED
+        return ClaimStatus.SUPPORTED_WITHIN_SCOPE
 
     def describe(self) -> str:
         parts = [f"operating mode: {self.value}"]

@@ -26,7 +26,6 @@ those facts is invisible from the role alone.
 from __future__ import annotations
 
 import itertools
-import math
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -43,6 +42,7 @@ __all__ = [
     "SamplingConvention",
     "TimeSeries",
     "UncertaintyKind",
+    "cell_edges",
     "resample",
 ]
 
@@ -195,11 +195,14 @@ class TimeSeries:
 
     # --- reading ----------------------------------------------------------
     def value_at(self, time: float) -> float:
-        """The sample in force at ``time``, held from the last one before it.
+        """The sample in force at ``time``, held from the last one at or before it.
 
-        A zero-order hold, not an interpolation: this is what a record with an
-        interval-mean convention actually asserts about the times between its
-        samples, and interpolating would smooth a step the record may intend.
+        A zero-order hold, not an interpolation: interpolating would smooth a
+        step the record may intend. It is deliberately *not* the cell
+        reconstruction ``resample`` uses, which puts the boundaries halfway
+        between samples because that is what an interval mean asserts. The two
+        agree exactly at the sample times, which is where a replay reads them,
+        and differ by at most half an interval elsewhere.
         """
         self.require_coverage(time, time)
         index = int(np.searchsorted(self.times, time, side="right") - 1)
@@ -355,15 +358,18 @@ def resample(
         values = series.values[indices]
         aggregation, interpolation = "none", "zero_order_hold"
     else:
-        # Piecewise-constant integration over each target interval: exact for a
-        # record whose samples already assert a constant value across their own
-        # interval, and reducing to the covering sample when the target clock is
-        # finer than the record.
+        # Overlap-weighted integration of the source cells over each target cell.
+        # Both sets of cells are centred on their sample times, which is what an
+        # interval mean asserts, so resampling a series onto its own clock
+        # returns the series exactly.
         edges = np.empty(targets.size + 1)
         edges[1:-1] = 0.5 * (targets[:-1] + targets[1:])
         edges[0] = targets[0] - 0.5 * interval
         edges[-1] = targets[-1] + 0.5 * interval
-        values = np.array([_piecewise_mean(series, lo, hi) for lo, hi in itertools.pairwise(edges)])
+        source = cell_edges(series.times)
+        values = np.array(
+            [_piecewise_mean(series.values, source, lo, hi) for lo, hi in itertools.pairwise(edges)]
+        )
         if chosen == "interval_total":
             values = values * interval
         aggregation = chosen
@@ -396,18 +402,48 @@ def resample(
     return resampled, report
 
 
-def _piecewise_mean(series: TimeSeries, low: float, high: float) -> float:
-    """Mean of a piecewise-constant series over ``[low, high]``."""
+def cell_edges(times: np.ndarray) -> np.ndarray:
+    """The interval boundaries an interval-mean series' samples assert.
+
+    A sample of an interval mean sits at the *middle* of the interval it
+    describes, so the boundaries are halfway between consecutive samples, with
+    half-cells at each end.
+
+    Reconstructing the series with breakpoints at the sample times instead --
+    which is what a zero-order hold does -- shifts every cell by half an
+    interval. Resampling a series onto its own clock then fails to return it,
+    and the discrepancy comes out as a variance loss that looks like the
+    resampling removed real variability. It had been doing exactly that, and
+    reporting two percent of it as though it were physical.
+    """
+    if times.size < 2:
+        raise ConfigurationError("cell edges need at least two samples")
+    edges = np.empty(times.size + 1)
+    edges[1:-1] = 0.5 * (times[:-1] + times[1:])
+    edges[0] = times[0] - 0.5 * (times[1] - times[0])
+    edges[-1] = times[-1] + 0.5 * (times[-1] - times[-2])
+    return edges
+
+
+def _piecewise_mean(values: np.ndarray, source_edges: np.ndarray, low: float, high: float) -> float:
+    """Mean over ``[low, high]`` of the step function those cells describe.
+
+    The overlap of the target cell with each source cell, weighted by that
+    source cell's value. Where the target cells are the source cells this
+    returns the source values unchanged, which is what makes resampling onto
+    the same clock the identity.
+    """
     if high <= low:
-        return series.value_at(low)
-    times = series.times
-    total = 0.0
-    cursor = low
-    while cursor < high:
-        index = int(np.searchsorted(times, cursor, side="right") - 1)
-        index = max(index, 0)
-        segment_end = float(times[index + 1]) if index + 1 < times.size else math.inf
-        upper = min(high, segment_end)
-        total += float(series.values[index]) * (upper - cursor)
-        cursor = upper
-    return total / (high - low)
+        index = np.clip(np.searchsorted(source_edges, low, side="right") - 1, 0, values.size - 1)
+        return float(values[int(index)])
+    left = np.maximum(source_edges[:-1], low)
+    right = np.minimum(source_edges[1:], high)
+    overlap = np.clip(right - left, 0.0, None)
+    covered = float(np.sum(overlap))
+    if covered <= 0.0:
+        index = np.clip(np.searchsorted(source_edges, low, side="right") - 1, 0, values.size - 1)
+        return float(values[int(index)])
+    # Divided by the width actually covered rather than by the target width: a
+    # target cell reaching past the outermost source edge is averaged over the
+    # part the record covers instead of being diluted towards zero.
+    return float(np.sum(values * overlap) / covered)

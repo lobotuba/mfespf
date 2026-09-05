@@ -50,6 +50,93 @@ Nothing in the upper layers can bypass the lower ones. A module has no method
 that writes another module's state; the only path is a labeled tendency the
 owner commits.
 
+## The first registered claim
+
+```
+hypothesis ─▶ claim ─▶ protocol ─▶ run ─▶ comparison ─▶ verdict
+   frozen      frozen    frozen           anomaly,      status set by
+                                          alignment     the operating mode
+```
+
+The framework's first experiment against a real observational record is
+`mfespf experiment solar-only`, and it was registered in order to fail. The
+kernel has no carbon dioxide, no aerosols and no volcanic forcing, so an
+irradiance record alone cannot account for the observed warming. What the
+experiment demonstrates is the machinery for saying so.
+
+### The threshold has to come from somewhere that is not the model
+
+An experiment whose threshold is chosen after the numbers arrive tests nothing.
+Here it is the observational record's own mean 95 percent half-width over the
+compared period -- 0.1137 K -- and the compared period is the overlap of the two
+records' coverage, which is a property of the data and knowable before anything
+runs. `ExperimentProtocol` hashes the whole declaration at `freeze()` and
+refuses to evaluate against one that has moved since.
+
+### A failure is decisive where a pass would only be qualified
+
+This is the asymmetry the whole comparison path exists to encode, and it is in
+`OperatingMode.status_for_result` rather than in a reader's judgement.
+
+The run is handed the irradiance of the period it is compared against. Under
+those conditions, reproducing the observations is weak evidence -- the model was
+told part of the answer -- so a pass returns `QUALIFIED`. Failing under those
+conditions is not weak at all: the mechanism was given every advantage the
+experiment could offer and still could not account for what happened. A failure
+returns `REFUTED` in any comparison mode. Only a prospective comparison can earn
+`SUPPORTED_WITHIN_SCOPE`.
+
+### What the control is for
+
+HYP-007 requires a null configuration, and the reason is not bookkeeping. The
+constant-irradiance control gives a modelled range of exactly zero and explains
+exactly zero of the observed variance. Anything else would mean something other
+than the solar variation was moving the modelled temperature -- and every number
+in the forced run would carry the same contamination.
+
+It caught one. The replay had been starting from an arbitrary initial
+temperature, and its first decade of relaxation towards equilibrium was
+appearing as a modelled range of 0.55 K -- eight times the actual solar response
+of 0.064 K, and almost all of it initial condition. The forced run alone looked
+plausible. The control is what made it obvious.
+
+### Two transformations stand between a model and a record
+
+Neither is performed silently, because both change what the comparison means.
+
+*Differencing to a baseline.* An observational anomaly is a temperature minus
+that record's mean over a stated window; a model producing absolute temperature
+must be differenced against its own mean over the same window. Skipping it
+compares an absolute temperature with a difference and is out by 250 K, which is
+obvious. Using a convenient window instead of the record's produces a constant
+offset that looks like a physical bias, which is not.
+
+*Alignment.* The model moves onto the record's times and never the reverse.
+Resampling an observational record onto a model's clock would let the model
+choose how much of the observations survive.
+
+Both emit a `TransformationStep`, so the chain from model output to verdict is
+in the record.
+
+### What the experiment could not settle is part of the result
+
+HYP-008 asks a hypothesis to name the competing explanations its experiment can
+and cannot distinguish it from. It is the field most likely to be left vague and
+the one that decides the inference: a mechanism supported by an experiment that
+could not separate it from four alternatives is supported jointly with those
+four.
+
+This experiment observes one global-mean scalar. It separates the solar
+hypothesis from a null control and from a response of the opposite sign, and it
+separates it from nothing else -- not from greenhouse, aerosol or volcanic
+forcing, and not from internal variability, all of which are absent from the
+configuration entirely. That list is inside the frozen criteria hash, because
+shortening it afterwards would strengthen the claim as surely as loosening the
+threshold, and it is printed with the verdict.
+
+What was refuted is this configuration's *sufficiency*. Not the physics of solar
+forcing, and the claim record's limitations field says so.
+
 ## Stage 6: historical replay
 
 ```
@@ -783,10 +870,14 @@ is deleted from this list, and where a stage removed one the entry says so.
   the full-fidelity module.
 - The forcing perturbation is spectrally flat, so no experiment about the
   wavelength dependence of solar forcing can be run with it.
-- **No observational dataset is registered.** The Stage 6 replay runs against a
-  record the framework generates, so nothing here has been compared with a
-  measurement. The provenance machinery enforces the consequence rather than
-  noting it: a generated record cannot support an empirical claim.
+- **One claim has been registered against observations, and it was refuted.**
+  The solar-only experiment compares against HadCRUT5 and NRLTSI2. Nothing has
+  been *supported* by observation, and nothing can be until a prospective
+  comparison exists -- a reconstruction pass earns QUALIFIED at most.
+- The configuration behind that experiment is the airless body, so the
+  refutation bears on its sufficiency and not on solar physics. No configuration
+  containing greenhouse, aerosol or volcanic forcing has been run against a
+  record, because none of those mechanisms is implemented.
 - The recorded solar source is broadband, so the spectral shape of the imposed
   irradiance is assumed rather than recorded, and no claim about spectral solar
   forcing is admissible from a replay.

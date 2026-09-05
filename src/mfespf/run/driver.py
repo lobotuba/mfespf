@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field as dc_field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mfespf.contracts.cost import CostEstimate, ResourceBudget
 from mfespf.core.errors import MFESPFError
@@ -29,6 +29,9 @@ from mfespf.registries.states import StateRegistry
 from mfespf.run.manifest import RunManifest, RunStatus
 from mfespf.run.modes import OperatingMode
 from mfespf.run.preflight import assert_within_budget, estimate_cost
+
+if TYPE_CHECKING:  # pragma: no cover - a type-only import, to keep run free of data
+    from mfespf.data.adapter import HistoricalDataAdapter
 
 __all__ = ["Kernel", "RunResult"]
 
@@ -94,6 +97,13 @@ class Kernel:
     boundary_state: dict[str, Any] = dc_field(default_factory=dict)
     conservation_tolerance: float = 1e-10
     spectral_bins: int = 1
+    adapter: HistoricalDataAdapter | None = None
+    """The declared record driving this run, when there is one.
+
+    A field rather than an attribute bolted on afterwards: a replay's record is
+    part of what the run *is*, and a reader of the kernel should not have to
+    know that some configurations attach one and others do not.
+    """
     start_time: float = 0.0
     """Where the master clock begins (TIM-001).
 
