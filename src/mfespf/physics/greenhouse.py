@@ -67,13 +67,20 @@ __all__ = [
     "CO2_BAND_CENTRE_M",
     "CO2_MOLAR_MASS",
     "CO2_WING_DECAY_PER_METRE",
+    "CO2_WING_DECAY_WITH_VAPOUR_PER_METRE",
     "DRY_AIR_MOLAR_MASS",
     "INFRARED_BACKGROUND_ABSORPTION",
     "PREINDUSTRIAL_CO2_PPM",
+    "VAPOUR_BAND_ABSORPTION",
+    "VAPOUR_WINDOW_CONTINUUM",
+    "VAPOUR_WING_DECAY_PER_METRE",
     "PrescribedGreenhouseModule",
     "co2_band_absorption",
     "co2_mass_mixing_ratio",
+    "co2_wing_decay_for",
     "greenhouse_grid",
+    "vapour_absorption_optical_depth",
+    "vapour_mass_absorption",
 ]
 
 CO2_MOLAR_MASS = 44.0095e-3
@@ -152,6 +159,142 @@ against an observed 288 K and 33 K. That shortfall is where the water-vapour
 greenhouse effect would be, if the vapour this framework already tracks were not
 radiatively inert.
 """
+
+# --- water vapour ------------------------------------------------------------
+
+VAPOUR_ROTATIONAL_EDGE_PER_METRE = 2.0e4
+"""Short-wavelength edge of the pure rotational band, 200 cm^-1 (50 microns).
+
+Below this wavenumber the band is treated as flat and saturated, which is what
+the real rotational band does: the far infrared is opaque in any atmosphere
+carrying ordinary amounts of vapour. Above it the envelope decays.
+"""
+
+VAPOUR_VIBRATIONAL_CENTRE_PER_METRE = 1.595e5
+"""Centre of the 6.3 micron bending band, 1595 cm^-1."""
+
+VAPOUR_BAND_ABSORPTION = 100.0
+"""Band-centre mass absorption coefficient, m^2 per kg of *vapour*.
+
+Not fitted, for the same reason ``CO2_BAND_CENTRE_ABSORPTION`` is not: over a
+column carrying about 23 kg m^-2 it gives an optical depth of order two
+thousand, so the cores are deeply saturated and their exact value stops
+mattering. What the fitted numbers below control is where the wings cross unit
+optical depth.
+"""
+
+VAPOUR_WING_DECAY_PER_METRE = 2.442e3
+"""Wing decay of both vapour bands, about 24 cm^-1. Calibrated.
+
+Fitted against a *published radiation observation* -- the CERES clear-sky
+outgoing longwave flux of about 265 W m^-2 -- and never against a temperature
+record, which is what keeps HadCRUT5 available as validation (INF-003).
+
+One decay serves both bands. Line strengths do not really fall away from the
+rotational and the vibrational band at the same rate, and giving each its own
+scale would have added a second fitted number for a refinement nothing here can
+test.
+"""
+
+VAPOUR_WINDOW_CONTINUUM = 1.86e-2
+"""Continuum absorption across the atmospheric window, m^2 per kg of vapour.
+
+Calibrated against a published clear-sky window transmittance near 0.65 at 10
+microns. It is what stops the window from being perfectly transparent, and it is
+the reason the window closes as the atmosphere moistens.
+
+Represented as flat in wavelength, which the real continuum is not -- it
+strengthens towards longer wavelengths and is quadratic rather than linear in
+vapour amount, because it is dominated by self-broadening. Both are declared
+approximations of the reduced model and both are listed in the equation record.
+"""
+
+CO2_WING_DECAY_WITH_VAPOUR_PER_METRE = 1.227e3
+"""The CO2 wing decay for a column whose infrared background *is* the vapour.
+
+A band's fitted width depends on what else is absorbing around it. With water
+vapour active the 15 micron band is partly masked, so reproducing the same
+published 3.7 W m^-2 per doubling takes a narrower band than the 1410 m^-1 that
+``CO2_WING_DECAY_PER_METRE`` uses against the fixed background.
+
+Two calibrations of one band therefore coexist, and that is not a duplication to
+be tidied away: each is correct for its own configuration and neither is correct
+for the other. ``co2_wing_decay_for`` selects between them so that no call site
+has to remember which is which.
+"""
+
+
+def co2_wing_decay_for(*, active_vapour: bool) -> float:
+    """The CO2 wing decay calibrated for the opacity this configuration runs at.
+
+    The whole point of the constant this returns is that it is conditional. A
+    configuration that picked the wrong one would use a forcing per doubling its
+    calibration never produced -- the defect that invalidated four claims, and
+    the reason this is a function rather than a default argument someone has to
+    remember to override.
+    """
+    return CO2_WING_DECAY_WITH_VAPOUR_PER_METRE if active_vapour else CO2_WING_DECAY_PER_METRE
+
+
+def vapour_mass_absorption(
+    grid: SpectralGrid,
+    *,
+    wing_decay_per_metre: float = VAPOUR_WING_DECAY_PER_METRE,
+    window_continuum: float = VAPOUR_WINDOW_CONTINUUM,
+    band_absorption: float = VAPOUR_BAND_ABSORPTION,
+    rotational_edge_per_metre: float = VAPOUR_ROTATIONAL_EDGE_PER_METRE,
+    vibrational_centre_per_metre: float = VAPOUR_VIBRATIONAL_CENTRE_PER_METRE,
+    shortwave_cutoff_m: float = 4.0e-6,
+) -> np.ndarray:
+    """Absorption coefficient per kilogram of water vapour, one value per band.
+
+    Three features, and each is a spectroscopic fact rather than a fitted shape:
+    a pure rotational band that makes the far infrared opaque, a vibrational
+    band at 6.3 microns, and a continuum across the window between them. The
+    window is what lets the surface radiate to space at all, and the continuum
+    is what closes it as the atmosphere moistens.
+
+    Confined to the infrared exactly. Water vapour does absorb in the near
+    infrared, and leaving that out means this configuration cannot represent the
+    shortwave absorption that warms the atmosphere directly -- declared in the
+    equation record, not hidden in a tolerance.
+    """
+    if band_absorption < 0.0 or window_continuum < 0.0:
+        raise ConfigurationError("absorption coefficients must be non-negative")
+    if wing_decay_per_metre <= 0.0:
+        raise ConfigurationError("the wing decay scale must be positive")
+
+    wavenumber = 1.0 / grid.centers
+    # Flat and saturated inside the rotational band, decaying above its edge.
+    rotational = np.exp(
+        -np.maximum(wavenumber - rotational_edge_per_metre, 0.0) / wing_decay_per_metre
+    )
+    vibrational = np.exp(-np.abs(wavenumber - vibrational_centre_per_metre) / wing_decay_per_metre)
+    kappa = window_continuum + band_absorption * (rotational + vibrational)
+    return np.where(grid.centers >= shortwave_cutoff_m, kappa, 0.0)
+
+
+def vapour_absorption_optical_depth(
+    grid: SpectralGrid,
+    vapour_path: np.ndarray,
+    **kwargs: Any,
+) -> np.ndarray:
+    """Absorption optical depth of the vapour in each layer, shaped (layers, bands).
+
+    Water vapour is not uniformly mixed -- most of it is in the lowest couple of
+    kilometres -- so it cannot enter as a per-band coefficient multiplied by
+    layer mass the way CO2 does. It enters as an optical depth per layer, which
+    is the same shape a cloud or an aerosol uses, and ``combine_scatterers``
+    adds it to theirs.
+
+    ``vapour_path`` is the vapour mass per unit area in each layer, kg m^-2 --
+    exactly what the water module owns and publishes.
+    """
+    path = np.asarray(vapour_path, dtype=float)
+    if np.any(path < 0.0):
+        raise ConfigurationError("a vapour path cannot be negative")
+    return path[:, None] * vapour_mass_absorption(grid, **kwargs)[None, :]
+
 
 PREINDUSTRIAL_CO2_PPM = 284.7
 """Law Dome ice-core value for 1850, used as the reference for forcing.

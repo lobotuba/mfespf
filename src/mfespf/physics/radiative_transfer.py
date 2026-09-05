@@ -494,7 +494,7 @@ class SpectralRadiationModule(Module):
         couple_volcanic: bool = False,
         volcanic_module_id: str = "volcanic",
         stratospheric_layers: int = 1,
-        greenhouse_background: float = 1.0e-4,
+        greenhouse_background: float | None = None,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         n_bands = grid.n_bins
@@ -650,6 +650,14 @@ class SpectralRadiationModule(Module):
         self.volcanic_optical_depth = 0.0
         self.couple_greenhouse = couple_greenhouse
         self.greenhouse_module_id = greenhouse_module_id
+        if greenhouse_background is None:
+            # The calibrated value, not a literal repeated here. The CO2 band's
+            # wing decay is fitted at this opacity, so a column that quietly ran
+            # at another one would use a forcing per doubling the calibration
+            # never produced -- which is exactly what happened once already.
+            from mfespf.physics.greenhouse import INFRARED_BACKGROUND_ABSORPTION
+
+            greenhouse_background = INFRARED_BACKGROUND_ABSORPTION
         self.greenhouse_background = greenhouse_background
         self.co2_mole_fraction = 0.0
         self.cloud_module_id = cloud_module_id

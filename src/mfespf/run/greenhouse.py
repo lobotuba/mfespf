@@ -132,8 +132,6 @@ def spin_up(
         initial_surface_temperature=300.0,
         initial_air_temperature=270.0,
     )
-    radiation = next(s.module for s in kernel.schedule.ordered() if s.module_id == "radiation")
-    radiation.greenhouse_background = GREENHOUSE_BACKGROUND  # type: ignore[attr-defined]
     result = kernel.run(steps)
     outputs = result.steps[-1].outputs
     return (
@@ -261,8 +259,6 @@ def greenhouse_replay(
         ),
         **kwargs,
     )
-    radiation = next(s.module for s in kernel.schedule.ordered() if s.module_id == "radiation")
-    radiation.greenhouse_background = GREENHOUSE_BACKGROUND  # type: ignore[attr-defined]
     kernel.adapter = solar_adapter
     kernel.manifest = None
     return kernel

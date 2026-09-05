@@ -282,3 +282,28 @@ def test_the_base_state_is_a_prediction_and_it_is_low():
     background_optical_depth = INFRARED_BACKGROUND_ABSORPTION * column
     # A window that is genuinely a window: optically thin, not transparent.
     assert 0.1 < background_optical_depth < 0.6
+
+
+@pytest.mark.req("EQR-004", "MOD-002", "SYS-006")
+def test_a_coupled_radiation_module_takes_the_calibrated_background_by_itself():
+    """No caller should have to remember the opacity the band was fitted at.
+
+    ``SpectralRadiationModule`` used to default this to 1e-4 and both greenhouse
+    configurations reassigned it after construction. Nothing was running wrong,
+    because both of them remembered -- but the next one would not have, and the
+    failure is silent: the column uses a forcing per doubling the calibration
+    never produced, and reports no complaint about it. That is the same shape as
+    the defect that invalidated four claims, one layer down.
+    """
+    from mfespf.physics.radiative_transfer import SpectralRadiationModule
+
+    module = SpectralRadiationModule(
+        grid=GRID,
+        absorption_coefficient=np.full(GRID.n_bins, INFRARED_BACKGROUND_ABSORPTION),
+        couple_greenhouse=True,
+    )
+
+    assert module.greenhouse_background == INFRARED_BACKGROUND_ABSORPTION
+    # And it is in the parameters, so two runs at different opacities cannot
+    # hash alike (MOD-002).
+    assert module.parameters()["greenhouse_background_m2_kg"] == INFRARED_BACKGROUND_ABSORPTION

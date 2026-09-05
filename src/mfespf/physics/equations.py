@@ -56,6 +56,7 @@ EQUATION_IDS = {
     "deep_ocean_exchange": "EQ-TWO-RESERVOIR-OCEAN-EXCHANGE",
     "co2_band_absorption": "EQ-CO2-BAND-ABSORPTION",
     "volcanic_aerosol_optics": "EQ-VOLCANIC-AEROSOL-OPTICS",
+    "vapour_band_absorption": "EQ-VAPOUR-BAND-ABSORPTION",
 }
 
 
@@ -1375,6 +1376,97 @@ def build_equation_registry() -> EquationRegistry:
                 "the reflected fraction for the same optical depth",
             ),
             source="Sato et al. 1993 record; standard Mie parameters for stratospheric sulfate",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["vapour_band_absorption"],
+            version=V1,
+            name="Water vapour band and continuum absorption",
+            category=EquationCategory.CONSTITUTIVE_RELATION,
+            mathematical_form=(
+                "kappa(v) = kappa_cont + k0 [ exp(-max(v - v_rot, 0) / D) "
+                "+ exp(-|v - v_vib| / D) ];  tau_i(v) = kappa(v) w_i"
+            ),
+            physical_basis=(
+                "A pure rotational band that makes the far infrared opaque, a bending "
+                "band at 6.3 microns, and a continuum across the window between them. "
+                "The coefficient is per kilogram of vapour and multiplies the vapour "
+                "path in each layer, because water vapour is not uniformly mixed and "
+                "cannot enter as a well-mixed coefficient times the layer mass."
+            ),
+            variables=(
+                ("kappa", "mass absorption coefficient of water vapour", "m^2 kg^-1"),
+                ("v", "wavenumber", "m^-1"),
+                ("w", "vapour path in a layer", "kg m^-2"),
+                ("tau", "absorption optical depth of a layer", "1"),
+            ),
+            parameters=(
+                ("vapour_band_absorption", "parameterized", "set for saturated cores"),
+                (
+                    "vapour_wing_decay",
+                    "calibrated",
+                    "fitted to the CERES clear-sky outgoing longwave flux, about 265 W m^-2",
+                ),
+                (
+                    "vapour_window_continuum",
+                    "calibrated",
+                    "fitted to a published clear-sky window transmittance near 0.65 at 10 microns",
+                ),
+            ),
+            assumptions=(
+                "local thermodynamic equilibrium, so Kirchhoff's law gives the emission",
+                "the vapour distribution is supplied by the water module, not assumed here",
+                "one wing decay serves both bands",
+            ),
+            approximations=(
+                "The continuum is flat in wavelength and linear in vapour amount. The "
+                "real one strengthens towards longer wavelengths and is quadratic, "
+                "because it is dominated by self-broadening -- so this understates how "
+                "fast the window closes as the atmosphere moistens.",
+                "Near-infrared vapour absorption is omitted entirely, so the shortwave "
+                "heating of moist air is absent and only the longwave effect is present.",
+                "The envelope reproduces where the wings cross unit optical depth, not "
+                "the line structure inside them; spectrally resolved radiance is out of "
+                "scope.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("w", 0.0, 1.0e2, "kg m^-2"),),
+                conditions=(
+                    "column vapour amounts within roughly a factor of three of the "
+                    "present-day global mean, where the band wings stay inside the "
+                    "resolved spectral range",
+                ),
+            ),
+            limiting_cases=(
+                "a dry column leaves no absorption at all and the window is fully open",
+                "saturated band cores make the far infrared and the 6.3 micron band "
+                "opaque at any ordinary vapour amount, so the response comes from the "
+                "window and the wings",
+                "holding the vapour fixed removes the feedback and leaves the Planck "
+                "response, which is what the null control does",
+            ),
+            conserved_quantities=("energy",),
+            correctness_tests=(
+                "test_a_dry_column_absorbs_nothing_and_the_window_is_open",
+                "test_the_window_closes_as_the_column_moistens",
+                "test_the_bands_are_saturated_and_confined_to_the_infrared",
+                "test_the_clear_sky_outgoing_longwave_matches_the_calibration_target",
+                "test_letting_the_vapour_follow_the_temperature_amplifies_the_response",
+            ),
+            known_failure_modes=(
+                "a grid that does not resolve the window separately from the bands loses "
+                "the continuum's effect and with it the feedback",
+                "extrapolating to a much moister column moves the wings outside the "
+                "resolved range and weakens the feedback for a numerical reason",
+            ),
+            source=(
+                "Standard band-model treatment; the wing decay and the window continuum "
+                "are calibrated against published clear-sky radiation observations "
+                "(CERES outgoing longwave, window transmittance) and never against a "
+                "temperature record"
+            ),
         )
     )
 
