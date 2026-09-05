@@ -132,9 +132,16 @@ def greenhouse_replay(
     hold_solar: bool = False,
     n_band: int = 48,
     spin_up_steps: int = 1500,
+    deep_ocean: bool = False,
     **kwargs: Any,
 ) -> Kernel:
     """The column driven by the irradiance and CO2 records together.
+
+    ``deep_ocean`` puts the two-reservoir ocean under the column. It changes no
+    equilibrium -- at equilibrium the two reservoirs are at one temperature and
+    the exchange is exactly zero -- so the spin-up is unaffected and the control
+    stays flat. What it changes is the path: heat that would have warmed the
+    mixed layer goes into a reservoir that takes centuries to fill.
 
     ``hold_co2`` and ``hold_solar`` freeze one driver at its record mean, which
     is how the two mechanisms are separated: three runs -- both, solar only, CO2
@@ -197,6 +204,7 @@ def greenhouse_replay(
         kwargs["initial_air_temperature"] = layers
 
     kernel = radiating_column(
+        deep_ocean=deep_ocean,
         absorption_coefficient=window_absorption(grid, kappa_opaque=GREENHOUSE_BACKGROUND),
         grid=grid,
         n_layers=n_layers,

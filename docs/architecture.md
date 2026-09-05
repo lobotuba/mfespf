@@ -134,6 +134,33 @@ equilibrated to the record's *first* value, which left a transient belonging to
 neither run in the difference between them. The control is now flat because both
 were fixed.
 
+### Putting the ocean under it
+
+The two-reservoir ocean drops in unchanged -- it was written against whatever
+owns the mixed layer, and the greenhouse column owns one. It changes no
+equilibrium, because at equilibrium the reservoirs are at one temperature and
+the exchange is exactly zero, so the spin-up is unaffected and the control stays
+flat to machine precision. What it changes is the path.
+
+The result was the opposite of what I expected. The deep reservoir reduces the
+modelled amplitude, as it must. But the amplitude was not the larger error: the
+*timing* was. Without it the column tracks the concentration record too closely
+and warms too early; with it the response is delayed and back-loaded like the
+observations, and the variance explained rises from 61 percent to 76 while the
+range falls from 2.11 K to 1.83 against an observed 2.40.
+
+That the protocol declared this undecidable in advance is what makes the answer
+worth anything. Had the direction been written down after the run, it would have
+been a description.
+
+**One hypothesis, two versions.** The mechanism is identical, so it is one
+hypothesis. What differs is the answer to HYP-008: a column with no deep
+reservoir cannot distinguish its result from one in which ocean heat uptake
+mattered, and a column with one can, so that entry leaves the list. The list is
+inside the frozen criteria hash, so the difference has to be a new version --
+which is what HYP-009 is for, and the first time the registry's versioning has
+been used for its actual purpose rather than tested.
+
 ## The first registered claim
 
 ```
@@ -954,10 +981,10 @@ is deleted from this list, and where a stage removed one the entry says so.
   the full-fidelity module.
 - The forcing perturbation is spectrally flat, so no experiment about the
   wavelength dependence of solar forcing can be run with it.
-- **Two claims have been registered against observations, and both were
-  refuted.** The solar-only experiment explains 3 percent of the observed
-  variance; adding carbon dioxide takes that to 61 percent and still fails the
-  threshold. Nothing has
+- **Three claims have been registered against observations, and all three were
+  refuted.** Solar alone explains 3 percent of the observed variance, adding
+  carbon dioxide takes that to 61, and adding deep-ocean heat uptake to 76.
+  Each still fails the threshold. Nothing has
   been *supported* by observation, and nothing can be until a prospective
   comparison exists -- a reconstruction pass earns QUALIFIED at most.
 - The greenhouse configuration's base state is about 27 K too warm, which
@@ -966,8 +993,9 @@ is deleted from this list, and where a stage removed one the entry says so.
 - No aerosol, volcanic or land-use forcing exists in any configuration, and
   there is no water-vapour or cloud feedback in the greenhouse one. Two of those
   omissions push the model warm and one pushes it cool.
-- Ocean heat uptake below a 50 m slab is absent from the greenhouse
-  configuration, although the two-reservoir module exists and would drop in.
+- Aerosol and volcanic forcing remain absent, and there is still no
+  water-vapour or cloud feedback. Those are what the remaining residual is
+  attributed to, and none of them is implemented.
 - The recorded solar source is broadband, so the spectral shape of the imposed
   irradiance is assumed rather than recorded, and no claim about spectral solar
   forcing is admissible from a replay.

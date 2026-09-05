@@ -21,7 +21,7 @@ specification governs.**
 
 ## Status
 
-Version 0.8.0 — the charter's validation ladder (§19) through **Stage 6**:
+Version 0.9.0 — the charter's validation ladder (§19) through **Stage 6**:
 the accounting kernel, the airless radiating body, the radiating atmospheric
 column, atmospheric thermodynamics with convection and water, clouds, thermal
 storage with measured response timescales, and historical replay of a declared
@@ -45,14 +45,14 @@ listed there rather than left implicit.
 
 Eight real global-mean records are declared in
 [`data/sources.yaml`](data/sources.yaml) and load through the framework's
-provenance path. **Two claims have been registered against them and both have
-been refuted** — see below.
+provenance path. **Three claims have been registered against them and all three
+have been refuted** — see below.
 
 ## Install and run
 
 ```bash
 python -m pip install -e ".[dev]"     # Python 3.11+
-python -m pytest                       # 365 tests, ~3 min on a workstation
+python -m pytest                       # 371 tests, ~3 min on a workstation
 python tools/fetch_data.py             # optional: fetch the declared datasets
 mfespf run airless --steps 4800        # Stage 1: 200 simulated days
 mfespf run window --steps 6000 --heat-capacity 1e6            # Stage 2 column
@@ -64,6 +64,7 @@ mfespf run replay --steps 500                                 # Stage 6, synthet
 mfespf run replay-observed --steps 2000                       # Stage 6, real NRLTSI2 record
 mfespf experiment solar-only                                  # the first registered claim
 mfespf experiment solar-and-co2                               # with a greenhouse pathway
+mfespf experiment solar-co2-ocean                             # and with deep-ocean heat uptake
 ```
 
 ```
@@ -201,29 +202,31 @@ the irradiance of the period it covers, so it still cannot be reported as a
 hindcast. Two guards against two different mistakes, and a real record relaxes
 only one.
 
-## Two registered claims, and what separated them
+## Three registered claims, and what separated them
 
 Carbon dioxide enters through the **absorption coefficient**, so the radiative
 transfer computes its effect rather than being handed one. Four runs differ in
 exactly one driver each, and the control with both drivers held is flat to
 machine precision:
 
-```
-$ mfespf experiment solar-and-co2
-run                    range K     rms K  var. expl.
-solar + CO2             2.1123    0.2694      0.6086
-solar only              0.0651    0.3998      0.0345
-CO2 only                2.0725    0.2622      0.6222
-neither (control)       0.0000    0.4072      0.0000
-observed                2.3971
+| configuration | range K | rms K | variance explained | status |
+| --- | ---: | ---: | ---: | --- |
+| solar only | 0.065 | 0.400 | +0.034 | refuted |
+| solar + CO₂ | 2.112 | 0.269 | +0.609 | refuted |
+| solar + CO₂ + deep ocean | 1.829 | **0.214** | **+0.759** | refuted |
+| *observed* | *2.397* | | | |
 
-threshold:    0.113716 K     measured rms: 0.269384 K
-claim status: refuted
-```
+All three fail the same threshold, 0.1137 K, taken from the record's own
+uncertainty. What changes is how far, and what the residual points at.
 
 Adding CO₂ takes the model from explaining **3%** of the observed variance to
-**61%**, and it still fails the threshold. Both claims are refuted; what changed
-is how far, and what the residual now points at.
+**61%**. Adding the two-reservoir ocean takes it to **76%** — and I had
+predicted the opposite. The deep reservoir reduces the modelled amplitude, as it
+must, since heat that would have warmed the mixed layer goes below instead. But
+the amplitude was not the larger error: the timing was. The delayed response is
+back-loaded like the observations, and that gains more than the lost amplitude
+costs. The protocol said in advance that the configuration could not settle
+which way it would go, which is the only reason the answer means anything.
 
 **The logarithm is a result, not an input.** The forcing per doubling is nearly
 constant — within 35% across a factor of eight in concentration — because the

@@ -60,8 +60,11 @@ __all__ = [
     "CLAIM_ID",
     "EXPERIMENT_ID",
     "HYPOTHESIS_ID",
+    "OCEAN_CLAIM_ID",
+    "OCEAN_EXPERIMENT_ID",
     "SolarAndCO2Result",
     "run_solar_and_co2_experiment",
+    "run_solar_co2_ocean_experiment",
     "solar_and_co2_claim",
     "solar_and_co2_hypothesis",
     "solar_and_co2_protocol",
@@ -69,23 +72,46 @@ __all__ = [
 
 HYPOTHESIS_ID = "HYP-SOLAR-CO2-001"
 CLAIM_ID = "CLM-SOLAR-CO2-001"
+OCEAN_CLAIM_ID = "CLM-SOLAR-CO2-OCEAN-001"
 EXPERIMENT_ID = "EXP-SOLAR-CO2-001"
+OCEAN_EXPERIMENT_ID = "EXP-SOLAR-CO2-OCEAN-001"
+
+
+def _ids(deep_ocean: bool) -> tuple[str, str]:
+    """One hypothesis, two claims.
+
+    The mechanism is the same in both -- carbon dioxide absorbing in a saturated
+    band -- so it is one hypothesis. What differs is the configuration the claim
+    is about, and a claim names a configuration. Reusing one claim id for two
+    configurations would make the second silently supersede the first's result.
+    """
+    return (OCEAN_CLAIM_ID, OCEAN_EXPERIMENT_ID) if deep_ocean else (CLAIM_ID, EXPERIMENT_ID)
+
 
 IRRADIANCE = "NRLTSI2-MONTHLY"
 TEMPERATURE = "HADCRUT5-GLOBAL-MONTHLY"
 DAY = 86400.0
 
 
-def solar_and_co2_hypothesis() -> HypothesisRecord:
+def solar_and_co2_hypothesis(*, deep_ocean: bool = False) -> HypothesisRecord:
+    """One mechanism, two versions, differing in what the experiment can separate.
+
+    The physics is identical. What differs is the configuration it is tested in,
+    and that changes the answer to HYP-008: a column with no deep reservoir
+    cannot distinguish its result from one in which ocean heat uptake mattered,
+    and a column with one can. Since that list is inside the frozen criteria
+    hash, the difference has to be a new version rather than an edit -- which is
+    what HYP-009 is for.
+    """
     return HypothesisRecord(
         record_id=HYPOTHESIS_ID,
-        version=Version(1, 0, 0),
+        version=Version(1, 1, 0) if deep_ocean else Version(1, 0, 0),
         statement=(
             "Variation in total solar irradiance together with the observed rise in "
             "carbon dioxide is sufficient to account for the observed change in "
             "global-mean surface temperature since 1882."
         ),
-        claim_ids=(CLAIM_ID,),
+        claim_ids=(CLAIM_ID, OCEAN_CLAIM_ID),
         physical_basis=(
             "Radiative-convective equilibrium of a hydrostatic column. Carbon dioxide "
             "absorbs in a band near 15 microns whose core is saturated, so raising the "
@@ -161,8 +187,14 @@ def solar_and_co2_hypothesis() -> HypothesisRecord:
         cannot_distinguish_from=(
             "aerosol forcing, which is absent and would have cooled",
             "volcanic forcing, which is absent and would have added decadal structure",
-            "ocean heat uptake below the mixed layer, which is absent and would have "
-            "delayed the warming",
+            *(
+                ()
+                if deep_ocean
+                else (
+                    "ocean heat uptake below the mixed layer, which is absent from this "
+                    "configuration and would have delayed the warming",
+                )
+            ),
             "water-vapour feedback, which is absent and would have amplified it",
             "internal variability of the coupled system, which this kernel cannot represent at all",
             "any combination of the above summing to the same global-mean history, since "
@@ -184,14 +216,21 @@ def solar_and_co2_hypothesis() -> HypothesisRecord:
     ).freeze()
 
 
-def solar_and_co2_claim(threshold: float) -> ClaimRecord:
+def solar_and_co2_claim(threshold: float, *, deep_ocean: bool = False) -> ClaimRecord:
+    claim_id, _ = _ids(deep_ocean)
+    ocean = (
+        " over a two-reservoir ocean, so that heat taken up below the mixed layer "
+        "delays the response,"
+        if deep_ocean
+        else ""
+    )
     return ClaimRecord(
-        record_id=CLAIM_ID,
+        record_id=claim_id,
         version=Version(1, 0, 0),
         statement=(
-            "A radiative-convective column driven by the NRLTSI2 irradiance record and "
-            "the Law Dome and Mauna Loa carbon dioxide records reproduces the HadCRUT5 "
-            f"global-mean temperature anomaly to within {threshold:.4f} K, "
+            f"A radiative-convective column{ocean} driven by the NRLTSI2 irradiance "
+            "record and the Law Dome and Mauna Loa carbon dioxide records reproduces the "
+            f"HadCRUT5 global-mean temperature anomaly to within {threshold:.4f} K, "
             "root-mean-square, from 1882 onward."
         ),
         mechanism="Greenhouse absorption in a saturated band under a varying solar input.",
@@ -212,12 +251,18 @@ def solar_and_co2_claim(threshold: float) -> ClaimRecord:
         assumptions=(
             "no aerosol, volcanic or land-use forcing",
             "no water-vapour or cloud feedback",
-            "a fifty-metre slab ocean and no deeper heat uptake",
+            (
+                "a fifty-metre mixed layer over a 1200 m reservoir exchanging heat at a "
+                "calibrated 0.7 W m^-2 K^-1, so the deep uptake is represented but its "
+                "efficiency is a fitted number"
+                if deep_ocean
+                else "a fifty-metre slab ocean and no deeper heat uptake"
+            ),
             "a base state about 27 K warmer than observed, which suppresses the sensitivity",
         ),
         validity_domain="Global-mean surface temperature, decadal to centennial, 1882 onward.",
         active_modules=("solar", "orbit", "greenhouse", "radiation", "atmosphere", "surface"),
-        inactive_modules=("water", "cloud", "ocean"),
+        inactive_modules=("water", "cloud") + (() if deep_ocean else ("ocean",)),
         prescribed_quantities=("total_solar_irradiance", "co2_mole_fraction"),
         independent_variables=("total_solar_irradiance", "co2_mole_fraction"),
         dependent_variables=("surface_temperature",),
@@ -227,7 +272,9 @@ def solar_and_co2_claim(threshold: float) -> ClaimRecord:
             "the record's published 95 percent interval sets the threshold and is not "
             "propagated; the model carries no uncertainty of its own"
         ),
-        control_experiment="the same configuration with both drivers held at their first values",
+        control_experiment=(
+            "the same configuration with both drivers held at their records' first values"
+        ),
         null_hypothesis=(
             "neither driver produces a detectable change relative to the held control"
         ),
@@ -249,15 +296,18 @@ def solar_and_co2_claim(threshold: float) -> ClaimRecord:
     ).freeze()
 
 
-def solar_and_co2_protocol(threshold: float) -> ExperimentProtocol:
+def solar_and_co2_protocol(threshold: float, *, deep_ocean: bool = False) -> ExperimentProtocol:
+    _, experiment_id = _ids(deep_ocean)
     protocol = ExperimentProtocol(
-        experiment_id=EXPERIMENT_ID,
+        experiment_id=experiment_id,
         question=(
             "Can solar irradiance variation and the observed carbon dioxide rise together "
             "account for the observed change in global-mean surface temperature since 1882?"
         ),
         control_configuration=(
-            "the identical column with both drivers held at their records' first values"
+            "the identical column"
+            + (" over the same ocean" if deep_ocean else "")
+            + " with both drivers held at their records' first values"
         ),
         manipulated_variables=("total_solar_irradiance", "co2_mole_fraction"),
         measured_outputs=(
@@ -272,6 +322,14 @@ def solar_and_co2_protocol(threshold: float) -> ExperimentProtocol:
             "carbon dioxide accounts for most of the modelled response and solar variation "
             "for very little; the modelled range is of the same order as the observed one; "
             "and the residual is dominated by mechanisms the configuration omits"
+            + (
+                ". Adding the deep reservoir reduces the modelled range, because heat that "
+                "would have warmed the mixed layer goes into it instead. Whether that "
+                "improves the agreement depends on whether the amplitude or the timing was "
+                "the larger error, and the configuration alone does not say which"
+                if deep_ocean
+                else ""
+            )
         ),
         failure_threshold=(
             f"the claim fails if the root-mean-square anomaly difference exceeds "
@@ -318,6 +376,7 @@ class SolarAndCO2Result:
     operating_mode: OperatingMode
     worst_relative_residual: float
     co2_join_offset_ppm: float
+    deep_ocean: bool = False
 
     @property
     def refuted(self) -> bool:
@@ -350,6 +409,7 @@ class SolarAndCO2Result:
                 f"measured rms: {self.comparison.rms_error:.6f} K",
                 f"claim status: {self.claim_status.value}",
                 f"operating mode: {self.operating_mode.value}",
+                f"deep ocean: {'present' if self.deep_ocean else 'absent'}",
                 f"CO2 records disagree by {self.co2_join_offset_ppm:+.3f} ppm at the join",
                 "",
                 "this experiment cannot distinguish the mechanism from:",
@@ -372,28 +432,32 @@ def _compare(kernel: Kernel, observed: TimeSeries, master_dt: float) -> tuple[Co
 
 
 def run_solar_and_co2_experiment(
-    *, master_dt: float = 2.0 * DAY, **kwargs: Any
+    *, master_dt: float = 2.0 * DAY, deep_ocean: bool = False, **kwargs: Any
 ) -> SolarAndCO2Result:
     """Declare, freeze, run four configurations, compare, and record."""
+    claim_id, experiment_id = _ids(deep_ocean)
     observed = next(iter(load_declared(TEMPERATURE)._series.values()))
     irradiance = load_declared(IRRADIANCE).series("total_solar_irradiance")
     threshold = observational_threshold(observed, over=compared_period(irradiance, observed))
 
     registry = HypothesisRegistry()
-    hypothesis = registry.register(solar_and_co2_hypothesis()).record
-    claim = solar_and_co2_claim(threshold)
-    protocol = solar_and_co2_protocol(threshold)
+    hypothesis = registry.register(solar_and_co2_hypothesis(deep_ocean=deep_ocean)).record
+    claim = solar_and_co2_claim(threshold, deep_ocean=deep_ocean)
+    protocol = solar_and_co2_protocol(threshold, deep_ocean=deep_ocean)
     _, join = co2_record()
 
     runs = {}
     residuals = []
     for name, options in (
         ("both", {}),
-        ("solar_only", {"hold_co2": True, "run_id": "EXP-SOLAR-CO2-HOLD-CO2"}),
-        ("co2_only", {"hold_solar": True, "run_id": "EXP-SOLAR-CO2-HOLD-SOLAR"}),
-        ("neither", {"hold_co2": True, "hold_solar": True, "run_id": "EXP-SOLAR-CO2-CONTROL"}),
+        ("solar_only", {"hold_co2": True, "run_id": f"{experiment_id}-HOLD-CO2"}),
+        ("co2_only", {"hold_solar": True, "run_id": f"{experiment_id}-HOLD-SOLAR"}),
+        ("neither", {"hold_co2": True, "hold_solar": True, "run_id": f"{experiment_id}-CONTROL"}),
     ):
-        kernel = greenhouse_replay(master_dt=master_dt, **{**kwargs, **options})
+        options.setdefault("run_id", experiment_id)
+        kernel = greenhouse_replay(
+            master_dt=master_dt, deep_ocean=deep_ocean, **{**kwargs, **options}
+        )
         if name == "both":
             kernel.claims.register(claim)
             registry.assert_modules_present(
@@ -404,20 +468,20 @@ def run_solar_and_co2_experiment(
             load_declared(TEMPERATURE).register(
                 kernel.datasets,
                 role=DatasetRole.HISTORICAL_RECONSTRUCTION_EVALUATION,
-                claim_id=CLAIM_ID,
-                run_id="EXP-SOLAR-CO2-001",
+                claim_id=claim_id,
+                run_id=experiment_id,
                 note="compared against, not supplied to, the run",
             )
             for dataset_id in ("LAWDOME-CO2-ANNUAL", "MLO-CO2-ANNUAL"):
                 load_declared(dataset_id).register(
                     kernel.datasets,
                     role=DatasetRole.BOUNDARY_CONDITION,
-                    claim_id=CLAIM_ID,
-                    run_id="EXP-SOLAR-CO2-001",
+                    claim_id=claim_id,
+                    run_id=experiment_id,
                     influenced=("greenhouse",),
                     note="prescribed concentration; supplied to the run, not produced by it",
                 )
-            kernel.datasets.assert_clean(CLAIM_ID)
+            kernel.datasets.assert_clean(claim_id)
         comparison, residual = _compare(kernel, observed, master_dt)
         runs[name] = comparison
         residuals.append(residual)
@@ -454,7 +518,13 @@ def run_solar_and_co2_experiment(
         claim_status=OperatingMode.PRESCRIBED_HISTORY.status_for_result(passed),
         operating_mode=OperatingMode.PRESCRIBED_HISTORY,
         worst_relative_residual=max(residuals),
+        deep_ocean=deep_ocean,
         co2_join_offset_ppm=float(
             join.uncertainty_effect.split("disagree by ")[1].split(" ppm")[0]
         ),
     )
+
+
+def run_solar_co2_ocean_experiment(**kwargs: Any) -> SolarAndCO2Result:
+    """The same experiment with the two-reservoir ocean under the column."""
+    return run_solar_and_co2_experiment(deep_ocean=True, **kwargs)

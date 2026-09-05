@@ -36,7 +36,7 @@ __all__ = [
     "lineage",
 ]
 
-FRAMEWORK_VERSION = "0.8.0"
+FRAMEWORK_VERSION = "0.9.0"
 
 
 class RunStatus:
