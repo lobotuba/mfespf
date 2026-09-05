@@ -57,6 +57,8 @@ EQUATION_IDS = {
     "co2_band_absorption": "EQ-CO2-BAND-ABSORPTION",
     "volcanic_aerosol_optics": "EQ-VOLCANIC-AEROSOL-OPTICS",
     "vapour_band_absorption": "EQ-VAPOUR-BAND-ABSORPTION",
+    "bulk_plume_humidity": "EQ-BULK-PLUME-HUMIDITY",
+    "entraining_lapse_rate": "EQ-ENTRAINING-LAPSE-RATE",
 }
 
 
@@ -768,6 +770,185 @@ def build_equation_registry() -> EquationRegistry:
                 "convection or any transient adjustment",
             ),
             source="Manabe and Strickler 1964; Manabe and Wetherald 1967",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["bulk_plume_humidity"],
+            version=V1,
+            name="Bulk-plume free-tropospheric relative humidity",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form=(
+                "RH = (delta + alpha gamma - alpha epsilon) / (delta + gamma - alpha epsilon); "
+                "with constant mass flux epsilon = delta and RH = (a + alpha) / (1 + a), "
+                "a = epsilon (1 - alpha) / gamma"
+            ),
+            physical_basis=(
+                "The environment's water budget in radiative-convective equilibrium. "
+                "Subsidence between clouds carries dry air downward and dries the "
+                "environment; detrainment of saturated plume air and the evaporation of "
+                "condensate moisten it. The balance of the two fixes the relative "
+                "humidity, which is therefore a property of how convection turns over "
+                "and not a number that has to be imposed."
+            ),
+            variables=(
+                ("RH", "environmental relative humidity", "1"),
+                ("epsilon", "fractional entrainment rate", "m^-1"),
+                ("delta", "fractional detrainment rate", "m^-1"),
+                ("gamma", "water-vapour lapse rate, -d ln q* / dz", "m^-1"),
+                ("alpha", "fraction of condensate that evaporates", "1"),
+                ("a", "dimensionless bulk-plume parameter", "1"),
+            ),
+            parameters=(
+                (
+                    "bulk_plume_parameter",
+                    "parameterized",
+                    "0.2 for Earth's tropics, from Romps (2016); not fitted here, and "
+                    "never to be fitted against a temperature record (INF-003)",
+                ),
+                (
+                    "evaporating_condensate_fraction",
+                    "parameterized",
+                    "0.3, a declared assumption asserted over 0.1 to 0.5 rather than a "
+                    "measurement, because published precipitation efficiencies are "
+                    "neither tight nor uncontested",
+                ),
+            ),
+            assumptions=(
+                "radiative-convective equilibrium, so the environment's water budget is "
+                "in steady state",
+                "one bulk plume stands for the whole cloud ensemble",
+                "the plume is saturated above cloud base",
+                "constant mass flux with height in the closed form, which forces "
+                "entrainment to equal detrainment",
+                "the evaporating fraction is uniform in height",
+            ),
+            approximations=(
+                "Derived for the tropics, where deep convection sets the humidity, and "
+                "applied here to a global-mean column. The extratropical free "
+                "troposphere is moistened by large-scale ascent and eddy transport that "
+                "no bulk plume represents, so this understates the global-mean humidity "
+                "by an amount this framework cannot estimate.",
+                "The constant-mass-flux form gives one relative humidity for the whole "
+                "column, so the observed C shape -- moist near the surface and near the "
+                "tropopause, driest in the middle -- is absent. Height-varying rates "
+                "recover it and are supported by the general form.",
+                "Condensate that evaporates is assumed to do so at the height it "
+                "formed, so falling rain moistening the layers beneath it is absent.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("a", 0.0, 2.0, "1"), ("alpha", 0.0, 0.9, "1")),
+                conditions=(
+                    "convecting columns in radiative-convective equilibrium, where "
+                    "cumulus mass flux rather than large-scale advection sets the "
+                    "free-tropospheric humidity",
+                ),
+            ),
+            limiting_cases=(
+                "undiluted convection (a = 0) leaves the environment at the humidity "
+                "evaporating condensate alone supplies, RH = alpha",
+                "infinitely dilute convection saturates the environment, because "
+                "everything the plume carries is detrained before it can precipitate",
+                "the general form reduces exactly to the closed form when entrainment "
+                "equals detrainment and tracks the water-vapour lapse rate",
+            ),
+            conserved_quantities=("water",),
+            correctness_tests=(
+                "test_the_closed_form_is_the_general_form_at_constant_mass_flux",
+                "test_undiluted_convection_leaves_only_the_evaporated_condensate",
+                "test_relative_humidity_rises_with_entrainment_and_saturates",
+                "test_the_predicted_humidity_lands_in_the_observed_range",
+            ),
+            known_failure_modes=(
+                "applied outside the tropics it misses the moistening by large-scale "
+                "ascent, so a global-mean column built on it will be too dry",
+                "the closed form cannot produce the observed C-shaped profile at all",
+                "the entrainment rate it implies at a = 0.2 and alpha = 0.3 is 0.06 to "
+                "0.16 per kilometre, several times below the 0.2 to 0.8 per kilometre "
+                "that cloud-resolving simulations diagnose for bulk plumes, so either "
+                "the parameter pair or the definitions disagree with that literature",
+            ),
+            source=(
+                "Romps, D. M. (2014), An analytical model for tropical relative "
+                "humidity, J. Climate 27(19), 7432-7449, doi:10.1175/JCLI-D-14-00255.1; "
+                "closed form from Romps, D. M. (2016), Clausius-Clapeyron scaling of "
+                "CAPE from analytical solutions to RCE, J. Atmos. Sci. 73(9), 3719-3737, "
+                "doi:10.1175/JAS-D-15-0327.1"
+            ),
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["entraining_lapse_rate"],
+            version=V1,
+            name="Zero-buoyancy entraining plume lapse rate",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form=(
+                "Gamma = (g/c_p) [1 + a + q* L/(R T)] / [1 + a + q* L^2/(c_p R_v T^2)]"
+            ),
+            physical_basis=(
+                "A plume that entrains subsaturated environmental air loses moist static "
+                "energy as it rises, so it is neutrally buoyant against a profile more "
+                "stable than a moist adiabat. The stratification convection leaves "
+                "behind therefore depends on how dry the air it entrains is, and the gap "
+                "between this profile and the undilute moist adiabat is what appears as "
+                "convective available potential energy."
+            ),
+            variables=(
+                ("Gamma", "lapse rate", "K m^-1"),
+                ("T", "temperature", "K"),
+                ("q_s", "saturation specific humidity", "kg kg^-1"),
+                ("a", "dimensionless bulk-plume parameter", "1"),
+            ),
+            parameters=(
+                (
+                    "bulk_plume_parameter",
+                    "parameterized",
+                    "the same a as the humidity closure, which is what makes the pair "
+                    "over-determined: fix it against one observable and the other is a "
+                    "prediction that can fail",
+                ),
+            ),
+            assumptions=(
+                "the plume is exactly neutrally buoyant with respect to its environment",
+                "entrainment is fractional and the entrained air is environmental",
+                "virtual temperature effects are neglected in the buoyancy",
+            ),
+            approximations=(
+                "Zero buoyancy is a limit, not a statement that convection has no "
+                "buoyancy; real plumes carry some, so this slightly overstates the "
+                "stability entrainment produces.",
+                "A constant latent heat, inherited from the saturation relation.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 200.0, 350.0, "K"), ("a", 0.0, 2.0, "1")),
+                conditions=("saturated convecting columns above cloud base",),
+            ),
+            limiting_cases=(
+                "a = 0 reduces exactly to the moist adiabatic lapse rate",
+                "a dry column gives the dry adiabat at any entrainment rate, so "
+                "entrainment cannot matter where there is no water",
+                "the result lies between the moist and dry adiabats for any positive a",
+            ),
+            conserved_quantities=("energy",),
+            correctness_tests=(
+                "test_the_entraining_lapse_rate_reduces_to_the_moist_adiabat",
+                "test_entrainment_stabilises_between_the_moist_and_dry_adiabats",
+                "test_a_dry_column_is_dry_adiabatic_whatever_the_entrainment",
+            ),
+            known_failure_modes=(
+                "it predicts a stratification but not the height convection reaches, so "
+                "it cannot on its own say where the troposphere ends",
+                "below cloud base there is no saturated plume and the relation does not apply",
+            ),
+            source=(
+                "Singh, M. S. and O'Gorman, P. A. (2013), Influence of entrainment on "
+                "the thermal stratification in simulations of radiative-convective "
+                "equilibrium, Geophys. Res. Lett. 40, 4398-4403, doi:10.1002/grl.50796; "
+                "closed form from Romps (2016), doi:10.1175/JAS-D-15-0327.1"
+            ),
         )
     )
 

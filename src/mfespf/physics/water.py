@@ -51,6 +51,14 @@ from mfespf.coupling.conservation import ModuleBudget
 from mfespf.coupling.transfers import ConservedQuantity, Transfer
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.equations import EQUATION_IDS
+from mfespf.physics.plume import (
+    BULK_PLUME_PARAMETER,
+    EVAPORATING_CONDENSATE_FRACTION,
+    EVAPORATING_FRACTION_RANGE,
+    equilibrium_relative_humidity,
+    fractional_entrainment_rate,
+    water_vapour_lapse_rate,
+)
 from mfespf.physics.thermodynamics import saturation_specific_humidity
 from mfespf.registries.states import (
     StateBudget,
@@ -63,6 +71,7 @@ from mfespf.registries.states import (
 __all__ = [
     "VAPOUR_STATE",
     "WATER_INTERFACE",
+    "EntrainingPlumeHumidityModule",
     "PrescribedHumidityModule",
     "WaterModule",
     "vapour_state_entry",
@@ -817,11 +826,17 @@ class PrescribedHumidityModule(Module):
     def precipitable_water(self) -> float:
         return float(np.sum(self.vapour))
 
+    #: What the published fields say they came from. Overridden by subclasses
+    #: that derive the humidity instead of imposing it, so the provenance never
+    #: describes a different module than the one that produced the numbers.
+    derivation_equation_id = EQUATION_IDS["clausius_clapeyron"]
+    provenance_note = "prescribed distribution; relative humidity is imposed, not computed"
+
     def _fields(self, timestamp: float) -> dict[str, Field]:
         provenance = Provenance(
             producer=self.module_id,
-            derivation=EQUATION_IDS["clausius_clapeyron"],
-            notes="prescribed distribution; relative humidity is imposed, not computed",
+            derivation=self.derivation_equation_id,
+            notes=self.provenance_note,
         )
         profile = {
             "quantity_kind": QuantityKind.BOUNDARY_VALUE,
@@ -901,6 +916,209 @@ class PrescribedHumidityModule(Module):
         return {
             **dict(self.configuration),
             "relative_humidity": self.relative_humidity,
+            "respond_to_temperature": self.respond_to_temperature,
+            "n_layers": self.n_layers,
+            "water_budget": "not_represented",
+            "latent_energy": "not_represented",
+        }
+
+
+class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
+    """Relative humidity predicted by a bulk plume rather than chosen (WAT-002, CLM-003).
+
+    The difference from ``PrescribedHumidityModule`` is one number and its
+    provenance. That module holds relative humidity at 0.7 because Manabe and
+    Wetherald did, and says plainly that no feedback claim may be registered
+    against it, since the feedback follows from the assumption. This one
+    computes the same quantity from the environment's water budget::
+
+        RH = (a + alpha) / (1 + a)
+
+    where ``a`` is the dimensionless bulk-plume parameter and ``alpha`` the
+    fraction of condensate that evaporates instead of falling out. At the
+    published values -- ``a = 0.2`` for Earth's tropics, ``alpha = 0.3`` -- that
+    is **0.417**, and nothing about the temperature record went into it.
+
+    Why this is worth the trouble over prescribing 0.4 directly: the same ``a``
+    also fixes the lapse rate an entraining plume leaves behind
+    (``EQ-ENTRAINING-LAPSE-RATE``). Two observables, one parameter, so the pair
+    is over-determined and can be wrong in a way a chosen humidity cannot be.
+    That is the whole reason for preferring this to a second prescribed number.
+
+    **What it still does not do.** It moves no water and closes no water budget,
+    exactly like the module it derives from -- it predicts the *distribution*,
+    not the cycle. It gives one humidity for the whole column, so the observed C
+    shape is absent. And it is a tropical relation applied to a global-mean
+    column, which omits the extratropical moistening by large-scale ascent, so
+    it should be expected to run dry.
+
+    Set ``respond_to_temperature=False`` for the null control, which freezes the
+    vapour and removes the feedback while changing nothing else.
+    """
+
+    derivation_equation_id = EQUATION_IDS["bulk_plume_humidity"]
+    provenance_note = (
+        "relative humidity predicted from the bulk-plume water budget; "
+        "no temperature record enters the closure"
+    )
+
+    def __init__(
+        self,
+        *,
+        module_id: str = "water",
+        radiation_module_id: str = "radiation",
+        atmosphere_module_id: str = "atmosphere",
+        n_layers: int = 8,
+        bulk_plume_parameter: float = BULK_PLUME_PARAMETER,
+        evaporating_fraction: float = EVAPORATING_CONDENSATE_FRACTION,
+        respond_to_temperature: bool = True,
+        status: ModuleStatus = ModuleStatus.ACTIVE,
+    ) -> None:
+        relative_humidity = equilibrium_relative_humidity(
+            bulk_plume_parameter, evaporating_fraction
+        )
+        contract = ModuleContract(
+            module_id=module_id,
+            module_name="bulk-plume predicted relative humidity profile",
+            module_version=V1,
+            interface_version=V1,
+            fidelity_level=FidelityLevel.REDUCED,
+            physical_basis=(
+                "Subsidence dries the air between clouds and detrainment of saturated "
+                "plume air moistens it; the balance fixes the relative humidity. The "
+                "vapour amount then follows from Clausius-Clapeyron, so it rises with "
+                "temperature at about seven percent per kelvin without that rate, or "
+                "the humidity itself, being imposed."
+            ),
+            governing_equation_ids=(
+                EQUATION_IDS["bulk_plume_humidity"],
+                EQUATION_IDS["clausius_clapeyron"],
+                EQUATION_IDS["vapour_band_absorption"],
+            ),
+            assumptions=(
+                "radiative-convective equilibrium, so the water budget is steady",
+                "one bulk plume stands for the whole cloud ensemble",
+                "constant mass flux with height, which makes the humidity uniform",
+                "no water mass budget: this module moves no water and closes none",
+                "no latent heat, so the energy a real phase change carries is absent",
+            ),
+            validity_domain=(
+                "Convecting columns where cumulus mass flux rather than large-scale "
+                "advection sets the free-tropospheric humidity. The water cycle itself "
+                "-- precipitation, latent heating, the surface reservoir -- is out of "
+                "scope, because this module predicts a distribution and not a flux."
+            ),
+            required_inputs=(
+                ATMOSPHERE_TEMPERATURE_STATE,
+                "atmosphere_layer_mass",
+                "atmosphere_layer_pressure",
+            ),
+            produced_outputs=(
+                VAPOUR_STATE,
+                "atmosphere_specific_humidity",
+                "atmosphere_relative_humidity",
+                "atmosphere_precipitable_water",
+            ),
+            conserved_quantities=(),
+            uncertainty_outputs=(
+                "bulk_plume_parameter_uncertainty",
+                "evaporating_condensate_fraction_uncertainty",
+            ),
+            correctness_tests=(
+                "test_the_predicted_humidity_lands_in_the_observed_range",
+                "test_the_plume_humidity_follows_clausius_clapeyron",
+                "test_the_plume_module_derives_its_humidity_rather_than_taking_one",
+            ),
+            known_limitations=(
+                "The evaporating condensate fraction is a declared assumption over 0.1 "
+                "to 0.5, not a measurement, and the predicted humidity runs from 0.25 "
+                "to 0.58 across that range. Any result that depends on the humidity "
+                "should be reported across the range and not at the midpoint.",
+                "A tropical relation applied to a global-mean column. Extratropical "
+                "large-scale ascent and eddy moisture transport are absent, so this "
+                "should be expected to run too dry, by an amount the framework cannot "
+                "estimate from within.",
+                "One humidity for the whole column, so the observed C-shaped profile is "
+                "absent and the vapour aloft, where the feedback is most sensitive, is "
+                "the least trustworthy part of it.",
+                "No water or latent-energy budget. The distribution is predicted; the "
+                "cycle that would sustain it is not, which is why this module still "
+                "conserves nothing and says so.",
+            ),
+            cost=CostDeclaration(
+                module_id=module_id,
+                time_complexity="O(n_layers)",
+                memory_complexity="O(n_layers)",
+                scaling_variables=("n_layers",),
+                work_units_per_step=0.3,
+                benchmark_configuration=f"{n_layers} layers, global scalar column",
+                peak_memory_bytes=8 * n_layers + 4096,
+                supported_resource_classes=(
+                    ResourceClass.LAPTOP,
+                    ResourceClass.ENGINEERING_WORKSTATION,
+                ),
+                lower_fidelity_alternatives=("prescribed_fixed_relative_humidity",),
+            ),
+        )
+        # Deliberately the grandparent's constructor: this module reuses every
+        # bit of the prescribed module's machinery and none of its contract,
+        # because the contract is the part that says where the number came from.
+        Module.__init__(self, contract, status=status)
+        self.radiation_module_id = radiation_module_id
+        self.atmosphere_module_id = atmosphere_module_id
+        self.n_layers = n_layers
+        self.bulk_plume_parameter = bulk_plume_parameter
+        self.evaporating_fraction = evaporating_fraction
+        self.relative_humidity = relative_humidity
+        self.respond_to_temperature = respond_to_temperature
+        self.vapour = np.zeros(n_layers)
+        self._specific_humidity = np.zeros(n_layers)
+        self._held: np.ndarray | None = None
+
+    def implied_entrainment_rate(self, temperature: float, lapse_rate: float) -> float:
+        """The dimensional entrainment rate this closure stands for, in m^-1.
+
+        Reported rather than used, because it is what the cloud-resolving
+        literature quotes and therefore the number a reader can check the
+        parameter choice against. At present it comes out several times smaller
+        than the rates those simulations diagnose, which is recorded in the
+        equation registry as a known failure mode rather than adjusted away.
+        """
+        gamma = water_vapour_lapse_rate(np.array(temperature), lapse_rate)
+        return float(
+            fractional_entrainment_rate(gamma, self.bulk_plume_parameter, self.evaporating_fraction)
+        )
+
+    def report_uncertainty(self) -> UncertaintyReport:
+        low, high = EVAPORATING_FRACTION_RANGE
+        return UncertaintyReport(
+            module_id=self.module_id,
+            quantified={
+                "relative_humidity": self.relative_humidity,
+                "relative_humidity_low_alpha": equilibrium_relative_humidity(
+                    self.bulk_plume_parameter, low
+                ),
+                "relative_humidity_high_alpha": equilibrium_relative_humidity(
+                    self.bulk_plume_parameter, high
+                ),
+            },
+            method="range over the declared evaporating-fraction assumption",
+            distributional_assumptions="unresolved; a range is asserted, not a distribution",
+            correlations="unresolved",
+            unresolved=(
+                "the evaporating condensate fraction is assumed, not measured",
+                "a tropical closure is applied to a global-mean column",
+                "the humidity is uniform in height and the observed profile is not",
+            ),
+        )
+
+    def parameters(self) -> dict[str, Any]:
+        return {
+            **dict(self.configuration),
+            "bulk_plume_parameter": self.bulk_plume_parameter,
+            "evaporating_condensate_fraction": self.evaporating_fraction,
+            "relative_humidity": self.relative_humidity,
+            "relative_humidity_origin": "predicted_from_the_bulk_plume_water_budget",
             "respond_to_temperature": self.respond_to_temperature,
             "n_layers": self.n_layers,
             "water_budget": "not_represented",

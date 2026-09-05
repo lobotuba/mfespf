@@ -38,6 +38,10 @@ from mfespf.physics.ocean import (
     ocean_deep_state_entry,
 )
 from mfespf.physics.orbit import OrbitalGeometryModule
+from mfespf.physics.plume import (
+    BULK_PLUME_PARAMETER,
+    EVAPORATING_CONDENSATE_FRACTION,
+)
 from mfespf.physics.radiative_transfer import (
     SpectralRadiationModule,
     grey_absorption,
@@ -52,6 +56,7 @@ from mfespf.physics.surface import (
 )
 from mfespf.physics.water import (
     VAPOUR_STATE,
+    EntrainingPlumeHumidityModule,
     PrescribedHumidityModule,
     WaterModule,
     vapour_state_entry,
@@ -610,6 +615,9 @@ def radiating_column(
     vapour_transport: bool = False,
     surface_based_convection: bool = False,
     prescribed_humidity: float | None = None,
+    plume_humidity: bool = False,
+    bulk_plume_parameter: float = BULK_PLUME_PARAMETER,
+    evaporating_fraction: float = EVAPORATING_CONDENSATE_FRACTION,
     humidity_responds_to_temperature: bool = True,
     cloud: CloudProfile | None = None,
     greenhouse: Any = None,
@@ -702,13 +710,32 @@ def radiating_column(
     # before convection so that convection stabilises the profile condensation
     # has already produced, rather than one it is about to destabilise.
     order = order_head
-    if water and prescribed_humidity is not None:
+    humidity_sources = sum((bool(water), prescribed_humidity is not None, bool(plume_humidity)))
+    if humidity_sources > 1:
         raise ConfigurationError(
-            "a column runs the water module or a prescribed humidity profile, never "
-            "both: they publish the same field, and two producers of one field is an "
-            "ownership question the coupler cannot answer"
+            "a column runs the water module, a prescribed humidity profile or the "
+            "bulk-plume closure, never more than one: they publish the same field, and "
+            "two producers of one field is an ownership question the coupler cannot "
+            "answer"
         )
-    if prescribed_humidity is not None:
+    if plume_humidity:
+        # The humidity is predicted here rather than chosen. It publishes the
+        # same field the prescribed control does, so a run against that control
+        # differs in one thing only: whether the number came from the plume's
+        # water budget or from Manabe and Wetherald.
+        schedules.append(
+            ModuleSchedule(
+                EntrainingPlumeHumidityModule(
+                    n_layers=n_layers,
+                    bulk_plume_parameter=bulk_plume_parameter,
+                    evaporating_fraction=evaporating_fraction,
+                    respond_to_temperature=humidity_responds_to_temperature,
+                ),
+                step_multiple=1,
+            )
+        )
+        order.append("water")
+    elif prescribed_humidity is not None:
         # The control for the feedback. It publishes the same field the water
         # module does, so radiation needs no second input and the only
         # difference between the two configurations is where the humidity

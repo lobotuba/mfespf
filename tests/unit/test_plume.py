@@ -1,0 +1,363 @@
+"""Stage 3: the zero-buoyancy bulk-plume closure for humidity and stratification.
+
+The tests that matter here are the ones that check the closure against results
+derived somewhere else. Two do that against this framework's own older code --
+the moist adiabat and the dry adiabat, both written before any of this existed
+-- and one checks the predicted humidity against the observed free
+troposphere, which is the only way a closure with no fitted parameter can be
+wrong.
+"""
+
+from __future__ import annotations
+
+import itertools
+
+import numpy as np
+import pytest
+
+from mfespf.contracts.module import StepContext
+from mfespf.core.constants import value_of
+from mfespf.core.errors import ConfigurationError
+from mfespf.core.quantities import (
+    Field,
+    Provenance,
+    QuantityKind,
+    SpatialSupport,
+    TimeSemantics,
+)
+from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
+from mfespf.physics.plume import (
+    BULK_PLUME_PARAMETER,
+    EVAPORATING_CONDENSATE_FRACTION,
+    EVAPORATING_FRACTION_RANGE,
+    bulk_plume_relative_humidity,
+    entraining_lapse_rate,
+    equilibrium_relative_humidity,
+    fractional_entrainment_rate,
+    water_vapour_lapse_rate,
+)
+from mfespf.physics.thermodynamics import (
+    dry_adiabatic_lapse_rate,
+    moist_adiabatic_lapse_rate,
+)
+from mfespf.physics.water import VAPOUR_STATE, EntrainingPlumeHumidityModule
+from mfespf.run.column_configurations import radiating_column
+
+pytestmark = pytest.mark.stage(3)
+
+N_LAYERS = 8
+P0 = value_of("standard_surface_pressure")
+INTERFACES = np.linspace(P0, 1.0e4, N_LAYERS + 1)
+PRESSURE = 0.5 * (INTERFACES[:-1] + INTERFACES[1:])
+MASS = -np.diff(INTERFACES) / value_of("earth_standard_gravity")
+PROFILE = np.linspace(288.0, 230.0, N_LAYERS)
+
+
+# --- the humidity closure ----------------------------------------------------
+
+
+@pytest.mark.req("WAT-002", "EQR-002", "VAL-001")
+def test_the_closed_form_is_the_general_form_at_constant_mass_flux():
+    """Two expressions for one quantity, and they have to agree exactly.
+
+    Romps' general result carries height-varying entrainment and detrainment;
+    holding the mass flux constant forces the two rates equal and collapses it
+    to a single number. That collapse is algebra, not approximation, so any
+    disagreement here is an implementation error in one of the two -- which is
+    the point of keeping both.
+    """
+    gamma = water_vapour_lapse_rate(PROFILE, moist_adiabatic_lapse_rate(PROFILE, PRESSURE))
+    rate = fractional_entrainment_rate(gamma)
+
+    general = bulk_plume_relative_humidity(
+        entrainment=rate, detrainment=rate, vapour_lapse_rate=gamma
+    )
+    closed = equilibrium_relative_humidity()
+
+    assert general == pytest.approx(closed, rel=1e-14)
+    assert np.allclose(general, general[0])  # constant, as the closed form implies
+
+
+@pytest.mark.req("WAT-002", "EQR-002")
+def test_undiluted_convection_leaves_only_the_evaporated_condensate():
+    """The limit that says what the parameter means.
+
+    With no entrainment there is no detrainment either, so the only water
+    reaching the environment is the condensate that evaporates instead of
+    falling out. The humidity is then exactly that fraction, which is what
+    makes ``alpha`` a precipitation efficiency and not a tuning knob.
+    """
+    for alpha in (0.0, 0.2, 0.45):
+        assert equilibrium_relative_humidity(0.0, alpha) == pytest.approx(alpha)
+
+
+@pytest.mark.req("WAT-002", "EQR-002", "VAL-001")
+def test_relative_humidity_rises_with_entrainment_and_saturates():
+    """More vigorous turnover moistens the environment, and cannot oversaturate it.
+
+    The direction is worth stating because it reads backwards at first: a
+    plume that entrains more also detrains more, and what it detrains is
+    saturated. The bound is the physical content -- an environment fed entirely
+    by detrained saturated air is saturated, and no amount of entrainment takes
+    it past that.
+    """
+    humidities = [equilibrium_relative_humidity(a) for a in (0.0, 0.1, 0.2, 0.5, 1.0, 10.0)]
+
+    assert all(b > a for a, b in itertools.pairwise(humidities))
+    assert equilibrium_relative_humidity(1.0e6) < 1.0
+    assert equilibrium_relative_humidity(1.0e6) == pytest.approx(1.0, abs=1e-5)
+
+
+@pytest.mark.req("CLM-003", "INF-003", "EQR-004")
+def test_the_predicted_humidity_lands_in_the_observed_range():
+    """The falsification test: nothing was fitted, so this could have failed.
+
+    ``a`` comes from the CAPE and lapse-rate literature and ``alpha`` is a
+    declared assumption; neither was chosen to make the humidity come out
+    right, and no temperature record touched either. The observed free
+    troposphere sits near a third to a half of saturation, so a prediction
+    outside that would refute the closure as used here rather than call for a
+    tuning pass.
+
+    The range over the assumed evaporating fraction is checked too, because a
+    prediction that only lands when the assumption is at its midpoint has not
+    really landed.
+    """
+    predicted = equilibrium_relative_humidity()
+    assert 0.30 < predicted < 0.50
+
+    low, high = EVAPORATING_FRACTION_RANGE
+    spread = [equilibrium_relative_humidity(BULK_PLUME_PARAMETER, a) for a in (low, high)]
+    assert 0.2 < spread[0] < spread[1] < 0.65  # wide, and stated rather than hidden
+
+
+@pytest.mark.req("WAT-002", "ATM-002")
+def test_the_vapour_lapse_rate_is_a_sensible_scale_height():
+    """``gamma`` is derived, so its reciprocal is a prediction and not an input.
+
+    A terrestrial troposphere holds its water in the lowest couple of
+    kilometres. Getting a scale height of that size out of Clausius-Clapeyron
+    and hydrostatic balance alone is the cheapest available check that the
+    expression was transcribed correctly.
+    """
+    gamma = water_vapour_lapse_rate(PROFILE, moist_adiabatic_lapse_rate(PROFILE, PRESSURE))
+    scale_height = 1.0 / gamma
+
+    assert np.all(gamma > 0.0)
+    assert np.all(scale_height > 1.0e3)
+    assert np.all(scale_height < 6.0e3)
+    assert np.all(np.diff(scale_height) < 0.0)  # drier and shallower with height
+
+
+# --- the lapse rate the same parameter predicts ------------------------------
+
+
+@pytest.mark.req("ATM-002", "EQR-002", "VAL-001")
+def test_the_entraining_lapse_rate_reduces_to_the_moist_adiabat():
+    """Checked against code that predates the closure, not against a second copy.
+
+    ``moist_adiabatic_lapse_rate`` was written for Stage 3 with no knowledge of
+    entrainment, and the entraining expression has to reproduce it exactly at
+    zero entrainment. That makes it an independent check rather than a
+    restatement of the same algebra.
+    """
+    assert entraining_lapse_rate(PROFILE, PRESSURE, 0.0) == pytest.approx(
+        moist_adiabatic_lapse_rate(PROFILE, PRESSURE), rel=1e-15
+    )
+
+
+@pytest.mark.req("ATM-002", "CLM-003", "VAL-001")
+def test_entrainment_stabilises_between_the_moist_and_dry_adiabats():
+    """Entrained dry air robs the plume of buoyancy, so it leaves a stiffer column.
+
+    The bound on the other side matters as much: however much dry air a plume
+    entrains, condensation still releases heat into it, so the profile it
+    leaves neutral can never be as steep as a dry adiabat. A scheme that
+    crossed either bound would be producing energy or destroying it.
+    """
+    moist = moist_adiabatic_lapse_rate(PROFILE, PRESSURE)
+    entraining = entraining_lapse_rate(PROFILE, PRESSURE, BULK_PLUME_PARAMETER)
+    dry = dry_adiabatic_lapse_rate()
+
+    assert np.all(entraining > moist)
+    assert np.all(entraining < dry)
+    # And monotone in the parameter, so the prediction has a direction.
+    stronger = entraining_lapse_rate(PROFILE, PRESSURE, 2.0 * BULK_PLUME_PARAMETER)
+    assert np.all(stronger > entraining)
+
+
+@pytest.mark.req("ATM-002", "VAL-001")
+def test_a_dry_column_is_dry_adiabatic_whatever_the_entrainment():
+    """Entrainment cannot matter where there is no water to be diluted.
+
+    The mechanism is entirely about entrained air being subsaturated, so as the
+    saturation humidity goes to zero the parameter has to drop out. It does,
+    algebraically: the factors of ``1 + a`` cancel between numerator and
+    denominator.
+    """
+    cold = np.full(N_LAYERS, 180.0)  # saturation humidity is tiny but not zero
+    dry = dry_adiabatic_lapse_rate()
+
+    rates = [entraining_lapse_rate(cold, PRESSURE, a) for a in (0.0, 0.2, 1.0, 5.0)]
+    for rate in rates:
+        assert rate == pytest.approx(dry, rel=1e-3)
+
+    # The limit is exact only at q* = 0, so the sharper statement is that the
+    # parameter has stopped mattering: the spread across a two-order-of-magnitude
+    # range of it is far smaller than the moist-to-dry gap it opens in a warm
+    # column, which is what "drops out" means for a finite temperature.
+    spread = float(np.max(rates) - np.min(rates))
+    warm_gap = float(np.max(dry - moist_adiabatic_lapse_rate(PROFILE, PRESSURE)))
+    assert spread < 1.0e-3 * warm_gap
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_unphysical_plume_parameters_are_refused():
+    """A negative entrainment rate is not a slower one, and it must not run."""
+    with pytest.raises(ConfigurationError, match="cannot be negative"):
+        equilibrium_relative_humidity(-0.1)
+    with pytest.raises(ConfigurationError, match="fraction below one"):
+        equilibrium_relative_humidity(0.2, 1.0)
+    with pytest.raises(ConfigurationError, match="cannot be negative"):
+        entraining_lapse_rate(PROFILE, PRESSURE, -1.0)
+    with pytest.raises(ConfigurationError, match="water-vapour lapse rate must be positive"):
+        bulk_plume_relative_humidity(
+            entrainment=1.0e-4, detrainment=1.0e-4, vapour_lapse_rate=-1.0e-4
+        )
+
+
+# --- the module ---------------------------------------------------------------
+
+
+def _inputs(temperature: np.ndarray) -> dict[str, Field]:
+    common = {
+        "quantity_kind": QuantityKind.DIAGNOSTIC,
+        "time_semantics": TimeSemantics.INSTANTANEOUS,
+        "timestamp": 0.0,
+        "spatial_support": SpatialSupport.LAYER_AVERAGE,
+        "dimensions": ("layer",),
+        "provenance": Provenance(producer="test", derivation="test fixture"),
+    }
+
+    def layer(field_id: str, values: np.ndarray, units: str) -> Field:
+        return Field(
+            field_id=field_id,
+            physical_name=field_id,
+            symbol="x",
+            values=np.asarray(values, dtype=float),
+            units=units,
+            **common,  # type: ignore[arg-type]
+        )
+
+    return {
+        ATMOSPHERE_TEMPERATURE_STATE: layer(ATMOSPHERE_TEMPERATURE_STATE, temperature, "K"),
+        "atmosphere_layer_mass": layer("atmosphere_layer_mass", MASS, "kg m^-2"),
+        "atmosphere_layer_pressure": layer("atmosphere_layer_pressure", PRESSURE, "Pa"),
+    }
+
+
+def _stepped(module: EntrainingPlumeHumidityModule, temperature: np.ndarray, step: int):
+    module.begin_step(StepContext(time=float(step) * 3600.0, dt=3600.0, step_index=step))
+    module.receive_inputs(_inputs(temperature))
+    module.compute_tendencies()
+    return module.emit_outputs()
+
+
+@pytest.mark.req("WAT-002", "MOD-006", "CLM-003")
+def test_the_plume_module_derives_its_humidity_rather_than_taking_one():
+    """The whole difference from the prescribed control, made checkable.
+
+    The module has no relative-humidity argument to pass. Its humidity is
+    whatever the two plume parameters imply, changing when they change and in
+    the right direction, and its contract cites the water-budget equation
+    rather than pretending Clausius-Clapeyron alone produced the distribution.
+    """
+    module = EntrainingPlumeHumidityModule(n_layers=N_LAYERS)
+    module.validate_configuration()
+
+    assert module.relative_humidity == pytest.approx(
+        equilibrium_relative_humidity(BULK_PLUME_PARAMETER, EVAPORATING_CONDENSATE_FRACTION)
+    )
+    assert "EQ-BULK-PLUME-HUMIDITY" in module.contract.governing_equation_ids
+    assert module.parameters()["relative_humidity_origin"] == (
+        "predicted_from_the_bulk_plume_water_budget"
+    )
+
+    wetter = EntrainingPlumeHumidityModule(n_layers=N_LAYERS, evaporating_fraction=0.5)
+    assert wetter.relative_humidity > module.relative_humidity
+
+    # It still moves no water, and the contract has to keep saying so.
+    assert module.contract.conserved_quantities == ()
+
+
+@pytest.mark.req("WAT-002", "HYP-005", "VAL-001")
+def test_the_plume_humidity_follows_clausius_clapeyron():
+    """The distribution is predicted; the amount still is not imposed.
+
+    Fixing the relative humidity by any means leaves the vapour amount to
+    Clausius-Clapeyron, so about seven percent per kelvin comes out without
+    being put in. Freezing the response removes exactly that and nothing else,
+    which is the null control the feedback is measured against.
+    """
+    module = EntrainingPlumeHumidityModule(n_layers=N_LAYERS)
+    module.initialize({}, {"master_start_time": 0.0})
+
+    cool = np.asarray(_stepped(module, PROFILE, 0)[VAPOUR_STATE].values, dtype=float)
+    warm = np.asarray(_stepped(module, PROFILE + 4.0, 1)[VAPOUR_STATE].values, dtype=float)
+
+    per_kelvin = (warm.sum() / cool.sum()) ** 0.25 - 1.0
+    assert 0.06 < per_kelvin < 0.09
+
+    published = np.asarray(module.emit_outputs()["atmosphere_relative_humidity"].values)
+    assert np.allclose(published, module.relative_humidity)
+
+    frozen = EntrainingPlumeHumidityModule(n_layers=N_LAYERS, respond_to_temperature=False)
+    frozen.initialize({}, {"master_start_time": 0.0})
+    first = np.asarray(_stepped(frozen, PROFILE, 0)[VAPOUR_STATE].values, dtype=float)
+    later = np.asarray(_stepped(frozen, PROFILE + 4.0, 1)[VAPOUR_STATE].values, dtype=float)
+    assert np.array_equal(first, later)
+
+
+@pytest.mark.req("EQR-004", "CLM-003")
+def test_the_implied_entrainment_rate_is_reported_even_though_it_disagrees():
+    """A published check the closure does not currently pass, kept visible.
+
+    Cloud-resolving simulations diagnose bulk-plume entrainment rates of
+    roughly 0.2 to 0.8 per kilometre. The parameter pair used here implies
+    something several times smaller, so either the pair or the definitions
+    disagree with that literature. The module reports the number rather than
+    burying it, and the equation registry carries the disagreement as a known
+    failure mode; this test exists so that neither can quietly stop being true.
+    """
+    module = EntrainingPlumeHumidityModule(n_layers=N_LAYERS)
+    implied = module.implied_entrainment_rate(280.0, 6.5e-3)
+
+    assert 0.0 < implied * 1.0e3 < 0.2  # per kilometre, below the diagnosed range
+
+
+@pytest.mark.req("MOD-006", "WAT-002")
+def test_a_column_takes_its_humidity_from_exactly_one_place():
+    """Three modules now publish the vapour field, and only one may run.
+
+    The guard existed for two of them and had to be widened for the third. It
+    is worth a test rather than a review, because the failure it prevents is
+    silent: two producers of one field leave the coupler picking whichever
+    published last, and the run would look fine.
+    """
+    common = {
+        "absorption_coefficient": np.zeros(4),
+        "n_layers": 4,
+        "convection": True,
+    }
+    for clash in (
+        {"water": True, "plume_humidity": True},
+        {"water": True, "prescribed_humidity": 0.7},
+        {"prescribed_humidity": 0.7, "plume_humidity": True},
+        {"water": True, "prescribed_humidity": 0.7, "plume_humidity": True},
+    ):
+        with pytest.raises(ConfigurationError, match=r"never more than one|never both"):
+            radiating_column(run_id="CLASH", purpose="two humidity sources", **common, **clash)
+
+    # And each on its own is accepted.
+    for single in ({"water": True}, {"prescribed_humidity": 0.7}, {"plume_humidity": True}):
+        radiating_column(run_id="OK", purpose="one humidity source", **common, **single)

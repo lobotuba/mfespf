@@ -1,0 +1,270 @@
+"""The zero-buoyancy bulk-plume closure for humidity and stratification.
+
+Charter section 19 stage 3 and section 20; requirements WAT-002, EQR-002,
+EQR-004, INF-003, CLM-003.
+
+This exists because of a measured failure. Convective moisture transport keyed
+to the dry adjustment mixes completely, which drives the top of the mixed group
+past saturation, and condensation then clips it back; the water that survives
+aloft is decided by which layer the group's top happens to fall in, so the
+vapour feedback came out a property of the layer grid. Above the group the
+column was bone dry, because evaporation is the only source of water in this
+framework and convection its only transport.
+
+The literature's answer to that is entrainment. A real plume dilutes as it
+rises and detrains air that is not saturated, which is why the observed
+mid-troposphere sits near a third to a half of saturation rather than at it.
+The cheapest form of the idea is a bulk plume in the limit of zero cloud
+buoyancy, and it has a property worth the whole implementation: **one
+dimensionless parameter predicts both the humidity and the lapse rate**. The
+relation is therefore over-determined -- calibrate against one and the other is
+a prediction that can fail, which is the difference between a closure and a
+knob.
+
+The equations
+-------------
+
+Zero buoyancy means the plume is neutrally buoyant with respect to its
+environment at every level, so plume and environment share a temperature and
+the plume's moist static energy declines only through entrainment of
+subsaturated air::
+
+    dh*/dz = -epsilon (1 - RH) L q*                       (Singh & O'Gorman)
+
+Closing the environment's water budget -- subsidence drying against detrainment
+of saturated air and evaporating condensate -- gives the relative humidity in
+terms of the plume's own rates::
+
+    RH = (delta + alpha gamma - alpha epsilon)
+         / (delta + gamma - alpha epsilon)                (Romps 2014)
+
+with ``gamma = -d ln q* / dz`` the water-vapour lapse rate, which follows from
+Clausius-Clapeyron and hydrostatic balance alone::
+
+    gamma = L Gamma / (R_v T^2) - g / (R T)
+
+``alpha`` is the fraction of condensate that evaporates rather than
+precipitating, so the precipitation efficiency is ``1 - alpha``.
+
+Holding the mass flux constant with height forces ``epsilon = delta`` and
+collapses both to one dimensionless number ``a = epsilon (1 - alpha) / gamma``::
+
+    RH = (a + alpha) / (1 + a)                            (Romps 2016)
+    Gamma = (g/c_p) [1 + a + q* L/(R T)]
+                   / [1 + a + q* L^2/(c_p R_v T^2)]
+
+and that lapse rate reduces to the moist adiabat exactly as ``a -> 0``, which
+is checked against this framework's own ``moist_adiabatic_lapse_rate`` rather
+than against a second copy of the formula.
+
+What is fitted here
+-------------------
+
+Nothing. ``a = 0.2`` is the published value for Earth's tropics and ``alpha``
+is a declared assumption carrying a range rather than a fitted number, so the
+humidity this produces is a prediction. That is deliberate: a single tuned
+parameter would have hidden the uncertainty that a stated range makes visible,
+and the point of the exercise is to find out whether the closure is right, not
+to make the column agree.
+
+Sources
+-------
+
+Singh, M. S. and O'Gorman, P. A. (2013), "Influence of entrainment on the
+thermal stratification in simulations of radiative-convective equilibrium",
+Geophysical Research Letters 40, 4398-4403, doi:10.1002/grl.50796.
+
+Romps, D. M. (2014), "An analytical model for tropical relative humidity",
+Journal of Climate 27(19), 7432-7449, doi:10.1175/JCLI-D-14-00255.1.
+
+Romps, D. M. (2016), "Clausius-Clapeyron scaling of CAPE from analytical
+solutions to RCE", Journal of the Atmospheric Sciences 73(9), 3719-3737,
+doi:10.1175/JAS-D-15-0327.1.
+
+Seeley, J. T. and Wordsworth, R. D. (2023), "Moist convection is most vigorous
+at intermediate atmospheric humidity", arXiv:2301.03669 -- the equations above
+were read from this reproduction of them, the primary sources being paywalled.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+
+from mfespf.core.constants import value_of
+from mfespf.core.errors import ConfigurationError
+from mfespf.physics.thermodynamics import saturation_specific_humidity
+
+__all__ = [
+    "BULK_PLUME_PARAMETER",
+    "EVAPORATING_CONDENSATE_FRACTION",
+    "EVAPORATING_FRACTION_RANGE",
+    "bulk_plume_relative_humidity",
+    "entraining_lapse_rate",
+    "equilibrium_relative_humidity",
+    "fractional_entrainment_rate",
+    "water_vapour_lapse_rate",
+]
+
+_CP_DRY = value_of("specific_heat_dry_air")
+_R_DRY = value_of("gas_constant_dry_air")
+_R_VAPOUR = value_of("gas_constant_water_vapour")
+_L_VAPORIZATION = value_of("water_latent_heat_vaporization_273")
+_GRAVITY = value_of("earth_standard_gravity")
+
+#: The dimensionless bulk-plume parameter ``a = epsilon (1 - alpha) / gamma``.
+#: Romps (2016) for Earth's tropics; Seeley and Wordsworth (2023) state that
+#: this value "corresponds to typical values of precipitation efficiency and
+#: entrainment rate as diagnosed in cloud-resolving simulations", and that a
+#: generally falls in O(0.1) to O(1). Not fitted here, and not to be fitted
+#: against a temperature record under any circumstances (INF-003).
+BULK_PLUME_PARAMETER = 0.2
+
+#: Fraction of condensate that evaporates instead of precipitating, so the
+#: precipitation efficiency is ``1 - alpha``. A declared assumption rather than
+#: a measurement: published precipitation efficiencies for tropical convection
+#: are neither tight nor uncontested, and quoting one number as though they
+#: were would be false precision. Runs that depend on it should sweep
+#: ``EVAPORATING_FRACTION_RANGE`` instead of trusting the midpoint.
+EVAPORATING_CONDENSATE_FRACTION = 0.3
+
+#: The range the assumption above is asserted over, for sensitivity studies.
+EVAPORATING_FRACTION_RANGE = (0.1, 0.5)
+
+
+def water_vapour_lapse_rate(temperature: np.ndarray, lapse_rate: np.ndarray | float) -> np.ndarray:
+    """``gamma = L Gamma / (R_v T^2) - g / (R T)`` in m^-1.
+
+    The fractional rate at which saturation specific humidity falls off with
+    height, and the only place Clausius-Clapeyron enters the plume closure. It
+    is a derived quantity, not a parameter: given the temperature and the lapse
+    rate the column already has, gamma follows from the saturation vapour
+    pressure and hydrostatic balance with nothing left to choose.
+
+    Its reciprocal is the water-vapour scale height, a couple of kilometres for
+    a terrestrial troposphere, which is the sanity check worth remembering.
+    """
+    T = np.asarray(temperature, dtype=float)
+    if np.any(T <= 0.0):
+        raise ConfigurationError("temperatures must be positive")
+    gamma_env = np.asarray(lapse_rate, dtype=float)
+    return (_L_VAPORIZATION * gamma_env) / (_R_VAPOUR * T**2) - _GRAVITY / (_R_DRY * T)
+
+
+def bulk_plume_relative_humidity(
+    *,
+    entrainment: np.ndarray | float,
+    detrainment: np.ndarray | float,
+    vapour_lapse_rate: np.ndarray | float,
+    evaporating_fraction: float = EVAPORATING_CONDENSATE_FRACTION,
+) -> np.ndarray:
+    """``RH = (delta + alpha gamma - alpha epsilon) / (delta + gamma - alpha epsilon)``.
+
+    Romps (2014), from the environment's water budget: subsidence dries the
+    environment, detrainment of saturated plume air and evaporating condensate
+    moisten it, and the balance fixes the relative humidity. Nothing about
+    temperature appears -- the temperature dependence enters only through
+    ``gamma``, which is why the humidity this predicts is not a restatement of
+    the warming it will go on to produce.
+    """
+    if not 0.0 <= evaporating_fraction < 1.0:
+        raise ConfigurationError(
+            f"the evaporating condensate fraction {evaporating_fraction} must be a "
+            f"fraction below one; at one, no condensate precipitates at all"
+        )
+    eps = np.asarray(entrainment, dtype=float)
+    delta = np.asarray(detrainment, dtype=float)
+    gamma = np.asarray(vapour_lapse_rate, dtype=float)
+    if np.any(eps < 0.0) or np.any(delta < 0.0):
+        raise ConfigurationError("entrainment and detrainment rates cannot be negative")
+    if np.any(gamma <= 0.0):
+        raise ConfigurationError(
+            "the water-vapour lapse rate must be positive; a column whose saturation "
+            "humidity increases with height is outside this closure's domain"
+        )
+    denominator = delta + gamma - evaporating_fraction * eps
+    if np.any(denominator <= 0.0):
+        raise ConfigurationError(
+            "the bulk-plume water budget has no positive solution for these rates"
+        )
+    numerator = delta + evaporating_fraction * gamma - evaporating_fraction * eps
+    return np.asarray(numerator / denominator, dtype=float)
+
+
+def equilibrium_relative_humidity(
+    bulk_plume_parameter: float = BULK_PLUME_PARAMETER,
+    evaporating_fraction: float = EVAPORATING_CONDENSATE_FRACTION,
+) -> float:
+    """``RH = (a + alpha) / (1 + a)`` -- the constant-mass-flux case.
+
+    Romps (2016) holds the mass flux constant with height, which forces
+    ``epsilon = delta`` and makes the relative humidity a single number. The
+    two limits are worth stating because they are the whole physical content:
+    undiluted convection (``a = 0``) leaves the environment at the humidity
+    that evaporating condensate alone can supply, and infinitely dilute
+    convection saturates it, because everything the plume carries is detrained
+    into the environment before it can precipitate.
+    """
+    if bulk_plume_parameter < 0.0:
+        raise ConfigurationError(
+            f"the bulk-plume parameter {bulk_plume_parameter} cannot be negative; it is "
+            f"proportional to the entrainment rate"
+        )
+    if not 0.0 <= evaporating_fraction < 1.0:
+        raise ConfigurationError(
+            f"the evaporating condensate fraction {evaporating_fraction} must be a "
+            f"fraction below one"
+        )
+    return (bulk_plume_parameter + evaporating_fraction) / (1.0 + bulk_plume_parameter)
+
+
+def fractional_entrainment_rate(
+    vapour_lapse_rate: np.ndarray | float,
+    bulk_plume_parameter: float = BULK_PLUME_PARAMETER,
+    evaporating_fraction: float = EVAPORATING_CONDENSATE_FRACTION,
+) -> np.ndarray:
+    """``epsilon = a gamma / (1 - alpha)`` in m^-1.
+
+    The dimensional entrainment rate the dimensionless parameter stands for.
+    Reported rather than used internally, because it is the number the
+    cloud-resolving literature quotes and therefore the one a reader can check
+    this closure against: a few tenths per kilometre for deep convection.
+    """
+    if not 0.0 <= evaporating_fraction < 1.0:
+        raise ConfigurationError(
+            f"the evaporating condensate fraction {evaporating_fraction} must be a "
+            f"fraction below one"
+        )
+    gamma = np.asarray(vapour_lapse_rate, dtype=float)
+    return bulk_plume_parameter * gamma / (1.0 - evaporating_fraction)
+
+
+def entraining_lapse_rate(
+    temperature: np.ndarray,
+    pressure: np.ndarray,
+    bulk_plume_parameter: float = BULK_PLUME_PARAMETER,
+) -> np.ndarray:
+    """The lapse rate of an atmosphere neutral to an entraining plume, in K m^-1.
+
+    ``Gamma = (g/c_p) [1 + a + q* L/(R T)] / [1 + a + q* L^2/(c_p R_v T^2)]``
+
+    This is the second thing the one parameter predicts, and the reason the
+    closure can be falsified rather than tuned: fix ``a`` against the humidity
+    and the stratification is no longer free. Entrainment of subsaturated air
+    robs the plume of buoyancy, so the environment it leaves neutral is more
+    stable than a moist adiabat and less stable than a dry one, and the
+    difference is what shows up as convective available potential energy.
+
+    At ``a = 0`` it reduces exactly to ``moist_adiabatic_lapse_rate``, which is
+    the limiting case the tests check against this framework's existing
+    implementation rather than against a second copy of the same algebra.
+    """
+    if bulk_plume_parameter < 0.0:
+        raise ConfigurationError(
+            f"the bulk-plume parameter {bulk_plume_parameter} cannot be negative"
+        )
+    T = np.asarray(temperature, dtype=float)
+    q_s = saturation_specific_humidity(T, pressure)
+    a = float(bulk_plume_parameter)
+    numerator = 1.0 + a + (_L_VAPORIZATION * q_s) / (_R_DRY * T)
+    denominator = 1.0 + a + (_L_VAPORIZATION**2 * q_s) / (_CP_DRY * _R_VAPOUR * T**2)
+    return (_GRAVITY / _CP_DRY) * numerator / denominator

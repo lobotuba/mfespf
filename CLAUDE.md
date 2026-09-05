@@ -123,6 +123,22 @@ saying out loud.
   and 1.30x, making the 30-layer point a spike rather than a trend. An emergent
   equilibrium quantity gets its own resolution study, with enough points to tell
   a limit from an excursion, before it is quoted (VAL-002).
+- **Prefer a closure that predicts two observables from one parameter.** A
+  prescribed relative humidity cannot be wrong; the bulk-plume closure that
+  replaced it fixes the humidity and the lapse rate from the same number, so
+  both can be checked and one of them promptly caught the convective adjustment
+  still targeting a dry adiabat. Over-determination is what makes a closure
+  falsifiable rather than merely tunable.
+- **An assumed parameter's range is part of the result, not a footnote to it.**
+  The evaporating condensate fraction is asserted over 0.1 to 0.5, and across
+  that range the column moves 8 K and its feedback changes by a factor of three.
+  Quoting the midpoint would be false precision, and *choosing* the midpoint
+  because it reproduced the observed temperature would be calibrating against
+  the temperature record by the back door. Sweep the range and report it.
+- **A base state that looks right is not evidence until you know why.** The
+  plume column lands at 288.1 K with a 33.1 K greenhouse effect while carrying a
+  third of the observed water and a lapse rate 3.2 K/km too steep -- two large
+  errors of opposite sign cancelling. Check the pieces, not the total.
 - **A mechanism that moves a conserved quantity between two modules has to be
   declared by both of them.** Mixing the surface into the convective adjustment
   balanced its own arithmetic exactly and still failed reconciliation at 3e-4,

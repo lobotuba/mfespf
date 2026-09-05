@@ -414,6 +414,116 @@ entrainment and detrainment, and the cheapest form of those carries a fitted
 eddy diffusivity -- which is exactly the choice deferred when this pathway
 started, arriving now with a measurement attached to it.
 
+### Entrainment, and a humidity that is predicted rather than chosen
+
+The wall above was an entrainment problem wearing a numerical disguise, so the
+fix had to come from the entrainment literature rather than from the grid. The
+cheapest form is a bulk plume in the limit of zero cloud buoyancy, and it was
+chosen over the alternatives for one property: **the same dimensionless
+parameter fixes both the humidity and the lapse rate**. A closure that predicts
+two things from one number can be caught being wrong. A prescribed relative
+humidity cannot.
+
+The environment's water budget in radiative-convective equilibrium balances
+subsidence drying against detrainment of saturated plume air and evaporating
+condensate, and closes for the relative humidity:
+
+```
+RH = (delta + alpha gamma - alpha epsilon) / (delta + gamma - alpha epsilon)
+```
+
+with `gamma = -d ln q* / dz` following from Clausius-Clapeyron and hydrostatic
+balance alone. Holding the mass flux constant forces entrainment to equal
+detrainment and collapses this to `RH = (a + alpha) / (1 + a)`, while the same
+`a` fixes the stratification an entraining plume leaves neutral -- which reduces
+exactly to the moist adiabat at `a = 0`, checked against this framework's own
+Stage 3 implementation rather than against a second copy of the algebra.
+
+**Nothing is fitted.** `a = 0.2` is the published value for Earth's tropics,
+derived from convective available potential energy rather than from any humidity
+or temperature measurement, and `alpha` is a declared assumption carrying the
+range 0.1 to 0.5 rather than a fitted number.
+
+Sources: Romps (2014), *J. Climate* **27**, 7432, for the humidity; Singh and
+O'Gorman (2013), *GRL* **40**, 4398, for the zero-buoyancy plume; Romps (2016),
+*JAS* **73**, 3719, for the constant-mass-flux closure.
+
+#### The grid dependence goes away, which confirms the earlier diagnosis
+
+| layers | 10 | 20 | 30 | 40 | 60 |
+|---|---:|---:|---:|---:|---:|
+| surface temperature (K) | 286.94 | 288.11 | 288.51 | 288.72 | 288.93 |
+| amplification, transport scheme | 1.10x | 1.22x | **1.88x** | 1.28x | 1.30x |
+| amplification, plume closure | 1.86x | 1.80x | 1.92x | 1.93x | 1.86x |
+| feedback (W m^-2 K^-1) | +1.038 | +0.886 | +0.984 | +0.977 | +0.894 |
+
+A factor-of-1.7 range with a 45 percent excursion becomes scatter of about three
+percent with no trend. That is the point worth keeping: the transport scheme's
+feedback moved with resolution because the humidity aloft depended on which
+layer a mixed group's top fell in, and a humidity that comes from a water budget
+rather than from a mixing operator does not inherit that. The diagnosis was
+right, and replacing the mechanism it blamed fixed the symptom it predicted.
+
+#### Both predictions land, and the model disagrees with one of them
+
+The over-determination is the reason this closure was worth building, so it has
+to be tested rather than asserted. At `a = 0.2` it predicts a relative humidity
+of **0.417**, which is inside the observed free-tropospheric band, and a lapse
+rate of **6.33 K/km**, against roughly 6.5 in the standard atmosphere. Two
+observables, one unfitted parameter, and both land.
+
+The column they were measured in does not.
+
+| | K/km |
+|---|---:|
+| the column's diagnosed lapse rate | 9.68 |
+| the plume prediction at a = 0.2 | 6.33 |
+| moist adiabat | 5.98 |
+| dry adiabat | 9.77 |
+
+Convective adjustment still targets the dry adiabat, so the column sits within
+one percent of it while carrying a humidity derived from `a = 0.2`. **The model
+is internally inconsistent**: its stratification corresponds to an entrainment
+rate far larger than the one its own humidity closure assumes. Wiring
+`EQ-ENTRAINING-LAPSE-RATE` into the adjustment is the obvious next step, and the
+measurement above is what makes it obvious.
+
+#### The base state looks right and that means nothing yet
+
+The column reaches 288.1 K and a greenhouse effect of 33.1 K, against observed
+values of 288 and 33. Neither is evidence, for two independent reasons.
+
+The first is cancellation. The column carries 8.0 kg m^-2 of precipitable water
+against an observed 25, a factor of 2.9 outside the conditions the vapour band
+was calibrated at, *and* its lapse rate is 3.2 K/km too steep. Too little water
+cools the surface and too steep a profile warms it. Two large errors of opposite
+sign are agreeing to a tenth of a kelvin, which is a coincidence and not a
+result.
+
+The second is the assumption. Sweeping the evaporating condensate fraction
+across the range it is asserted over moves everything:
+
+| alpha | 0.1 | 0.3 | 0.5 |
+|---|---:|---:|---:|
+| predicted relative humidity | 0.250 | 0.417 | 0.583 |
+| surface temperature (K) | 284.08 | 288.11 | 292.26 |
+| precipitable water (kg m^-2) | 3.64 | 8.02 | 14.89 |
+| feedback (W m^-2 K^-1) | +0.470 | +0.886 | +1.375 |
+
+Eight kelvin of surface temperature and a factor of three in feedback, from one
+number nobody has measured tightly. The midpoint landing on the observed
+temperature is what a midpoint does. Choosing `alpha` because it produced 288 K
+would have been calibrating against the temperature record, which INF-003
+forbids and which this project has already caught itself doing in other forms;
+0.3 was written down as the midpoint of the declared range before any column ran
+and has not been touched since.
+
+So the honest state of the vapour pathway is: the closure's two predictions both
+match observations with nothing fitted, the grid dependence that disqualified
+the previous mechanism is gone, no number from the coupled column is quotable
+until the evaporating fraction is constrained, and the column contradicts its
+own closure until the lapse rate is wired in.
+
 ## The first registered claim
 
 ```
@@ -1245,6 +1355,19 @@ is deleted from this list, and where a stage removed one the entry says so.
   evaporation is the only source of water and convection the only transport. A
   real atmosphere moistens its middle troposphere by detrainment from deep
   convection and by large-scale ascent, neither of which exists here.
+- The bulk-plume humidity closure predicts a relative humidity of 0.417 and a
+  lapse rate of 6.33 K/km from one unfitted parameter, and both land near
+  observations -- but the column it runs in still relaxes to the dry adiabat at
+  9.68 K/km, so **the model contradicts its own closure** until
+  `EQ-ENTRAINING-LAPSE-RATE` is wired into the convective adjustment.
+- The evaporating condensate fraction is assumed rather than measured, over the
+  range 0.1 to 0.5, and that range spans 8 K of surface temperature and a factor
+  of three in the vapour feedback. No result from a plume-humidity
+  configuration may be quoted without it.
+- The plume column reaches 288.1 K and a 33.1 K greenhouse effect while carrying
+  a third of the observed water and a lapse rate 3.2 K/km too steep. **The
+  agreement is cancellation between two large errors of opposite sign**, and is
+  recorded here so that it is never mistaken for validation.
 - **The vapour relation is being evaluated outside the conditions it was
   calibrated at.** The fit was performed on a column carrying 23.2 kg m^-2 of
   precipitable water; the coupled column settles at 5.3, and its surface at

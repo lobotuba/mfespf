@@ -54,10 +54,14 @@ rather than any temperature record, and in isolation it gives a feedback of
 +2.29 W m⁻² K⁻¹. Coupled to a column it hit two structural walls in a row —
 vapour trapped in the lowest layer traps no heat, and the convective scheme that
 should have lifted it was disabled by the inversion the trapped vapour itself
-created. Surface-based convection removes both, and the feedback that then
-emerges is about +0.5 W m⁻² K⁻¹ against +1.251 for the fixed-humidity control —
-**not safely converged in the layer grid**, and evaluated well outside the
-conditions the relation was calibrated at, so it is recorded and not quoted. See
+created. Surface-based convection removes both. The humidity is then supplied by a
+zero-buoyancy bulk-plume closure whose single unfitted parameter predicts a
+relative humidity of 0.417 **and** a lapse rate of 6.33 K/km — both of which land
+near observations, which is the falsification test a prescribed humidity cannot
+be given. The grid dependence that disqualified the previous mechanism is gone.
+Nothing from it is quotable yet: the one assumed parameter spans 8 K of surface
+temperature, and the column still relaxes to a dry adiabat and so contradicts its
+own closure. See
 [`docs/architecture.md`](docs/architecture.md#the-water-vapour-pathway-and-the-two-walls-it-hit).
 
 ## Install and run
