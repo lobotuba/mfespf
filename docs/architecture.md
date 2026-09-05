@@ -86,17 +86,20 @@ grid bands against 3.5780 at 109.
 
 ### What is calibrated, and against what
 
-One parameter: the wing decay scale, 36 cm^-1. It is calibrated against a
-*published radiative-forcing value* of 3.7 W m^-2 per doubling and achieves 3.58
-at the background opacity it was fitted against.
+One parameter: the wing decay scale, 14 cm^-1. It is calibrated against a
+*published radiative-forcing value* of 3.7 W m^-2 per doubling and achieves 3.698
+-- at the background opacity and on the spectral grid the configurations use,
+because both of those are `physics/greenhouse.py` constants that the calibration
+and the runs share.
 
-**It is not fitted at the opacity the configurations run at, and that is a
-defect.** ``co2_band_absorption`` defaults to a background of 1e-4 m^2 kg^-1 and
-every greenhouse configuration passes 3e-5. A thinner background masks less of
-the band, so the same wing decay gives 6.28 W m^-2 per doubling in the runs --
-1.75 times the calibrated figure and 70 percent above the accepted value. The
-calibration and the use were never matched, and the number this document
-previously quoted was the one the runs did not use.
+**They were once not shared, and that was the largest defect this project has
+found in itself.** ``co2_band_absorption`` defaulted to a background of
+1e-4 m^2 kg^-1 and every greenhouse configuration passed 3e-5. A thinner
+background masks less of the band, so the same wing decay gave 6.28 W m^-2 per
+doubling in the runs -- 1.75 times the calibrated figure, 70 percent above the
+accepted value, and the number this document once quoted was the one no run had
+ever used. It was found by asking why a volcanic pulse of the right forcing
+produced twice the right cooling.
 
 The calibration target matters more than the number. Fitting it to a temperature
 record would have spent that record: the dataset registry enforces INF-003 one
@@ -111,21 +114,46 @@ is a qualitative fact about the real 15 micron band. Once the core is saturated
 its exact value stops mattering: the forcing depends on where the wings cross
 unit optical depth, which depends on the logarithm of that number.
 
-### The base state is wrong, and the reason is structural
+### The base state is a prediction, and it is four kelvin low
 
-This column equilibrates near 315 K rather than 288 K. The cause is not the
-concentration but the band's *width*. A reduced column with eight layers and no
-stratosphere has a weaker contrast between the surface and the level it radiates
-from than the real atmosphere, so reproducing the accepted forcing per doubling
-requires a band opaque over a wider range of wavelengths than the real one. The
-forcing is right, the width is not, and the surplus width closes part of the
-atmospheric window.
+This column equilibrates at 283.6 K against an observed 288, with a greenhouse
+effect of 28.6 K against 33. Neither is a calibration target. The only fitted
+number in the band is the wing decay, and it is fitted to a published forcing per
+doubling, so the base state is what the physics gives once that is fixed.
 
-Two consequences, and they pull in opposite directions. The comparison is of
-anomalies differenced against the model's own baseline, so a constant offset does
-not enter it. But the Planck response at 315 K is about a third stronger than at
-288 K, so the sensitivity is suppressed relative to what this configuration would
-give at the right base state. That is in the hypothesis record's validity domain.
+Four to five kelvin is about the greenhouse warming water vapour supplies. The
+vapour is tracked -- the water module has owned it since Stage 3 -- but it is
+radiatively inert, so the shortfall is exactly where the missing mechanism is.
+Closing it by raising the background opacity would be calibrating against the
+temperature record, which is the one thing INF-003 forbids here, because that
+record is the validation.
+
+**An earlier version of this section said the opposite, and the reason is worth
+keeping.** The column used to equilibrate near 315 K, twenty-seven kelvin *too
+warm*, and this document explained it as a band too wide. The width was not the
+problem. The band was calibrated with `co2_band_absorption`'s default background
+opacity and every configuration passed a different one, so the runs used a
+forcing 1.75 times the calibrated figure. Two things fixed it: one constant used
+in both places, and a spectral grid on which the answer has stopped moving. The
+band that results is 2.6 times narrower, and the base state crossed from 27 K
+high to 4 K low.
+
+### A calibration is only worth anything on the grid it was performed on
+
+Narrowing the band made the old grid inadequate without changing anything about
+it. Forty-eight bands over 6.5 to 50 microns gave 3.700 W m^-2 per doubling where
+the converged answer was 3.601 -- so a calibration performed there would have
+fitted a property of the grid, and the fit would have silently drifted with any
+later change of resolution.
+
+So `CO2_BAND_LOWER_M`, `CO2_BAND_UPPER_M` and `CO2_BAND_RESOLUTION` are constants
+next to the wing decay, and they are `greenhouse_grid`'s defaults, so a
+configuration that takes the defaults gets the calibrated forcing and one that
+does not is visibly choosing otherwise. The region is 8 to 30 microns because
+that is where the band is: the opaque core spans about 12 to 20 microns at the
+highest concentration run here, and the wings have fallen by nineteen orders of
+magnitude by 8 microns. Sixty-four bands across it agree with a 179-band
+reference to 0.05 percent.
 
 ### Four runs, differing in one thing each
 
@@ -149,16 +177,24 @@ equilibrium, because at equilibrium the reservoirs are at one temperature and
 the exchange is exactly zero, so the spin-up is unaffected and the control stays
 flat to machine precision. What it changes is the path.
 
-The result was the opposite of what I expected. The deep reservoir reduces the
-modelled amplitude, as it must. But the amplitude was not the larger error: the
-*timing* was. Without it the column tracks the concentration record too closely
-and warms too early; with it the response is delayed and back-loaded like the
-observations, and the variance explained rises from 61 percent to 76 while the
-range falls from 2.11 K to 1.83 against an observed 2.40.
+The protocol declared the direction undecidable in advance -- whether the
+reservoir helps depends on whether the amplitude or the timing is the larger
+error, and the configuration alone does not say which. That declaration is what
+makes the answer worth anything, and it is also what let the answer *change*
+without any special pleading.
 
-That the protocol declared this undecidable in advance is what makes the answer
-worth anything. Had the direction been written down after the run, it would have
-been a description.
+It has been measured twice, with opposite results. Under the mis-calibrated band
+the reservoir raised the variance explained from 61 percent to 76: the column
+over-amplified, so damping it helped, and the delayed back-loaded response
+gained more than the lost amplitude cost. Recalibrated, the same reservoir
+*lowers* it from 71 percent to 65, with the range falling from 0.83 K to 0.72
+against an observed 2.40. The mechanism did not change and neither did the
+reasoning; the column no longer over-amplifies, so there is nothing left for the
+damping to correct and only amplitude to lose.
+
+The first answer is superseded rather than deleted, because a reader who takes
+"the timing mattered more than the amplitude" from this project's history should
+also learn that it was an artefact of a defect elsewhere.
 
 **One hypothesis, two versions.** The mechanism is identical, so it is one
 hypothesis. What differs is the answer to HYP-008: a column with no deep
@@ -198,23 +234,45 @@ the geometric-optics limit at 550 nm and stops rising as the wavelength falls.
 Capping it there is physics, not tuning, and it removed about a third of a
 too-large cooling.
 
-### The forcing is right and the response is not
+### The pulse that found the calibration defect
 
 A stratospheric optical depth of 0.15 -- roughly Pinatubo -- gives -2.87 W m^-2
-here, against an accepted value near -3. Nothing was calibrated to that.
+here, against an accepted value near -3. Nothing was calibrated to that: the
+record *is* the optical depth.
 
-The modelled cooling after Pinatubo is 0.68 K, against an observed 0.3 to 0.5.
-The cause is measurable rather than speculative: this column's feedback
-parameter is 6.28 W m^-2 per doubling divided by a 3.945 K response, which is
-1.59 W m^-2 K^-1. The right reference for a column with no water-vapour, cloud
-or albedo feedback is the Planck response near 3.2, so it is roughly twice as
-sensitive as it should be.
+The response was 0.68 K of cooling against an observed 0.3 to 0.5, and that gap
+is what exposed the CO2 band's calibration defect. A slow concentration ramp
+could not have: an inflated forcing and an inflated sensitivity partly cancel
+against the mechanisms the configuration omits, and the result still looks
+plausible. A short pulse of independently known amplitude cannot be compensated
+that way, so it measured the response on its own.
 
-An earlier version of this section quoted 0.907 against an accepted 1.2 and
-called the column thirty percent over-sensitive. Both halves were wrong: the
-forcing was the calibrated figure rather than the one the runs used, and 1.2 is
-the *net* feedback parameter including the feedbacks this configuration does not
-have.
+Recalibrated, the modelled Pinatubo cooling is **0.489 K**, at the upper edge of
+the observed range, and the feedback parameter is 2.45 W m^-2 K^-1 against a
+no-feedback Planck response near 3.2. The column is still over-sensitive, by
+about thirty percent rather than by a factor of two.
+
+Two earlier versions of this section got this wrong in opposite directions. The
+first quoted 0.907 W m^-2 K^-1 against an accepted 1.2 and called the column
+thirty percent over-sensitive; both halves were wrong, because the forcing was
+the calibrated figure rather than the one the runs used, and 1.2 is the *net*
+parameter including feedbacks this configuration does not have. The second
+quoted 1.59 against 3.2, which was right about the reference and right about the
+defect, and is now superseded by the fix.
+
+### Adding it still makes the fit worse, for a different reason than before
+
+Over 1882 to 2012 the variance explained falls from 0.602 with the aerosol held
+to 0.534 with it varying. That was true before the recalibration too, and the
+drop is nearly the same size -- but the cause is not. It used to be an
+over-sensitive column turning a right forcing into too much cooling. Now the
+cooling is about right and the *background trend* is too weak: with the aerosol
+held the modelled range is 0.5694 K against an observed 1.9379, so adding
+correctly-sized cooling spikes to an under-warming record moves it further from
+the observations rather than nearer.
+
+That is a better failure than the one it replaces, because it points somewhere
+specific: at the missing water-vapour feedback rather than at the aerosol.
 
 ### Why a mechanism that made the fit worse was worth adding
 
@@ -226,11 +284,17 @@ and its 76 percent of variance explained was partly that cancellation.
 A volcanic pulse breaks the degeneracy. Its amplitude is known independently,
 its duration is short compared with the mixed layer's response time, and the
 model's answer to it therefore measures the sensitivity almost directly. Adding
-it lowered the variance explained from 0.674 to 0.571 -- and told us why.
+it lowered the variance explained from 0.674 to 0.571 -- and told us why, which
+is the part that mattered: the trail from that gap led to a band calibrated at
+one background opacity and run at another.
 
 That is what the charter means by preserving a negative result. The right
-response is not to remove the volcanic pathway; it is to record that the
-configuration is over-sensitive, which the earlier claims could not have shown.
+response was not to remove the volcanic pathway. It was to record that the
+configuration was over-sensitive, which the earlier claims could not have shown,
+and then to find out why. After the fix the aerosol still lowers the variance
+explained -- 0.602 to 0.534 -- but the modelled Pinatubo cooling is 0.489 K
+inside an observed 0.3 to 0.5, so what the pathway now exposes is the missing
+warming rather than an excess of cooling.
 
 ## The first registered claim
 
@@ -1053,16 +1117,22 @@ is deleted from this list, and where a stage removed one the entry says so.
 - The forcing perturbation is spectrally flat, so no experiment about the
   wavelength dependence of solar forcing can be run with it.
 - **Four claims have been registered against observations, and all four were
-  refuted.** Solar alone explains 3 percent of the observed variance, adding
-  carbon dioxide takes that to 61, and adding deep-ocean heat uptake to 76.
-  Adding volcanic aerosol *lowers* it, because the column is about thirty
-  percent over-sensitive and a short pulse exposes that where a slow ramp does
-  not. Nothing has
-  been *supported* by observation, and nothing can be until a prospective
-  comparison exists -- a reconstruction pass earns QUALIFIED at most.
-- The greenhouse configuration's base state is about 27 K too warm, which
-  suppresses its sensitivity; the cause is the band width required to match the
-  forcing in a column with no stratosphere.
+  refuted.** Solar alone explains 3 percent of the observed variance and adding
+  carbon dioxide takes that to 71. Adding deep-ocean heat uptake *lowers* it to
+  65, and adding volcanic aerosol lowers it again, because the column
+  undershoots the observed amplitude by a factor of three and both mechanisms
+  reduce amplitude further. Nothing has been *supported* by observation, and
+  nothing can be until a prospective comparison exists -- a reconstruction pass
+  earns QUALIFIED at most.
+- **Those numbers replace a set that was wrong, and the deep-ocean one changed
+  sign.** Under the mis-calibrated band the deep reservoir raised the variance
+  explained from 61 to 76 percent, and that was read as the timing mattering
+  more than the amplitude. It was an artefact of an over-sensitive column. The
+  version 1.0.0 claims are superseded rather than deleted (charter 3.5).
+- The greenhouse configuration's base state is about 4 K too cool, which is
+  roughly the size of the water-vapour greenhouse effect it does not have. It
+  was previously 27 K too warm, and that was a calibration defect rather than
+  physics; see "The base state is a prediction".
 - No aerosol, volcanic or land-use forcing exists in any configuration, and
   there is no water-vapour or cloud feedback in the greenhouse one. Two of those
   omissions push the model warm and one pushes it cool.

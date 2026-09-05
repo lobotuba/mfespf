@@ -104,12 +104,25 @@ saying out loud.
 - **A grid must resolve what the physics depends on.** The logarithmic forcing
   comes from the band wings; a grid that cannot resolve them gives linear growth
   or complete saturation instead, and `greenhouse_grid` refuses too few bands.
+- **A calibration is only valid at the conditions it was performed at, so the
+  calibration and the runs share one constant.** The background opacity and the
+  band region and resolution live beside `CO2_WING_DECAY_PER_METRE` and are
+  `greenhouse_grid`'s defaults. They were once separate — the fit used one
+  background and every configuration passed another — and the runs used a
+  forcing 1.75x the calibrated one for four claims before a volcanic pulse
+  exposed it. Do not add a call site that passes its own value for either.
+- **Check convergence again after changing the physics, not only after changing
+  the grid.** Narrowing the band made a previously converged grid inadequate
+  without anything about the grid changing.
 - **Optical properties describe a layer, not a contributor.** Cloud droplets and
   volcanic aerosol scatter in the same layers; combine them with
   `combine_scatterers`, which weights asymmetry by how much each one scatters.
 - **A right forcing does not make a right response.** Check both separately: the
   volcanic forcing matched a published value while the modelled cooling was half
-  again too large, and only measuring the feedback parameter found it.
+  again too large, and only measuring the feedback parameter found it — a
+  calibration defect four claims had already been reported against. A short
+  pulse of known amplitude measures a response where a slow ramp cannot, because
+  a ramp lets a forcing error and a sensitivity error cancel.
 - **A null control that is not exactly null is a bug.** The constant-irradiance
   control gives zero modelled range. Anything else means something other than
   the mechanism is moving the model, and it contaminates the forced run too.

@@ -20,6 +20,10 @@ from mfespf.core.errors import ConfigurationError
 from mfespf.physics.atmosphere import hydrostatic_layer_masses
 from mfespf.physics.greenhouse import (
     CO2_BAND_CENTRE_M,
+    CO2_BAND_LOWER_M,
+    CO2_BAND_RESOLUTION,
+    CO2_BAND_UPPER_M,
+    INFRARED_BACKGROUND_ABSORPTION,
     PREINDUSTRIAL_CO2_PPM,
     PrescribedGreenhouseModule,
     co2_band_absorption,
@@ -30,7 +34,7 @@ from mfespf.physics.radiative_transfer import solve_column_radiation
 
 pytestmark = pytest.mark.stage(6)
 
-GRID = greenhouse_grid(n_background=24, n_band=48, band_lower_m=6.5e-6, band_upper_m=5.0e-5)
+GRID = greenhouse_grid()  # the grid the band is calibrated on, taken by default
 N_LAYERS = 10
 _, MASS = hydrostatic_layer_masses(
     n_layers=N_LAYERS, surface_pressure=101325.0, top_pressure=1.0e3, gravity=9.80665
@@ -143,11 +147,11 @@ def test_forcing_per_doubling_is_nearly_constant():
     doublings = [_forcing(c, 2.0 * c) for c in (142.35, 284.7, 569.4, 1138.8)]
 
     assert all(f > 0.0 for f in doublings)  # the sign, first
-    assert max(doublings) / min(doublings) < 1.35
-    # And it is calibrated near the accepted value, with the shortfall reported
-    # rather than tuned away.
+    assert max(doublings) / min(doublings) < 1.06
+    # And it hits the value it was calibrated against, at the background and on
+    # the grid it was calibrated at -- both of which the configurations use.
     assert _forcing(PREINDUSTRIAL_CO2_PPM, 2.0 * PREINDUSTRIAL_CO2_PPM) == pytest.approx(
-        3.58, abs=0.06
+        3.70, abs=0.05
     )
 
 
@@ -164,14 +168,24 @@ def test_a_grid_that_cannot_resolve_the_wings_loses_the_logarithm():
         doublings = [_forcing(c, 2.0 * c, grid) for c in (142.35, 284.7, 569.4, 1138.8)]
         return max(doublings) / min(doublings)
 
-    coarse = greenhouse_grid(n_background=24, n_band=8, band_lower_m=6.5e-6, band_upper_m=5.0e-5)
+    coarse = greenhouse_grid(n_band=8, band_lower_m=6.5e-6, band_upper_m=5.0e-5)
     assert spread(coarse) > spread(GRID)
 
 
 @pytest.mark.req("CMP-006", "VAL-002")
 def test_the_forcing_is_converged_in_spectral_resolution():
-    """A number that still moves with the grid is a property of the grid."""
-    fine = greenhouse_grid(n_background=24, n_band=90, band_lower_m=6.5e-6, band_upper_m=5.0e-5)
+    """A number that still moves with the grid is a property of the grid.
+
+    This one caught a real error. When the band was narrowed the previous grid --
+    48 bands over 6.5 to 50 microns -- stopped resolving the wings, and gave
+    3.700 W m^-2 per doubling where the converged answer was 3.601. Calibrating
+    there would have fitted the grid rather than the physics, so the resolution
+    was fixed first and the wing decay fitted afterwards.
+
+    The reference is deliberately a *wider* region as well as a finer one, so it
+    also checks that nothing was lost by narrowing the region to 8-30 microns.
+    """
+    fine = greenhouse_grid(n_band=160, band_lower_m=6.5e-6, band_upper_m=5.0e-5)
     reference = _forcing(284.7, 569.4, fine)
     assert _forcing(284.7, 569.4, GRID) == pytest.approx(reference, rel=2e-3)
 
@@ -215,3 +229,56 @@ def test_a_time_varying_concentration_is_republished_every_step():
     module.compute_tendencies()
     assert float(module.emit_outputs()["co2_mole_fraction"].values) == pytest.approx(302.0)
     assert module.parameters()["concentration_ppm"] == "time_varying"
+
+
+@pytest.mark.req("EQR-004", "INF-003", "SYS-006")
+def test_the_band_is_calibrated_at_the_background_the_runs_use():
+    """The defect this guards against was real and cost a factor of 1.75.
+
+    The wing decay was once fitted with the function's default background while
+    every configuration passed a different one. A thinner background masks less
+    of the band, so the forcing per doubling in the runs was 6.28 W m^-2 against
+    a calibrated 3.58. One constant, used in both places, is the fix -- and this
+    is what notices if they are ever separated again.
+
+    The grid is checked the same way and for the same reason: a spectral
+    resolution that resolves the wings during calibration and not during the run
+    separates the two just as effectively.
+    """
+
+    def greenhouse_replay_n_band() -> int:
+        return int(inspect.signature(greenhouse_replay).parameters["n_band"].default)
+
+    import inspect
+
+    from mfespf.run.greenhouse import GREENHOUSE_BACKGROUND, greenhouse_replay
+
+    default = inspect.signature(co2_band_absorption).parameters["background"].default
+    assert default == INFRARED_BACKGROUND_ABSORPTION
+    assert GREENHOUSE_BACKGROUND == INFRARED_BACKGROUND_ABSORPTION
+
+    # The same for the grid: the calibration is only worth anything on the grid
+    # it was performed on, so the run configurations take these defaults too.
+    parameters = inspect.signature(greenhouse_grid).parameters
+    assert parameters["n_band"].default == CO2_BAND_RESOLUTION
+    assert parameters["band_lower_m"].default == CO2_BAND_LOWER_M
+    assert parameters["band_upper_m"].default == CO2_BAND_UPPER_M
+    assert greenhouse_replay_n_band() == CO2_BAND_RESOLUTION
+
+    # And the calibrated forcing is the one all of those defaults produce.
+    assert _forcing(284.7, 569.4) == pytest.approx(3.70, abs=0.05)
+
+
+@pytest.mark.req("CLM-003", "VAL-005")
+def test_the_base_state_is_a_prediction_and_it_is_low():
+    """Only the forcing was fitted, so the greenhouse effect is a result.
+
+    It comes out about five kelvin short of the observed 33 K, which is roughly
+    what water vapour would supply. The vapour this framework tracks is
+    radiatively inert, so the shortfall is expected and is recorded rather than
+    closed by adjusting the background.
+    """
+    column = np.sum(MASS)
+    background_optical_depth = INFRARED_BACKGROUND_ABSORPTION * column
+    # A window that is genuinely a window: optically thin, not transparent.
+    assert 0.1 < background_optical_depth < 0.6

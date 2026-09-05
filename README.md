@@ -21,7 +21,7 @@ specification governs.**
 
 ## Status
 
-Version 0.10.0 — the charter's validation ladder (§19) through **Stage 6**:
+Version 0.11.0 — the charter's validation ladder (§19) through **Stage 6**:
 the accounting kernel, the airless radiating body, the radiating atmospheric
 column, atmospheric thermodynamics with convection and water, clouds, thermal
 storage with measured response timescales, and historical replay of a declared
@@ -213,8 +213,8 @@ machine precision:
 | configuration | range K | rms K | variance explained | status |
 | --- | ---: | ---: | ---: | --- |
 | solar only | 0.065 | 0.400 | +0.034 | refuted |
-| solar + CO₂ | 2.112 | 0.269 | +0.609 | refuted |
-| solar + CO₂ + deep ocean | 1.829 | **0.214** | **+0.759** | refuted |
+| solar + CO₂ | 0.830 | **0.222** | **+0.709** | refuted |
+| solar + CO₂ + deep ocean | 0.717 | 0.243 | +0.646 | refuted |
 | *observed* | *2.397* | | | |
 
 All fail the same threshold, 0.1137 K, taken from the record's own
@@ -222,58 +222,71 @@ uncertainty. What changes is how far, and what the residual points at.
 
 Adding volcanic aerosol is the fourth, and it makes the fit **worse**. Over its
 own period (1882–2012, where the aerosol record ends) the variance explained
-falls from 0.674 with the aerosol held to 0.571 with it varying:
+falls from 0.602 with the aerosol held to 0.534 with it varying:
 
 ```
 $ mfespf experiment solar-co2-volcanic
 run                    range K     rms K  var. expl.
-everything varying      2.1699    0.2224      0.5710
-volcanic held           1.4780    0.2134      0.6742
-solar only              0.0572    0.3374      0.0391
-CO2 only                2.1536    0.2177      0.5845
+everything varying      1.2717    0.2399      0.5342
+volcanic held           0.5694    0.2118      0.6017
+solar only              0.0583    0.3372      0.0402
+CO2 only                1.2551    0.2464      0.5179
 neither (control)       0.0000    0.3459      0.0000
 observed                1.9379
 ```
 
-That is the most useful thing the framework has produced, because the *forcing*
-is right and the *response* is not. A stratospheric optical depth of 0.15 gives
-−2.87 W m⁻² here against an accepted ≈−3, with nothing calibrated to it — the
-record supplies the optical depth and the two-stream solver does the rest. But
-the modelled cooling after Pinatubo is 0.68 K against an observed 0.3–0.5 K.
-
-The cause is measurable, and chasing it found a defect in the CO₂ band as well.
+That is the most useful thing the framework has produced, because a short pulse
+of independently known amplitude measures the *response* on its own. A
+stratospheric optical depth of 0.15 gives −2.87 W m⁻² here against an accepted
+≈−3, with nothing calibrated to it — the record supplies the optical depth and
+the two-stream solver does the rest. The cooling that followed was 0.68 K
+against an observed 0.3–0.5 K, and chasing that gap found a defect in the CO₂
+band. Recalibrated, the modelled Pinatubo cooling is **0.489 K**, inside the
+observed range — and the volcanic configuration *still* fits worse than without
+it, now because the underlying warming is too weak rather than because the
+cooling is too strong.
 
 **The band was calibrated at one opacity and run at another.** The wing decay
 was fitted against a published forcing per doubling using
-`co2_band_absorption`'s default background of 1e-4 m² kg⁻¹, and every
-configuration runs at `GREENHOUSE_BACKGROUND = 3e-5`. A thinner background
-masks less of the band, so the forcing per doubling in the runs is **6.28 W m⁻²,
-not the 3.58 previously reported here** — a factor of 1.75, and 70% above the
-accepted 3.7.
+`co2_band_absorption`'s default background of 1e-4 m² kg⁻¹, while every
+configuration ran at `GREENHOUSE_BACKGROUND = 3e-5`. A thinner background masks
+less of the band, so the forcing per doubling in the runs was **6.28 W m⁻²** —
+1.75× the calibrated figure and 70% above the accepted 3.7. Narrowing the band
+to fix that then exposed a second defect: the spectral grid no longer resolved
+the wings, and gave 3.700 W m⁻² per doubling where the converged answer was
+3.601. A calibration performed there would have fitted the grid.
 
-**The column is about twice as sensitive as it should be.** Its feedback
-parameter is 6.28 ÷ 3.945 = **1.59 W m⁻² K⁻¹**. The right reference for a column
-with no water-vapour, cloud or albedo feedback is the Planck response, ≈3.2 —
-not the ≈1.2 quoted in an earlier version of this file, which is the *net*
-parameter including exactly the feedbacks this configuration does not have.
+Both are now single constants shared by the calibration and the runs —
+`INFRARED_BACKGROUND_ABSORPTION`, and the band region and resolution that are
+`greenhouse_grid`'s defaults. The recalibrated band gives **3.698 W m⁻² per
+doubling**, and everything below it is a prediction: 283.6 K, a 28.6 K
+greenhouse effect, and a feedback parameter of **2.45 W m⁻² K⁻¹** against a
+no-feedback Planck response of ≈3.2. Still over-sensitive, by about 30% rather
+than by a factor of two.
 
-So two errors compound, both inflating the response: a forcing 1.7× too large
-and a sensitivity 2× too large. A volcanic pulse has a known amplitude and a
-short duration, so it measures the second directly where a slow CO₂ ramp could
-not — and the earlier agreement was partly those two errors cancelling against
-the mechanisms the configuration omits.
+**Every number in the table above changed, and one of them changed sign.** With
+the inflated forcing, adding the deep ocean *improved* the fit — 0.609 to 0.759
+variance explained — and this file said so, and said I had predicted the
+opposite. That benefit was an artefact. The old column over-amplified, so
+damping its amplitude helped; the recalibrated one already undershoots the
+observed range by a factor of three, and damping it further now costs more than
+the better timing gains: 0.709 falls to 0.646. The mechanism did not change. The
+error it was compensating for did.
 
-Adding CO₂ takes the model from explaining **3%** of the observed variance to
-**61%**. Adding the two-reservoir ocean takes it to **76%** — and I had
-predicted the opposite. The deep reservoir reduces the modelled amplitude, as it
-must, since heat that would have warmed the mixed layer goes below instead. But
-the amplitude was not the larger error: the timing was. The delayed response is
-back-loaded like the observations, and that gains more than the lost amplitude
-costs. The protocol said in advance that the configuration could not settle
+That is the sharpest thing the framework has done to its own results. A slow CO₂
+ramp could hide a forcing error and a sensitivity error cancelling; a deep
+reservoir and a volcanic pulse could not. The version 1.0.0 claims are
+superseded rather than deleted, because charter §3.5 requires an abandoned
+formulation to stay in the record when it affects interpretation — and this one
+affects every conclusion drawn before it.
+
+Adding CO₂ still takes the model from explaining **3%** of the observed variance
+to **71%**, and it remains refuted at 0.222 K against a 0.1137 K threshold. The
+protocol said in advance that the configuration could not settle
 which way it would go, which is the only reason the answer means anything.
 
 **The logarithm is a result, not an input.** The forcing per doubling is nearly
-constant — within 35% across a factor of eight in concentration — because the
+constant — within 3.2% across a factor of eight in concentration — because the
 band core is saturated, so more gas widens the opaque region instead of
 deepening it. Nothing asserts that; the transfer solver produces it and the
 tests measure it. One parameter is calibrated, the wing decay scale, and it is
@@ -281,13 +294,22 @@ calibrated against a **published forcing value** and never against a temperature
 record, which is what keeps HadCRUT5 available as independent validation.
 `fetch_data.py` and the dataset registry keep the two roles apart.
 
-**The base state is 27 K too warm, and that is declared.** Matching the accepted
-forcing per doubling in a column with eight layers and no stratosphere requires
-a band wider than the real 15 µm one, because this column's emission-height
-contrast is weaker. The comparison is of anomalies so a constant offset does not
-enter it, but the Planck response at 315 K is a third stronger than at 288 K, so
-the sensitivity is suppressed. That is in the hypothesis record's validity
-domain, not in a footnote.
+**The base state is a prediction, and it is 4 K low.** Nothing but the forcing
+per doubling was fitted, so the column's 283.6 K against an observed 288 — and
+its 28.6 K greenhouse effect against 33 — are results. The shortfall is about
+the size of the water-vapour greenhouse effect, which this configuration does
+not have: the vapour is tracked and radiatively inert. Closing the gap by
+raising the background opacity would mean calibrating against the temperature
+record that serves as the validation, so it stays open and declared, in the
+hypothesis record's validity domain rather than in a footnote.
+
+**It used to be 27 K too warm, and that was a bug, not a limitation.** The CO₂
+band was calibrated at one background opacity and run at another, so every run
+used a forcing 1.75× the calibrated one; and once the band was narrowed to fix
+that, the spectral grid turned out not to resolve it. Both are now single
+constants shared by the calibration and the runs. The version 1.0.0 claims are
+superseded rather than deleted — charter §3.5 keeps failed formulations in the
+record when they affect interpretation.
 
 **What the residual points at.** The configuration has no aerosols, no volcanic
 forcing, no water-vapour feedback and no ocean heat uptake below a 50 m slab.
@@ -507,12 +529,13 @@ budget instead would make the greenhouse effect an input to the model rather
 than a result of it, and the question this framework asks is whether the physics
 produces the observed behaviour.
 
-**A right forcing does not make a right response.** The volcanic forcing is
+**A right forcing does not make a right response.** The volcanic forcing was
 correct to within a few percent of a published value — it needed no calibration,
-because the record *is* the optical depth — and the modelled cooling is still
-half again too large, because the column's feedback parameter is 1.59 W m⁻² K⁻¹
-against a no-feedback Planck response of ≈3.2. A short pulse of known amplitude
-separates forcing from response where a slow ramp cannot, which is why a
+because the record *is* the optical depth — and the modelled cooling was still
+half again too large. A short pulse of known amplitude separates forcing from
+response where a slow ramp cannot, because a ramp lets a forcing error and a
+sensitivity error cancel. That is how a CO₂ band calibrated at one opacity and
+run at another was found, four claims after it started affecting results — so a
 mechanism that made the fit worse was worth adding.
 
 **A calibration target must not be the thing being predicted.** The CO₂ band's

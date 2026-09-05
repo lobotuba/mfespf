@@ -7,21 +7,19 @@ same run, and the first in which a greenhouse gas acts. Carbon dioxide enters
 through the absorption coefficient, so the radiative transfer computes its effect
 rather than being handed one.
 
-**The base state is wrong, and knowing why matters.** This column equilibrates
-near 315 K rather than 288 K. The cause is not the CO2 concentration but the
-band's width: a reduced column with eight layers and no stratosphere has a
-weaker contrast between the surface and the level it radiates from than the real
-atmosphere does, so reproducing the accepted forcing per doubling requires a band
-that is opaque over a wider range of wavelengths than the real 15 micron band.
-The forcing is right and the width is not, and the surplus width closes part of
-the atmospheric window.
+**The base state is a prediction, and it is five kelvin low.** This column
+equilibrates near 283 K against an observed 288, with a greenhouse effect of 28 K
+against 33. Neither was a calibration target: the only number fitted is the CO2
+band's wing decay, against a published forcing per doubling, and the base state
+falls out.
 
-Two things follow. The comparison below is of *anomalies*, differenced against
-the model's own baseline, so a constant offset does not enter it. But the Planck
-response at 315 K is about a third stronger than at 288 K, so the sensitivity is
-suppressed relative to what this configuration would give at the right base
-state -- and that is a declared limitation of every claim made with it, not a
-detail.
+Five kelvin is roughly the greenhouse warming water vapour would supply if the
+vapour this framework has tracked since Stage 3 were not radiatively inert. The
+same absence sets the sensitivity: this column's feedback parameter is about
+2.5 W m^-2 K^-1 against a Planck-only 3.2 and an Earth-like net 1.2, so it will
+*undershoot* the observed record rather than matching it. That is the honest
+state, and it is a better place to stand than the accidental agreement an
+over-sensitive column produced.
 """
 
 from __future__ import annotations
@@ -34,7 +32,12 @@ from mfespf.core.errors import ConfigurationError
 from mfespf.data.adapter import HistoricalDataAdapter, RecordedSolarSource
 from mfespf.data.loaders import load_declared
 from mfespf.data.records import TimeSeries, splice
-from mfespf.physics.greenhouse import PrescribedGreenhouseModule, greenhouse_grid
+from mfespf.physics.greenhouse import (
+    CO2_BAND_RESOLUTION,
+    INFRARED_BACKGROUND_ABSORPTION,
+    PrescribedGreenhouseModule,
+    greenhouse_grid,
+)
 from mfespf.physics.volcanic import PrescribedVolcanicModule
 from mfespf.registries.datasets import DatasetRegistry, DatasetRole
 from mfespf.run.column_configurations import radiating_column, window_absorption
@@ -60,14 +63,12 @@ well established. The step between the two at the join is measured and reported
 rather than smoothed away.
 """
 
-GREENHOUSE_BACKGROUND = 3.0e-5
-"""Infrared absorption of everything that is not CO2, m^2 per kg of air.
+GREENHOUSE_BACKGROUND = INFRARED_BACKGROUND_ABSORPTION
+"""The infrared background, re-exported from where the calibration lives.
 
-Set from the transparency of the atmospheric window rather than from any
-temperature: over a column of about ten tonnes per square metre this gives an
-optical depth near 0.3 in the window, which is the order the water-vapour
-continuum produces. It is a free parameter of the reduced model, and it is held
-fixed so that a difference between two runs is attributable to CO2 alone.
+Not a second copy. The wing decay of the CO2 band is calibrated against this
+value, and when the two were defined separately the configurations ran at one
+and the calibration was fitted at another.
 """
 
 
@@ -113,7 +114,7 @@ def spin_up(
     """
     from mfespf.physics.solar import ConstantSpectrumSolarSource
 
-    grid = greenhouse_grid(n_background=24, n_band=n_band, band_lower_m=6.5e-6, band_upper_m=5.0e-5)
+    grid = greenhouse_grid(n_background=24, n_band=n_band)
     kernel = radiating_column(
         run_id="GREENHOUSE-SPINUP",
         purpose="equilibrate the column at fixed drivers before the replay begins",
@@ -148,7 +149,7 @@ def greenhouse_replay(
     areal_heat_capacity: float = 2.04e8,
     hold_co2: bool = False,
     hold_solar: bool = False,
-    n_band: int = 48,
+    n_band: int = CO2_BAND_RESOLUTION,
     spin_up_steps: int = 1500,
     deep_ocean: bool = False,
     volcanic: bool = False,
@@ -168,7 +169,7 @@ def greenhouse_replay(
     only -- differ in exactly one thing each, so a difference between any pair is
     attributable to the driver that changed (HYP-007).
     """
-    grid = greenhouse_grid(n_background=24, n_band=n_band, band_lower_m=6.5e-6, band_upper_m=5.0e-5)
+    grid = greenhouse_grid(n_background=24, n_band=n_band)
     solar_adapter = load_declared(IRRADIANCE)
     clock = replay_clock(solar_adapter, "total_solar_irradiance", master_dt)
     if hold_solar:

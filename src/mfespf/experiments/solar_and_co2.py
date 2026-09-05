@@ -17,9 +17,20 @@ the driver that changed rather than to a transient neither of them owns.
 
 **What the configuration cannot do, stated in advance.** It has no aerosols, no
 volcanic forcing, no ocean heat uptake beyond a fifty-metre slab, no
-water-vapour feedback, and a base state some twenty-seven kelvin too warm. Every
-one of those bears on the result, and the ones that push in opposite directions
-are named in the hypothesis rather than left for a reader to balance.
+water-vapour feedback, and a base state about four kelvin too cool. Every one of
+those bears on the result, and the ones that push in opposite directions are
+named in the hypothesis rather than left for a reader to balance.
+
+**The base state changed sign.** An earlier version of this experiment ran a
+column that equilibrated near 315 K, twenty-seven kelvin too warm, and the
+claims said so. That was not physics: the CO2 band was calibrated at one
+background opacity and run at another, so the runs used a forcing 1.75 times the
+calibrated one. Recalibrated at the opacity the runs actually use -- and on a
+spectral grid where the answer has stopped moving -- the column settles at
+283.6 K, which is four kelvin *low*, and the missing warmth is about the size of
+the water-vapour greenhouse this configuration does not have. The claims below
+are version 2.0.0 for that reason, and the version 1.0.0 results are superseded
+rather than deleted (charter 3.5).
 """
 
 from __future__ import annotations
@@ -165,9 +176,10 @@ def solar_and_co2_hypothesis(
         ),
         validity_domain=(
             "Global-mean surface temperature on decadal to centennial timescales over the "
-            "period both records cover. The column's base state is about 27 K too warm, "
-            "so the Planck response is roughly a third stronger than at the real base "
-            "state and the sensitivity is correspondingly suppressed."
+            "period both records cover. The column's base state is about 4 K too cool, "
+            "so the Planck response is slightly weaker than at the real base state; the "
+            "column's feedback parameter is 2.45 W m^-2 K^-1 against a no-feedback Planck "
+            "response near 3.2, so it remains over-sensitive to any forcing."
         ),
         failure_criterion=(
             "the root-mean-square difference between the modelled and observed "
@@ -249,7 +261,8 @@ def solar_and_co2_claim(
     )
     return ClaimRecord(
         record_id=claim_id,
-        version=Version(1, 0, 0),
+        version=Version(2, 0, 0),
+        supersedes=f"{claim_id} 1.0.0",
         statement=(
             f"A radiative-convective column{ocean} driven by the NRLTSI2 irradiance "
             "record and the Law Dome and Mauna Loa carbon dioxide records reproduces the "
@@ -281,7 +294,8 @@ def solar_and_co2_claim(
                 if deep_ocean
                 else "a fifty-metre slab ocean and no deeper heat uptake"
             ),
-            "a base state about 27 K warmer than observed, which suppresses the sensitivity",
+            "a base state about 4 K cooler than observed, the shortfall being roughly "
+            "the size of the absent water-vapour greenhouse effect",
         ),
         validity_domain="Global-mean surface temperature, decadal to centennial, 1882 onward.",
         active_modules=("solar", "orbit", "greenhouse", "radiation", "atmosphere", "surface"),
@@ -376,7 +390,8 @@ def solar_and_co2_protocol(
             "transient",
             "the modelled temperature is an end-of-step instantaneous value compared with "
             "a monthly-mean record",
-            "the base state is about 27 K too warm, which suppresses the sensitivity",
+            "the base state is about 4 K too cool, and the column's feedback parameter "
+            "is 2.45 W m^-2 K^-1 against a no-feedback Planck response near 3.2",
         ),
         notes=(
             "The outcome was not predictable from the configuration: two omissions push "

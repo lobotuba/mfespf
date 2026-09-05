@@ -68,6 +68,7 @@ __all__ = [
     "CO2_MOLAR_MASS",
     "CO2_WING_DECAY_PER_METRE",
     "DRY_AIR_MOLAR_MASS",
+    "INFRARED_BACKGROUND_ABSORPTION",
     "PREINDUSTRIAL_CO2_PPM",
     "PrescribedGreenhouseModule",
     "co2_band_absorption",
@@ -97,22 +98,59 @@ the forcing comes from where the wings cross unit optical depth, and that
 displacement depends on the logarithm of this number, not on the number.
 """
 
-CO2_WING_DECAY_PER_METRE = 3.6e3
-"""Wing decay scale in inverse metres, equivalent to 36 cm^-1.
+INFRARED_BACKGROUND_ABSORPTION = 3.0e-5
+"""Infrared absorption of everything that is not CO2, m^2 per kg of air.
 
-**Known defect: this is calibrated at a background opacity the configurations do
-not use.** It was fitted with ``background`` at this function's default of
-1e-4 m^2 kg^-1, where it gives 3.58 W m^-2 per doubling. Every greenhouse
-configuration passes 3e-5, where the same wing decay gives 6.28 -- 70 percent
-above the accepted value, because a thinner background masks less of the band.
-Recalibrating at the background actually used would narrow the band and change
-every result that rests on it.
+Set from the transparency of the atmospheric window rather than from any
+temperature: over a column of about ten tonnes per square metre this gives an
+optical depth near 0.3 in the window, which is the order the water-vapour
+continuum produces.
 
-The one number calibrated here, and it is calibrated against a *published
-radiative-forcing value* -- 3.7 W m^-2 for a doubling -- never against a
-temperature record. That is what keeps a temperature record available as
+It lives here, and is the default of ``co2_band_absorption``, because the wing
+decay below is calibrated *against it*. They were once separated -- the
+calibration used one value and every configuration passed another -- and the
+forcing per doubling in the runs came out 1.75 times the calibrated figure. One
+constant, used in both places, is what stops that recurring.
+"""
+
+CO2_BAND_LOWER_M = 8.0e-6
+CO2_BAND_UPPER_M = 3.0e-5
+CO2_BAND_RESOLUTION = 64
+"""The band region and the resolution across it, at which the wing decay is fitted.
+
+Three constants rather than three defaults scattered over the call sites, for
+the same reason the background above is one constant: the calibration is only
+worth anything on the grid it was performed on, and a configuration that resolves
+the band differently gets a different forcing from the same physics.
+
+The region is where the band actually is. At the highest concentration this
+framework runs, the opaque core spans about 12 to 20 microns and the wings have
+fallen by nineteen orders of magnitude by 8 microns, so nothing is lost by
+resolving 8 to 30 and leaving the rest to the background spacing -- and the bands
+saved there are spent where the wings are. ``CO2_BAND_RESOLUTION`` is the point
+where the forcing stops moving: 64 gives 3.698 W m^-2 per doubling and a
+reference grid of 179 bands gives 3.698.
+
+The previous choice -- 48 bands over 6.5 to 50 microns -- was *not* converged
+once the band narrowed, and gave 3.700 where the converged answer was 3.601. A
+calibration performed there would have fitted a property of the grid.
+"""
+
+CO2_WING_DECAY_PER_METRE = 1.41e3
+"""Wing decay scale in inverse metres, equivalent to about 14 cm^-1.
+
+The one calibrated number in this module, and it is calibrated against a
+*published radiative-forcing value* -- 3.7 W m^-2 for a doubling -- never against
+a temperature record. That is what keeps a temperature record available as
 independent validation afterwards, and the dataset registry enforces the
 distinction (INF-003, EQR-004).
+
+It is fitted at the background above and on the grid above, because it is only
+meaningful with both. Nothing else is tuned: the base state and the greenhouse
+effect that follow are *predictions*, and both come out about five kelvin low
+against an observed 288 K and 33 K. That shortfall is where the water-vapour
+greenhouse effect would be, if the vapour this framework already tracks were not
+radiatively inert.
 """
 
 PREINDUSTRIAL_CO2_PPM = 284.7
@@ -141,12 +179,12 @@ def co2_mass_mixing_ratio(ppm: float | np.ndarray) -> np.ndarray:
 
 def greenhouse_grid(
     n_background: int = 24,
-    n_band: int = 24,
+    n_band: int = CO2_BAND_RESOLUTION,
     *,
     lower_m: float = 1.0e-7,
     upper_m: float = 1.0e-3,
-    band_lower_m: float = 1.15e-5,
-    band_upper_m: float = 1.95e-5,
+    band_lower_m: float = CO2_BAND_LOWER_M,
+    band_upper_m: float = CO2_BAND_UPPER_M,
 ) -> SpectralGrid:
     """A log-spaced grid with extra resolution across the CO2 band.
 
@@ -158,6 +196,11 @@ def greenhouse_grid(
     The extra bands are inside the CO2 region and nowhere else, so the cost is
     paid where it buys something. Everything outside is the same logarithmic
     spacing the other configurations use.
+
+    The defaults are the grid the band was calibrated on, and they are the
+    constants above rather than literals here, so that a caller who takes the
+    defaults gets the calibrated forcing and a caller who does not is visibly
+    choosing something else.
     """
     if n_band < 8:
         raise ConfigurationError(
@@ -190,7 +233,7 @@ def co2_band_absorption(
     *,
     centre_absorption: float = CO2_BAND_CENTRE_ABSORPTION,
     wing_decay_per_metre: float = CO2_WING_DECAY_PER_METRE,
-    background: float = 1.0e-4,
+    background: float = INFRARED_BACKGROUND_ABSORPTION,
     band_centre_m: float = CO2_BAND_CENTRE_M,
     shortwave_cutoff_m: float = 4.0e-6,
 ) -> np.ndarray:
@@ -213,7 +256,9 @@ def co2_band_absorption(
     ``background`` stands for everything else the atmosphere absorbs in the
     infrared, water vapour above all. It is a free parameter of the reduced
     model rather than a property of any gas, and it is held fixed so that a
-    difference between two runs is attributable to CO2 alone.
+    difference between two runs is attributable to CO2 alone -- which also means
+    there is no water-vapour feedback, and the default is the value the wing
+    decay was calibrated against.
     """
     if centre_absorption < 0.0 or background < 0.0:
         raise ConfigurationError("absorption coefficients must be non-negative")
