@@ -23,6 +23,7 @@ from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError
 
 __all__ = [
+    "convective_adjustment_with_groups",
     "dry_adiabatic_lapse_rate",
     "dry_convective_adjustment",
     "exner",
@@ -80,6 +81,21 @@ def dry_adiabatic_lapse_rate() -> float:
     return _GRAVITY / _CP_DRY
 
 
+def _merged(groups: list[tuple[int, int]]) -> tuple[tuple[int, int], ...]:
+    """Collapse overlapping or touching mixed regions into maximal ones."""
+    if not groups:
+        return ()
+    ordered = sorted(groups)
+    out = [ordered[0]]
+    for low, high in ordered[1:]:
+        last_low, last_high = out[-1]
+        if low <= last_high + 1:
+            out[-1] = (last_low, max(last_high, high))
+        else:
+            out.append((low, high))
+    return tuple(out)
+
+
 def dry_convective_adjustment(
     temperature: np.ndarray,
     heat_capacity: np.ndarray,
@@ -103,6 +119,38 @@ def dry_convective_adjustment(
 
     Returns a new temperature array; the input is not modified.
     """
+    return convective_adjustment_with_groups(
+        temperature,
+        heat_capacity,
+        layer_pressure,
+        reference_pressure=reference_pressure,
+        tolerance=tolerance,
+        max_passes=max_passes,
+    )[0]
+
+
+def convective_adjustment_with_groups(
+    temperature: np.ndarray,
+    heat_capacity: np.ndarray,
+    layer_pressure: np.ndarray,
+    *,
+    reference_pressure: float | None = None,
+    tolerance: float = 1e-12,
+    max_passes: int = 1000,
+) -> tuple[np.ndarray, tuple[tuple[int, int], ...]]:
+    """The same adjustment, also reporting which layers it mixed together.
+
+    The groups are what convection *did*: each ``(low, high)`` pair is an
+    inclusive run of layers the closure homogenised. They are worth returning
+    because heat is not the only thing convection carries. A moisture transport
+    that mixes over exactly these layers reuses the closure rather than
+    inventing a second one, and so introduces no parameter the temperature
+    adjustment did not already have -- which is the difference between deriving
+    a humidity profile and fitting one.
+
+    Overlapping groups from successive passes are merged, so what comes back is
+    the final set of mixed regions rather than a history of how it got there.
+    """
     T = np.array(temperature, dtype=float)
     C = np.asarray(heat_capacity, dtype=float)
     n = T.size
@@ -113,15 +161,16 @@ def dry_convective_adjustment(
     if np.any(C <= 0.0):
         raise ConfigurationError("layer heat capacities must be positive")
     if n < 2:
-        return T
+        return T, ()
 
     pi = exner(layer_pressure, reference_pressure)
     theta = T / pi
 
+    groups: list[tuple[int, int]] = []
     for _ in range(max_passes):
         unstable = np.nonzero(theta[1:] < theta[:-1] - tolerance)[0]
         if unstable.size == 0:
-            return theta * pi
+            return theta * pi, _merged(groups)
         low = int(unstable[0])
         high = low + 1
         while True:
@@ -138,6 +187,7 @@ def dry_convective_adjustment(
             break
         theta[low : high + 1] = mixed
         T[low : high + 1] = mixed * pi[low : high + 1]
+        groups.append((low, high))
 
     raise ConfigurationError(
         f"convective adjustment did not stabilise in {max_passes} passes; the profile or "

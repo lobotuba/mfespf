@@ -57,7 +57,11 @@ from mfespf.core.versioning import InterfaceContract, Version, VersionRange
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.equations import EQUATION_IDS
 from mfespf.physics.surface import SURFACE_TEMPERATURE_STATE
-from mfespf.physics.thermodynamics import dry_convective_adjustment, potential_temperature
+from mfespf.physics.thermodynamics import (
+    convective_adjustment_with_groups,
+    potential_temperature,
+)
+from mfespf.physics.water import VAPOUR_STATE
 from mfespf.registries.states import TendencyContribution
 
 __all__ = ["CONVECTION_INTERFACE", "ConvectiveAdjustmentModule"]
@@ -86,6 +90,7 @@ class ConvectiveAdjustmentModule(Module):
         atmosphere_module_id: str = "atmosphere",
         surface_module_id: str = "surface",
         sensible_heat_coefficient: float = 10.0,
+        transport_vapour: bool = False,
         reference_pressure: float | None = None,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
@@ -123,6 +128,7 @@ class ConvectiveAdjustmentModule(Module):
                 ATMOSPHERE_TEMPERATURE_STATE,
                 "atmosphere_layer_heat_capacity",
                 "atmosphere_layer_pressure",
+                "atmosphere_layer_mass",
                 "layer_radiative_heating",
                 SURFACE_TEMPERATURE_STATE,
                 "surface_heat_capacity",
@@ -160,6 +166,16 @@ class ConvectiveAdjustmentModule(Module):
                 "The surface exchange coefficient is a free parameter with no wind or "
                 "stability dependence, so the partition between the radiative and the "
                 "turbulent surface fluxes is set by that choice and not derived.",
+                "Vapour transport, when enabled, mixes only the layers the adjustment "
+                "mixes -- and in a column whose vapour is trapped in the lowest layer "
+                "that is the wrong set. Trapped vapour makes that layer an efficient "
+                "radiator, it cools 45 K below the layer above it, and the resulting "
+                "inversion decouples it from the neutral region higher up. So the "
+                "adjustment is inactive exactly where the water is, and the transport "
+                "moves nothing: the missing transport sustains the stratification that "
+                "blocks it. Measured at 20 layers, the potential-temperature step across "
+                "the lowest interface is 50 K with the vapour radiatively active and 0 K "
+                "with it inert.",
             ),
             cost=CostDeclaration(
                 module_id=module_id,
@@ -180,6 +196,9 @@ class ConvectiveAdjustmentModule(Module):
         self.atmosphere_module_id = atmosphere_module_id
         self.surface_module_id = surface_module_id
         self.sensible_heat_coefficient = sensible_heat_coefficient
+        self.transport_vapour = transport_vapour
+        self._mixing_groups: tuple[tuple[int, int], ...] = ()
+        self._vapour_moved = 0.0
         self.reference_pressure = reference_pressure
         self._tendency = np.zeros(0)
         self._adjusted_layers = 0
@@ -195,6 +214,42 @@ class ConvectiveAdjustmentModule(Module):
 
     def initialize(self, initial_state: dict[str, Any], boundary_state: dict[str, Any]) -> None:
         self.mark_initialized()
+
+    def _vapour_transport(
+        self, groups: tuple[tuple[int, int], ...], layer_mass: np.ndarray
+    ) -> np.ndarray | None:
+        """Mix the vapour over the layers convection just mixed the heat over.
+
+        The closure homogenises potential temperature over a group because that
+        is what an overturning circulation does to a conserved scalar it
+        carries. Water is another such scalar, so it is mixed to a uniform
+        *specific* humidity over exactly the same layers, with the group's total
+        vapour mass unchanged. No new parameter enters: the group boundaries
+        were decided by the temperature adjustment, which had none.
+
+        What this does not represent is entrainment. Real convection dilutes as
+        it rises and detrains air that is not saturated, so the observed
+        mid-troposphere is far drier than a fully mixed column. Mixing
+        completely is therefore an upper bound on the moistening, and the water
+        module's saturation adjustment will leave the layers above at saturation
+        rather than at the observed thirty to fifty percent.
+        """
+        vapour = self._inputs.get(VAPOUR_STATE)
+        if vapour is None:
+            return None
+        w = np.array(vapour.require_units("kg m^-2").values, dtype=float)
+        mixed = np.array(w)
+        for low, high in groups:
+            span = slice(low, high + 1)
+            total_water = float(np.sum(w[span]))
+            total_mass = float(np.sum(layer_mass[span]))
+            if total_mass <= 0.0:
+                continue
+            # Uniform specific humidity, and the group's water is unchanged by
+            # construction rather than to a tolerance -- the same argument the
+            # enthalpy-conserving mixed temperature rests on.
+            mixed[span] = total_water * layer_mass[span] / total_mass
+        return mixed - w
 
     def compute_tendencies(self) -> list[TendencyContribution]:
         """Adjust the profile the radiation module has already heated.
@@ -242,18 +297,30 @@ class ConvectiveAdjustmentModule(Module):
         heating[0] += self._sensible_flux
 
         provisional = temperature + (heating / heat_capacity) * ctx.dt
-        adjusted = dry_convective_adjustment(
+        adjusted, groups = convective_adjustment_with_groups(
             provisional,
             heat_capacity,
             pressure,
             reference_pressure=self.reference_pressure,
         )
+        self._mixing_groups = groups
 
         self._tendency = (adjusted - provisional) / ctx.dt
         self._adjusted_layers = int(np.count_nonzero(~np.isclose(adjusted, provisional)))
         self._potential_temperature = potential_temperature(
             adjusted, pressure, self.reference_pressure
         )
+
+        layer_mass = np.asarray(
+            self.input_field("atmosphere_layer_mass").require_units("kg m^-2").values, dtype=float
+        )
+        vapour_change = (
+            self._vapour_transport(groups, layer_mass) if self.transport_vapour else None
+        )
+        if vapour_change is not None:
+            # A redistribution, so it sums to zero by construction. Anything
+            # else would be convection creating or destroying water.
+            self._vapour_moved = float(np.sum(np.abs(vapour_change)) / 2.0)
 
         # The sensible flux is submitted separately from the mixing so the two
         # appear as distinct lines in the layer budget: one moves energy across a
@@ -285,6 +352,20 @@ class ConvectiveAdjustmentModule(Module):
                 value=-self._sensible_flux / surface_heat_capacity,
                 units="K s^-1",
                 equation_id=EQUATION_IDS["sensible_heat"],
+            ),
+            *(
+                (
+                    TendencyContribution(
+                        state_id=VAPOUR_STATE,
+                        provider_module_id=self.module_id,
+                        label="convective_vapour_transport",
+                        value=vapour_change / ctx.dt,
+                        units="kg m^-2",
+                        equation_id=EQUATION_IDS["convective_adjustment"],
+                    ),
+                )
+                if vapour_change is not None
+                else ()
             ),
         ]
 

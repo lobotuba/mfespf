@@ -160,6 +160,7 @@ def _build_state_registry(
     convection: bool = False,
     water: bool = False,
     deep_ocean: bool = False,
+    vapour_transport: bool = False,
 ) -> StateRegistry:
     """Register the states this configuration actually contains.
 
@@ -194,7 +195,13 @@ def _build_state_registry(
     if water:
         states.register(
             vapour_state_entry(
-                owner="water", n_layers=n_layers, readers=frozenset({"radiation", "atmosphere"})
+                owner="water",
+                n_layers=n_layers,
+                readers=frozenset({"radiation", "atmosphere"}),
+                # Convection redistributes the vapour it carries, so it submits a
+                # tendency the water module commits -- the same arrangement the
+                # surface temperature already has.
+                tendency_providers=frozenset({"convection"}) if vapour_transport else frozenset(),
             )
         )
         states.register(surface_water_state_entry(owner="surface"))
@@ -600,6 +607,7 @@ def radiating_column(
     convection: bool = False,
     water: bool = False,
     radiative_vapour: bool = False,
+    vapour_transport: bool = False,
     prescribed_humidity: float | None = None,
     humidity_responds_to_temperature: bool = True,
     cloud: CloudProfile | None = None,
@@ -724,7 +732,12 @@ def radiating_column(
         )
         order.append("water")
     if convection:
-        schedules.append(ModuleSchedule(ConvectiveAdjustmentModule(), step_multiple=1))
+        schedules.append(
+            ModuleSchedule(
+                ConvectiveAdjustmentModule(transport_vapour=vapour_transport),
+                step_multiple=1,
+            )
+        )
         order.append("convection")
     if deep_ocean:
         # Ahead of the surface, like every other module the surface reads from:
@@ -796,6 +809,7 @@ def radiating_column(
             convection=convection,
             water=water,
             deep_ocean=deep_ocean,
+            vapour_transport=vapour_transport,
         ),
         equations=build_equation_registry(),
         graph=graph,

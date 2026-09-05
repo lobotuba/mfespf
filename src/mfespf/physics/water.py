@@ -91,6 +91,7 @@ def vapour_state_entry(
     owner: str = "water",
     n_layers: int,
     readers: frozenset[str] = frozenset(),
+    tendency_providers: frozenset[str] = frozenset(),
 ) -> StateEntry:
     """Registry row for the layer vapour masses (STA-002, STA-003)."""
     return StateEntry(
@@ -105,7 +106,7 @@ def vapour_state_entry(
         phase_or_species="water_vapour",
         conservation_participation=("water", "energy"),
         authorized_readers=readers,
-        authorized_tendency_providers=frozenset({owner}),
+        authorized_tendency_providers=frozenset({owner}) | tendency_providers,
         update_authority=UpdateAuthority.OWNER_ONLY,
         initialization_source="manifest",
         checkpoint_required=True,

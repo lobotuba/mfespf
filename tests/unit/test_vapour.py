@@ -28,6 +28,7 @@ from mfespf.core.quantities import (
     TimeSemantics,
 )
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE, hydrostatic_layer_masses
+from mfespf.physics.convection import ConvectiveAdjustmentModule
 from mfespf.physics.greenhouse import (
     CO2_WING_DECAY_PER_METRE,
     CO2_WING_DECAY_WITH_VAPOUR_PER_METRE,
@@ -39,6 +40,7 @@ from mfespf.physics.greenhouse import (
     vapour_mass_absorption,
 )
 from mfespf.physics.radiative_transfer import solve_column_radiation
+from mfespf.physics.surface import SURFACE_TEMPERATURE_STATE
 from mfespf.physics.thermodynamics import saturation_specific_humidity
 from mfespf.physics.water import VAPOUR_STATE, PrescribedHumidityModule
 
@@ -432,3 +434,123 @@ def test_the_prescribed_profile_is_republished_every_step():
 
     # And it owns nothing: the vapour it publishes is not a state it advances.
     assert module.contract.owned_state_ids == frozenset()
+
+
+# --- convective moisture transport ------------------------------------------
+
+
+def _convection_inputs(temperature: np.ndarray, vapour: np.ndarray) -> dict[str, Field]:
+    common = {
+        "quantity_kind": QuantityKind.DIAGNOSTIC,
+        "time_semantics": TimeSemantics.INSTANTANEOUS,
+        "timestamp": 0.0,
+        "spatial_support": SpatialSupport.LAYER_AVERAGE,
+        "dimensions": ("layer",),
+        "provenance": Provenance(producer="test", derivation="test fixture"),
+    }
+    scalar = {**common, "spatial_support": SpatialSupport.GLOBAL_SCALAR, "dimensions": ()}
+
+    def layer(field_id, values, units):
+        return Field(
+            field_id=field_id,
+            physical_name=field_id,
+            symbol="x",
+            values=np.asarray(values, dtype=float),
+            units=units,
+            **common,  # type: ignore[arg-type]
+        )
+
+    return {
+        ATMOSPHERE_TEMPERATURE_STATE: layer(ATMOSPHERE_TEMPERATURE_STATE, temperature, "K"),
+        "atmosphere_layer_heat_capacity": layer(
+            "atmosphere_layer_heat_capacity", MASS * 1004.0, "J m^-2 K^-1"
+        ),
+        "atmosphere_layer_pressure": layer("atmosphere_layer_pressure", PRESSURE, "Pa"),
+        "atmosphere_layer_mass": layer("atmosphere_layer_mass", MASS, "kg m^-2"),
+        "layer_radiative_heating": layer("layer_radiative_heating", np.zeros(N_LAYERS), "W m^-2"),
+        VAPOUR_STATE: layer(VAPOUR_STATE, vapour, "kg m^-2"),
+        SURFACE_TEMPERATURE_STATE: Field(
+            field_id=SURFACE_TEMPERATURE_STATE,
+            physical_name="surface temperature",
+            symbol="Ts",
+            values=np.array(float(temperature[0])),
+            units="K",
+            **scalar,  # type: ignore[arg-type]
+        ),
+        "surface_heat_capacity": Field(
+            field_id="surface_heat_capacity",
+            physical_name="surface heat capacity",
+            symbol="Cs",
+            values=np.array(1.0e7),
+            units="J m^-2 K^-1",
+            **scalar,  # type: ignore[arg-type]
+        ),
+    }
+
+
+def _transport(temperature: np.ndarray, vapour: np.ndarray):
+    module = ConvectiveAdjustmentModule(transport_vapour=True, sensible_heat_coefficient=0.0)
+    module.initialize({}, {"master_start_time": 0.0})
+    module.begin_step(StepContext(time=0.0, dt=3600.0, step_index=0))
+    module.receive_inputs(_convection_inputs(temperature, vapour))
+    tendencies = module.compute_tendencies()
+    moved = [t for t in tendencies if t.state_id == VAPOUR_STATE]
+    return module, (moved[0].as_array() * 3600.0 if moved else np.zeros(N_LAYERS))
+
+
+@pytest.mark.req("CON-001", "WAT-002", "EQR-002")
+def test_convection_carries_water_over_the_layers_it_mixes_and_conserves_it():
+    """The same closure applied to a second conserved scalar.
+
+    An overturning circulation homogenises whatever it carries, so the vapour is
+    mixed to a uniform specific humidity over exactly the layers the temperature
+    adjustment mixed -- no new group boundaries, and therefore no parameter the
+    temperature adjustment did not already have.
+    """
+    unstable = np.array(PROFILE)
+    # Twelve kelvin across layers about 880 m thick: steeper than the 9.8 K/km
+    # dry adiabat, so the bottom four layers overturn.
+    unstable[:4] = [300.0, 288.0, 276.0, 264.0]
+    vapour = np.zeros(N_LAYERS)
+    vapour[0] = 20.0
+
+    module, moved = _transport(unstable, vapour)
+
+    assert module._mixing_groups[0][0] == 0  # and the group reaches the layer holding it
+    assert float(np.sum(moved)) == pytest.approx(0.0, abs=1e-12)  # water is redistributed
+    assert moved[0] < 0.0  # out of the layer that held it
+    assert np.any(moved[1:] > 0.0)  # and into the ones above
+
+    # Uniform specific humidity over the mixed group, which is what "mixed" means.
+    low, high = module._mixing_groups[0]
+    final = (vapour + moved)[low : high + 1]
+    specific = final / MASS[low : high + 1]
+    assert np.allclose(specific, specific[0])
+
+
+@pytest.mark.req("CLM-003", "VAL-005", "CON-001")
+def test_the_transport_moves_nothing_when_the_adjustment_is_inactive():
+    """The negative result this mechanism ran into, pinned so it cannot be lost.
+
+    Keying moisture transport to the convective closure reuses a scheme that has
+    no free parameters, which is why it was worth trying first. It also inherits
+    the closure's silence: where the profile is stable the adjustment does
+    nothing, and so does the transport.
+
+    That is not a corner case in this column, it is the equilibrium. Vapour with
+    nothing to carry it upward accumulates in the lowest layer; radiatively
+    active, it makes that layer an efficient radiator; it cools 45 K below the
+    layer above; and the inversion that results decouples it from the neutral
+    region higher up. The adjustment is then inactive exactly where the water
+    is. The missing transport sustains the stratification that blocks the
+    transport, and adding the transport alone does not break the loop.
+    """
+    stable = 290.0 - 4.0 * np.arange(N_LAYERS)  # gentler than the adiabat: stable
+    vapour = np.zeros(N_LAYERS)
+    vapour[0] = 20.0
+
+    module, moved = _transport(stable, vapour)
+
+    assert module._mixing_groups == ()
+    assert np.all(moved == 0.0)
+    assert module._vapour_moved == 0.0
