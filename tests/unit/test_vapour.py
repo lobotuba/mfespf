@@ -82,6 +82,23 @@ def _solve(shift: float, *, follow: bool, ppm: float = 284.7):
     )
 
 
+def _olr_with(vapour_path: np.ndarray, shift: float, ppm: float = 284.7) -> float:
+    """Outgoing longwave for a vapour distribution supplied directly."""
+    solution = solve_column_radiation(
+        grid=GRID,
+        incident_spectral_irradiance=INCIDENT,
+        layer_temperature=PROFILE + shift,
+        layer_mass=MASS,
+        absorption_coefficient=co2_band_absorption(
+            GRID, ppm, wing_decay_per_metre=co2_wing_decay_for(active_vapour=True), background=0.0
+        ),
+        surface_temperature=288.0 + shift,
+        surface_albedo=np.where(SHORTWAVE, 0.3, 0.0),
+        absorption_optical_depth=vapour_absorption_optical_depth(GRID, vapour_path),
+    )
+    return float(np.sum(solution.upward[-1][~SHORTWAVE]))
+
+
 def _olr(shift: float, *, follow: bool, ppm: float = 284.7) -> float:
     return float(np.sum(_solve(shift, follow=follow, ppm=ppm).upward[-1][~SHORTWAVE]))
 
@@ -233,3 +250,45 @@ def test_letting_the_vapour_follow_the_temperature_amplifies_the_response():
     # because the configuration has no lapse-rate feedback, which in the real
     # atmosphere cancels a substantial part of it -- declared, not tuned away.
     assert 1.5 < feedback < 3.0
+
+
+@pytest.mark.req("CLM-003", "VAL-005", "WAT-002")
+def test_vapour_confined_to_the_lowest_layer_has_no_feedback_at_all():
+    """Why the coupled column does not get the feedback the relation can produce.
+
+    The water module has no vertical transport -- it says so itself -- so
+    evaporation enters the lowest layer and nothing carries it higher. In
+    equilibrium the entire column's vapour sits in that layer at saturation.
+
+    That is fatal, and not because the amount is small. A greenhouse absorber
+    warms the surface only by emitting from somewhere colder than the surface.
+    Vapour held a few kelvin below the surface re-emits at almost the
+    temperature it absorbed at, so it traps nothing however much of it there is.
+    The same column mass gives half the greenhouse effect and an amplification
+    of exactly one.
+
+    Pinned here rather than left in a run, because it is the difference between
+    a feedback that is weak and a feedback that is structurally impossible, and
+    only the second is worth changing the water module for.
+    """
+    distributed = _vapour(PROFILE)
+    confined = np.zeros(N_LAYERS)
+    confined[0] = distributed.sum()
+    assert confined.sum() == pytest.approx(distributed.sum())  # the same water
+
+    def amplification(build) -> float:
+        held = _olr_with(build(PROFILE), 0.5) - _olr_with(build(PROFILE), -0.5)
+        free = _olr_with(build(PROFILE + 0.5), 0.5) - _olr_with(build(PROFILE - 0.5), -0.5)
+        return held / free
+
+    spread = 390.1 - _olr_with(distributed, 0.0)
+    stacked = 390.1 - _olr_with(confined, 0.0)
+    assert spread > 1.9 * stacked  # roughly halved by being stacked at the bottom
+
+    def confine(temperature: np.ndarray) -> np.ndarray:
+        out = np.zeros(N_LAYERS)
+        out[0] = _vapour(temperature).sum()
+        return out
+
+    assert amplification(_vapour) > 2.0  # the feedback the relation can produce
+    assert amplification(confine) == pytest.approx(1.0, abs=1e-3)  # and none of it survives

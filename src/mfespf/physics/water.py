@@ -199,10 +199,21 @@ class WaterModule(Module):
                 "test_a_dry_column_with_no_evaporation_is_inert",
             ),
             known_limitations=(
-                "No vapour transport, so humidity aloft comes only from local processes.",
+                "No vapour transport, so humidity aloft comes only from local "
+                "processes. Evaporation enters the lowest layer and nothing carries it "
+                "higher, so in equilibrium the whole column's vapour sits in that layer "
+                "at saturation and every layer above is exactly dry.",
                 "No cloud water, and therefore no cloud radiative effect whatsoever.",
-                "Vapour is radiatively inert here: the absorption coefficient does not "
-                "respond to it, so this column has no water-vapour feedback.",
+                "Whether the vapour is radiatively active is the radiation module's "
+                "configuration, not this module's. When it is not, this column has no "
+                "water-vapour feedback at all. When it is, it still has almost none, and "
+                "the reason is the transport limitation above rather than the radiation: "
+                "vapour confined to the lowest layer emits within a few kelvin of the "
+                "surface temperature, and an absorber that re-emits at the temperature "
+                "it absorbed at traps nothing. The same 23 kg m^-2 gives a greenhouse "
+                "effect of 63 W m^-2 confined to the lowest layer against 125 spread "
+                "through the troposphere, and an amplification of exactly 1.00 against "
+                "2.23. The feedback is not weakened here; it is absent.",
             ),
             cost=CostDeclaration(
                 module_id=module_id,

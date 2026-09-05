@@ -493,6 +493,8 @@ class SpectralRadiationModule(Module):
         greenhouse_module_id: str = "greenhouse",
         couple_volcanic: bool = False,
         volcanic_module_id: str = "volcanic",
+        couple_water: bool = False,
+        water_module_id: str = "water",
         stratospheric_layers: int = 1,
         greenhouse_background: float | None = None,
         status: ModuleStatus = ModuleStatus.ACTIVE,
@@ -551,6 +553,7 @@ class SpectralRadiationModule(Module):
                 *(("cloud_fraction",) if couple_clouds else ()),
                 *(("co2_mole_fraction",) if couple_greenhouse else ()),
                 *(("stratospheric_aerosol_optical_depth",) if couple_volcanic else ()),
+                *(("atmosphere_water_vapour",) if couple_water else ()),
             ),
             produced_outputs=(
                 "layer_radiative_heating",
@@ -644,6 +647,9 @@ class SpectralRadiationModule(Module):
         self.shortwave_cutoff_m = shortwave_cutoff_m
         self.couple_clouds = couple_clouds
         self.couple_volcanic = couple_volcanic
+        self.couple_water = couple_water
+        self.water_module_id = water_module_id
+        self.vapour_optical_depth: np.ndarray | None = None
         self.volcanic_optics: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
         self.volcanic_module_id = volcanic_module_id
         self.stratospheric_layers = stratospheric_layers
@@ -714,8 +720,18 @@ class SpectralRadiationModule(Module):
             self.co2_mole_fraction = (
                 self.input_field("co2_mole_fraction").require_units("ppm").scalar()
             )
+            from mfespf.physics.greenhouse import co2_wing_decay_for
+
+            # With vapour active the infrared background *is* the vapour, layer
+            # by layer, so the flat background is switched off rather than added
+            # to it -- and the band's fitted width is the one calibrated against
+            # that opacity, which is not the one calibrated against the flat
+            # background.
             kappa = co2_band_absorption(
-                self.grid, self.co2_mole_fraction, background=self.greenhouse_background
+                self.grid,
+                self.co2_mole_fraction,
+                wing_decay_per_metre=co2_wing_decay_for(active_vapour=self.couple_water),
+                background=0.0 if self.couple_water else self.greenhouse_background,
             )
 
         common = dict(
@@ -730,10 +746,23 @@ class SpectralRadiationModule(Module):
             shortwave_cutoff_m=self.shortwave_cutoff_m,
         )
 
-        # Volcanic aerosol is in the clear sky as well as under the cloud, so it
-        # goes into the base optical properties rather than into the cloudy solve.
-        # A clear-sky diagnostic that excluded it would attribute the eruption's
-        # reflection to the cloud.
+        # Water vapour and volcanic aerosol are both in the clear sky as well as
+        # under the cloud, so they go into the base optical properties rather
+        # than into the cloudy solve. A clear-sky diagnostic that excluded them
+        # would attribute their effect to the cloud.
+        contributions: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
+
+        if self.couple_water:
+            from mfespf.physics.greenhouse import vapour_absorption_optical_depth
+
+            vapour = self.input_field("atmosphere_water_vapour").require_units("kg m^-2").values
+            self.vapour_optical_depth = vapour_absorption_optical_depth(self.grid, vapour)
+            # Pure absorption: vapour does not scatter at these wavelengths, and
+            # representing it as partly scattering would reflect the surface's
+            # own emission back down and warm it, which is the wrong sign.
+            zeros = np.zeros_like(self.vapour_optical_depth)
+            contributions.append((self.vapour_optical_depth, zeros, zeros))
+
         if self.couple_volcanic:
             from mfespf.physics.volcanic import stratospheric_aerosol_optics
 
@@ -746,9 +775,13 @@ class SpectralRadiationModule(Module):
                 int(np.asarray(mass.values).size),
                 stratospheric_layers=self.stratospheric_layers,
             )
-            common["absorption_optical_depth"] = self.volcanic_optics[0]
-            common["scattering_optical_depth"] = self.volcanic_optics[1]
-            common["asymmetry"] = self.volcanic_optics[2]
+            contributions.append(self.volcanic_optics)
+
+        if contributions:
+            absorption, scattering, asymmetry = combine_scatterers(*contributions)
+            common["absorption_optical_depth"] = absorption
+            common["scattering_optical_depth"] = scattering
+            common["asymmetry"] = asymmetry
 
         # The clear-sky column is always solved. It is the reference the cloud
         # radiative effect is defined against, and when no cloud is active it is
@@ -973,6 +1006,12 @@ class SpectralRadiationModule(Module):
             ),
         )
 
+    def _co2_wing_decay(self) -> float:
+        """The CO2 band width calibrated for the background this run carries."""
+        from mfespf.physics.greenhouse import co2_wing_decay_for
+
+        return co2_wing_decay_for(active_vapour=self.couple_water)
+
     def parameters(self) -> dict[str, Any]:
         return {
             **dict(self.configuration),
@@ -991,9 +1030,15 @@ class SpectralRadiationModule(Module):
             "couple_clouds": self.couple_clouds,
             "couple_greenhouse": self.couple_greenhouse,
             "couple_volcanic": self.couple_volcanic,
+            "couple_water": self.couple_water,
             **({"stratospheric_layers": self.stratospheric_layers} if self.couple_volcanic else {}),
             **(
-                {"greenhouse_background_m2_kg": self.greenhouse_background}
+                {
+                    "greenhouse_background_m2_kg": (
+                        "water_vapour" if self.couple_water else self.greenhouse_background
+                    ),
+                    "co2_wing_decay_per_metre": self._co2_wing_decay(),
+                }
                 if self.couple_greenhouse
                 else {}
             ),

@@ -207,6 +207,7 @@ def _build_graph(
     clouds: bool = False,
     greenhouse: bool = False,
     volcanic: bool = False,
+    radiative_vapour: bool = False,
     splitting_order: tuple[str, ...] = _SPLITTING_ORDER,
 ) -> DependencyGraph:
     graph = DependencyGraph(configuration_id)
@@ -454,6 +455,22 @@ def _build_graph(
             units="kg m^-2",
             equation_ids=("EQ-NUM-FORWARD-EULER",),
         )
+        if radiative_vapour:
+            # The feedback, as an edge. Without it the vapour is tracked and
+            # radiatively inert, which is what every configuration before this
+            # one did; with it the water the column carries changes what the
+            # column radiates, and the loop through temperature closes.
+            edge(
+                VAPOUR_STATE,
+                "radiation",
+                VAPOUR_STATE,
+                edge_type=EdgeType.STATE_DEPENDENCY,
+                units="kg m^-2",
+                equation_ids=("EQ-VAPOUR-BAND-ABSORPTION", "EQ-BEER-LAMBERT-EXTINCTION"),
+                uncertainty_rule=(
+                    "vapour path uncertainty propagates into the window's optical depth"
+                ),
+            )
 
     if clouds:
         for exchanged, units in (
@@ -576,6 +593,7 @@ def radiating_column(
     diffusivity_factor: float | None = None,
     convection: bool = False,
     water: bool = False,
+    radiative_vapour: bool = False,
     cloud: CloudProfile | None = None,
     greenhouse: Any = None,
     volcanic: Any = None,
@@ -615,6 +633,7 @@ def radiating_column(
         couple_clouds=cloud is not None,
         couple_greenhouse=greenhouse is not None,
         couple_volcanic=volcanic is not None,
+        couple_water=radiative_vapour,
     )
     atmosphere = AtmosphericColumnModule(
         n_layers=n_layers,
@@ -730,6 +749,7 @@ def radiating_column(
         deep_ocean=deep_ocean,
         greenhouse=greenhouse is not None,
         volcanic=volcanic is not None,
+        radiative_vapour=radiative_vapour,
         splitting_order=tuple(order),
     )
 
