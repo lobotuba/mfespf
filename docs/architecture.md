@@ -1510,6 +1510,54 @@ rather than discovered in a result.
 
 ## Known limitations of the current kernel
 
+### The C-shaped humidity closure does not converge
+
+Implemented, measured, and left switched off. Charter 3.5: it is in the tree
+because the negative result is worth more than the absence of it.
+
+The constant-mass-flux closure gives one relative humidity for the whole column
+because it assumes `epsilon = delta`. Dropping that needs a second relation, and
+radiative-convective equilibrium supplies one: the environment subsides at
+whatever rate balances its own radiative cooling, so `M = rho |Q| / (Gamma_d -
+Gamma)` is determined rather than chosen, and `d_z M = (epsilon - delta) M` then
+fixes the detrainment. No new parameter, and Romps makes the same argument.
+
+Diagnosed on a fixed profile it works, and produces the observed shape: 0.96 in
+the boundary layer, a minimum of 0.44 near 2 km, climbing to 0.81 by 13 km.
+
+Coupled and run to equilibrium it fails, in two separate ways.
+
+**It does not converge.** The humidity sets the radiative cooling, the cooling
+sets the mass flux, and the closure differentiates that mass flux -- so a
+layer-scale kink feeds back on itself. Refining the grid makes it worse:
+
+| layers | 10 | 20 | 30 | 40 | 60 |
+|---|---|---|---|---|---|
+| surface (K), per-layer gradient | 299.9 | 301.5 | 302.4 | 303.4 | 305.9 |
+| surface (K), gradient over 2 km | 298.5 | 302.1 | 303.2 | 303.6 | 304.9 |
+
+Taking the gradient over a fixed physical depth rather than layer by layer is
+the right thing to do on its own terms -- detrainment belongs to a cloud layer,
+not to a model layer -- and it halves the drift without removing it. The
+equilibrium profile is a sawtooth rather than a C, alternating between the
+zero-detrainment floor of 0.444 and values near saturation, and the fraction of
+layers pinned on that floor grows with resolution. VAL-002 is not satisfied and
+the configuration is therefore not admissible evidence for anything.
+
+**It buys much less than the humidity sensitivity implies.** Holding a uniform
+humidity and varying it, the column moves 13 K between 0.725 and 0.5. The C
+shape moves it 3.7 K, because it *raises* the humidity where the water actually
+is: 42 percent of the column's vapour sits in the lowest three layers, and the
+closure puts those near saturation. It is a free-tropospheric relation being
+asked about a boundary layer, where cumulus mass flux is not what sets the
+humidity -- a validity-domain violation of exactly the kind this framework
+declares and does not check.
+
+So the vertical structure is not, by itself, the seventeen kelvin. What the
+measurement does establish is that a uniform 0.725 is badly wrong in both
+directions at once, and that the fix has to treat the boundary layer as its own
+problem rather than extrapolating a plume relation into it.
+
 ### The evaporating fraction has no slack in it
 
 Recorded under charter 3.5 because it closes an escape route rather than opening

@@ -55,6 +55,9 @@ from mfespf.physics.plume import (
     BULK_PLUME_PARAMETER,
     EVAPORATING_CONDENSATE_FRACTION,
     EVAPORATING_FRACTION_RANGE,
+    bulk_plume_relative_humidity,
+    convective_mass_flux,
+    detrainment_rate,
     equilibrium_relative_humidity,
     fractional_entrainment_rate,
     water_vapour_lapse_rate,
@@ -76,6 +79,8 @@ __all__ = [
     "WaterModule",
     "vapour_state_entry",
 ]
+
+_GAS_CONSTANT_DRY_AIR = value_of("gas_constant_dry_air")
 
 V1 = Version(1, 0, 0)
 
@@ -798,6 +803,8 @@ class PrescribedHumidityModule(Module):
     def initialize(self, initial_state: dict[str, Any], boundary_state: dict[str, Any]) -> None:
         self.vapour = np.zeros(self.n_layers)
         self._specific_humidity = np.zeros(self.n_layers)
+        self._saturation = np.ones(self.n_layers)
+        self._relative_humidity_profile = np.full(self.n_layers, float(self.relative_humidity))
         self._held = None
         self.mark_initialized()
 
@@ -809,7 +816,16 @@ class PrescribedHumidityModule(Module):
         saturation = saturation_specific_humidity(
             np.asarray(temperature, dtype=float), np.asarray(pressure, dtype=float)
         )
-        self._specific_humidity = self.relative_humidity * saturation
+        self._saturation = saturation
+        applied = self._applied_relative_humidity(
+            np.asarray(temperature, dtype=float),
+            np.asarray(pressure, dtype=float),
+            np.asarray(layer_mass, dtype=float),
+        )
+        self._relative_humidity_profile = np.broadcast_to(
+            np.asarray(applied, dtype=float), (self.n_layers,)
+        ).copy()
+        self._specific_humidity = self._relative_humidity_profile * saturation
         vapour = self._specific_humidity * np.asarray(layer_mass, dtype=float)
 
         if self.respond_to_temperature:
@@ -822,6 +838,17 @@ class PrescribedHumidityModule(Module):
             self.vapour = np.array(self._held)
             self._specific_humidity = self.vapour / np.asarray(layer_mass, dtype=float)
         return []
+
+    def _applied_relative_humidity(
+        self, temperature: np.ndarray, pressure: np.ndarray, layer_mass: np.ndarray
+    ) -> np.ndarray | float:
+        """The relative humidity to impose. A single number here, by definition.
+
+        The hook exists so a subclass can *predict* a profile without
+        reimplementing the Clausius-Clapeyron arithmetic that turns one into
+        vapour.
+        """
+        return self.relative_humidity
 
     def precipitable_water(self) -> float:
         return float(np.sum(self.vapour))
@@ -870,9 +897,19 @@ class PrescribedHumidityModule(Module):
                 field_id="atmosphere_relative_humidity",
                 physical_name="relative humidity",
                 symbol="RH",
-                values=np.full(self.n_layers, self.relative_humidity)
+                # Frozen, the relative humidity is no longer the imposed one:
+                # the vapour is held while the temperature moves, so it has to
+                # be recovered from the vapour that is actually there. This
+                # field used to carry the specific humidity in that branch,
+                # which is a different quantity of the same nominal units.
+                values=np.array(self._relative_humidity_profile)
                 if self.respond_to_temperature
-                else np.array(self._specific_humidity),
+                else np.divide(
+                    self._specific_humidity,
+                    self._saturation,
+                    out=np.zeros(self.n_layers),
+                    where=self._saturation > 0.0,
+                ),
                 units="1",
                 **profile,  # type: ignore[arg-type]
             ),
@@ -974,6 +1011,7 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
         n_layers: int = 8,
         bulk_plume_parameter: float = BULK_PLUME_PARAMETER,
         evaporating_fraction: float = EVAPORATING_CONDENSATE_FRACTION,
+        vertical_structure: bool = False,
         respond_to_temperature: bool = True,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
@@ -1001,7 +1039,12 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
             assumptions=(
                 "radiative-convective equilibrium, so the water budget is steady",
                 "one bulk plume stands for the whole cloud ensemble",
-                "constant mass flux with height, which makes the humidity uniform",
+                (
+                    "the convective mass flux is set by clear-sky radiative cooling, "
+                    "and the detrainment rate by its vertical gradient"
+                    if vertical_structure
+                    else "constant mass flux with height, which makes the humidity uniform"
+                ),
                 "no water mass budget: this module moves no water and closes none",
                 "no latent heat, so the energy a real phase change carries is absent",
             ),
@@ -1015,6 +1058,14 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
                 ATMOSPHERE_TEMPERATURE_STATE,
                 "atmosphere_layer_mass",
                 "atmosphere_layer_pressure",
+            )
+            + (
+                # The mass-flux constraint is what turns the closure from one
+                # number into a profile, and the cooling that sets it is the
+                # column's own.
+                ("layer_radiative_heating", "atmosphere_layer_heat_capacity")
+                if vertical_structure
+                else ()
             ),
             produced_outputs=(
                 VAPOUR_STATE,
@@ -1042,9 +1093,16 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
                 "global-mean free troposphere is far drier, being dominated by "
                 "subtropical subsidence no bulk plume represents, so this runs too "
                 "moist by an amount the framework cannot estimate from within.",
-                "One humidity for the whole column, so the observed C-shaped profile is "
-                "absent and the vapour aloft, where the feedback is most sensitive, is "
-                "the least trustworthy part of it.",
+                (
+                    "The closure is a free-tropospheric relation and is applied to the "
+                    "boundary layer as well, where cumulus mass flux is not what sets "
+                    "the humidity; the lowest layers come out nearer saturation than "
+                    "observed."
+                    if vertical_structure
+                    else "One humidity for the whole column, so the observed C-shaped "
+                    "profile is absent and the vapour aloft, where the feedback is most "
+                    "sensitive, is the least trustworthy part of it."
+                ),
                 "No water or latent-energy budget. The distribution is predicted; the "
                 "cycle that would sustain it is not, which is why this module still "
                 "conserves nothing and says so.",
@@ -1073,11 +1131,70 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
         self.n_layers = n_layers
         self.bulk_plume_parameter = bulk_plume_parameter
         self.evaporating_fraction = evaporating_fraction
+        self.vertical_structure = vertical_structure
         self.relative_humidity = relative_humidity
         self.respond_to_temperature = respond_to_temperature
         self.vapour = np.zeros(n_layers)
         self._specific_humidity = np.zeros(n_layers)
         self._held: np.ndarray | None = None
+        self._mass_flux = np.zeros(n_layers)
+
+    def _applied_relative_humidity(
+        self, temperature: np.ndarray, pressure: np.ndarray, layer_mass: np.ndarray
+    ) -> np.ndarray | float:
+        """The humidity profile the bulk plume predicts, height by height.
+
+        The constant-mass-flux form gives one number for the column because it
+        assumes ``epsilon = delta``. Dropping that assumption needs a second
+        relation, and radiative-convective equilibrium supplies it: the
+        environment subsides at whatever rate balances its own radiative
+        cooling, so the convective mass flux is determined rather than chosen,
+        and ``d_z M = (epsilon - delta) M`` then fixes the detrainment rate.
+
+        What comes out is the observed C shape, and it comes out of the same
+        parameter the constant-mass-flux form already used -- no new knob, and
+        nothing calibrated against a temperature record.
+        """
+        if not self.vertical_structure:
+            return self.relative_humidity
+
+        heating = self.input_field("layer_radiative_heating").require_units("W m^-2").values
+        capacity = (
+            self.input_field("atmosphere_layer_heat_capacity").require_units("J m^-2 K^-1").values
+        )
+        cooling = -np.asarray(heating, dtype=float) / np.asarray(capacity, dtype=float)
+
+        # Layer thickness from hydrostatic balance, so no surface pressure is
+        # needed: layer_mass = rho dz with rho = p / (R T).
+        thickness = layer_mass * _GAS_CONSTANT_DRY_AIR * temperature / pressure
+        height = np.cumsum(thickness) - 0.5 * thickness
+
+        lapse_rate = -np.gradient(temperature, height)
+        self._mass_flux = convective_mass_flux(cooling, temperature, pressure, lapse_rate)
+        gamma = water_vapour_lapse_rate(temperature, lapse_rate)
+
+        # Where the profile is not decreasing with height the vapour lapse rate
+        # goes negative and the plume equations have no solution -- there is
+        # nothing there for a plume to do. Common during spin-up, and permanent
+        # in a stratosphere. Those layers are excluded rather than clipped, so
+        # the closure is never evaluated outside its own domain.
+        convecting = (self._mass_flux > 0.0) & (gamma > 0.0)
+        usable = np.where(convecting, gamma, 1.0)
+
+        entrainment = fractional_entrainment_rate(
+            usable, self.bulk_plume_parameter, self.evaporating_fraction
+        )
+        detrainment = detrainment_rate(self._mass_flux, entrainment, height)
+        humidity = bulk_plume_relative_humidity(
+            entrainment=entrainment,
+            detrainment=detrainment,
+            vapour_lapse_rate=usable,
+            evaporating_fraction=self.evaporating_fraction,
+        )
+        # Outside the convecting layer the closure has nothing to say and the
+        # constant-mass-flux value stands in. That is an admission, not a
+        # result: see the module's known limitations.
+        return np.clip(np.where(convecting, humidity, self.relative_humidity), 0.0, 1.0)
 
     def implied_entrainment_rate(self, temperature: float, lapse_rate: float) -> float:
         """The dimensional entrainment rate this closure stands for, in m^-1.

@@ -182,6 +182,19 @@ saying out loud.
   sentence, and the measurement's sedimentation efficiency is precisely the term
   the premise assumed it excluded. The hypothesis cost nothing to check and
   would have cost a great deal to build on.
+- **A closure that differentiates a field it also controls will amplify grid
+  noise.** The profile humidity takes the gradient of a mass flux derived from
+  the radiative cooling that the humidity itself sets, so a layer-scale kink
+  feeds back on itself and the surface temperature drifts upward with resolution
+  instead of settling. Differentiating over a fixed physical depth rather than
+  per layer is both physically right and half the cure; the rest is the
+  clipping. Run the resolution study on any closure with a derivative in it
+  before believing a single-resolution result (VAL-002).
+- **A relation extrapolated past its own domain can move a result the wrong
+  way.** The bulk plume describes a free troposphere and was applied to the
+  ground, where it returns 0.96 against an observed 0.8 -- and since 42 percent
+  of the column's water is in the lowest three layers, giving the column its
+  C shape made it wetter overall. The error was not in the closure.
 - **The cloudy column is the clear column plus the cloud.** Build the cloudy
   solve by adding the cloud to the base optical depths, never by passing the
   cloud's alone -- that overwrites them and deletes the water vapour from under

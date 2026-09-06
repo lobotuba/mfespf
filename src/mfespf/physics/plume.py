@@ -110,6 +110,8 @@ __all__ = [
     "EVAPORATING_CONDENSATE_FRACTION",
     "EVAPORATING_FRACTION_RANGE",
     "bulk_plume_relative_humidity",
+    "convective_mass_flux",
+    "detrainment_rate",
     "entraining_lapse_rate",
     "equilibrium_relative_humidity",
     "fractional_entrainment_rate",
@@ -121,6 +123,17 @@ _R_DRY = value_of("gas_constant_dry_air")
 _R_VAPOUR = value_of("gas_constant_water_vapour")
 _L_VAPORIZATION = value_of("water_latent_heat_vaporization_273")
 _GRAVITY = value_of("earth_standard_gravity")
+
+#: The dry adiabatic lapse rate, and the stability floor below which no steady
+#: subsidence balances a given radiative cooling.
+_DRY_LAPSE_RATE = _GRAVITY / _CP_DRY
+_MINIMUM_STABILITY = 1.0e-4
+
+#: Half-depth, in metres, over which the mass flux's logarithmic gradient is
+#: taken. A physical scale rather than a numerical one: detrainment belongs to a
+#: cloud layer, and Romps puts the moistening lengthscale near two kilometres.
+#: Fixing it in metres is what makes the closure grid-convergent.
+_DETRAINMENT_LENGTHSCALE = 2000.0
 
 #: The dimensionless bulk-plume parameter ``a = epsilon (1 - alpha) / gamma``.
 #: Romps (2016) for Earth's tropics; Seeley and Wordsworth (2023) state that
@@ -298,3 +311,96 @@ def entraining_lapse_rate(
     numerator = 1.0 + a + (_L_VAPORIZATION * q_s) / (_R_DRY * T)
     denominator = 1.0 + a + (_L_VAPORIZATION**2 * q_s) / (_CP_DRY * _R_VAPOUR * T**2)
     return (_GRAVITY / _CP_DRY) * numerator / denominator
+
+
+def convective_mass_flux(
+    radiative_cooling: np.ndarray,
+    temperature: np.ndarray,
+    pressure: np.ndarray,
+    lapse_rate: np.ndarray,
+) -> np.ndarray:
+    """The convective mass flux implied by clear-sky radiative cooling, kg m^-2 s^-1.
+
+    In radiative-convective equilibrium the environment is not free to choose
+    how fast it subsides. It sinks at whatever rate makes adiabatic compression
+    balance its radiative cooling::
+
+        -w (Gamma_d - Gamma) + Q = 0
+
+    and mass continuity then requires the convective updraught to carry the same
+    mass back up, so ``M = rho |Q| / (Gamma_d - Gamma)``.
+
+    This is the constraint that turns the bulk-plume closure from a
+    one-parameter relation into a profile. Romps' derivation notes that the mass
+    flux -- and therefore ``d_z M = e - d`` -- is "largely constrained by
+    clear-sky radiative cooling"; this is that constraint, evaluated rather than
+    assumed. Nothing here is fitted: the cooling comes from the radiative
+    transfer the column already solves.
+
+    ``radiative_cooling`` is a positive-definite cooling rate in K s^-1. Where
+    the column is being heated rather than cooled, or where the stratification
+    approaches the dry adiabat, no steady subsidence balances it and the mass
+    flux is zero -- which is the top of the convecting layer.
+    """
+    cooling = np.asarray(radiative_cooling, dtype=float)
+    T = np.asarray(temperature, dtype=float)
+    p = np.asarray(pressure, dtype=float)
+    stability = _DRY_LAPSE_RATE - np.asarray(lapse_rate, dtype=float)
+
+    density = p / (_R_DRY * T)
+    flux = np.zeros_like(cooling)
+    active = (cooling > 0.0) & (stability > _MINIMUM_STABILITY)
+    flux[active] = density[active] * cooling[active] / stability[active]
+    return flux
+
+
+def detrainment_rate(
+    mass_flux: np.ndarray,
+    entrainment: np.ndarray,
+    height: np.ndarray,
+) -> np.ndarray:
+    """``delta = epsilon - d_z ln M`` in m^-1, from ``d_z M = (epsilon - delta) M``.
+
+    The bulk-plume mass budget gives the *difference* between the rates, not
+    each of them, so one more relation is needed and the entrainment rate
+    supplies it. What comes out is the reason the observed humidity profile is
+    C-shaped: where the mass flux is falling off with height -- the upper
+    troposphere, as convection runs out of buoyancy -- detrainment exceeds
+    entrainment, the environment is moistened by saturated air, and the relative
+    humidity climbs back towards one.
+
+    Detrainment cannot be negative: a plume that is not detraining is simply not
+    detraining. Where the mass budget would ask for less than zero it is clipped,
+    and that clipping is the closure admitting the profile is entraining faster
+    than the mass flux supports.
+    """
+    M = np.asarray(mass_flux, dtype=float)
+    eps = np.broadcast_to(np.asarray(entrainment, dtype=float), M.shape)
+    z = np.asarray(height, dtype=float)
+
+    log_gradient = np.zeros_like(M)
+    active = M > 0.0
+    if np.count_nonzero(active) >= 2:
+        # Differentiated in the log, so the result is the fractional rate the
+        # bulk-plume equations are written in rather than an absolute gradient
+        # -- and over a fixed physical depth rather than layer by layer.
+        #
+        # That distinction decides whether the closure converges. Detrainment is
+        # a property of a cloud layer, whose depth is set by the physics at
+        # around a kilometre or two (Romps puts the moistening lengthscale 1/δ
+        # near 2 km), not by whatever thickness the grid happens to use. Taken
+        # layer by layer, the derivative differentiates the noise in a mass flux
+        # that is itself derived from the radiative cooling the humidity
+        # controls, so a kink feeds back on itself: refining the grid then makes
+        # the answer worse rather than better, with more and more layers driven
+        # onto the zero-detrainment floor. Measured, the surface temperature ran
+        # away from 299.9 K at ten layers to 305.9 K at sixty.
+        za, la = z[active], np.log(M[active])
+        slopes = np.zeros_like(la)
+        for i, centre in enumerate(za):
+            window = np.abs(za - centre) <= _DETRAINMENT_LENGTHSCALE
+            if np.count_nonzero(window) >= 2:
+                slopes[i] = np.polyfit(za[window], la[window], 1)[0]
+        log_gradient[active] = slopes
+
+    return np.maximum(eps - log_gradient, 0.0)

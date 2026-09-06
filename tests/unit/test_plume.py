@@ -32,6 +32,8 @@ from mfespf.physics.plume import (
     EVAPORATING_CONDENSATE_FRACTION,
     EVAPORATING_FRACTION_RANGE,
     bulk_plume_relative_humidity,
+    convective_mass_flux,
+    detrainment_rate,
     entraining_lapse_rate,
     equilibrium_relative_humidity,
     fractional_entrainment_rate,
@@ -449,3 +451,54 @@ def test_freezing_the_vapour_freezes_the_lapse_rate_it_sets():
     # And the frozen target is the one the *unfrozen* column started from, not
     # some other profile: a control that begins somewhere else is not a control.
     assert np.allclose(captured, entraining_lapse_rate(PROFILE, PRESSURE, BULK_PLUME_PARAMETER))
+
+
+@pytest.mark.req("WAT-002", "VAL-001")
+def test_constant_mass_flux_recovers_the_uniform_humidity_exactly():
+    """The general profile form must collapse to the one-number case.
+
+    An analytic identity, not a regression check. Where the mass flux does not
+    vary with height the mass budget gives ``delta = epsilon``, and substituting
+    ``epsilon = a gamma / (1 - alpha)`` into the general relation reduces it to
+    ``RH = (a + alpha) / (1 + a)`` with the gammas cancelling. So the profile
+    closure and the uniform one must agree to machine precision in that limit,
+    for any gamma.
+    """
+    height = np.linspace(0.0, 12000.0, 25)
+    mass_flux = np.full_like(height, 3.0e-3)
+    gamma = np.linspace(3.0e-4, 8.0e-4, height.size)
+    alpha, a = 0.67, 0.2
+
+    entrainment = fractional_entrainment_rate(gamma, a, alpha)
+    detrainment = detrainment_rate(mass_flux, entrainment, height)
+    assert detrainment == pytest.approx(entrainment, rel=1e-12)
+
+    profile = bulk_plume_relative_humidity(
+        entrainment=entrainment,
+        detrainment=detrainment,
+        vapour_lapse_rate=gamma,
+        evaporating_fraction=alpha,
+    )
+    uniform = equilibrium_relative_humidity(a, alpha)
+    assert profile == pytest.approx(np.full(height.size, uniform), rel=1e-12)
+
+
+@pytest.mark.req("WAT-002", "EQR-002")
+def test_the_mass_flux_follows_the_radiative_cooling_and_stops_without_it():
+    """``M = rho |Q| / (Gamma_d - Gamma)``, and zero where nothing is cooling."""
+    temperature = np.array([290.0, 280.0, 270.0, 260.0])
+    pressure = np.array([9.0e4, 8.0e4, 7.0e4, 6.0e4])
+    lapse = np.full(4, 6.5e-3)
+
+    cooling = np.array([2.0e-5, 1.0e-5, 0.0, -1.0e-5])
+    flux = convective_mass_flux(cooling, temperature, pressure, lapse)
+
+    # No steady subsidence balances a layer that is not cooling.
+    assert flux[2] == 0.0 and flux[3] == 0.0
+    assert flux[0] > 0.0 and flux[1] > 0.0
+    # Linear in the cooling rate at fixed density and stability.
+    scaled = convective_mass_flux(2.0 * cooling, temperature, pressure, lapse)
+    assert scaled[0] == pytest.approx(2.0 * flux[0], rel=1e-12)
+
+    # And the closure never asks for negative detrainment.
+    assert np.all(detrainment_rate(flux, np.full(4, 2.0e-4), np.array([0.0, 1e3, 2e3, 3e3])) >= 0.0)
