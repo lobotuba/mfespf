@@ -1567,11 +1567,30 @@ entrainment *largest* low down.
 
 Replacing it needs an independent entrainment law, and there is not one to
 have. Romps' general model takes `epsilon` and `delta` from cloud-resolving
-output rather than deriving them; his own direct measurement finds the
+output rather than deriving them, and his own direct measurement finds the
 bulk-plume `epsilon` underestimates the true entrainment by about a factor of
-two; and the rates diagnosed from cloud-resolving models increase with
-resolution, so the quantity is not resolution-independent in the source
-literature either. The grid divergence above is not only a numerical artefact.
+two.
+
+What that does *not* mean is that entrainment is an ill-posed quantity. The
+diagnosed rates rise with model resolution, and it is tempting to read that as
+the physics being resolution-dependent; it is not. The bulk-plume diagnostic is
+`epsilon = -d_z phi_c / (phi_c - phi_e)`. The numerator is the core's physical
+dilution. The denominator is a contrast between two populations whose boundary
+is a *definition*, and refining the grid moves it: the cloud's outer,
+partially-mixed shell is reclassified from core to environment, `phi_e` moves
+towards `phi_c`, and `epsilon` inflates while the mixing is unchanged. Zhao et
+al. (2024) frame the same thing from the other side, as the scale-awareness
+requirement that subgrid convective transport fall to zero as the flow becomes
+explicitly resolved.
+
+So the underlying mixing rate is a well-defined, resolution-independent
+quantity. It is only harder to measure than the published spread suggests, and
+the grid divergence above is entirely this implementation's own.
+
+It also raises a question this closure has not asked: the relative humidity the
+bulk plume predicts is the humidity of the environment *as the bulk plume
+partitions it*, which -- by the same argument -- is not obviously the clear-sky
+humidity that the radiative transfer wants to consume. Unexamined here.
 
 Taking `epsilon(z)` from simulations would not violate INF-003 -- no temperature
 record is involved -- but it costs the thing that justified this closure. The

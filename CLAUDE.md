@@ -182,6 +182,14 @@ saying out loud.
   sentence, and the measurement's sedimentation efficiency is precisely the term
   the premise assumed it excluded. The hypothesis cost nothing to check and
   would have cost a great deal to build on.
+- **A quantity that varies with resolution may be a moving definition rather
+  than moving physics.** Diagnosed entrainment rates climb with model
+  resolution, which reads as the physics being scale-dependent. It is not: the
+  bulk-plume rate divides the core's dilution by a core-to-environment contrast,
+  and refining the grid reclassifies the cloud's partially-mixed shell as
+  environment, shrinking the denominator. Before inheriting someone else's
+  resolution dependence as an excuse for your own, check whether their
+  diagnostic's boundary moved.
 - **Do not import a relation derived under the assumption you are dropping.**
   `a = epsilon (1 - alpha) / gamma` is defined where `epsilon = delta`. Using it
   to set `epsilon` in a variable-mass-flux column carried the constant-mass-flux

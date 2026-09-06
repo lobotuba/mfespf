@@ -163,12 +163,14 @@ graph edge, not just a function.
 ### The humidity's vertical structure is closed, not pending
 
 The general form is implemented, tested and wired behind
-`plume_vertical_structure`, and it stays **off**. It does not converge, and the
-reason is not numerical: closing it needs an independent entrainment law, and
-the literature does not have one to give. Romps takes the rates from
-cloud-resolving output, his direct measurement finds the bulk-plume rate too
-small by about a factor of two, and the diagnosed rates rise with model
-resolution.
+`plume_vertical_structure`, and it stays **off**. It does not converge -- that part is this
+implementation's own -- and closing it properly needs an independent entrainment
+law that the literature does not have to give. Romps takes the rates from
+cloud-resolving output, and his direct measurement finds the bulk-plume rate too
+small by about a factor of two. The published rates also rise with model
+resolution, but that is a diagnostic artefact rather than physics: the core and
+environment populations are separated by a definition that moves with the grid.
+The mixing rate itself is well posed.
 
 Supplying those profiles would be permitted -- no temperature record is involved
 -- and would still be the wrong trade. This closure is here because one number
