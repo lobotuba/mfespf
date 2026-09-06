@@ -131,24 +131,6 @@ domain to convecting conditions. The third is much the cheapest and is arguably
 what the evidence already supports. Everything else in this section is
 downstream of the choice.
 
-### The evaporating fraction in Romps' own definition
-
-The cheapest genuine research item here, and it may decide whether the closure
-above is recoverable.
-
-Romps' `alpha` is the fraction of condensate that evaporates **at the height it
-formed**. The measured precipitation efficiencies used to set it — Langhans, Yeo
-and Romps (2015) — count the fraction of condensate that reaches the surface,
-which also excludes detrained anvil ice and rain evaporating below cloud base.
-So `1 - PE` is an *upper bound* on `alpha`, not `alpha`, and the size of the gap
-is unknown.
-
-It matters because the column fails at the upper bound and the entrainment
-identity fails below it. If Romps' `alpha` is materially smaller than `1 - PE`,
-the window between the two constraints may reopen. If it is not, the refutation
-stands on firmer ground than it currently does. Either outcome is worth having,
-and neither needs code.
-
 ### A radiative criterion for the convective top
 
 Convection currently stops where the profile becomes stable with respect to the

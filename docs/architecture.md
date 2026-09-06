@@ -1510,6 +1510,49 @@ rather than discovered in a result.
 
 ## Known limitations of the current kernel
 
+### The evaporating fraction has no slack in it
+
+Recorded under charter 3.5 because it closes an escape route rather than opening
+one, and because the hypothesis it refutes was this project's own.
+
+The bulk-plume column fails across the whole measured range of the evaporating
+condensate fraction, and the entrainment floor sits above where it fails, so the
+two literature constraints do not overlap. The proposed escape was that the two
+constraints might not be measuring the same quantity: Romps' `alpha` is the
+fraction of condensate evaporating *at the height it formed*, whereas a measured
+precipitation efficiency counts everything reaching the surface, which also
+excludes detrained anvil ice and rain evaporating below cloud base. If so,
+`1 - PE` would be an upper bound on `alpha` rather than `alpha`, and a smaller
+true value might reopen the window.
+
+It does not. Romps states the identity directly (Les Houches lectures, section
+1.11): "alpha the fraction of condensates formed at height z that evaporate into
+the environment. For analytic solubility, we will assume that this fraction of
+condensates formed at z also evaporates into the environment at height z. Note
+that the precipitation efficiency PE is equal to 1 - alpha." The
+same-height assumption governs *where* the moisture is deposited, for analytic
+solubility. It does not restrict *how much*.
+
+The measurement agrees from the other side. Langhans, Yeo and Romps (2015)
+define `PE = FE x SE`, the formation efficiency times the sedimentation
+efficiency, and report `0.54 x 0.62 = 0.33` and `0.69 x 0.55 = 0.38`. The
+sedimentation efficiency is exactly the rain-evaporating-before-the-surface term
+that the hypothesis assumed was excluded: 38 to 45 percent of hydrometeors do
+not make it down, and that loss is inside `1 - PE`. Both sides count the same
+thing -- condensate returning to vapour -- so `alpha = 1 - PE`, and the
+refutation of the global-mean configuration stands on firmer ground than before.
+
+Two things worth keeping from the exercise. Romps' theory gives `alpha < RH` and
+therefore `PE > 1 - RH`, a self-consistency check the closure could make and
+does not: at `alpha = 0.67` it returns `RH = 0.725`, which passes, but narrowly.
+And the same-height assumption *is* wrong in a way that matters elsewhere --
+roughly 40 percent of the loss happens during sedimentation, below the formation
+height, so the closure moistens too high. That bears on the missing C shape in
+the humidity profile rather than on the magnitude of `alpha`.
+
+The numbers are also from simulations of cumulus congestus, not of deep tropical
+convection, which is a validity-domain caveat on the measurement itself.
+
 ### Clouds cannot repair the global-mean column's warm bias
 
 Recorded under charter 3.5 because it closes a proposal rather than opening one.

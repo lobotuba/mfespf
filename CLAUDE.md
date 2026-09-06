@@ -175,6 +175,13 @@ saying out loud.
   because an internal redistribution had quietly become a boundary crossing.
   Publish the flux and declare the transfer on each side; the reconciler exists
   to catch exactly this and it did.
+- **Check whether two quantities differ before building on the difference.** A
+  research item was filed on the premise that Romps' evaporating fraction and a
+  measured precipitation efficiency count different things, and that the gap
+  might rescue a refuted configuration. Romps defines `PE = 1 - alpha` in one
+  sentence, and the measurement's sedimentation efficiency is precisely the term
+  the premise assumed it excluded. The hypothesis cost nothing to check and
+  would have cost a great deal to build on.
 - **The cloudy column is the clear column plus the cloud.** Build the cloudy
   solve by adding the cloud to the base optical depths, never by passing the
   cloud's alone -- that overwrites them and deletes the water vapour from under
