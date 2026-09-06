@@ -777,8 +777,12 @@ class SpectralRadiationModule(Module):
             )
             contributions.append(self.volcanic_optics)
 
+        # Kept, not just written into ``common``: the cloudy solve needs these
+        # too. Everything in the clear sky is also present under the cloud.
+        base_optics: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
         if contributions:
-            absorption, scattering, asymmetry = combine_scatterers(*contributions)
+            base_optics = combine_scatterers(*contributions)
+            absorption, scattering, asymmetry = base_optics
             common["absorption_optical_depth"] = absorption
             common["scattering_optical_depth"] = scattering
             common["asymmetry"] = asymmetry
@@ -795,17 +799,17 @@ class SpectralRadiationModule(Module):
         else:
             fraction, optics = cloud
             self._cloud_fraction = fraction
-            # Cloud droplets and volcanic aerosol occupy the same layers, so
-            # their optical depths add and the layer's asymmetry is the
-            # scattering-weighted mean of theirs. Passing the cloud's properties
-            # alone would silently remove the aerosol from under the cloud.
+            # Cloud droplets sit in the same layers as the water vapour and the
+            # volcanic aerosol, so all three optical depths add and the layer's
+            # asymmetry is the scattering-weighted mean. The cloudy column must
+            # be the clear column *plus* the cloud: passing the cloud's
+            # properties alone overwrites the base optics rather than adding to
+            # them, which deletes the vapour from under the cloud and lets the
+            # cloudy fraction radiate to space through an atmosphere that is not
+            # there. That reverses the sign of the longwave cloud effect.
             absorption, scattering, asymmetry = combine_scatterers(
                 (optics.absorption, optics.scattering, optics.asymmetry),
-                *(
-                    (self.volcanic_optics,)
-                    if self.couple_volcanic and self.volcanic_optical_depth > 0.0
-                    else ()
-                ),
+                *((base_optics,) if base_optics is not None else ()),
             )
             overcast = solve_column_radiation(
                 **{

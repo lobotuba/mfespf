@@ -194,11 +194,35 @@ least trustworthy part of the current answer.
 
 Clouds are prescribed, so there is no cloud feedback of any kind, and the
 condensate the water module produces precipitates immediately rather than
-becoming the cloud. Together with the global-mean column above, this is why no
-sensitivity this model produces should be trusted: two of the three feedbacks
-that set the real number are absent or refuted, and the third — water vapour —
-has no working implementation in a global-mean column.
+becoming the cloud.
 
-This is recorded rather than scheduled. Making clouds respond is a larger piece
-of work than anything else in this file, and the honest order is to settle what
-the column *is* before deciding what should respond inside it.
+What has been ruled out is clouds as the *remedy for the warm bias*. The column
+carries Earth's planetary albedo, 0.30, on its surface, so the clouds' shortwave
+cooling is already present under another name; the same column at a true surface
+albedo of 0.12 runs at 338 K. Making the cloud explicit at matched absorbed
+sunlight adds its longwave warming and leaves the column 0.9 K *warmer*, and a
+feedback cannot move a base state in any case. See
+[`architecture.md`](architecture.md).
+
+What remains genuinely open is the cloud module's fidelity. Its single liquid
+deck produces a shortwave effect of -65 W m^-2 against an observed -47, and a
+longwave effect of +5 against an observed +27, because Earth's longwave cloud
+effect comes mostly from high cold ice cloud. A configuration that reproduced
+both components would be worth having on its own terms, and it is a prerequisite
+for any later cloud response -- but it should be built to match the observed
+components, not to move the surface temperature.
+
+The honest order is still to settle what the column *is* before deciding what
+should respond inside it, and the global-mean question above is that decision.
+
+### Surface albedo is carrying the clouds
+
+Filed separately because it outlives the cloud question. `shortwave_albedo`
+defaults to 0.30, which is a planetary albedo standing in a surface's place. It
+is a defensible idealisation and it is nowhere declared as one: the parameter is
+named for the surface, documented as the surface, and worth about 33 K.
+
+Any configuration that acquires real clouds has to drop it to something like
+0.12 in the same change, or count their shortwave effect twice. That coupling
+between two parameters in different modules is exactly what a validity domain
+would record, which is the item at the top of this file.

@@ -244,3 +244,55 @@ def test_unphysical_cloud_states_are_refused():
         CloudProfile(liquid_water_path=np.zeros(3), ice_water_path=np.zeros(4))
     with pytest.raises(ConfigurationError, match="outside a column"):
         single_layer_cloud(n_layers=3, layer=7, liquid_water_path=0.01, fraction=1.0)
+
+
+@pytest.mark.req("RAD-002", "CLD-002")
+def test_the_cloudy_column_keeps_the_water_vapour_underneath_the_cloud():
+    """The cloudy solve must be the clear solve *plus* the cloud.
+
+    Regression. The cloudy column was solved by overwriting the base optical
+    depths with the cloud's rather than adding to them, which deleted the water
+    vapour from the cloudy fraction of the column. The cloudy fraction then
+    radiated to space through an atmosphere that was not there, and the longwave
+    cloud effect came out *negative* -- a cloud that increased the outgoing
+    longwave, which no cloud in a profile cooling with height can do.
+
+    It survived because no test and no configuration had put a cloud and an
+    active vapour continuum in the same column. Carbon dioxide entered through
+    ``absorption_coefficient``, which both solves receive, so only vapour was
+    lost -- and with vapour active the band's flat background is switched off,
+    leaving the cloudy fraction very nearly bare.
+    """
+    from mfespf.physics.greenhouse import PrescribedGreenhouseModule, greenhouse_grid
+    from mfespf.run.column_configurations import radiating_column
+
+    grid = greenhouse_grid()
+    n_layers = 12
+    kernel = radiating_column(
+        run_id="CLOUD-VAPOUR-REGRESSION",
+        purpose="a cloud must not increase the outgoing longwave of a moist column",
+        absorption_coefficient=np.zeros(grid.n_bins),
+        grid=grid,
+        n_layers=n_layers,
+        convection=True,
+        surface_based_convection=True,
+        convective_target="entraining_plume",
+        plume_humidity=True,
+        radiative_vapour=True,
+        # Overcast and low: the whole column's vapour then sits above the cloud,
+        # which is the arrangement the deletion showed up in most strongly.
+        cloud=single_layer_cloud(n_layers=n_layers, layer=1, liquid_water_path=0.03, fraction=1.0),
+        greenhouse=PrescribedGreenhouseModule(concentration=284.7),
+        master_dt=86400.0,
+        initial_surface_temperature=300.0,
+        initial_air_temperature=295.0,
+    )
+    outputs = kernel.run(30).steps[-1].outputs
+
+    longwave = float(outputs["cloud_longwave_radiative_effect"].values)
+    shortwave = float(outputs["cloud_shortwave_radiative_effect"].values)
+
+    # A cloud colder than the surface traps longwave; it never releases more.
+    assert longwave > 0.0, f"cloud raised the outgoing longwave by {-longwave:.1f} W m^-2"
+    # And the shortwave still cools, so the sign convention is not simply flipped.
+    assert shortwave < 0.0

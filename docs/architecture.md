@@ -1106,6 +1106,38 @@ Linearity is what keeps the mix legitimate: the transfer is linear in its source
 terms, so the mixed fluxes are still a consistent solution of the same budget
 and the flux divergence closes identically after mixing.
 
+### The cloudy column is the clear column plus the cloud
+
+That phrasing is load-bearing, and the code did not obey it for as long as the
+cloud existed. The cloudy solve was assembled by *overwriting* the base optical
+depths with the cloud's rather than adding to them, which deleted the water
+vapour from the cloudy fraction of the column. The cloudy fraction then radiated
+to space through an atmosphere that was not there.
+
+The symptom was a longwave cloud effect with the wrong sign: a cloud that
+*increased* the outgoing longwave, which no cloud in a profile cooling with
+height can do. Measured across cloud height in a moist column it ran from
+-34.7 W m^-2 for a cloud at the surface to +11.4 W m^-2 for one near the
+tropopause, growing more negative the more vapour lay above the cloud -- the
+signature of the missing absorber rather than of any cloud physics. After the
+fix the same sweep runs -0.3 to +16.5 and rises monotonically with height, which
+is the expected ordering: a higher, colder cloud traps more.
+
+Two things kept it alive. Carbon dioxide enters through
+``absorption_coefficient``, which *both* solves receive, so only the vapour was
+lost -- and with vapour active the band's flat background is deliberately
+switched off, because the infrared background is then the vapour itself. The
+cloudy fraction of a moist column was therefore very nearly bare. And no test
+and no configuration had ever put a cloud and an active vapour continuum in the
+same column: the cloud tests ran dry, the vapour work ran clear, and each passed
+in the half of the space where the defect is invisible. No registered claim used
+a cloudy configuration, so nothing published depended on it.
+
+The comment above the code stated the correct rule the whole time. It said that
+water vapour and volcanic aerosol are in the clear sky as well as under the
+cloud, and the volcanic term was passed to the cloudy solve; the vapour was not.
+A comment describing an invariant is not the same as a test asserting it.
+
 ### Reporting the components before the net
 
 `CRE_sw` and `CRE_lw` have opposite signs and comparable magnitudes, so the net
@@ -1477,6 +1509,38 @@ That is the intent: an incomplete declaration is caught before initialisation
 rather than discovered in a result.
 
 ## Known limitations of the current kernel
+
+### Clouds cannot repair the global-mean column's warm bias
+
+Recorded under charter 3.5 because it closes a proposal rather than opening one.
+The bulk-plume column runs about 17 K too warm, and the obvious remedy is that
+clouds cool. Measured, they do not help here, for a reason that is a property of
+the configuration rather than of clouds.
+
+The column's surface reflectance defaults to 0.30. That is Earth's *planetary*
+albedo, which already contains the clouds; Earth's actual surface reflects about
+0.12. So the clouds' shortwave cooling is already in the column, applied at the
+ground. The size of the substitution is measurable: the same column at a true
+surface albedo of 0.12 with no cloud equilibrates at 338 K rather than 305 K.
+
+Replacing the shortcut honestly -- surface at 0.12, an explicit cloud reflecting
+the difference -- leaves the absorbed sunlight where it was and *adds* the
+cloud's longwave warming, which the shortcut never contained. At matched
+reflection the explicit-cloud column is 306.1 K against the shortcut's 305.2 K:
+warmer by 0.9 K, not cooler. The 17 K survives clouds intact.
+
+A cloud *feedback* cannot help either, for a separate reason. A feedback is zero
+at the base state by construction; it changes the response to a forcing, not the
+equilibrium the column sits at. And the assessed sign is positive -- Sherwood et
+al. (2020) give +0.45 W m^-2 K^-1 -- so making clouds respond would amplify the
+warming rather than damp it.
+
+None of which says the cloud module is adequate. Its single liquid deck gives a
+shortwave effect of -65 W m^-2 against Earth's -47 and a longwave effect of
++5 W m^-2 against Earth's +27, because most of Earth's longwave cloud effect
+comes from high cold ice cloud that one mid-level liquid layer cannot represent.
+That is a real gap. It is just not the gap that the 17 K is in.
+
 
 Kept current rather than accumulated: a limitation that has since been removed
 is deleted from this list, and where a stage removed one the entry says so.

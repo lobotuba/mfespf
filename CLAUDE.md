@@ -175,6 +175,18 @@ saying out loud.
   because an internal redistribution had quietly become a boundary crossing.
   Publish the flux and declare the transfer on each side; the reconciler exists
   to catch exactly this and it did.
+- **The cloudy column is the clear column plus the cloud.** Build the cloudy
+  solve by adding the cloud to the base optical depths, never by passing the
+  cloud's alone -- that overwrites them and deletes the water vapour from under
+  the cloud, which reverses the sign of the longwave cloud effect. It survived
+  because carbon dioxide travels by a different route that both solves receive,
+  and because no test had put a cloud and an active vapour continuum in the same
+  column: the cloud tests ran dry and the vapour work ran clear. Where two
+  couplings have never been switched on together, neither one's tests cover the
+  pair.
+- **A planetary albedo on a surface is a cloud you have already counted.** The
+  column's 0.30 is worth about 33 K and is doing the clouds' job at the ground,
+  so adding real clouds without dropping it counts their cooling twice.
 - **Optical properties describe a layer, not a contributor.** Cloud droplets and
   volcanic aerosol scatter in the same layers; combine them with
   `combine_scatterers`, which weights asymmetry by how much each one scatters.
