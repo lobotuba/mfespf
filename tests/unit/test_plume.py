@@ -110,26 +110,35 @@ def test_relative_humidity_rises_with_entrainment_and_saturates():
 
 
 @pytest.mark.req("CLM-003", "INF-003", "EQR-004")
-def test_the_predicted_humidity_lands_in_the_observed_range():
-    """The falsification test: nothing was fitted, so this could have failed.
+def test_the_predicted_humidity_matches_the_regime_the_closure_describes():
+    """The falsification test, against the right population -- which it was not.
 
-    ``a`` comes from the CAPE and lapse-rate literature and ``alpha`` is a
-    declared assumption; neither was chosen to make the humidity come out
-    right, and no temperature record touched either. The observed free
-    troposphere sits near a third to a half of saturation, so a prediction
-    outside that would refute the closure as used here rather than call for a
-    tuning pass.
+    Both parameters come from measurement and neither was chosen to make the
+    humidity come out right, so this can fail. It is the comparison itself that
+    had to be corrected: an earlier version of this test asserted 0.30 to 0.50,
+    the relative humidity of the free troposphere *globally*, and passed.
 
-    The range over the assumed evaporating fraction is checked too, because a
-    prediction that only lands when the assumption is at its midpoint has not
-    really landed.
+    That was the wrong reference. This is a radiative-convective closure, and
+    the global figure is dominated by the subtropical dry zones, which are
+    maintained by large-scale subsidence and last-saturation dynamics that no
+    bulk plume represents. The population it describes is a convecting column,
+    where cloud-resolving simulations put the free-tropospheric humidity near
+    eighty percent -- Singh and O'Gorman took eighty as a constant for exactly
+    this reason. A test can pass and still be evidence of nothing, which is what
+    the previous one was.
     """
     predicted = equilibrium_relative_humidity()
-    assert 0.30 < predicted < 0.50
+    assert 0.60 < predicted < 0.90
 
     low, high = EVAPORATING_FRACTION_RANGE
     spread = [equilibrium_relative_humidity(BULK_PLUME_PARAMETER, a) for a in (low, high)]
-    assert 0.2 < spread[0] < spread[1] < 0.65  # wide, and stated rather than hidden
+    assert 0.60 < spread[0] < spread[1] < 0.90
+
+    # The bound that matters for this framework: a convecting-column humidity
+    # applied to a global-mean column is too moist, not too dry. That is the
+    # opposite of the shortfall the transport scheme had, and it is a bias in a
+    # known direction rather than an unknown one.
+    assert predicted > 0.50
 
 
 @pytest.mark.req("WAT-002", "ATM-002")
@@ -284,8 +293,9 @@ def test_the_plume_module_derives_its_humidity_rather_than_taking_one():
         "predicted_from_the_bulk_plume_water_budget"
     )
 
-    wetter = EntrainingPlumeHumidityModule(n_layers=N_LAYERS, evaporating_fraction=0.5)
-    assert wetter.relative_humidity > module.relative_humidity
+    wetter = EntrainingPlumeHumidityModule(n_layers=N_LAYERS, evaporating_fraction=0.8)
+    drier = EntrainingPlumeHumidityModule(n_layers=N_LAYERS, evaporating_fraction=0.4)
+    assert drier.relative_humidity < module.relative_humidity < wetter.relative_humidity
 
     # It still moves no water, and the contract has to keep saying so.
     assert module.contract.conserved_quantities == ()
@@ -319,21 +329,33 @@ def test_the_plume_humidity_follows_clausius_clapeyron():
     assert np.array_equal(first, later)
 
 
-@pytest.mark.req("EQR-004", "CLM-003")
-def test_the_implied_entrainment_rate_is_reported_even_though_it_disagrees():
-    """A published check the closure does not currently pass, kept visible.
+@pytest.mark.req("EQR-004", "CLM-003", "VAL-001")
+def test_the_implied_entrainment_rate_agrees_with_the_simulations():
+    """The check that caught the evaporating fraction being wrong.
 
-    Cloud-resolving simulations diagnose bulk-plume entrainment rates of
-    roughly 0.2 to 0.8 per kilometre. The parameter pair used here implies
-    something several times smaller, so either the pair or the definitions
-    disagree with that literature. The module reports the number rather than
-    burying it, and the equation registry carries the disagreement as a known
-    failure mode; this test exists so that neither can quietly stop being true.
+    ``a = epsilon PE / gamma`` ties the three together, so a parameter pair
+    chosen from humidity considerations can still be tested against entrainment
+    rates it was not derived from. Cloud-resolving simulations diagnose roughly
+    0.2 to 0.8 per kilometre for bulk plumes.
+
+    At the measured precipitation efficiency the closure gives 0.198 per
+    kilometre -- the bottom edge of that range, not comfortably inside it, and
+    worth saying so. At the value previously assumed it gave 0.09, a factor of
+    two below the bottom, and that disagreement sat in the equation registry as
+    a known failure mode for two commits before anyone looked the efficiency up.
+    The over-determination was doing its job the whole time; nobody was reading
+    it.
     """
     module = EntrainingPlumeHumidityModule(n_layers=N_LAYERS)
-    implied = module.implied_entrainment_rate(280.0, 6.5e-3)
+    implied = module.implied_entrainment_rate(280.0, 6.5e-3) * 1.0e3
 
-    assert 0.0 < implied * 1.0e3 < 0.2  # per kilometre, below the diagnosed range
+    assert 0.15 <= implied <= 0.8
+    assert implied == pytest.approx(0.2, abs=0.02)  # at the edge, and pinned there
+
+    # And the identity run backwards returns the published bulk-plume parameter,
+    # which is the closure of the loop rather than a restatement of it.
+    stale = EntrainingPlumeHumidityModule(n_layers=N_LAYERS, evaporating_fraction=0.3)
+    assert stale.implied_entrainment_rate(280.0, 6.5e-3) * 1.0e3 < 0.2
 
 
 @pytest.mark.req("MOD-006", "WAT-002")

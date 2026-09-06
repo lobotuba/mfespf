@@ -810,9 +810,10 @@ def build_equation_registry() -> EquationRegistry:
                 (
                     "evaporating_condensate_fraction",
                     "parameterized",
-                    "0.3, a declared assumption asserted over 0.1 to 0.5 rather than a "
-                    "measurement, because published precipitation efficiencies are "
-                    "neither tight nor uncontested",
+                    "0.67, from measured precipitation efficiencies of 19 to 38 percent "
+                    "(Langhans, Yeo and Romps 2015; Braham 1952); asserted over 0.62 to "
+                    "0.81. Replaced an assumed 0.3 over 0.1 to 0.5, a range that "
+                    "excluded the measured value rather than bracketing it",
                 ),
             ),
             assumptions=(
@@ -825,11 +826,13 @@ def build_equation_registry() -> EquationRegistry:
                 "the evaporating fraction is uniform in height",
             ),
             approximations=(
-                "Derived for the tropics, where deep convection sets the humidity, and "
-                "applied here to a global-mean column. The extratropical free "
-                "troposphere is moistened by large-scale ascent and eddy transport that "
-                "no bulk plume represents, so this understates the global-mean humidity "
-                "by an amount this framework cannot estimate.",
+                "Derived for a convecting column and applied here to a global-mean "
+                "one. The bias runs the other way from what that phrasing suggests: "
+                "the closure reproduces the humidity of a radiative-convective column, "
+                "near eighty percent, while the global-mean free troposphere is far "
+                "drier because it is dominated by subtropical subsidence that no bulk "
+                "plume represents. So this *overstates* the global-mean humidity, by an "
+                "amount the framework cannot estimate from within.",
                 "The constant-mass-flux form gives one relative humidity for the whole "
                 "column, so the observed C shape -- moist near the surface and near the "
                 "tropopause, driest in the middle -- is absent. Height-varying rates "
@@ -861,13 +864,13 @@ def build_equation_registry() -> EquationRegistry:
                 "test_the_predicted_humidity_lands_in_the_observed_range",
             ),
             known_failure_modes=(
-                "applied outside the tropics it misses the moistening by large-scale "
-                "ascent, so a global-mean column built on it will be too dry",
+                "applied to a global-mean column it predicts the humidity of the "
+                "convecting regions and misses the subtropical dry zones, so such a "
+                "column will be too moist",
                 "the closed form cannot produce the observed C-shaped profile at all",
-                "the entrainment rate it implies at a = 0.2 and alpha = 0.3 is 0.06 to "
-                "0.16 per kilometre, several times below the 0.2 to 0.8 per kilometre "
-                "that cloud-resolving simulations diagnose for bulk plumes, so either "
-                "the parameter pair or the definitions disagree with that literature",
+                "the entrainment rate it implies sits at 0.198 per kilometre, the "
+                "bottom edge of the 0.2 to 0.8 that cloud-resolving simulations "
+                "diagnose for bulk plumes rather than comfortably inside it",
             ),
             source=(
                 "Romps, D. M. (2014), An analytical model for tropical relative "

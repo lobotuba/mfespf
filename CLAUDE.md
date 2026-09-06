@@ -131,6 +131,18 @@ saying out loud.
   both can be checked and one of them promptly caught the convective adjustment
   still targeting a dry adiabat. Over-determination is what makes a closure
   falsifiable rather than merely tunable.
+- **A declared range is only as honest as its bounds — asserting one is not a
+  substitute for looking the number up.** The evaporating condensate fraction was
+  assumed at 0.3 over 0.1 to 0.5, on the reasoning that a stated range beats a
+  fitted number. The reasoning was right and the bounds were wrong: published
+  precipitation efficiencies put it near two thirds, so the range excluded the
+  answer instead of bracketing it, and every sensitivity study run across it was
+  measuring the wrong interval.
+- **Read the declared failure modes you wrote down.** The implied entrainment
+  rate disagreeing with cloud-resolving simulations by a factor of two sat in the
+  equation registry as a known failure mode for two commits. It was the symptom
+  of the wrong parameter the whole time. An over-determined closure only helps if
+  somebody looks at the second prediction.
 - **An assumed parameter's range is part of the result, not a footnote to it.**
   The evaporating condensate fraction is asserted over 0.1 to 0.5, and across
   that range the column moves 8 K and its feedback changes by a factor of three.

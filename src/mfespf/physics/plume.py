@@ -61,11 +61,22 @@ What is fitted here
 -------------------
 
 Nothing. ``a = 0.2`` is the published value for Earth's tropics and ``alpha``
-is a declared assumption carrying a range rather than a fitted number, so the
-humidity this produces is a prediction. That is deliberate: a single tuned
-parameter would have hidden the uncertainty that a stated range makes visible,
-and the point of the exercise is to find out whether the closure is right, not
-to make the column agree.
+follows from measured precipitation efficiencies, so the humidity this produces
+is a prediction and not a knob.
+
+It was not always so, and the way that went wrong is worth keeping. ``alpha``
+was first *assumed* -- 0.3, asserted over 0.1 to 0.5, on the reasoning that a
+declared range was more honest than a fitted number. The reasoning was fine and
+the range was wrong: it placed the precipitation efficiency at 0.5 to 0.9 where
+the literature places it at 0.2 to 0.4, so it excluded the measured value
+instead of bracketing it. A declared range is only as honest as its bounds, and
+asserting one is not a substitute for looking the number up.
+
+What makes the corrected value trustworthy is that it is over-determined too.
+``a = epsilon PE / gamma`` ties the bulk-plume parameter to the entrainment rate
+and the precipitation efficiency, so the measured ``alpha`` can be checked
+against entrainment rates it was not derived from. It passes and the assumed one
+failed, which is how the error was found.
 
 Sources
 -------
@@ -120,15 +131,24 @@ _GRAVITY = value_of("earth_standard_gravity")
 BULK_PLUME_PARAMETER = 0.2
 
 #: Fraction of condensate that evaporates instead of precipitating, so the
-#: precipitation efficiency is ``1 - alpha``. A declared assumption rather than
-#: a measurement: published precipitation efficiencies for tropical convection
-#: are neither tight nor uncontested, and quoting one number as though they
-#: were would be false precision. Runs that depend on it should sweep
-#: ``EVAPORATING_FRACTION_RANGE`` instead of trusting the midpoint.
-EVAPORATING_CONDENSATE_FRACTION = 0.3
+#: precipitation efficiency is ``1 - alpha``. Taken from measurement rather than
+#: assumed: Langhans, Yeo and Romps (2015) find PE of 33 and 38 percent in
+#: large-eddy simulations of cumulus congestus, using the definition this
+#: closure needs -- the fraction of condensate that reaches the surface -- and
+#: report Braham (1952) at 19 percent and other numerical studies near 20.
+#: A precipitation efficiency near a third gives ``alpha`` near two thirds.
+#:
+#: This replaced an assumed 0.3 asserted over 0.1 to 0.5. That range was not
+#: conservative, it was inverted: it put the precipitation efficiency at 0.5 to
+#: 0.9 where the literature puts it at 0.2 to 0.4, and so excluded the measured
+#: value entirely. Two checks now agree that this one is right, which the old
+#: one failed -- see ``fractional_entrainment_rate``.
+EVAPORATING_CONDENSATE_FRACTION = 0.67
 
-#: The range the assumption above is asserted over, for sensitivity studies.
-EVAPORATING_FRACTION_RANGE = (0.1, 0.5)
+#: The range the measurements span, for sensitivity studies. Wide, because
+#: precipitation efficiency genuinely is: definitions differ, and estimates
+#: differ within a definition.
+EVAPORATING_FRACTION_RANGE = (0.62, 0.81)
 
 
 def water_vapour_lapse_rate(temperature: np.ndarray, lapse_rate: np.ndarray | float) -> np.ndarray:
@@ -228,6 +248,16 @@ def fractional_entrainment_rate(
     Reported rather than used internally, because it is the number the
     cloud-resolving literature quotes and therefore the one a reader can check
     this closure against: a few tenths per kilometre for deep convection.
+
+    It is also the check that caught the evaporating fraction being wrong. The
+    three quantities are not independent -- ``a = epsilon PE / gamma`` -- so a
+    parameter pair can be tested against entrainment rates even when it was
+    chosen from humidity considerations. At the measured precipitation
+    efficiency this gives 0.20 to 0.34 per kilometre, inside the 0.2 to 0.8 that
+    cloud-resolving simulations diagnose; at the value previously assumed it
+    gave 0.09, outside it. Running the identity the other way, an entrainment
+    rate of 0.2 per kilometre with a precipitation efficiency of 0.33 returns
+    ``a = 0.204``, against the 0.2 Romps quotes, which closes the loop.
     """
     if not 0.0 <= evaporating_fraction < 1.0:
         raise ConfigurationError(

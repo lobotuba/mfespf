@@ -580,6 +580,81 @@ exactly what INF-003 forbids and what this project has already caught itself
 doing twice. `alpha` has to come from precipitation-efficiency measurements or
 stay wide.
 
+#### Looking the parameter up refuted the configuration
+
+The evaporating condensate fraction had been *assumed* -- 0.3, asserted over 0.1
+to 0.5, on the reasoning that a declared range is more honest than a fitted
+number. The reasoning was sound and the range was wrong. It placed the
+precipitation efficiency at 0.5 to 0.9; the literature places it at 0.2 to 0.4.
+Langhans, Yeo and Romps (2015) measure 33 and 38 percent in large-eddy
+simulations of cumulus congestus, using the definition this closure needs, and
+report Braham (1952) at 19 percent and other numerical work near 20. So `alpha`
+is near two thirds, not near a third, and the range asserted for it excluded the
+measured value rather than bracketing it.
+
+**Two checks agreed the new value was right and the old one wrong**, which is
+the part worth keeping. The identity `a = epsilon PE / gamma` ties the
+bulk-plume parameter to the entrainment rate and the precipitation efficiency,
+so a value chosen on humidity grounds can be tested against entrainment rates it
+was not derived from. At a precipitation efficiency of 0.33 it returns
+`a = 0.204` against the 0.2 Romps quotes, and an entrainment rate of 0.198 per
+kilometre against the 0.2 to 0.8 that cloud-resolving simulations diagnose. At
+the assumed value it returned 0.09 per kilometre, a factor of two below the
+bottom of that range — and that disagreement sat in the equation registry as a
+declared known failure mode for two commits before anybody looked the efficiency
+up. The over-determination was working the whole time; nobody was reading it.
+
+**At the measured value the column is refuted.**
+
+| alpha | 0.62 | 0.67 | 0.81 |
+|---|---:|---:|---:|
+| predicted relative humidity | 0.683 | 0.725 | 0.842 |
+| surface temperature (K) | 301.58 | 305.18 | 313.95 |
+| dT_2x (K) | 9.50 | 8.76 | 5.25 |
+| feedback (W m^-2 K^-1) | +2.259 | +2.312 | +2.221 |
+
+Thirteen to twenty-six kelvin too warm, across the whole measured range, with
+sensitivities no configuration of this model should produce. And it cannot be
+escaped by choosing within the range: the entrainment floor of 0.2 per kilometre
+requires `alpha` of at least 0.70, which is *above* where the column has already
+failed. **The two literature constraints do not overlap.**
+
+That also disposes of the agreement reported one commit earlier. A feedback of
++1.29 W m^-2 K^-1, matching the prescribed-humidity control and published
+estimates to four percent, was obtained at `alpha = 0.3` -- a value a factor of
+two below the entrainment floor. It was a wrong parameter producing a
+right-looking answer, which is the third time that pattern has appeared in this
+pathway and the third time it was caught by checking something other than the
+headline number.
+
+#### What the refutation is actually about
+
+The closure is not broken. At the measured parameters it predicts a
+free-tropospheric relative humidity of 0.73 to 0.84, and cloud-resolving
+simulations of radiative-convective equilibrium sit near 0.80 -- Singh and
+O'Gorman took exactly that as a constant. It is describing a convecting column
+correctly.
+
+This framework's column is a *global mean*, and the global-mean free troposphere
+is far drier than a convecting one, because it is dominated by subtropical
+subsidence and by where descending air was last saturated. No bulk plume
+contains that. Applying a radiative-convective closure to a global mean is a
+category error, and the model has now measured its size: about seventeen kelvin
+at the central value.
+
+The caveat was on the record before the work began. When the three candidate
+mechanisms were weighed, a fourth thread was noted -- Sherwood (1996),
+Pierrehumbert and Roca (1998), Galewsky, Sobel and Held (2005) -- holding that
+free-tropospheric humidity is set by last saturation and large-scale transport,
+so that a single column cannot get it right in principle. It was recorded as
+bounding what an entrainment closure could buy. It turns out to decide the
+outcome rather than bound it.
+
+Charter section 3.5 governs what happens next: `alpha` stays at the measured
+value and the configuration stays refuted. Tuning it back down to 0.3 would
+restore the agreement and would be calibrating against the temperature record,
+which is the thing this project exists to refuse.
+
 #### The base state looks right and that means nothing yet
 
 The column reaches 288.1 K and a greenhouse effect of 33.1 K, against observed
@@ -1452,12 +1527,17 @@ is deleted from this list, and where a stage removed one the entry says so.
   stable with respect to the target rather than by a criterion of its own. It
   lands at 186 hPa and 12.1 km, which is reasonable, and an undilute-parcel
   criterion would change nothing -- see [`todo.md`](todo.md).
-- The vapour feedback measured through the repaired control is
-  **+1.29 W m^-2 K^-1 at the assumed midpoint and +0.72 to +1.91 across the
-  range the evaporating fraction is asserted over**. The midpoint agrees with
-  the prescribed-humidity control and with published estimates; the range is
-  wide enough that the agreement is not yet evidence. Constraining the
-  evaporating fraction is the highest-value open item.
+- **The bulk-plume humidity configuration is refuted at its measured
+  parameters.** With the evaporating condensate fraction taken from published
+  precipitation efficiencies rather than assumed, the column runs 13 to 26 K too
+  warm across the whole measured range, and the entrainment floor requires a
+  value above where it has already failed, so the two literature constraints do
+  not overlap. The closure describes a convecting column correctly -- its
+  predicted humidity matches radiative-convective simulations -- and a
+  global-mean column is not one. The parameter is not being tuned back down.
+- The +1.29 W m^-2 K^-1 feedback previously reported for this pathway was
+  obtained at an evaporating fraction a factor of two below the entrainment
+  floor, and is superseded rather than deleted (charter 3.5).
 - The bulk-plume humidity closure once ran in a column that relaxed to the dry
   adiabat at 9.68 K/km while its humidity assumed 6.33, so the model
   contradicted its own closure. That is fixed -- `convective_target=

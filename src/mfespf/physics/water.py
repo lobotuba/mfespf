@@ -936,8 +936,9 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
 
     where ``a`` is the dimensionless bulk-plume parameter and ``alpha`` the
     fraction of condensate that evaporates instead of falling out. At the
-    published values -- ``a = 0.2`` for Earth's tropics, ``alpha = 0.3`` -- that
-    is **0.417**, and nothing about the temperature record went into it.
+    measured values -- ``a = 0.2`` for Earth's tropics, and ``alpha = 0.67`` from
+    precipitation efficiencies near a third -- that is **0.725**, and nothing
+    about the temperature record went into it.
 
     Why this is worth the trouble over prescribing 0.4 directly: the same ``a``
     also fixes the lapse rate an entraining plume leaves behind
@@ -948,9 +949,11 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
     **What it still does not do.** It moves no water and closes no water budget,
     exactly like the module it derives from -- it predicts the *distribution*,
     not the cycle. It gives one humidity for the whole column, so the observed C
-    shape is absent. And it is a tropical relation applied to a global-mean
-    column, which omits the extratropical moistening by large-scale ascent, so
-    it should be expected to run dry.
+    shape is absent. And it describes a convecting column while this framework's
+    is a global mean, so it should be expected to run *moist*: the global-mean
+    free troposphere is far drier than a radiative-convective one, for reasons
+    -- subtropical subsidence, last-saturation dynamics -- that no bulk plume
+    contains.
 
     Set ``respond_to_temperature=False`` for the null control, which freezes the
     vapour and removes the feedback while changing nothing else.
@@ -1030,14 +1033,15 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
                 "test_the_plume_module_derives_its_humidity_rather_than_taking_one",
             ),
             known_limitations=(
-                "The evaporating condensate fraction is a declared assumption over 0.1 "
-                "to 0.5, not a measurement, and the predicted humidity runs from 0.25 "
-                "to 0.58 across that range. Any result that depends on the humidity "
-                "should be reported across the range and not at the midpoint.",
-                "A tropical relation applied to a global-mean column. Extratropical "
-                "large-scale ascent and eddy moisture transport are absent, so this "
-                "should be expected to run too dry, by an amount the framework cannot "
-                "estimate from within.",
+                "The evaporating condensate fraction comes from measured precipitation "
+                "efficiencies spanning 19 to 38 percent, so the predicted humidity runs "
+                "from 0.68 to 0.84. Any result that depends on it should be reported "
+                "across that range and not at the midpoint.",
+                "A convecting-column relation applied to a global-mean column. It "
+                "reproduces the humidity of a radiative-convective column while the "
+                "global-mean free troposphere is far drier, being dominated by "
+                "subtropical subsidence no bulk plume represents, so this runs too "
+                "moist by an amount the framework cannot estimate from within.",
                 "One humidity for the whole column, so the observed C-shaped profile is "
                 "absent and the vapour aloft, where the feedback is most sensitive, is "
                 "the least trustworthy part of it.",

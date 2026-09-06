@@ -62,12 +62,13 @@ zero-buoyancy bulk-plume closure whose single unfitted parameter predicts a
 relative humidity of 0.417 **and** a lapse rate of 6.33 K/km — both of which land
 near observations, which is the falsification test a prescribed humidity cannot
 be given. The grid dependence that disqualified the previous mechanism is gone.
-The column now relaxes to that same lapse rate, and the feedback measured
-through a control that holds every consequence of the vapour is **+1.29 W m⁻² K⁻¹**
-— within four percent of both the prescribed-humidity control and published
-estimates, from a closure with nothing fitted. It is still not quotable: the one
-assumed parameter spans eleven kelvin of surface temperature and a factor of 2.7
-in that feedback. See
+The column now relaxes to that same lapse rate. **And with its last assumed
+parameter replaced by a measured one, the configuration is refuted**: the column
+runs 13 to 26 K too warm across the measured range, and the entrainment rates
+cloud-resolving simulations diagnose require a value above where it has already
+failed. The closure describes a convecting column correctly and a global-mean
+column is not one — a category error the model has now measured at about
+seventeen kelvin. The parameter is not being tuned back. See
 [`docs/architecture.md`](docs/architecture.md#the-water-vapour-pathway-and-the-two-walls-it-hit).
 
 ## Install and run
