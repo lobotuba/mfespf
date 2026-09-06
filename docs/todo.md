@@ -160,35 +160,21 @@ changed nothing.
 convection does not currently receive. That is a new module dependency and a
 graph edge, not just a function.
 
-### The humidity's vertical structure, and why the first attempt failed
+### The humidity's vertical structure is closed, not pending
 
-The general form is implemented, tested and wired up behind
-`plume_vertical_structure`, and it is **off** because it does not converge. The
-mass flux comes from the column's own radiative cooling, the closure
-differentiates it, and the humidity that results changes the cooling -- so
-layer-scale noise amplifies and the surface temperature drifts upward with
-resolution instead of settling. Details and the convergence table are in
-[`architecture.md`](architecture.md).
+The general form is implemented, tested and wired behind
+`plume_vertical_structure`, and it stays **off**. It does not converge, and the
+reason is not numerical: closing it needs an independent entrainment law, and
+the literature does not have one to give. Romps takes the rates from
+cloud-resolving output, his direct measurement finds the bulk-plume rate too
+small by about a factor of two, and the diagnosed rates rise with model
+resolution.
 
-Two things have to be fixed before it is worth switching on, and they are
-independent.
-
-**A better-posed detrainment.** Taking the logarithmic gradient over a fixed
-physical depth instead of layer by layer halved the drift and did not remove it.
-The remaining problem is the zero-detrainment floor: the mass budget asks for
-negative detrainment in a growing fraction of layers as the grid refines, and
-clipping it to zero pins those layers at RH 0.444. A formulation that does not
-need clipping -- solving the two-equation system for a consistent pair, or
-deriving the mass flux from a smooth parametric profile rather than from the
-cooling directly -- would be the next thing to try.
-
-**A boundary layer.** The closure is a free-tropospheric relation and it is
-currently applied all the way to the ground, where it returns 0.96. That is why
-the C shape *raised* the column's water rather than lowering it: 42 percent of
-the vapour is in the lowest three layers. The observed near-surface value is
-nearer 0.8, and it is set by surface fluxes and turbulent mixing rather than by
-cumulus mass flux. This is a validity-domain violation the framework declares
-and does not enforce, which is the item at the top of this file.
+Supplying those profiles would be permitted -- no temperature record is involved
+-- and would still be the wrong trade. This closure is here because one number
+predicts the humidity and the lapse rate together, so it can fail; profiles read
+off simulations can reproduce anything. Kept in the tree under charter 3.5 as a
+negative result. See [`architecture.md`](architecture.md).
 
 ## Feedbacks the model does not have
 

@@ -1553,10 +1553,38 @@ asked about a boundary layer, where cumulus mass flux is not what sets the
 humidity -- a validity-domain violation of exactly the kind this framework
 declares and does not check.
 
-So the vertical structure is not, by itself, the seventeen kelvin. What the
-measurement does establish is that a uniform 0.725 is badly wrong in both
-directions at once, and that the fix has to treat the boundary layer as its own
-problem rather than extrapolating a plume relation into it.
+**Neither failure is fixable by patching, and the reason closes the path.** The
+zero-detrainment floor is not a regime needing a clip: in a consistent bulk
+plume `d_z M = e - d` with `d >= 0` gives `d_z ln M <= epsilon`, so `delta >= 0`
+is automatic. Negative detrainment is proof that the mass flux and the
+entrainment rate are mutually inconsistent, and they are, for an identifiable
+reason -- `epsilon = a gamma / (1 - alpha)` is *derived under* `epsilon = delta`,
+so using it here imports the constant-mass-flux assumption into the model that
+drops it. It shows up as an entrainment profile that is qualitatively inverted:
+`epsilon` proportional to `gamma` gives 0.06 per km near the surface rising to
+0.51 aloft, where plume similarity and every cloud-resolving diagnosis put
+entrainment *largest* low down.
+
+Replacing it needs an independent entrainment law, and there is not one to
+have. Romps' general model takes `epsilon` and `delta` from cloud-resolving
+output rather than deriving them; his own direct measurement finds the
+bulk-plume `epsilon` underestimates the true entrainment by about a factor of
+two; and the rates diagnosed from cloud-resolving models increase with
+resolution, so the quantity is not resolution-independent in the source
+literature either. The grid divergence above is not only a numerical artefact.
+
+Taking `epsilon(z)` from simulations would not violate INF-003 -- no temperature
+record is involved -- but it costs the thing that justified this closure. The
+bulk plume earns its place here by being over-determined: one number fixes the
+humidity *and* the lapse rate, so it can be caught being wrong, and it was. A
+height-varying `epsilon(z)` and `delta(z)` read off simulations has enough
+freedom to reproduce any humidity profile, and a closure that cannot fail is
+worth less here than one that is wrong in a legible way.
+
+So the vertical structure is not the seventeen kelvin, and it is not the next
+thing to fix either. What the measurement establishes is that a uniform 0.725 is
+wrong in both directions at once, and that the error is in the column rather
+than in the profile.
 
 ### The evaporating fraction has no slack in it
 

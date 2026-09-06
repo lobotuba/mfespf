@@ -182,6 +182,18 @@ saying out loud.
   sentence, and the measurement's sedimentation efficiency is precisely the term
   the premise assumed it excluded. The hypothesis cost nothing to check and
   would have cost a great deal to build on.
+- **Do not import a relation derived under the assumption you are dropping.**
+  `a = epsilon (1 - alpha) / gamma` is defined where `epsilon = delta`. Using it
+  to set `epsilon` in a variable-mass-flux column carried the constant-mass-flux
+  assumption straight back in, and showed up as an entrainment profile inverted
+  against every cloud-resolving diagnosis. The zero-detrainment clipping that
+  followed was not a regime to model -- `delta >= 0` is automatic in a
+  consistent plume -- but a signal of that inconsistency.
+- **Generalising a closure can cost the falsifiability that justified it.** The
+  bulk plume is here because one number fixes the humidity and the lapse rate
+  together. Height-varying rates read off simulations would fit any profile, so
+  the general form is more realistic and worth less. Prefer the version that can
+  be caught being wrong.
 - **A closure that differentiates a field it also controls will amplify grid
   noise.** The profile humidity takes the gradient of a mass flux derived from
   the radiative cooling that the humidity itself sets, so a layer-scale kink
