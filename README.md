@@ -42,7 +42,9 @@ Work deliberately left open, with the measurement that motivates each item, is
 in [`docs/todo.md`](docs/todo.md).
 
 189 mandatory requirements are tracked; 160 currently have a bound acceptance
-test. All eight KER-012 reference configurations exist and run. See
+test. Of the remainder, about ten describe modules that deliberately do not
+exist and about ten more are already enforced in code and want only a test — see
+[`docs/todo.md`](docs/todo.md), which says which are which. All eight KER-012 reference configurations exist and run. See
 [`docs/traceability.md`](docs/traceability.md) — the uncovered requirements are
 listed there rather than left implicit.
 

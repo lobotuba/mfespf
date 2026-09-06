@@ -131,6 +131,11 @@ saying out loud.
   both can be checked and one of them promptly caught the convective adjustment
   still targeting a dry adiabat. Over-determination is what makes a closure
   falsifiable rather than merely tunable.
+- **A declared validity domain that nothing checks is a comment.** Every
+  equation record carries one and `ValidityDomain.contains` is called from no
+  running code, so three separate relations have been evaluated outside their
+  calibration conditions and returned plausible numbers in silence. Wiring it in
+  is open work; until then, check by hand whenever a configuration moves.
 - **A declared range is only as honest as its bounds — asserting one is not a
   substitute for looking the number up.** The evaporating condensate fraction was
   assumed at 0.3 over 0.1 to 0.5, on the reasoning that a stated range beats a

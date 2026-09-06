@@ -1484,7 +1484,20 @@ is deleted from this list, and where a stage removed one the entry says so.
 - Zero-dimensional global mean only; no diurnal, seasonal or latitudinal
   structure, and the geometry module says so in its validity domain.
 - Uncertainty is declared and marked UNRESOLVED, not propagated. UNC-005's
-  ensemble and Monte Carlo methods have interfaces but no implementations.
+  ensemble and Monte Carlo methods have interfaces but no implementations. The
+  parameter sweep that decided the bulk-plume closure's fate -- a factor of 2.7
+  in the feedback across one assumed parameter -- was run by hand in scratch
+  scripts, which is the clearest demonstration of the gap the project has
+  produced and was entirely accidental.
+- **Every equation record declares a validity domain and nothing checks it.**
+  `ValidityDomain.contains` is tested and called from no running code, so a
+  configuration that evaluates a relation outside the conditions it was
+  calibrated at produces a plausible number and no complaint. That has happened
+  three times: the carbon dioxide background opacity behind four claims, the
+  vapour band evaluated at a third of its calibration humidity, and the
+  evaporating fraction outside the measured range. All three were caught by
+  hand, and the second was already outside a domain this framework had written
+  down.
 - Absorption coefficients are free parameters of the reduced model, not measured
   properties of any gas. Nothing in the framework yet connects them to a
   molecular spectroscopic database.
@@ -1596,7 +1609,9 @@ is deleted from this list, and where a stage removed one the entry says so.
   forcing is admissible from a replay.
 - Stage 7 is unexercised. The freeze records and the information-cutoff field
   exist and are tested, but no prediction has been registered before its
-  evaluation period.
+  evaluation period. Nothing blocks one; the obstacle is that a prediction
+  registered now is one the model is expected to fail, and waiting for it to be
+  good enough to pass is how prospective prediction turns into fitting.
 
 Removed by later stages, recorded because the reasoning still matters:
 
