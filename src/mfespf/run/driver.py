@@ -22,6 +22,7 @@ from mfespf.core.errors import MFESPFError
 from mfespf.coupling.conservation import ConservationReport
 from mfespf.coupling.coupler import Coupler, CouplingSchedule, StepReport
 from mfespf.coupling.graph import DependencyGraph
+from mfespf.coupling.validity import DomainReport, check_validity_domains
 from mfespf.registries.claims import ClaimRegistry, ExperimentRegistry
 from mfespf.registries.datasets import DatasetRegistry
 from mfespf.registries.equations import EquationRegistry
@@ -43,6 +44,16 @@ class RunResult:
     manifest: RunManifest
     steps: list[StepReport] = dc_field(default_factory=list)
     final_conservation: ConservationReport | None = None
+    validity_domains: DomainReport | None = None
+    """Which declared equation domains the run actually stayed inside (EQR-003).
+
+    A **mandatory** gate, so a violation invalidates the run for inference. That
+    is the harsher of the two readings and it is the right one: a run outside a
+    declared domain is producing numbers from a relation nobody established for
+    those conditions, and the framework has already been burnt five times by
+    treating that as a caveat. Making it advisory would rebuild precisely the
+    situation this was written to end.
+    """
     cost_estimate: CostEstimate | None = None
     warnings: list[str] = dc_field(default_factory=list)
 
@@ -248,6 +259,18 @@ class Kernel:
             )
 
         coupler.finalize()
+
+        # Judged on the final state: the domains describe the conditions a
+        # relation holds for, and a run that ended outside them was outside them
+        # where it matters, whatever it did on the way.
+        domains = check_validity_domains(
+            registry=self.equations,
+            modules=[s.module for s in self.schedule.ordered()],
+            fields=steps[-1].outputs if steps else {},
+        )
+        manifest.record_gate("validity_domains", domains.passed)
+        manifest.warnings.extend(domains.describe_violations())
+
         reports = [s.conservation for s in steps if s.conservation is not None]
         final = reports[-1] if reports else None
         passed = bool(reports) and all(r.passed for r in reports)
@@ -260,6 +283,7 @@ class Kernel:
             manifest=manifest,
             steps=steps,
             final_conservation=final,
+            validity_domains=domains,
             cost_estimate=estimate,
             warnings=list(coupler.warnings),
         )

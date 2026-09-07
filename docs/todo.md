@@ -16,33 +16,28 @@ These are the items where the framework fails to do the thing it exists to do.
 They come before the physics, because the physics is what they are supposed to
 be protecting.
 
-### Validity domains are declared and never enforced
+### Validity-domain coverage is 9 of 30
 
-Thirty-four equation records carry a `ValidityDomain`. `ValidityDomain.contains`
-is exercised in `tests/unit/test_registries.py` and called from `src/` **zero
-times**. The framework declares the conditions each relation is good for and
-then never checks whether a run is inside them.
+Enforcement now exists and is a mandatory gate --
+[`coupling/validity.py`](../src/mfespf/coupling/validity.py). What is left is
+reach. On a column configuration it resolves 9 declared ranges, violates 1 and
+cannot resolve 20, so a clean report is a far weaker statement than a failing
+one.
 
-This is not hypothetical. *Evaluating a relation outside its calibration
-conditions, and getting a plausible-looking answer,* has now happened three
-times:
+The unresolvable ones are quantities never published as fields: optical depths,
+orbital eccentricity, the bulk-plume parameter, wavelength. Resolution matches
+an equation's symbol against the citing module's own fields, and these have no
+field to match. Closing the gap needs modules to declare which of their
+quantities plays each equation variable -- a binding in `ModuleContract`, since
+only the module knows that the `T` in Schwarzschild is its layer temperature
+rather than its surface temperature. That would also retire the ambiguity
+refusals, which are currently four of the twenty.
 
-- the carbon dioxide band's background opacity, which diverged between the fit
-  and every configuration, and stood behind four registered claims;
-- the vapour band, fitted on a column carrying 23.2 kg m^-2 and evaluated on one
-  carrying 8.0, right at the edge of its own declared domain;
-- the evaporating condensate fraction, asserted over a range that excluded the
-  measured value.
-
-Each was caught by hand, late, and by accident. The second was inside a domain
-this framework had already written down. A run-time check — every equation a
-running module cites, evaluated against its declared ranges, with violations
-reported the way conservation residuals are — would have caught it
-automatically. The machinery exists and is wired to nothing.
-
-**Cost.** Small. `contains` already returns `(ok, violations)`; what is missing
-is the pass that collects the state each equation's variables refer to, and the
-decision about whether a violation halts a run or annotates its manifest.
+**One violation is outstanding and real.** The bulk-plume column evaluates
+Clausius-Clapeyron down to 172 K against a declared floor of 230 K, so it is
+`invalid_for_scientific_inference` until the formula is extended to the ice
+phase, the declared floor is justified as too conservative, or the
+configuration is restricted.
 
 ### Uncertainty is declared everywhere and propagated nowhere
 

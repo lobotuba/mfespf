@@ -1508,6 +1508,61 @@ The configuration validator will refuse the module if any of that is missing.
 That is the intent: an incomplete declaration is caught before initialisation
 rather than discovered in a result.
 
+## Validity domains, enforced
+
+Thirty-four equation records carried a `ValidityDomain` and
+`ValidityDomain.contains` was called from the registry's tests and from no
+running code. The conditions each relation was established for were declared and
+never checked, and five relations had by then been evaluated outside them --
+each caught by hand, late, and by accident.
+
+`coupling/validity.py` closes that. Every module's cited equations are judged
+against the run's final state, and the driver records the result as a
+**mandatory** gate, so a violation invalidates the run for inference rather than
+annotating it. That is the harsher reading and the right one; making it advisory
+would rebuild the situation it was written to end.
+
+**How a variable is resolved.** Equations declare ranges against physical
+symbols and published fields carry symbols too, so the vocabularies already meet
+and no lookup table has to be invented and kept in step. Resolution is scoped to
+the citing module's own declared inputs and outputs, then falls back to a field
+of the same symbol root and identical units -- an equation writes `T` where a
+column publishes `T_a`.
+
+Three refusals matter more than the matching:
+
+* **Never across modules.** `alpha` is the evaporating condensate fraction in
+  the plume equations and the surface albedo in the radiation fields. A global
+  match by symbol would check one against the other's range and report
+  confidently on nothing.
+* **Never across units.** A range in degC against a field in kelvin differs by
+  273.15 and neither says so, so the pair is refused rather than converted.
+* **Never when ambiguous.** A module seeing both `T_a` and `T_s` in kelvin gets
+  an unresolved report naming both, because nothing here knows which the
+  equation meant.
+
+**Unchecked is a third outcome, not a pass.** A check that quietly succeeded
+when it could not find its variable would licence exactly the confidence it
+fails to earn. Coverage on a column configuration is 9 of 30 declared ranges
+inside, 1 violated, 20 unresolvable -- so a clean report is a much weaker
+statement than a failing one, and the summary says so in the numbers.
+
+**It found a sixth violation on its first run.** The bulk-plume column evaluates
+the Clausius-Clapeyron saturation formula down to 172 K against a declared floor
+of 230 K, and feeds the resulting vapour to the radiative transfer. The
+configuration is now `invalid_for_scientific_inference` in consequence. The
+stratospheric vapour involved is small, but "small enough not to matter" was an
+assumption nobody had checked, which is the whole complaint. The remedies are to
+extend the formula to the ice phase, to widen the declared domain if 230 K is
+too conservative, or to restrict the configuration -- and until one is chosen
+the column cannot support a claim.
+
+The remaining 20 unresolvable ranges are mostly internal quantities never
+published as fields -- optical depths, orbital eccentricity, the bulk-plume
+parameter. Closing those needs modules to declare which of their quantities
+plays each equation variable, which is real work and is in
+[`todo.md`](todo.md).
+
 ## Known limitations of the current kernel
 
 ### The C-shaped humidity closure does not converge

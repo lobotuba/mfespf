@@ -131,11 +131,17 @@ saying out loud.
   both can be checked and one of them promptly caught the convective adjustment
   still targeting a dry adiabat. Over-determination is what makes a closure
   falsifiable rather than merely tunable.
-- **A declared validity domain that nothing checks is a comment.** Every
-  equation record carries one and `ValidityDomain.contains` is called from no
-  running code, so three separate relations have been evaluated outside their
-  calibration conditions and returned plausible numbers in silence. Wiring it in
-  is open work; until then, check by hand whenever a configuration moves.
+- **Validity domains are enforced, as a mandatory gate.**
+  `coupling/validity.py` judges every module's cited equations against the run's
+  final state and the driver invalidates a run that steps outside one. It was
+  written after five relations had been evaluated outside their conditions and
+  caught by hand; it found a sixth within minutes. Do not downgrade it to
+  advisory -- that rebuilds the situation it ended. Resolution is scoped to the
+  citing module's own fields and refuses ambiguity, cross-unit comparison and
+  cross-module symbol matches rather than guessing, because `alpha` is an
+  evaporating fraction in one module and an albedo in another. Coverage is 9 of
+  30 ranges, so a pass is a weaker statement than a failure, and the summary
+  reports unresolvable separately for exactly that reason.
 - **A declared range is only as honest as its bounds — asserting one is not a
   substitute for looking the number up.** The evaporating condensate fraction was
   assumed at 0.3 over 0.1 to 0.5, on the reasoning that a stated range beats a
