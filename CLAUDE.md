@@ -190,6 +190,12 @@ saying out loud.
   environment, shrinking the denominator. Before inheriting someone else's
   resolution dependence as an excuse for your own, check whether their
   diagnostic's boundary moved.
+- **Bracket a missing closure with its parameter-free limits before building
+  it.** The global-mean free-tropospheric humidity lies between full local
+  remoistening (0.725) and none at all (0.015). Both limits are free of
+  parameters and the bracket is useless, which establishes in one calculation
+  that the quantity is not obtainable from a single column -- and it costs an
+  afternoon rather than an architecture.
 - **Do not import a relation derived under the assumption you are dropping.**
   `a = epsilon (1 - alpha) / gamma` is defined where `epsilon = delta`. Using it
   to set `epsilon` in a variable-mass-flux column carried the constant-mass-flux

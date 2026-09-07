@@ -1648,6 +1648,57 @@ the humidity profile rather than on the magnitude of `alpha`.
 The numbers are also from simulations of cumulus congestus, not of deep tropical
 convection, which is a validity-domain caveat on the measurement itself.
 
+### A single column cannot set its own free-tropospheric humidity
+
+The strongest conclusion in this file, reached twice by different routes, and it
+puts a ceiling on the current configuration rather than describing a defect in
+it.
+
+The subsiding-branch mechanism is real: air that has not been saturated since it
+left the convective outflow keeps the vapour it had then, and drying by
+adiabatic descent is what makes the global-mean free troposphere drier than a
+convecting one. Diagnosed against an imposed export level it lands on the
+observed 0.4 to 0.5. But the export level and the ascending area fraction are
+both free, and no published value for the area fraction was locatable.
+
+Removing them does not help, because the two parameter-free limits do not
+constrain anything:
+
+| | free-tropospheric RH |
+|---|---|
+| full local remoistening (Romps' equation, what the model does now) | 0.725 |
+| no remoistening at all (pure last saturation) | 0.015 |
+| observed | 0.40 to 0.50 |
+
+The dry limit is that dry for a real reason rather than a numerical one:
+detrainment concentrates near 13 to 16 km where the saturation humidity is of
+order 1e-5, so air subsiding from there arrives essentially bone dry. It is the
+textbook result that a troposphere ventilated only from the tropopause would
+hold no water. The observation sits between the limits and a bracket spanning
+0.015 to 0.725 predicts nothing.
+
+What sets the real value is how much a descending parcel is remoistened on the
+way down, which is the ratio of its descent time to the time it takes to travel
+laterally away from convection. That is horizontal transport. A single column
+does not contain it, and there is no first-principles closure for it -- the same
+finding as for the entrainment rate, arrived at independently.
+
+So the seventeen kelvin is not a defect to be fixed inside this architecture.
+The free-tropospheric humidity of a global-mean single column is not predictable
+from within it, and since that humidity sets both the base state and the
+sensitivity, neither is predictable either. Three honest responses, and none of
+them is a closure:
+
+* **Prescribe the humidity and drop the feedback claim.** This is what
+  `PrescribedHumidityModule` already says of itself -- no feedback claim may be
+  registered against it, because the feedback follows from the assumption.
+* **Restrict the configuration's validity domain to convecting conditions**,
+  where the bulk plume is right and the comparison to a global mean is the
+  error. Cheap, but it does not fully rescue the numbers: the column still
+  carries about twice the observed tropical precipitable water.
+* **Build resolved horizontal transport.** That is a different model, not a
+  closure swapped into this one.
+
 ### The warm bias and the excess sensitivity are one error
 
 Worth stating separately because it decides how the remaining work is scoped. It

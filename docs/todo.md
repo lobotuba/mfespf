@@ -110,6 +110,13 @@ worth more than not climbing it.
 
 ### The global-mean column itself
 
+**It is a ceiling, not a bug.** The subsiding-branch mechanism works and the
+parameters it needs are not obtainable: the two parameter-free limits are 0.015
+and 0.725 against an observed 0.4 to 0.5, so they bracket nothing, and what sets
+the real value is horizontal transport that a single column does not contain.
+See [`architecture.md`](architecture.md) for the three honest responses, none of
+which is a closure.
+
 **Now the only large item.** One lever moves the base state and the sensitivity
 together -- 305.18 K and 8.76 K per doubling at RH 0.725, against 288.84 K and
 3.81 K at RH 0.40 -- so the warm bias and the two-to-three-fold excess
