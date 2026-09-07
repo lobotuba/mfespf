@@ -110,6 +110,15 @@ worth more than not climbing it.
 
 ### The global-mean column itself
 
+**Now the only large item.** One lever moves the base state and the sensitivity
+together -- 305.18 K and 8.76 K per doubling at RH 0.725, against 288.84 K and
+3.81 K at RH 0.40 -- so the warm bias and the two-to-three-fold excess
+sensitivity are one error, not two and not many. The table is in
+[`architecture.md`](architecture.md). Everything else in this file is small by
+comparison, and the vertical-structure path that looked like an alternative is
+closed.
+
+
 Promoted from a caveat to the main obstacle by measurement. With every parameter
 taken from the literature rather than assumed, the bulk-plume closure runs the
 column 13 to 26 K too warm, and no value inside the measured range escapes it —

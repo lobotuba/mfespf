@@ -1648,6 +1648,50 @@ the humidity profile rather than on the magnitude of `alpha`.
 The numbers are also from simulations of cumulus congestus, not of deep tropical
 convection, which is a validity-domain caveat on the measurement itself.
 
+### The warm bias and the excess sensitivity are one error
+
+Worth stating separately because it decides how the remaining work is scoped. It
+is tempting to read a seventeen-kelvin base-state error and a climate
+sensitivity two to three times too large as two problems, and from there to
+conclude that no single mechanism accounts for either, so a long tail of small
+corrections must. Measured, that is wrong. One lever moves both, and they arrive
+together:
+
+| RH | 0.725 | 0.60 | 0.50 | 0.45 | 0.40 | observed |
+|---|---|---|---|---|---|---|
+| surface (K) | 305.18 | 296.36 | 292.13 | 290.42 | 288.84 | 288 |
+| dT_2x (K) | 8.761 | 7.577 | 5.002 | 4.294 | 3.811 | 2.5-4.0 |
+| amplification | 6.48x | 5.04x | 3.15x | 2.63x | 2.27x | -- |
+
+The column is too warm *and* too sensitive for the same reason: it holds far too
+much water vapour. What makes the error look like it needs many contributions is
+the amplification. The humidity error itself is modest -- 0.725 against a
+global-mean free troposphere nearer 0.45, a factor of 1.6 -- and it produces a
+7.5-fold error in precipitable water and seventeen kelvin, because the vapour
+feedback compounds it. A small cause with a large effect is the signature of one
+mechanism under strong feedback, not of many summing.
+
+The single mechanism is available and is not a closure that can be swapped in: a
+global mean is not a convecting column. The bulk plume is right about what it
+describes. The global-mean free troposphere is drier because it is dominated by
+subsidence and by where descending air was last saturated, which is horizontal
+transport and which no single column contains.
+
+Two qualifications. There is a second, smaller discrepancy: at the humidity that
+gives the right temperature the column carries about 14 kg m^-2 of water against
+an observed 25, so it reaches 288 K with roughly half the observed vapour and
+something else is supplying the difference -- the band calibration, the absent
+cloud longwave effect, or the lapse rate. And none of this licenses prescribing
+0.45. That is the same move as tuning the evaporating fraction back to 0.3, and
+it is calibrating against the temperature record through a different door.
+
+The methodological point is the one that would cost the project. If seventeen
+kelvin genuinely required tuning many small principles, the model would stop
+being falsifiable, because enough free parameters reproduce any target. INF-003,
+the over-determination preference, and the rule that a mechanism enters as a
+constitutive relation rather than a fitted forcing all exist to detect exactly
+that failure, and the measurement above is what keeps this out of it.
+
 ### Clouds cannot repair the global-mean column's warm bias
 
 Recorded under charter 3.5 because it closes a proposal rather than opening one.
