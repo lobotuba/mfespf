@@ -164,6 +164,32 @@ CONSTANTS: dict[str, Constant] = {
             1.0e2,
         ),
         _c(
+            "specific_heat_water_vapour",
+            1885.0,
+            "J kg^-1 K^-1",
+            ParameterClass.MEASURED,
+            "Standard thermodynamic tables at constant pressure, near 273 K",
+            10.0,
+            notes="Needed by Kirchhoff's relation dL/dT = c_pv - c_condensed, which "
+            "is what makes the latent heat vary with temperature.",
+        ),
+        _c(
+            "specific_heat_liquid_water",
+            4218.0,
+            "J kg^-1 K^-1",
+            ParameterClass.MEASURED,
+            "Standard thermodynamic tables at 273.15 K",
+            10.0,
+        ),
+        _c(
+            "specific_heat_ice",
+            2106.0,
+            "J kg^-1 K^-1",
+            ParameterClass.MEASURED,
+            "Standard thermodynamic tables at 273.15 K",
+            10.0,
+        ),
+        _c(
             "specific_heat_seawater",
             3985.0,
             "J kg^-1 K^-1",

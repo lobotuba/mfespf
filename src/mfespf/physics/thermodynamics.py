@@ -41,6 +41,13 @@ _CP_DRY = value_of("specific_heat_dry_air")
 _R_DRY = value_of("gas_constant_dry_air")
 _R_VAPOUR = value_of("gas_constant_water_vapour")
 _L_VAPORIZATION = value_of("water_latent_heat_vaporization_273")
+_L_FUSION = value_of("water_latent_heat_fusion")
+#: Latent heat of sublimation: a molecule leaving ice for vapour must be both
+#: melted and evaporated, so the two latent heats add.
+_L_SUBLIMATION = _L_VAPORIZATION + _L_FUSION
+_CP_VAPOUR = value_of("specific_heat_water_vapour")
+_CP_LIQUID = value_of("specific_heat_liquid_water")
+_CP_ICE = value_of("specific_heat_ice")
 _T_TRIPLE = value_of("triple_point_temperature")
 _E_TRIPLE = value_of("saturation_vapour_pressure_triple_point")
 _GRAVITY = value_of("earth_standard_gravity")
@@ -414,20 +421,48 @@ def surface_coupled_adjustment(
 
 
 def saturation_vapour_pressure(temperature: np.ndarray) -> np.ndarray:
-    """Clausius-Clapeyron saturation vapour pressure over liquid water, in Pa.
+    """Clausius-Clapeyron saturation vapour pressure, in Pa, over the stable phase.
 
-    Integrated with a constant latent heat, which is the standard reduced form:
+    Two corrections to the reduced form this replaced, both of which matter in a
+    column whose top is at 172 K.
 
-        e_s(T) = e_triple * exp( (L / R_v) * (1/T_triple - 1/T) )
+    **The latent heat is not constant.** Kirchhoff's relation makes it vary with
+    temperature at a rate set by the heat capacities of the two phases::
 
-    Holding L constant is an approximation worth about a percent between 250 and
-    300 K and degrading outside it; the equation registry carries that as the
-    declared validity domain rather than leaving it to the caller to remember.
+        dL/dT = c_pv - c_condensed        so     L(T) = L_0 + dC (T - T_t)
+
+    Integrating Clausius-Clapeyron ``d ln(e_s)/dT = L(T) / (R_v T^2)`` with that
+    linear form is exact rather than numerical, and gives::
+
+        e_s(T) = e_t (T/T_t)^(dC/R_v)
+                 exp{ [L_0 - dC T_t] / R_v * (1/T_t - 1/T) }
+
+    Setting ``dC = 0`` recovers the constant-latent-heat expression exactly,
+    which is the limiting case the tests use.
+
+    **Below the triple point the stable phase is ice.** Vapour is then in
+    equilibrium with ice rather than with supercooled liquid, so the relevant
+    latent heat is that of sublimation, ``L_v + L_f``, and the relevant heat
+    capacity is the ice one. Ice holds its water more tightly: at 253 K the
+    saturation pressure over ice is about 82 percent of that over supercooled
+    liquid, which is the whole basis of the Wegener-Bergeron-Findeisen process.
+    Using the liquid branch down to 172 K, as this did before, overstates the
+    saturation humidity of the upper troposphere and the stratosphere.
+
+    Both branches pass through the triple point by construction, so the function
+    is continuous there and needs no blending.
     """
     T = np.asarray(temperature, dtype=float)
     if np.any(T <= 0.0):
         raise ConfigurationError("temperatures must be positive")
-    return _E_TRIPLE * np.exp((_L_VAPORIZATION / _R_VAPOUR) * (1.0 / _T_TRIPLE - 1.0 / T))
+
+    over_ice = T < _T_TRIPLE
+    latent = np.where(over_ice, _L_SUBLIMATION, _L_VAPORIZATION)
+    heat_capacity_difference = np.where(over_ice, _CP_VAPOUR - _CP_ICE, _CP_VAPOUR - _CP_LIQUID)
+
+    exponent = heat_capacity_difference / _R_VAPOUR
+    offset = (latent - heat_capacity_difference * _T_TRIPLE) / _R_VAPOUR
+    return _E_TRIPLE * (T / _T_TRIPLE) ** exponent * np.exp(offset * (1.0 / _T_TRIPLE - 1.0 / T))
 
 
 def saturation_specific_humidity(temperature: np.ndarray, pressure: np.ndarray) -> np.ndarray:

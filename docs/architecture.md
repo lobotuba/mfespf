@@ -1508,6 +1508,52 @@ The configuration validator will refuse the module if any of that is missing.
 That is the intent: an incomplete declaration is caught before initialisation
 rather than discovered in a result.
 
+## Saturation over the phase that is actually there
+
+The first violation the domain gate found, fixed rather than argued away.
+
+The saturation vapour pressure was integrated Clausius-Clapeyron at constant
+latent heat, over liquid water, at every temperature. A column whose top is at
+172 K spends most of its depth below freezing, where the stable condensed phase
+is ice and the relevant latent heat is that of sublimation. Two corrections,
+both first-principles:
+
+* **Kirchhoff's relation** makes the latent heat vary, `dL/dT = c_pv - c_cond`.
+  Integrating Clausius-Clapeyron with that linear form is exact rather than
+  numerical and setting the heat-capacity difference to zero recovers the old
+  expression, which is the limiting case the tests use.
+* **Below the triple point the vapour is in equilibrium with ice**, so the
+  latent heat is `L_v + L_f` and the heat capacity is the ice one. Both branches
+  are anchored at the triple point, so the result is continuous with no
+  blending.
+
+The old form was **five times too high at 172 K**, 2.7 times at 200 K, and 1.45
+times at 240 K. Against Murphy and Koop (2005) the new one is within 0.6 percent
+from 240 to 330 K, 2 percent to 200 K, and 6.3 percent at 172 K, which is what
+the declared domain of 170 to 340 K now says.
+
+**Two calibrations had to be redone, and the framework's own rule said so.** A
+calibration is only valid at the conditions it was performed at, and the vapour
+those constants were fitted against had just changed. The CO2 forcing per
+doubling moved from 3.70 to 3.81 W m^-2 and the outgoing longwave from 238 to
+247. Refitting both against their original published targets -- 3.7 W m^-2 per
+doubling and the CERES all-sky 238 W m^-2, neither of them a temperature record
+-- gives a vapour wing decay of 3970 m^-1 in place of 3617, and a CO2 wing decay
+of 1272.5 in place of 1273. The CO2 number returning to where it was is worth
+noticing: only the vapour band was actually mis-set, and the joint fit shows it.
+
+**What it cost the column**, none of it aimed at:
+
+| | before | after |
+|---|---|---|
+| surface temperature | 305.18 K | 303.85 K |
+| precipitable water | 98.31 kg m^-2 | 85.25 kg m^-2 |
+| dT_2x | 8.761 K | 8.584 K |
+
+Thirteen percent of the column's water was vapour the old formula put into cold
+layers that ice would never have held. The configuration passes the validity
+gate and may support a claim again.
+
 ## Validity domains, enforced
 
 Thirty-four equation records carried a `ValidityDomain` and

@@ -33,12 +33,6 @@ only the module knows that the `T` in Schwarzschild is its layer temperature
 rather than its surface temperature. That would also retire the ambiguity
 refusals, which are currently four of the twenty.
 
-**One violation is outstanding and real.** The bulk-plume column evaluates
-Clausius-Clapeyron down to 172 K against a declared floor of 230 K, so it is
-`invalid_for_scientific_inference` until the formula is extended to the ice
-phase, the declared floor is justified as too conservative, or the
-configuration is restricted.
-
 ### Uncertainty is declared everywhere and propagated nowhere
 
 UNC-005 asks for bounds, sensitivity derivatives, parameter sweeps, ensembles,

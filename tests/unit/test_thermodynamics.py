@@ -154,15 +154,16 @@ def test_saturation_vapour_pressure_at_the_triple_point():
 
 @pytest.mark.req("WAT-001")
 def test_saturation_vapour_pressure_matches_reference_values():
-    """Against standard tables, within the constant-latent-heat approximation.
+    """Against standard tables, near the surface.
 
-    The integrated Clausius-Clapeyron form with a fixed L is good to a percent
-    or so across the terrestrial range; asserting more would be testing the
-    approximation rather than the implementation.
+    The tolerance was 3 percent while the latent heat was held constant. With
+    Kirchhoff's relation integrated in, the same three points are good to well
+    under one percent, so the test is tightened -- a tolerance left where the
+    approximation used to need it would stop detecting a regression.
     """
     for temperature, reference_pa in ((273.15, 611.2), (293.15, 2339.0), (303.15, 4246.0)):
         computed = float(saturation_vapour_pressure(np.array([temperature]))[0])
-        assert computed == pytest.approx(reference_pa, rel=0.03)
+        assert computed == pytest.approx(reference_pa, rel=0.005)
 
 
 @pytest.mark.req("WAT-001")
@@ -424,3 +425,102 @@ def test_the_target_offsets_must_cover_the_surface_and_every_layer():
         )
     with pytest.raises(ConfigurationError, match="same layers"):
         lapse_rate_adjustment_with_groups(T, capacity, np.zeros(T.size - 1))
+
+
+# --- saturation over the stable phase ---------------------------------------
+
+
+def _murphy_koop_ice(T: np.ndarray) -> np.ndarray:
+    """Murphy & Koop (2005) eq. 7, saturation over ice, in Pa. Valid above 110 K."""
+    return np.exp(9.550426 - 5723.265 / T + 3.53068 * np.log(T) - 0.00728332 * T)
+
+
+def _murphy_koop_liquid(T: np.ndarray) -> np.ndarray:
+    """Murphy & Koop (2005) eq. 10, saturation over liquid, in Pa. Valid 123-332 K."""
+    return np.exp(
+        54.842763
+        - 6763.22 / T
+        - 4.210 * np.log(T)
+        + 0.000367 * T
+        + np.tanh(0.0415 * (T - 218.8))
+        * (53.878 - 1331.22 / T - 9.44523 * np.log(T) + 0.014025 * T)
+    )
+
+
+@pytest.mark.req("WAT-002", "EQR-002", "VAL-001")
+def test_saturation_follows_clausius_clapeyron_with_a_varying_latent_heat():
+    """The analytic identity the closed form is a solution of.
+
+    Differentiating the result numerically must return ``L(T) / (R_v T^2)`` with
+    ``L`` from Kirchhoff's relation -- checked against the thermodynamics rather
+    than against a stored curve, and on both sides of the triple point, since
+    the two branches carry different latent heats and different heat capacities.
+    """
+    R_v = value_of("gas_constant_water_vapour")
+    L_v = value_of("water_latent_heat_vaporization_273")
+    L_s = L_v + value_of("water_latent_heat_fusion")
+    c_pv = value_of("specific_heat_water_vapour")
+    T_t = value_of("triple_point_temperature")
+
+    for T0, latent, condensed in (
+        (240.0, L_s, value_of("specific_heat_ice")),
+        (300.0, L_v, value_of("specific_heat_liquid_water")),
+    ):
+        h = 1.0e-3
+        pair = saturation_vapour_pressure(np.array([T0 - h, T0 + h]))
+        measured = (np.log(pair[1]) - np.log(pair[0])) / (2.0 * h)
+        expected = (latent + (c_pv - condensed) * (T0 - T_t)) / (R_v * T0**2)
+        assert measured == pytest.approx(expected, rel=1e-8)
+
+
+@pytest.mark.req("WAT-002", "VAL-001")
+def test_saturation_matches_murphy_and_koop_across_the_column():
+    """Against the standard reference, over the range a column actually spans.
+
+    An independent formula rather than values copied from this one, so the test
+    can fail. The tolerance is not uniform because the accuracy is not: the
+    constant-heat-capacity assumption tires as the temperature falls, and the
+    equation record declares exactly this profile.
+    """
+    for T, tolerance in (
+        (300.0, 0.01),
+        (273.16, 1e-6),
+        (260.0, 0.01),
+        (240.0, 0.01),
+        (200.0, 0.02),
+        (180.0, 0.05),
+        (172.0, 0.07),
+    ):
+        reference = _murphy_koop_ice(T) if T < 273.16 else _murphy_koop_liquid(T)
+        value = float(saturation_vapour_pressure(np.array([T]))[0])
+        assert value == pytest.approx(reference, rel=tolerance), f"at {T} K"
+
+
+@pytest.mark.req("WAT-002", "EQR-002")
+def test_saturation_over_ice_is_lower_than_over_supercooled_liquid():
+    """Ice holds its water more tightly, which is why cirrus can persist.
+
+    The gap is the whole basis of the Wegener-Bergeron-Findeisen process, and it
+    peaks near 253 K at about 82 percent -- a number this framework can be wrong
+    about, since nothing here was fitted to it.
+    """
+    T = np.array([253.0])
+    over_ice = float(saturation_vapour_pressure(T)[0])
+    # The liquid branch evaluated below the triple point, which is what the
+    # previous implementation returned everywhere.
+    over_liquid = float(_murphy_koop_liquid(T)[0])
+    assert over_ice < over_liquid
+    assert over_ice / over_liquid == pytest.approx(0.82, abs=0.02)
+
+
+@pytest.mark.req("WAT-002", "VAL-001")
+def test_saturation_is_continuous_across_the_triple_point():
+    """Both branches are anchored at the triple point, so no blending is needed."""
+    below = float(
+        saturation_vapour_pressure(np.array([value_of("triple_point_temperature") - 1e-4]))[0]
+    )
+    above = float(
+        saturation_vapour_pressure(np.array([value_of("triple_point_temperature") + 1e-4]))[0]
+    )
+    assert below == pytest.approx(above, rel=1e-4)
+    assert below == pytest.approx(value_of("saturation_vapour_pressure_triple_point"), rel=1e-4)

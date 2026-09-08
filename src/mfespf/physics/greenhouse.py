@@ -183,7 +183,7 @@ mattering. What the fitted numbers below control is where the wings cross unit
 optical depth.
 """
 
-VAPOUR_WING_DECAY_PER_METRE = 3.617e3
+VAPOUR_WING_DECAY_PER_METRE = 3.970e3
 """Wing decay of both vapour bands, about 36 cm^-1. Calibrated.
 
 Fitted against a *published radiation observation* -- the CERES all-sky
@@ -200,6 +200,13 @@ because Clausius-Clapeyron is exponential and a cold column is a dry one.
 
 So the vapour opacity here stands in for the cloud longwave effect as well as
 its own. That is a stand-in with a name rather than a hidden one.
+
+**Refitted when the saturation formula gained its ice phase.** It was 3617 m^-1
+while saturation was computed over liquid water all the way down; correcting the
+upper column to sublimation removed vapour from the cold layers -- a factor of
+five at 172 K -- and the same target then needs about ten percent more
+absorption per kilogram. The number changed because the physics under it did,
+which is what a calibration tied to its conditions is supposed to do.
 
 It weakens the base state as a prediction without abolishing it. Equilibrium
 requires the outgoing flux to equal the absorbed flux, and the fit sets the
@@ -229,7 +236,7 @@ vapour amount, because it is dominated by self-broadening. Both are declared
 approximations of the reduced model and both are listed in the equation record.
 """
 
-CO2_WING_DECAY_WITH_VAPOUR_PER_METRE = 1.273e3
+CO2_WING_DECAY_WITH_VAPOUR_PER_METRE = 1.2725e3
 """The CO2 wing decay for a column whose infrared background *is* the vapour.
 
 A band's fitted width depends on what else is absorbing around it. With water

@@ -961,17 +961,27 @@ def build_equation_registry() -> EquationRegistry:
             version=V1,
             name="Clausius-Clapeyron saturation vapour pressure",
             category=EquationCategory.CONSTITUTIVE_RELATION,
-            mathematical_form=("e_s(T) = e_triple exp( (L_v / R_v) (1/T_triple - 1/T) )"),
+            mathematical_form=(
+                "e_s(T) = e_triple (T/T_triple)^(dC/R_v) "
+                "exp( (L_0 - dC T_triple)/R_v (1/T_triple - 1/T) ), "
+                "with L(T) = L_0 + dC (T - T_triple), dC = c_pv - c_condensed, "
+                "and the condensed phase ice below the triple point, liquid above"
+            ),
             physical_basis=(
-                "Equilibrium between liquid water and its vapour along the phase "
-                "boundary, integrated at constant latent heat."
+                "Equilibrium between water and its vapour along the phase boundary, "
+                "integrated exactly with the latent heat varying as Kirchhoff's "
+                "relation requires, over whichever condensed phase is stable."
             ),
             variables=(
-                ("e_s", "saturation vapour pressure over liquid", "Pa"),
+                ("e_s", "saturation vapour pressure over the stable phase", "Pa"),
                 ("T", "temperature", "K"),
             ),
             parameters=(
                 ("water_latent_heat_vaporization_273", "measured", "thermodynamic tables"),
+                ("water_latent_heat_fusion", "measured", "thermodynamic tables"),
+                ("specific_heat_water_vapour", "measured", "thermodynamic tables"),
+                ("specific_heat_liquid_water", "measured", "thermodynamic tables"),
+                ("specific_heat_ice", "measured", "thermodynamic tables"),
                 ("gas_constant_water_vapour", "derived", "molar mass of water"),
                 (
                     "saturation_vapour_pressure_triple_point",
@@ -980,32 +990,54 @@ def build_equation_registry() -> EquationRegistry:
                 ),
             ),
             assumptions=(
-                "the latent heat of vaporisation is constant over the range used",
+                "the latent heat varies linearly with temperature, as Kirchhoff's "
+                "relation gives for constant heat capacities",
                 "the vapour behaves as an ideal gas",
-                "the liquid volume is negligible beside the vapour volume",
-                "saturation is over liquid water, not ice",
+                "the condensed volume is negligible beside the vapour volume",
+                "below the triple point the stable condensed phase is ice, so the "
+                "relevant latent heat is that of sublimation",
             ),
             approximations=(
-                "Holding L constant costs about a percent between 250 and 300 K and more "
-                "outside it. Over ice below the triple point the true saturation pressure "
-                "is lower than this returns, which matters for any claim about cirrus or "
-                "polar humidity.",
+                "The heat capacities are held constant, so the latent heat is linear "
+                "in temperature rather than curved. Against Murphy and Koop (2005) "
+                "the error is below 0.6 percent from 240 to 330 K, below 2 percent to "
+                "200 K, 6.3 percent at 172 K and 13.6 percent by 150 K. The large "
+                "relative errors are where the absolute amounts are radiatively "
+                "negligible -- 6 percent of 1e-3 Pa -- but they are the reason the "
+                "declared floor is where it is.",
+                "Supercooled liquid is not represented: below the triple point this "
+                "returns the ice value, so a mixed-phase cloud is out of scope.",
             ),
             validity_domain=ValidityDomain(
-                ranges=(("T", 230.0, 340.0, "K"),),
-                conditions=("saturation over liquid water",),
+                ranges=(("T", 170.0, 340.0, "K"),),
+                conditions=(
+                    "saturation over the stable phase: ice below the triple point, liquid above",
+                    "accuracy better than 7 percent throughout and better than 1 "
+                    "percent above 220 K, against Murphy and Koop (2005)",
+                ),
             ),
-            limiting_cases=("returns the measured value exactly at the triple point",),
+            limiting_cases=(
+                "returns the measured value exactly at the triple point, from both sides",
+                "reduces to the constant-latent-heat form as the heat capacities converge",
+            ),
             conserved_quantities=(),
             correctness_tests=(
                 "test_saturation_vapour_pressure_at_the_triple_point",
                 "test_saturation_vapour_pressure_matches_reference_values",
+                "test_saturation_follows_clausius_clapeyron_with_a_varying_latent_heat",
+                "test_saturation_over_ice_is_lower_than_over_supercooled_liquid",
+                "test_saturation_is_continuous_across_the_triple_point",
             ),
             known_failure_modes=(
-                "systematically wrong over ice",
-                "extrapolates poorly far from the triple point",
+                "degrades below 180 K as the constant-heat-capacity assumption tires",
+                "no supercooled liquid branch, so mixed-phase conditions are out of scope",
             ),
-            source="Clausius-Clapeyron relation, integrated form",
+            source=(
+                "Clausius-Clapeyron integrated with Kirchhoff's relation; validated "
+                "against Murphy, D. M. and Koop, T. (2005), Review of the vapour "
+                "pressures of ice and supercooled water for atmospheric applications, "
+                "Q. J. R. Meteorol. Soc. 131, 1539-1565"
+            ),
         )
     )
 

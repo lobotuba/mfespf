@@ -131,6 +131,20 @@ saying out loud.
   both can be checked and one of them promptly caught the convective adjustment
   still targeting a dry adiabat. Over-determination is what makes a closure
   falsifiable rather than merely tunable.
+- **Saturation is over the phase that is present.** Below the triple point the
+  vapour is in equilibrium with ice, so the latent heat is that of sublimation
+  and the heat capacity is the ice one; the latent heat also varies with
+  temperature by Kirchhoff's relation. Using the liquid branch at constant L all
+  the way down was five times too high at 172 K and put thirteen percent more
+  water in the column than ice would hold. Both branches anchor at the triple
+  point, so nothing has to be blended.
+- **A physics change invalidates every calibration downstream of it, and the
+  refit is part of the change.** Correcting the saturation formula moved the CO2
+  forcing per doubling to 3.81 W m^-2 and the outgoing longwave to 247, both
+  outside their fitted targets. Refit against the original published targets
+  rather than widening a tolerance; here it moved the vapour wing decay by ten
+  percent and left the CO2 one where it was, which is itself the evidence that
+  only one of them was wrong.
 - **Validity domains are enforced, as a mandatory gate.**
   `coupling/validity.py` judges every module's cited equations against the run's
   final state and the driver invalidates a run that steps outside one. It was
