@@ -155,12 +155,25 @@ def check_validity_domains(
             if symbol:
                 in_scope.append((field_id, field, str(symbol)))
 
+        declared = {
+            equation: {symbol: (name, stated) for symbol, name, stated in bindings}
+            for equation, bindings in (getattr(contract, "equation_variables", ()) or ())
+        }
+        parameters = _parameters_of(module)
+
         for equation_id in getattr(contract, "governing_equation_ids", ()) or ():
             record = _lookup(registry, equation_id)
             if record is None:
                 continue
+            bound = declared.get(equation_id, {})
             for name, low, high, units in record.validity_domain.ranges:
-                resolved, ambiguity = _resolve(name, units, in_scope)
+                # A binding the module declared beats anything inferred: it is
+                # the one statement here that cannot be a coincidence of naming.
+                resolved, ambiguity = (
+                    _bound(bound.get(name), fields, parameters)
+                    if name in bound
+                    else _resolve(name, units, in_scope)
+                )
                 checks.append(
                     _judge(
                         module_id=contract.module_id,
@@ -175,6 +188,54 @@ def check_validity_domains(
                 )
 
     return DomainReport(tuple(checks))
+
+
+def _parameters_of(module: Any) -> Mapping[str, Any]:
+    """A module's own parameters, for variables that never become fields.
+
+    Optical depths, orbital eccentricity and the bulk-plume parameter are all
+    declared with ranges and none of them is published as a field, so without
+    this they are permanently unresolvable.
+    """
+    getter = getattr(module, "parameters", None)
+    if not callable(getter):
+        return {}
+    try:
+        values = getter()
+    except Exception:
+        return {}
+    return values if isinstance(values, Mapping) else {}
+
+
+def _bound(
+    binding: tuple[str, str] | None,
+    fields: Mapping[str, Any],
+    parameters: Mapping[str, Any],
+) -> tuple[tuple[str, Any] | None, str]:
+    """Resolve a binding the module declared, as a field or as a parameter.
+
+    The module states the units of what it bound, so a parameter -- which has
+    none of its own -- is still judged on a stated basis rather than on the
+    assumption that it matches whatever the equation declared.
+    """
+    if binding is None:
+        return None, ""
+    name, stated = binding
+    field = fields.get(name)
+    if field is not None:
+        return (name, _StatedField(field.values, stated)), ""
+    if name in parameters:
+        return (name, _StatedField(parameters[name], stated)), ""
+    return None, f"the module binds this variable to {name!r}, which it did not publish"
+
+
+@dataclass(frozen=True, slots=True)
+class _StatedField:
+    """A bound quantity carrying the units the module stated for it."""
+
+    values: Any
+    units: str
+    symbol: str = ""
 
 
 def _root(symbol: str) -> str:

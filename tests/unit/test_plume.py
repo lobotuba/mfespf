@@ -502,3 +502,32 @@ def test_the_mass_flux_follows_the_radiative_cooling_and_stops_without_it():
 
     # And the closure never asks for negative detrainment.
     assert np.all(detrainment_rate(flux, np.full(4, 2.0e-4), np.array([0.0, 1e3, 2e3, 3e3])) >= 0.0)
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_the_entraining_lapse_rate_degenerates_to_dry_as_the_column_cools():
+    """The limit the declared domain's floor rests on.
+
+    The existing dry-column test zeroes the humidity by hand. This one lowers
+    the temperature instead, which is how a real column reaches the same place:
+    the saturation humidity collapses, both the numerator and the denominator
+    lose their moist terms together, and what is left is ``g / c_p`` exactly.
+
+    It matters because the validity gate found this relation being evaluated at
+    171 K in a column's stratosphere. That is outside the conditions a
+    convecting plume describes, but it is not an extrapolation failure -- the
+    relation degenerates correctly, and the domain floor says so rather than
+    forbidding a limit the record already claims.
+    """
+    dry = dry_adiabatic_lapse_rate()
+    temperatures = np.array([260.0, 230.0, 210.0, 190.0, 171.0, 150.0])
+    pressures = np.array([6.0e4, 3.0e4, 1.5e4, 8.0e3, 4.0e3, 2.0e3])
+
+    rates = entraining_lapse_rate(temperatures, pressures)
+
+    # Monotonically towards the dry adiabat, never past it.
+    assert np.all(np.diff(rates) > 0.0)
+    assert np.all(rates < dry)
+    # And close enough at the declared floor that the difference cannot matter.
+    assert rates[-1] == pytest.approx(dry, rel=1e-6)
+    assert rates[4] == pytest.approx(dry, rel=1e-4)

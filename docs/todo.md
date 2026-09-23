@@ -16,22 +16,23 @@ These are the items where the framework fails to do the thing it exists to do.
 They come before the physics, because the physics is what they are supposed to
 be protecting.
 
-### Validity-domain coverage is 9 of 30
+### Validity-domain coverage is 18 of 30
 
-Enforcement now exists and is a mandatory gate --
-[`coupling/validity.py`](../src/mfespf/coupling/validity.py). What is left is
-reach. On a column configuration it resolves 9 declared ranges, violates 1 and
-cannot resolve 20, so a clean report is a far weaker statement than a failing
-one.
+Enforcement is a mandatory gate and modules can now bind an equation's symbol to
+one of their own fields or parameters, which took coverage from 9 to 18 and
+found a seventh out-of-domain evaluation on the way.
 
-The unresolvable ones are quantities never published as fields: optical depths,
-orbital eccentricity, the bulk-plume parameter, wavelength. Resolution matches
-an equation's symbol against the citing module's own fields, and these have no
-field to match. Closing the gap needs modules to declare which of their
-quantities plays each equation variable -- a binding in `ModuleContract`, since
-only the module knows that the `T` in Schwarzschild is its layer temperature
-rather than its surface temperature. That would also retire the ambiguity
-refusals, which are currently four of the twenty.
+The twelve that remain are quantities no module publishes or holds as a
+parameter: optical depth, single-scattering albedo, wavelength, layer
+emissivity, the CO2 mole fraction as a fraction rather than as ppm. Each needs
+the module to expose the value before it can be bound, which is a small change
+per module and worth doing where the quantity is diagnostically interesting
+anyway -- optical depth most of all, since three separate records declare a
+range on it.
+
+Two of the twelve are ambiguity refusals in the radiation module, where `T`
+could be the layer or the surface temperature. Those need only a binding, not a
+new diagnostic.
 
 ### Uncertainty is declared everywhere and propagated nowhere
 

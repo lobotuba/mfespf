@@ -1074,6 +1074,19 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
                 "atmosphere_precipitable_water",
             ),
             conserved_quantities=(),
+            equation_variables=(
+                (
+                    EQUATION_IDS["bulk_plume_humidity"],
+                    (
+                        ("a", "bulk_plume_parameter", "1"),
+                        ("alpha", "evaporating_condensate_fraction", "1"),
+                    ),
+                ),
+                (
+                    EQUATION_IDS["clausius_clapeyron"],
+                    (("T", ATMOSPHERE_TEMPERATURE_STATE, "K"),),
+                ),
+            ),
             uncertainty_outputs=(
                 "bulk_plume_parameter_uncertainty",
                 "evaporating_condensate_fraction_uncertainty",

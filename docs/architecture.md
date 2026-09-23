@@ -1554,6 +1554,54 @@ Thirteen percent of the column's water was vapour the old formula put into cold
 layers that ice would never have held. The configuration passes the validity
 gate and may support a claim again.
 
+## Ocean heat capacity does not move the equilibrium
+
+Recorded because the opposite is easy to measure by accident, and the numbers
+look convincing.
+
+The question was whether more ocean compartments would hold the column's
+temperature down -- there is a great deal of cold water not in contact with the
+sun for half the year. At eleven simulated years the answer looks like yes: a
+slab-only column sits at 297.3 K and one with a 1200 m deep layer at 294.5 K,
+nearly three kelvin cooler.
+
+It is not cooler. It is unfinished. The deep-ocean runs carry a
+top-of-atmosphere imbalance of about 3 W m^-2 -- still absorbing -- and the
+temperature climbs as the run lengthens: 294.51 K at eleven years, 294.73 at
+forty-one, 295.16 at a hundred and ten, while the imbalance decays from 3.00 to
+2.29. A 1200 m layer has a time constant of centuries, so a century-long run is
+a third of the way there.
+
+Shrink the deep layer until it can finish and the point is unambiguous:
+
+| | surface (K) | TOA imbalance (W m^-2) |
+|---|---|---|
+| slab only | 297.335 | -0.0000 |
+| 50 m deep layer, 27 years | 296.813 | 0.5323 |
+| 50 m deep layer, 110 years | 297.332 | 0.0031 |
+
+Three thousandths of a kelvin apart. Heat capacity sets *when* a column
+arrives, never *where*: at equilibrium the reservoir is full and drops out of
+the budget entirely.
+
+**What is real in the idea, and where it belongs.** Ocean heat uptake genuinely
+does hold transient temperature below the equilibrium value -- that is the whole
+gap between transient response and sensitivity -- so compartment structure
+matters a great deal for a run with a moving forcing, and would matter for a
+Stage 7 hindcast. It cannot touch an equilibrium bias.
+
+The mechanism named, cold water shielded from the sun for half the year, is
+also not in this configuration at all: it runs at constant insolation with no
+seasonal cycle. A seasonal cycle can rectify into the annual mean, because
+outgoing radiation is convex in temperature while saturation humidity is
+exponential in it, and those push opposite ways; heat capacity modulates that by
+damping the cycle. It is a tenths-of-a-kelvin effect, not a fifteen-kelvin one.
+
+And the deep ocean is cold because dense polar water sinks and fills it, which
+is transport rather than capacity -- the same horizontal transport a single
+column cannot have, and the same gap that stops it setting its own
+free-tropospheric humidity.
+
 ## Validity domains, enforced
 
 Thirty-four equation records carried a `ValidityDomain` and
@@ -1589,9 +1637,27 @@ Three refusals matter more than the matching:
 
 **Unchecked is a third outcome, not a pass.** A check that quietly succeeded
 when it could not find its variable would licence exactly the confidence it
-fails to earn. Coverage on a column configuration is 9 of 30 declared ranges
-inside, 1 violated, 20 unresolvable -- so a clean report is a much weaker
-statement than a failing one, and the summary says so in the numbers.
+fails to earn. Coverage on a column configuration is 18 of 30 declared ranges
+inside and 12 unresolvable -- so a clean report is a weaker statement than a
+failing one, and the summary says so in the numbers.
+
+**Where inference is not enough, the module declares the binding.**
+`ModuleContract.equation_variables` maps an equation's symbol to one of the
+module's fields or parameters, because only the module knows that the `T` in
+Schwarzschild is its layer temperature and not its surface temperature, and
+because the bulk-plume parameter is never a field at all. The binding states its
+own units rather than inheriting the equation's: a parameter carries none, so
+binding `concentration_ppm` to a range declared in `1` would compare parts per
+million against a fraction and report confidently -- the same silent mismatch
+the checker refuses everywhere else. Where the binding names a field, both units
+are compared, so a module that mis-states its own is caught too.
+
+**A known coarseness.** The check judges the extent a quantity *spans*, not the
+region the equation was actually *applied* to. Convection computes its
+lapse-rate target for every layer and only adjusts below the convective top, so
+a stratospheric temperature can flag a relation whose output is never used up
+there. The check is conservative in that direction, which is the right way for
+it to be wrong, but a violation still has to be read rather than obeyed.
 
 **It found a sixth violation on its first run.** The bulk-plume column evaluates
 the Clausius-Clapeyron saturation formula down to 172 K against a declared floor

@@ -101,6 +101,28 @@ class ModuleContract:
     uncertainty_outputs: tuple[str, ...] = ()
     correctness_tests: tuple[str, ...] = ()
     known_limitations: tuple[str, ...] = ()
+    equation_variables: tuple[tuple[str, tuple[tuple[str, str, str], ...]], ...] = ()
+    """Which of this module's quantities plays each equation variable (EQR-003).
+
+    ``(equation_id, ((symbol, name, units), ...))``, where ``name`` is one of
+    the module's published field ids or a key of its ``parameters()``.
+
+    The units are stated here rather than taken on trust. A parameter carries no
+    units of its own, so binding ``concentration_ppm`` to a variable whose range
+    is declared in ``1`` would otherwise compare parts per million against a
+    fraction and report confidently -- the silent mismatch this check refuses
+    everywhere else. Where the binding names a field, both are compared, so a
+    module that mis-states its own units is caught too.
+
+    This exists because an equation writes ``T`` and a column publishes ``T_a``
+    and ``T_s``, and only the module knows which of the two the Schwarzschild
+    equation meant. The run-time domain check falls back to matching by symbol
+    root and units, which is enough for the unambiguous cases and correctly
+    refuses the rest; a binding here turns a refusal into a check.
+
+    Tuples rather than a dict because the contract is frozen and hashed into the
+    manifest, and two runs that bind differently must not hash alike.
+    """
     cost: CostDeclaration | None = None
     supports_checkpoint: bool = True
 

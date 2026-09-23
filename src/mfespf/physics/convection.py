@@ -181,6 +181,26 @@ class ConvectiveAdjustmentModule(Module):
             internal_sources_and_sinks=(),
             provided_interfaces=(CONVECTION_INTERFACE,),
             required_interfaces=(("atmospheric_state", VersionRange.parse(">=1.0.0,<2.0.0")),),
+            equation_variables=(
+                (
+                    EQUATION_IDS["potential_temperature"],
+                    (
+                        ("T", ATMOSPHERE_TEMPERATURE_STATE, "K"),
+                        ("p", "atmosphere_layer_pressure", "Pa"),
+                    ),
+                ),
+                (
+                    EQUATION_IDS["convective_adjustment"],
+                    (("T", ATMOSPHERE_TEMPERATURE_STATE, "K"),),
+                ),
+                (
+                    EQUATION_IDS["entraining_lapse_rate"],
+                    (
+                        ("T", ATMOSPHERE_TEMPERATURE_STATE, "K"),
+                        ("a", "bulk_plume_parameter", "1"),
+                    ),
+                ),
+            ),
             uncertainty_outputs=(
                 "instantaneous_mixing_structural",
                 "dry_versus_moist_target_structural",

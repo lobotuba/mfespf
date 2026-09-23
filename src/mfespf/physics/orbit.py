@@ -161,6 +161,10 @@ class OrbitalGeometryModule(Module):
             internal_sources_and_sinks=("solar_input_across_system_boundary",),
             provided_interfaces=(ORBITAL_GEOMETRY_INTERFACE,),
             required_interfaces=(("solar_source", VersionRange.parse(">=1.0.0,<2.0.0")),),
+            equation_variables=(
+                (EQUATION_IDS["kepler"], (("e", "eccentricity", "1"),)),
+                (EQUATION_IDS["kepler_solver"], (("e", "eccentricity", "1"),)),
+            ),
             uncertainty_outputs=("orbital_element_uncertainty", "geometry_structural"),
             correctness_tests=(
                 "test_intercepted_equals_distributed_power",

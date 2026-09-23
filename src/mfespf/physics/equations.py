@@ -926,8 +926,14 @@ def build_equation_registry() -> EquationRegistry:
                 "A constant latent heat, inherited from the saturation relation.",
             ),
             validity_domain=ValidityDomain(
-                ranges=(("T", 200.0, 350.0, "K"), ("a", 0.0, 2.0, "1")),
-                conditions=("saturated convecting columns above cloud base",),
+                ranges=(("T", 150.0, 350.0, "K"), ("a", 0.0, 2.0, "1")),
+                conditions=(
+                    "saturated convecting columns above cloud base",
+                    "below about 200 K the saturation humidity is negligible and the "
+                    "relation degenerates to the dry adiabat, exactly and smoothly; "
+                    "the floor is where that limit is verified rather than where the "
+                    "convecting premise still holds",
+                ),
             ),
             limiting_cases=(
                 "a = 0 reduces exactly to the moist adiabatic lapse rate",
@@ -940,6 +946,7 @@ def build_equation_registry() -> EquationRegistry:
                 "test_the_entraining_lapse_rate_reduces_to_the_moist_adiabat",
                 "test_entrainment_stabilises_between_the_moist_and_dry_adiabats",
                 "test_a_dry_column_is_dry_adiabatic_whatever_the_entrainment",
+                "test_the_entraining_lapse_rate_degenerates_to_dry_as_the_column_cools",
             ),
             known_failure_modes=(
                 "it predicts a stratification but not the height convection reaches, so "

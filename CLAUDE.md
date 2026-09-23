@@ -131,6 +131,13 @@ saying out loud.
   both can be checked and one of them promptly caught the convective adjustment
   still targeting a dry adiabat. Over-determination is what makes a closure
   falsifiable rather than merely tunable.
+- **Heat capacity sets when a column arrives, not where.** A deep ocean makes
+  the column look three kelvin cooler at eleven years, and it is not cooler, it
+  is unfinished -- the run still carries a 3 W m^-2 top-of-atmosphere imbalance
+  and goes on warming for centuries. Shrink the layer until it can equilibrate
+  and it lands within 0.003 K of the slab. Check the imbalance before reading
+  any temperature difference between configurations with different reservoirs;
+  ocean structure belongs to transient response, never to an equilibrium bias.
 - **Saturation is over the phase that is present.** Below the triple point the
   vapour is in equilibrium with ice, so the latent heat is that of sublimation
   and the heat capacity is the ice one; the latent heat also varies with
@@ -153,9 +160,14 @@ saying out loud.
   advisory -- that rebuilds the situation it ended. Resolution is scoped to the
   citing module's own fields and refuses ambiguity, cross-unit comparison and
   cross-module symbol matches rather than guessing, because `alpha` is an
-  evaporating fraction in one module and an albedo in another. Coverage is 9 of
-  30 ranges, so a pass is a weaker statement than a failure, and the summary
-  reports unresolvable separately for exactly that reason.
+  evaporating fraction in one module and an albedo in another. Where inference cannot decide, the module binds the symbol to
+  one of its own fields or parameters through
+  `ModuleContract.equation_variables`, and the binding states its own units -- a
+  parameter has none, so inheriting the equation's would compare ppm against a
+  fraction. Coverage is 18 of 30 ranges, so a pass is a weaker statement than a
+  failure, and the summary reports unresolvable separately for exactly that
+  reason. The check judges the extent a quantity spans, not where the equation
+  was applied, so it is conservative: read a violation before obeying it.
 - **A declared range is only as honest as its bounds — asserting one is not a
   substitute for looking the number up.** The evaporating condensate fraction was
   assumed at 0.3 over 0.1 to 0.5, on the reasoning that a stated range beats a
