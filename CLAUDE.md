@@ -131,6 +131,21 @@ saying out loud.
   both can be checked and one of them promptly caught the convective adjustment
   still targeting a dry adiabat. Over-determination is what makes a closure
   falsifiable rather than merely tunable.
+- **Never clip a conserved state variable.** `np.maximum(vapour, 0.0)` creates
+  water. The conservation reconciliation catches the invented mass anyway, so a
+  clip buys nothing and costs the diagnosis: one clip of 0.62 kg m^-2 surfaced
+  1475 steps later as a 5.4 percent residual with no cause attached. Refuse the
+  state at the step that creates it and name what over-drew it.
+- **Check the process quantities before believing the temperature.** This column
+  sits 3 K from the observed surface temperature while its evaporation is 12x too
+  small, its Bowen ratio 37x too large and its precipitable water 8x too small.
+  Two large errors of opposite sign -- far too dry, and a surface far too
+  decoupled from the air -- nearly cancel at the one number anyone looks at.
+- **Strengthening the water cycle warms this column, it does not cool it.** The
+  vapour evaporation adds is a greenhouse gas and its absorption beats its own
+  evaporative cooling: 5x the evaporation is +3.5 K. Repairing either half of the
+  compensating pair alone makes the surface temperature worse first. Expect that
+  and do not read it as a regression.
 - **A declared domain is a guess until someone measures it.** Three optical-depth
   ceilings -- 10, 100 and 1000 -- were all exceeded by the greenhouse
   configuration at tau = 1110, and all three were wrong rather than the run. The

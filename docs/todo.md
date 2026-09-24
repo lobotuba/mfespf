@@ -34,6 +34,44 @@ convective top, so a stratospheric temperature can flag a relation whose output
 is never used up there. The cure now exists -- publish the target masked to the
 adjusted layers -- and has not been applied.
 
+### The vapour tendencies are split and can over-draw a layer
+
+Convection and the water module each compute a vapour tendency from the state at
+the start of the step, and neither sees the other's. Each is affordable alone;
+together they can draw more from a layer than it holds. That state is now
+refused with a diagnosis rather than clipped to zero, so the defect is visible,
+but it is not repaired.
+
+It only bites once the evaporation is strong enough to matter, which is why it
+was never seen: at the configured coefficient the cycle is twelve times too weak
+to reach it. Any work that strengthens the hydrological cycle will hit this
+first.
+
+The repair is to reconcile the committed vapour tendencies against what each
+layer holds before they are applied, rather than to have either module guess at
+the other's demand. That is a coupling-layer change, not a physics one.
+
+### The hydrological cycle is twelve times too weak
+
+Recorded as work rather than only as a result, because it is the largest
+structural gap measured so far and several other questions turn out to be
+downstream of it.
+
+Evaporation is 0.225 mm/day against an observed 2.7, the surface latent heat
+flux 6.5 W m^-2 against about 82, the Bowen ratio 9.6 against 0.26, and the
+column holds 3.1 kg m^-2 of water against 25. The cause is known and declared --
+no vertical transport of vapour -- and the consequence is that evaporation
+saturates its own layer and shuts off. Convective transport is a partial cure
+and leaves the free troposphere at exactly zero relative humidity.
+
+The thing to be careful about: strengthening the cycle *warms* this column,
+because the vapour is a greenhouse gas and its absorption beats its own
+evaporative cooling. So this is not a missing cooling term. It is one half of a
+compensating pair, the other being a surface-to-air temperature gap four times
+too large, and repairing either one alone will make the surface temperature
+worse before it makes it better. That is the right outcome and should not be
+mistaken for a regression.
+
 ### The saturation is over ice and the latent heat is not
 
 Found while measuring the latent-energy domain, and left open because fixing it

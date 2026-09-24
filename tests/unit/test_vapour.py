@@ -631,3 +631,61 @@ def test_complete_mixing_oversaturates_the_top_of_the_group_it_moistens():
 
     assert np.allclose(specific, specific[0])  # mixed, by construction
     assert specific[-1] > saturation[-1]  # and past saturation at the top
+
+
+@pytest.mark.req("CON-001", "CON-007", "WAT-001")
+def test_over_drawing_a_layer_is_refused_rather_than_clipped():
+    """Clipping a negative vapour to zero creates water, and bought nothing.
+
+    Two modules can each compute a vapour tendency from the same starting state
+    without seeing the other's, and together draw more from a layer than it
+    holds. That happened on a column driven to a realistic evaporation rate:
+    convective transport moved vapour out of a layer while the saturation
+    adjustment condensed more out of it, and a single clip of 0.62 kg m^-2
+    surfaced 1475 steps later as a 5.4 percent water residual with nothing to
+    say where it came from.
+
+    The reconciliation catches the invented mass either way, so the clip only
+    ever obscured the cause. The state is now refused at the step that creates
+    it, naming the layer, the over-draw and the labels responsible.
+    """
+    from mfespf.core.errors import ConservationError
+    from mfespf.physics.equations import EQUATION_IDS
+    from mfespf.physics.water import WaterModule
+    from mfespf.registries.states import TendencyContribution
+
+    module = WaterModule(n_layers=3)
+    module.vapour = np.array([2.0, 1.0, 0.0])
+    dt = 100.0
+
+    def draw(rate: np.ndarray, label: str) -> TendencyContribution:
+        return TendencyContribution(
+            state_id=VAPOUR_STATE,
+            provider_module_id="test",
+            label=label,
+            value=rate,
+            units="kg m^-2",
+            equation_id=EQUATION_IDS["condensation"],
+        )
+
+    # Comfortably inside what the layers hold: committed unchanged.
+    module.advance_state(dt, [draw(np.array([-0.005, -0.005, 0.0]), "condensation")])
+    assert module.vapour == pytest.approx([1.5, 0.5, 0.0])
+
+    # Two contributions that are each affordable and jointly are not.
+    module.vapour = np.array([2.0, 1.0, 0.0])
+    with pytest.raises(ConservationError) as raised:
+        module.advance_state(
+            dt,
+            [
+                draw(np.array([0.0, -0.006, 0.006]), "convective_vapour_transport"),
+                draw(np.array([0.0, -0.006, 0.0]), "evaporation_minus_condensation"),
+            ],
+        )
+
+    message = str(raised.value)
+    assert "layer 1" in message
+    assert "convective_vapour_transport" in message
+    assert "evaporation_minus_condensation" in message
+    # The vapour is left untouched rather than half-committed.
+    assert module.vapour == pytest.approx([2.0, 1.0, 0.0])

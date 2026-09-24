@@ -36,7 +36,7 @@ from mfespf.contracts.module import (
     UncertaintyReport,
 )
 from mfespf.core.constants import value_of
-from mfespf.core.errors import ConfigurationError
+from mfespf.core.errors import ConfigurationError, ConservationError
 from mfespf.core.quantities import (
     Field,
     MissingValuePolicy,
@@ -414,11 +414,46 @@ class WaterModule(Module):
         ]
 
     def advance_state(self, dt: float, contributions: list[TendencyContribution]) -> None:
+        """Commit the vapour, and refuse to invent any.
+
+        This used to end in ``np.maximum(..., 0.0)``. Clipping a negative vapour
+        to zero *creates water*, and it bought nothing: the conservation
+        reconciliation catches the invented mass anyway, but hundreds of steps
+        later and as a percentage residual with no indication of where it came
+        from. Measured on a column driven to a realistic evaporation rate, a
+        single clip of 0.62 kg m^-2 surfaced 1475 steps on as a 5.4 percent
+        water residual. The clip never fires anywhere in the test suite, so its
+        only role was to obscure the one case it did fire in.
+
+        A layer cannot lose more vapour than it holds, so if the committed
+        tendencies would take it below zero the state is not recoverable by
+        rounding it up -- two modules have jointly over-drawn the layer, each
+        having computed its own tendency from the same starting state without
+        seeing the other's. That is an operator-splitting defect and it is
+        reported as one, naming the layer and the over-draw.
+        """
         initial = np.array(self.vapour, dtype=float)
         total = np.zeros(self.n_layers)
         for contribution in contributions:
             total = total + np.broadcast_to(contribution.as_array(), (self.n_layers,))
-        self.vapour = np.maximum(initial + total * dt, 0.0)
+        updated = initial + total * dt
+
+        overdrawn = updated < 0.0
+        if np.any(overdrawn):
+            layers = np.flatnonzero(overdrawn)
+            detail = "; ".join(
+                f"layer {i} holds {initial[i]:.6g} kg m^-2 and the step draws "
+                f"{-updated[i] + initial[i]:.6g}"
+                for i in layers
+            )
+            raise ConservationError(
+                "the committed vapour tendencies would take a layer below zero, so more "
+                "water was removed than the layer holds. Clipping this to zero would "
+                f"create water rather than conserve it. {detail}. Labels this step: "
+                + ", ".join(sorted(c.label for c in contributions))
+            )
+
+        self.vapour = updated
         self._budget = StateBudget(
             state_id=VAPOUR_STATE,
             initial_value=initial,

@@ -1685,6 +1685,113 @@ The general point: a diagnostic added to make something checkable is still a
 diagnostic that runs every step of every configuration, and publishing at a
 resolution nothing consumes is a cost with no claim attached to it.
 
+## The hydrological cycle is an order of magnitude too weak, and the surface temperature hides it
+
+The most consequential measurement in this file, because the quantity that looks
+closest to right is the one being produced by two large errors cancelling.
+
+Set beside the observed global mean, on an equilibrated column with interactive
+water, radiative vapour and convective vapour transport:
+
+| | model | Earth | ratio |
+|---|---|---|---|
+| evaporation | 0.225 mm/day | 2.7 mm/day | 12x too small |
+| surface latent heat flux | 6.5 W m^-2 | ~82 W m^-2 | 13x too small |
+| surface sensible heat flux | 62.2 W m^-2 | ~21 W m^-2 | 3x too large |
+| Bowen ratio | 9.6 | ~0.26 | 37x too large |
+| precipitable water | 3.1 kg m^-2 | ~25 kg m^-2 | 8x too small |
+| surface minus lowest-air temperature | 6.2 K | ~1-2 K | 4x too large |
+| **surface temperature** | **291.2 K** | **288 K** | **+3.2 K** |
+
+Every process quantity is wrong by roughly an order of magnitude and the
+temperature is out by three kelvin. That is not a model that is nearly right.
+
+**Why evaporation stops.** The water module has no vertical transport of vapour,
+which it declares. What was not measured until now is the consequence: the
+evaporated water piles into the lowest layer until that layer saturates --
+relative humidity exactly 1.0 -- and evaporation then shuts itself off, because
+the bulk formula is driven by the saturation deficit. The cycle throttles to
+whatever trickle condensation removes. Switching on convective vapour transport
+helps and does not cure: the Bowen ratio falls from 41 to 12, and the free
+troposphere above the convective top stays at relative humidity exactly zero.
+
+**Why the surface then runs hot.** The surface can only shed its net radiation
+radiatively or as sensible heat, and the bulk sensible flux is a coefficient
+times the surface-to-air temperature difference. The coefficient is not the
+suspect: Earth's `rho c_p C_H |U|` is about 7 W m^-2 K^-1 and the configured
+value is 10. So pushing 62 W m^-2 through that term *requires* a six-kelvin gap,
+and in the prescribed-humidity configuration, which moves no water at all and
+so carries a latent flux of exactly zero, pushing 90 W m^-2 requires nine.
+
+**What closing the gap is worth.** Stiffening the surface-air coupling until the
+gap nearly vanishes, in the prescribed-humidity column that sits 13.7 K warm:
+
+| coefficient (W m^-2 K^-1) | surface | lowest air | gap |
+|---|---|---|---|
+| 10 (configured) | 301.66 | 292.61 | 9.05 |
+| 20 | 299.93 | 294.27 | 5.66 |
+| 50 | 298.22 | 295.56 | 2.67 |
+| 200 | 297.04 | 296.31 | 0.73 |
+
+**4.6 K of the 13.7**, and not the 9 K the gap itself suggests, because the air
+warms as the surface cools and the two converge near 296.7 rather than the
+surface falling to meet a fixed air temperature. Arithmetic on the gap would
+have overstated it by a factor of two.
+
+**And the hypothesis this refutes.** It is natural to conclude that restoring
+the missing evaporation would cool the surface by the amount the missing latent
+flux represents. Measured, it does the opposite. Equilibrated, with the
+imbalance below 0.07 W m^-2 in every row:
+
+| evaporation coefficient | surface | latent | precipitable water | evaporation |
+|---|---|---|---|---|
+| 2.0e-4 (configured) | 291.15 | 6.5 | 3.12 | 0.225 mm/day |
+| 5.0e-4 | 291.25 | 16.2 | 3.58 | 0.560 mm/day |
+| 1.0e-3 | 294.68 | 36.1 | 10.64 | 1.248 mm/day |
+
+Five times the evaporation makes the surface **3.5 K warmer**, because the
+vapour that evaporation puts into the column is a greenhouse gas and its
+absorption beats its own evaporative cooling. So the weak hydrological cycle is
+not a cooling term this model is missing. It is a pair of large opposing errors
+-- a column eight times too dry, which should be far colder, and a surface four
+times too decoupled from the air above it, which is far too warm -- that happen
+to leave the surface temperature three kelvin out.
+
+That is the shape of a compensating error, and it is worth saying plainly that a
+surface temperature within a few kelvin of observation is not evidence for this
+column. The evidence is in the process quantities, and they are out by ten.
+
+## Clipping a state variable creates the quantity it was protecting
+
+`WaterModule.advance_state` ended in `np.maximum(initial + total * dt, 0.0)`.
+Clipping a negative vapour to zero *creates water*, and it bought nothing: the
+conservation reconciliation catches the invented mass anyway, but hundreds of
+steps later and as a percentage residual with no indication of where it came
+from.
+
+Driving the column toward a realistic evaporation rate produced exactly one
+clip, of 0.62 kg m^-2, which surfaced 1475 steps on as a 5.4 percent water
+residual and a halted run. The clip fires nowhere in the test suite, so its
+entire contribution was to obscure the one case it fired in.
+
+The underlying defect is operator splitting. Convection computes how much vapour
+to mix out of a layer from the state at the start of the step, the water module
+computes how much to condense out of the same layer from the same state, and
+neither sees the other. Each is affordable alone; together they draw 3.79 from a
+layer holding 3.17. The state is refused now, at the step that creates it,
+naming the layer, the over-draw and the labels responsible:
+
+    the committed vapour tendencies would take a layer below zero, so more water
+    was removed than the layer holds. Clipping this to zero would create water
+    rather than conserve it. layer 3 holds 3.16686 kg m^-2 and the step draws
+    3.78658. Labels this step: convective_vapour_transport,
+    evaporation_minus_condensation
+
+That is a complete diagnosis in one line, in place of a percentage residual a
+thousand steps downstream. The splitting itself is not fixed and is recorded as
+open: the honest repair is for the vapour tendencies to be reconciled against
+what the layer holds before they are committed, not for either module to guess.
+
 ## Validity domains, enforced
 
 Thirty-four equation records carried a `ValidityDomain` and
