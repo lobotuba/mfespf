@@ -131,6 +131,27 @@ saying out loud.
   both can be checked and one of them promptly caught the convective adjustment
   still targeting a dry adiabat. Over-determination is what makes a closure
   falsifiable rather than merely tunable.
+- **A declared domain is a guess until someone measures it.** Three optical-depth
+  ceilings -- 10, 100 and 1000 -- were all exceeded by the greenhouse
+  configuration at tau = 1110, and all three were wrong rather than the run. The
+  diffusivity approximation is *most* accurate in the thin limit and in the
+  thick one, worst in the middle of the range its floor and ceiling were
+  protecting. Measure against an independent reference before moving a bound,
+  and before trusting one: a record that declares a limiting case its own domain
+  excludes is contradicting itself, and that has now happened three times.
+- **A domain says whether a relation may be evaluated; an uncertainty says how
+  wrong it is there.** The diffusivity approximation really does understate a
+  thin layer's absorptance by 17 percent, and that belongs in the module's
+  declared uncertainty, not in a floor that declares an ordinary column invalid.
+- **A unique inferred match is not a correct one.** The ambiguity refusal only
+  fires when a second candidate exists. The deep ocean's slab balance was
+  checked confidently against the mixed layer's heat capacity because it was the
+  only field of that symbol and units in scope. Where a module has not bound a
+  variable, a clean check is evidence about the naming, not about the physics.
+- **A diagnostic added to make something checkable still runs every step.**
+  Publishing the optical depth per layer per band cost 80 MB on the historical
+  replay and exhausted memory, to carry what is consumed as a min and a max.
+  Publish at the resolution the claim needs, not the resolution you have.
 - **Heat capacity sets when a column arrives, not where.** A deep ocean makes
   the column look three kelvin cooler at eleven years, and it is not cooler, it
   is unfinished -- the run still carries a 3 W m^-2 top-of-atmosphere imbalance
@@ -164,10 +185,11 @@ saying out loud.
   one of its own fields or parameters through
   `ModuleContract.equation_variables`, and the binding states its own units -- a
   parameter has none, so inheriting the equation's would compare ppm against a
-  fraction. Coverage is 18 of 30 ranges, so a pass is a weaker statement than a
-  failure, and the summary reports unresolvable separately for exactly that
-  reason. The check judges the extent a quantity spans, not where the equation
-  was applied, so it is conservative: read a violation before obeying it.
+  fraction. Coverage is 31 of 32 ranges on a cloudy column and 0 violated
+  everywhere, so the summary's three outcomes still matter but a pass now means
+  something. The check judges the extent a quantity spans, not where the
+  equation was applied, unless the module masks the field with NaN to say where
+  the relation actually ran -- so read a violation before obeying it.
 - **A declared range is only as honest as its bounds — asserting one is not a
   substitute for looking the number up.** The evaporating condensate fraction was
   assumed at 0.3 over 0.1 to 0.5, on the reasoning that a stated range beats a

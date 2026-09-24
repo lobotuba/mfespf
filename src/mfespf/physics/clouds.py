@@ -269,6 +269,23 @@ class PrescribedCloudModule(Module):
                 EQUATION_IDS["cloud_optics"],
                 EQUATION_IDS["cloud_radiative_effect"],
             ),
+            equation_variables=(
+                (
+                    EQUATION_IDS["cloud_optics"],
+                    (
+                        # The declared range on W is per layer, because the
+                        # optics are computed layer by layer. The column total
+                        # this module also publishes is the wrong quantity to
+                        # judge it by: ten layers carrying one kilogram each
+                        # would total ten and pass while nothing was checked.
+                        ("W", "cloud_liquid_water_path", "kg m^-2"),
+                        ("W", "cloud_ice_water_path", "kg m^-2"),
+                        # One field holds both the droplet and the crystal
+                        # radius, so a single binding judges both phases.
+                        ("r_eff", "cloud_effective_radius", "m"),
+                    ),
+                ),
+            ),
             assumptions=(
                 "the cloud state is prescribed and responds to nothing in the model",
                 "maximum overlap: all cloudy layers share one column fraction",

@@ -1602,6 +1602,89 @@ is transport rather than capacity -- the same horizontal transport a single
 column cannot have, and the same gap that stops it setting its own
 free-tropospheric humidity.
 
+## Three declared optical-depth ceilings were guesses, and a real column passed them
+
+Recorded because the measurement reverses the intuition the records were written
+from, and because the run that exposed it is the one the carbon dioxide forcing
+claims rest on.
+
+Publishing the optical depth made four checks possible at once and immediately
+found the greenhouse configuration running at **tau = 1110 in a layer**, against
+declared ceilings of 10 (diffusivity), 100 (Beer-Lambert) and 1000 (two-stream).
+Every one was exceeded, so the historical replay was reporting itself unable to
+support a claim.
+
+The measurement says the ceilings were wrong, not the run.
+
+**The diffusivity approximation.** Its record said accuracy "degrades toward
+both the optically thin and optically thick limits", and its domain was floored
+at 0.01 and capped at 10 to match. That reads the *relative* error as though it
+were the absolute one. Against the exact hemispheric integral, computed by
+quadrature rather than from a library:
+
+| | max absolute transmittance error |
+|---|---|
+| tau in [0, 0.01], below the old floor | 0.0030 |
+| tau in [0.01, 10], the old declared range | 0.0316 |
+| tau = 10 | 7e-6 |
+| tau = 30 and beyond | below double precision |
+
+An order of magnitude *more* accurate below the floor than inside the range the
+floor was protecting, with the worst error at tau = 1.28, in the middle. The
+shape is two humps rather than one, because the signed error changes sign near
+tau = 0.4: the approximation over-transmits a thin layer and under-transmits a
+thick one. A first attempt at the test asserted a single monotonic rise to the
+peak, which looked right and is false; the test now pins the structure.
+
+What survives of the thin-limit concern is real but is not a bound: the
+absorptance of a thin layer is short by the fixed ratio D/2 = 0.83, a 17 percent
+underestimate however thin the layer is. It is 17 percent of a vanishing
+quantity, the flux error goes to zero with tau, and the radiation module already
+declares `diffusivity_approximation` as an uncertainty output. That is where a
+known bias belongs. A validity domain answers whether a relation may be
+evaluated; an uncertainty answers how wrong it is there. Conflating them
+declared an ordinary column invalid.
+
+**The two-stream coefficients and Beer-Lambert.** Measured rather than argued:
+reflectance, transmittance and emissivity sum to one to the last bit at every
+optical depth from zero to 1e8, at every single-scattering albedo up to and
+including conservative scattering, with and without forward asymmetry. The
+transmittance underflows smoothly to zero -- the correct value, not a failure --
+and the layer saturates at its right limits, emissivity 1 for an opaque absorber
+and 0 for a conservative scatterer. The solver carries an explicit large-tau
+branch; it was written for this and the ceiling denied it. Beer-Lambert was
+contradicting itself outright: the record declares the limiting case "tau ->
+infinity gives zero transmittance" and then refused to be evaluated past 100.
+
+All three now carry no upper bound on tau, with the measured error bound stated
+as a condition. Negative optical depth is still excluded, because that is a
+defect rather than a thick layer.
+
+**And a caution that came with it.** The approximate layer transmittance is
+exactly multiplicative, so splitting a path into layers leaves the approximate
+answer unchanged while moving every per-layer optical depth. Sixteen layers of
+tau = 0.08 each -- comfortably inside any range -- carry the path optical depth
+1.28 at which the approximation is at its worst. The accuracy is a property of
+the path, not of a layer, so a per-layer range is necessary and not sufficient.
+
+## The cost of a diagnostic is part of the diagnostic
+
+The optical depth was first published as the full `(sky, layer, band)` array
+every step. That is 80 MB across the 25,916 steps of the historical replay,
+which was enough to exhaust memory on a run already near the limit -- in order
+to carry information that is consumed as a minimum and a maximum.
+
+A declared range is a statement about the *extent* a relation was evaluated
+over, which is two numbers whatever the resolution behind them. The modules
+publish the extent; the full arrays stay on each `ColumnRadiationSolution` for
+the current step, where anyone who wants to know which layer is thick can still
+ask. Coverage is identical either way, because the check only ever took the
+minimum and the maximum.
+
+The general point: a diagnostic added to make something checkable is still a
+diagnostic that runs every step of every configuration, and publishing at a
+resolution nothing consumes is a cost with no claim attached to it.
+
 ## Validity domains, enforced
 
 Thirty-four equation records carried a `ValidityDomain` and
@@ -1637,9 +1720,10 @@ Three refusals matter more than the matching:
 
 **Unchecked is a third outcome, not a pass.** A check that quietly succeeded
 when it could not find its variable would licence exactly the confidence it
-fails to earn. Coverage on a column configuration is 18 of 30 declared ranges
-inside and 12 unresolvable -- so a clean report is a weaker statement than a
-failing one, and the summary says so in the numbers.
+fails to earn. Coverage on a cloudy column is 31 of 32 declared ranges
+inside, 0 violated, 1 unresolvable, and that one is a stated category error
+rather than a gap -- so a clean report is no longer the much weaker statement it
+was, though the summary still reports the three outcomes separately.
 
 **Where inference is not enough, the module declares the binding.**
 `ModuleContract.equation_variables` maps an equation's symbol to one of the
@@ -1652,12 +1736,42 @@ million against a fraction and report confidently -- the same silent mismatch
 the checker refuses everywhere else. Where the binding names a field, both units
 are compared, so a module that mis-states its own is caught too.
 
-**A known coarseness.** The check judges the extent a quantity *spans*, not the
-region the equation was actually *applied* to. Convection computes its
+**Three ways to be unresolvable, and they do not mean the same thing.** A
+variable can be one the checker could not find, one whose units do not match the
+declaration, or one the module *integrates over* rather than evaluating at any
+value. The surface's thermal emission is Planck integrated over every
+wavelength, so its `lambda` has no value a range could be checked against;
+binding it to the surface's grid edges would state a wavelength support for a
+quantity that has none left. A module says so with `INTEGRATED_OVER`, which
+keeps the check honest without inviting anyone to "close" it.
+
+**A unique inferred match is not a correct one.** The ambiguity refusal only
+fires when a second candidate exists to notice. The deep ocean's slab energy
+balance was being checked against the *mixed layer's* heat capacity, which was
+the only field carrying the symbol `C` in the right units anywhere in that
+module's scope -- so inference resolved it and reported confidently on the wrong
+reservoir. Nothing in the report looked wrong. Only the module can say which
+quantity plays a variable, and where it has not said, a clean check is evidence
+about the naming rather than about the physics.
+
+**A known coarseness, and its cure.** The check judges the extent a quantity
+*spans*, not the region the equation was actually *applied* to. Convection computes its
 lapse-rate target for every layer and only adjusts below the convective top, so
 a stratospheric temperature can flag a relation whose output is never used up
 there. The check is conservative in that direction, which is the right way for
 it to be wrong, but a violation still has to be read rather than obeyed.
+
+A module that wants the narrower statement can now make it: **a NaN means the
+relation was not evaluated there.** The latent energy of vapour forced this.
+`E = L_v sum_i w_i` was flagged for reaching 225 K against a declared floor of
+230, and the column holds *exactly zero* vapour below 230 K -- every temperature
+that broke the range multiplied a weight of zero. Publishing the layer
+temperature masked to the layers that carry vapour turns the extent into the
+region, and the field declares `MissingValuePolicy.MASKED` so the mask is a
+statement rather than NaNs smuggled past a default that exists to catch them. An
+infinity is still refused, because masking is something a module does on purpose
+and an infinity is a defect -- if non-finite simply meant "skip me", a field that
+had blown up could pass by being broken.
 
 **It found a sixth violation on its first run.** The bulk-plume column evaluates
 the Clausius-Clapeyron saturation formula down to 172 K against a declared floor

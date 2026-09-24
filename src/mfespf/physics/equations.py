@@ -523,8 +523,22 @@ def build_equation_registry() -> EquationRegistry:
             ),
             assumptions=("no scattering", "no stimulated emission along the path"),
             validity_domain=ValidityDomain(
-                ranges=(("tau", 0.0, 100.0, "1"),),
-                conditions=("absorbing, non-scattering medium",),
+                ranges=(("tau", 0.0, float("inf"), "1"),),
+                conditions=(
+                    "absorbing, non-scattering medium",
+                    # The ceiling was 100 until a column that reaches 1110 in the
+                    # carbon dioxide band centre was measured against it. The
+                    # record was already contradicting itself: it declares the
+                    # limiting case "tau -> infinity gives zero transmittance"
+                    # and then refused to be evaluated past 100. Exponential
+                    # attenuation is exact at every non-negative optical depth,
+                    # and beyond about 709 the transmittance underflows to
+                    # exactly zero in double precision, which is the correct
+                    # value and not a failure. Negative tau remains excluded,
+                    # because it is a defect rather than a thick layer.
+                    "no upper bound on tau: the relation is exact wherever it is "
+                    "evaluated, and a real band centre is genuinely this opaque",
+                ),
             ),
             limiting_cases=(
                 "tau = 0 gives unit transmittance",
@@ -616,15 +630,57 @@ def build_equation_registry() -> EquationRegistry:
             parameters=(("radiative_diffusivity_factor", "parameterized", "Elsasser 1942"),),
             assumptions=("isotropic radiance within each hemisphere",),
             approximations=(
-                "Accurate to a few percent near unit optical depth, degrading toward both "
-                "the optically thin and optically thick limits.",
+                "Two different errors, and they behave oppositely. The absolute error in "
+                "the transmittance is worst near unit optical depth -- 0.032 at tau = "
+                "1.28 -- and vanishes at both limits. The relative error in the "
+                "absorptance is worst in the thin limit, where it tends to the fixed "
+                "ratio D/2 = 0.83, a 17 percent underestimate however thin the layer is.",
             ),
-            validity_domain=ValidityDomain(ranges=(("tau", 0.01, 10.0, "1"),)),
+            validity_domain=ValidityDomain(
+                ranges=(("tau", 0.0, float("inf"), "1"),),
+                conditions=(
+                    # The ceiling of 10 went the same way as the floor of 0.01,
+                    # and for the same reason. Measured against the exact
+                    # hemispheric integral, the absolute error in the
+                    # transmittance is bounded by 0.0316 at *every* optical
+                    # depth, peaks at tau = 1.28 in the middle of the old range,
+                    # and falls to 7e-6 by tau = 10 and below double precision
+                    # by tau = 30. The thick limit is where this approximation
+                    # is at its best, not its worst: a saturated layer emits as
+                    # a black body whatever slant path is assumed for it.
+                    "no upper bound on tau: the absolute transmittance error is "
+                    "bounded by 0.0316 everywhere and vanishes in the thick limit",
+                    # The floor was 0.01 until it was measured. The approximation is
+                    # an order of magnitude *more* accurate below that floor than
+                    # inside the declared range -- 0.003 maximum transmittance error
+                    # on [0, 0.01] against 0.032 on [0.01, 10] -- so the floor
+                    # excluded the region where the relation is at its best. It came
+                    # from reading the relative error as though it were the absolute
+                    # one. The 17 percent thin-limit bias is real, but it is a bias
+                    # on a vanishing quantity: it belongs to the uncertainty this
+                    # relation carries, which the radiation module already declares
+                    # as diffusivity_approximation, and not to the question of
+                    # whether the relation may be evaluated at all.
+                    "the accuracy is a property of the path, not of a layer: the "
+                    "approximate transmittance is exactly multiplicative, so splitting a "
+                    "path into layers leaves the approximate answer unchanged while "
+                    "moving every per-layer optical depth, and sixteen layers of tau = "
+                    "0.08 each -- comfortably inside this range -- carry the path optical "
+                    "depth 1.28 at which the approximation is at its worst. A per-layer "
+                    "range is necessary, not sufficient.",
+                ),
+            ),
             limiting_cases=("D approaches 2 as tau -> 0 and 1.66 near unit optical depth",),
             conserved_quantities=("energy",),
-            correctness_tests=("test_diffusivity_is_a_declared_parameterization",),
+            correctness_tests=(
+                "test_diffusivity_is_a_declared_parameterization",
+                "test_the_diffusivity_approximation_is_most_accurate_in_the_thin_limit",
+            ),
             known_failure_modes=(
-                "biases heating rates in optically very thin or very thick layers",
+                "underestimates the absorptance of an optically thin layer by 17 percent, "
+                "and so its heating rate, however thin the layer is -- the flux error "
+                "vanishes with tau but the relative heating-rate error does not",
+                "biases heating rates in optically very thick layers",
             ),
             source="Elsasser 1942; standard in reduced radiation schemes",
         )
@@ -1291,7 +1347,21 @@ def build_equation_registry() -> EquationRegistry:
                 "cloud of asymmetry 0.85 would reflect far too much.",
             ),
             validity_domain=ValidityDomain(
-                ranges=(("tau", 0.0, 1000.0, "1"), ("omega", 0.0, 1.0, "1")),
+                ranges=(("tau", 0.0, float("inf"), "1"), ("omega", 0.0, 1.0, "1")),
+                conditions=(
+                    # The ceiling of 1000 was an unmeasured guess and a real
+                    # column passes it -- 1110 in the carbon dioxide band
+                    # centre. Measured instead: reflectance, transmittance and
+                    # emissivity sum to one to the last bit at every optical
+                    # depth from zero to 1e8, at every single-scattering albedo
+                    # up to and including conservative scattering, and with and
+                    # without forward asymmetry. The transmittance underflows
+                    # smoothly to zero and the layer saturates at its correct
+                    # limits. The solver carries an explicit large-tau branch;
+                    # it was written for this and the ceiling denied it.
+                    "no upper bound on tau: energy closes exactly and the layer "
+                    "saturates correctly at every optical depth measured, to 1e8",
+                ),
             ),
             limiting_cases=(
                 "omega = 0 gives r = 0, t = exp(-D tau), e = 1 - t: the absorption-only "

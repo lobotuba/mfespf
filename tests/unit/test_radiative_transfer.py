@@ -345,3 +345,133 @@ def test_diffusivity_is_a_declared_parameterization():
     a = solve_column_radiation(diffusivity_factor=1.66, **common)  # type: ignore[arg-type]
     b = solve_column_radiation(diffusivity_factor=2.00, **common)  # type: ignore[arg-type]
     assert a.interface_up(a.toa_index) != pytest.approx(b.interface_up(b.toa_index), rel=1e-6)
+
+
+def _exact_diffuse_transmittance(tau: float) -> float:
+    """2 E_3(tau): the hemispheric integral the diffusivity factor stands in for.
+
+    Computed by quadrature over the cosine rather than from a special-function
+    library, so this is an independent reference and not the same approximation
+    written twice.
+    """
+    mu = np.linspace(1.0e-9, 1.0, 400_001)
+    return float(2.0 * np.trapezoid(np.exp(-tau / mu) * mu, mu))
+
+
+@pytest.mark.req("EQR-003")
+def test_the_diffusivity_approximation_is_most_accurate_in_the_thin_limit():
+    """The measurement that moved this relation's declared domain.
+
+    The record used to say the approximation degrades toward both the optically
+    thin and the optically thick limits, and its domain was floored at tau =
+    0.01 and capped at 10 to match. That reads the *relative* error as though it
+    were the absolute one. The absorptance of a thin layer is indeed
+    underestimated by a fixed 17 percent -- the ratio D/2 -- but it is 17
+    percent of a vanishing quantity, and the error in the transmittance, which
+    is what the fluxes carry, is largest in the middle of the old range and
+    smallest at both ends.
+    """
+    diffusivity = value_of("radiative_diffusivity_factor")
+
+    def error(tau: float) -> float:
+        return abs(float(np.exp(-diffusivity * tau)) - _exact_diffuse_transmittance(tau))
+
+    # An order of magnitude more accurate below the old floor than inside the
+    # range that floor was protecting.
+    assert max(error(t) for t in (0.0, 0.001, 0.005, 0.01)) < 0.003
+    assert error(1.28) > 0.03
+
+    # Bounded everywhere, which is why the domain carries no upper limit.
+    worst = max(error(t) for t in np.linspace(0.0, 12.0, 1201))
+    assert worst == pytest.approx(0.0316, abs=5.0e-4)
+    assert error(10.0) < 1.0e-5
+    assert error(100.0) == pytest.approx(0.0, abs=1.0e-12)
+
+    # The shape is two humps, not one, because the signed error changes sign:
+    # the approximation over-transmits a thin layer and under-transmits a thick
+    # one, crossing over near tau = 0.4. Asserting a single monotonic rise to
+    # the peak looked right and is false, so the structure is pinned instead.
+    def signed(tau: float) -> float:
+        return float(np.exp(-diffusivity * tau)) - _exact_diffuse_transmittance(tau)
+
+    assert signed(0.1) > 0.0, "a thin layer transmits more than the exact integral"
+    assert signed(1.0) < 0.0, "a thick one transmits less"
+    assert error(0.4) < error(0.1), "and the magnitude dips where the sign turns over"
+
+    # The thin-limit bias that is real: absorptance short by the ratio D/2.
+    tau = 1.0e-6
+    approximate = 1.0 - float(np.exp(-diffusivity * tau))
+    exact = 1.0 - _exact_diffuse_transmittance(tau)
+    assert approximate / exact == pytest.approx(diffusivity / 2.0, rel=1.0e-3)
+
+
+@pytest.mark.req("EQR-003", "RAD-002")
+def test_the_layer_solution_stays_sound_at_the_optical_depths_a_band_centre_reaches():
+    """Why the two-stream and Beer-Lambert domains carry no ceiling either.
+
+    The greenhouse configuration runs at tau = 1110 in the carbon dioxide band
+    centre, which broke declared ceilings of 10, 100 and 1000. A real band
+    centre is genuinely that opaque, so the question is whether the solve
+    survives it rather than whether the number looks large.
+    """
+    from mfespf.physics.radiative_transfer import two_stream_layer
+
+    diffusivity = value_of("radiative_diffusivity_factor")
+    tau = np.array([0.0, 1.0, 100.0, 709.0, 1109.61, 1.0e4, 1.0e8])
+
+    for omega, asymmetry in itertools.product((0.0, 0.5, 0.99, 1.0), (0.0, 0.85)):
+        r, t, e = two_stream_layer(
+            tau, np.full_like(tau, omega), np.full_like(tau, asymmetry), diffusivity
+        )
+        assert np.all(np.isfinite(r)) and np.all(np.isfinite(t)) and np.all(np.isfinite(e))
+        # Energy closes to the last bit at every optical depth, which is the
+        # property a ceiling would have been protecting.
+        assert np.allclose(r + t + e, 1.0, atol=1.0e-12)
+        assert np.all(t >= 0.0) and np.all(np.diff(t) <= 0.0)
+
+    # And the saturated limits are the right ones, not merely finite.
+    r, t, e = two_stream_layer(np.array([1.0e8]), np.array([0.0]), np.array([0.0]), diffusivity)
+    assert t[0] == 0.0 and e[0] == pytest.approx(1.0), "an opaque absorber is a black body"
+    r, t, e = two_stream_layer(np.array([1.0e8]), np.array([1.0]), np.array([0.0]), diffusivity)
+    assert e[0] == pytest.approx(0.0, abs=1.0e-12), "a conservative scatterer does not emit"
+
+
+@pytest.mark.req("RAD-002", "CLD-002")
+def test_a_mixed_sky_refuses_to_claim_an_optical_depth():
+    """The fluxes mix linearly; the optical properties do not.
+
+    A fraction-weighted tau is not the tau of any column that was solved, and
+    the transfer is linear in the source terms rather than in tau. Carrying the
+    weighted mean would publish a number that looks checkable and describes
+    nothing, so the mixed sky carries none and the module reports the two skies
+    it actually solved.
+    """
+    from mfespf.physics.radiative_transfer import _mix_columns
+
+    grid = column_grid(4)
+    common = dict(
+        grid=grid,
+        incident_spectral_irradiance=_incident_in_solar_band(grid, 340.25),
+        layer_temperature=np.full(3, 250.0),
+        layer_mass=np.full(3, 2500.0),
+        absorption_coefficient=grey_absorption(grid, 1.0e-4),
+        surface_temperature=288.0,
+        surface_albedo=np.full(grid.n_bins, 0.3),
+    )
+    clear = solve_column_radiation(**common)
+    thick = solve_column_radiation(
+        **{**common, "absorption_coefficient": grey_absorption(grid, 1.0e-2)}
+    )
+
+    # Each solve carries the properties it was performed with.
+    assert clear.optical_depth is not None and thick.optical_depth is not None
+    assert thick.optical_depth.max() > clear.optical_depth.max()
+
+    mixed = _mix_columns(clear, thick, 0.5)
+    assert mixed.optical_depth is None
+    assert mixed.single_scattering_albedo is None
+    assert mixed.layer_emissivity is None
+    # The fluxes, which do mix, still do.
+    assert mixed.interface_up(mixed.toa_index) == pytest.approx(
+        0.5 * clear.interface_up(clear.toa_index) + 0.5 * thick.interface_up(thick.toa_index)
+    )

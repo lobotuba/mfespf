@@ -39,6 +39,7 @@ from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError
 from mfespf.core.quantities import (
     Field,
+    MissingValuePolicy,
     Provenance,
     QuantityKind,
     SignConvention,
@@ -162,6 +163,32 @@ class WaterModule(Module):
                 EQUATION_IDS["condensation"],
                 EQUATION_IDS["latent_energy"],
             ),
+            equation_variables=(
+                (
+                    EQUATION_IDS["clausius_clapeyron"],
+                    (
+                        # Saturation is evaluated twice per step and at two
+                        # different temperatures: once per layer for the
+                        # adjustment, and once at the surface for the
+                        # evaporative deficit. Both are bound, because binding
+                        # one would leave the other evaluated and unjudged.
+                        ("T", ATMOSPHERE_TEMPERATURE_STATE, "K"),
+                        ("T", "surface_temperature", "K"),
+                    ),
+                ),
+                (
+                    EQUATION_IDS["latent_energy"],
+                    (
+                        # Not the layer temperature. This relation sums over
+                        # w_i, so it is evaluated only where there is vapour,
+                        # and binding the whole temperature field flagged a
+                        # column whose every out-of-range layer carried a weight
+                        # of exactly zero. The masked field says where the sum
+                        # actually has terms.
+                        ("T", "vapour_bearing_layer_temperature", "K"),
+                    ),
+                ),
+            ),
             assumptions=(
                 "no vertical or horizontal transport of vapour between layers",
                 "the surface is saturated with unlimited water available",
@@ -191,6 +218,7 @@ class WaterModule(Module):
                 "surface_latent_heat_flux",
                 "latent_heating_rate",
                 "atmosphere_precipitable_water",
+                "vapour_bearing_layer_temperature",
             ),
             imported_transfers=("evaporation_water", "evaporation_latent_energy"),
             exported_transfers=("precipitation_water", "latent_heat_release"),
@@ -270,6 +298,7 @@ class WaterModule(Module):
         self._stored_initial = 0.0
         self._budget: StateBudget | None = None
         self._layer_mass = np.ones(n_layers)
+        self._layer_temperature = np.zeros(n_layers)
 
     # --- configuration ----------------------------------------------------
     def validate_configuration(self) -> None:
@@ -326,6 +355,7 @@ class WaterModule(Module):
         surface_temperature = self.input_field("surface_temperature").require_units("K").scalar()
 
         self._layer_mass = np.asarray(layer_mass, dtype=float)
+        self._layer_temperature = np.asarray(temperature, dtype=float)
         self._interval = (ctx.time, ctx.time + ctx.dt)
         self._stored_initial = self.latent_energy()
 
@@ -405,6 +435,36 @@ class WaterModule(Module):
         provenance = Provenance(producer=self.module_id, derivation=EQUATION_IDS["latent_energy"])
         timestamp = self._context.time if self._context else 0.0
         return {
+            "vapour_bearing_layer_temperature": Field(
+                field_id="vapour_bearing_layer_temperature",
+                physical_name="layer temperature where the column holds vapour",
+                symbol="T_w",
+                # NaN where there is no vapour, which is a statement rather than
+                # a gap: the latent energy sums over w_i, so a layer holding
+                # none contributes no term, and its temperature is not one the
+                # relation was evaluated at. The masked profile is published
+                # rather than a vapour-weighted mean because a declared range is
+                # about the extent -- a mean would hide a hot layer and a cold
+                # one by averaging them into the middle.
+                values=np.where(
+                    np.asarray(self.vapour, dtype=float) > 0.0,
+                    np.asarray(self._layer_temperature, dtype=float),
+                    np.nan,
+                ),
+                units="K",
+                quantity_kind=QuantityKind.DIAGNOSTIC,
+                time_semantics=TimeSemantics.INSTANTANEOUS,
+                timestamp=timestamp,
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                coordinate_system="pressure_layers",
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                # The mask is the content of this field, so it declares the
+                # policy DAT-007 already provides for it rather than smuggling
+                # the NaNs past a default that exists to catch them.
+                missing_value_policy=MissingValuePolicy.MASKED,
+                provenance=provenance,
+            ),
             VAPOUR_STATE: Field(
                 field_id=VAPOUR_STATE,
                 physical_name="water vapour mass per unit area in each layer",
@@ -424,7 +484,7 @@ class WaterModule(Module):
                     method="none",
                     unresolved=("initial_condition", "evaporation_coefficient_parameter"),
                 ),
-            )
+            ),
         }
 
     def emit_outputs(self) -> dict[str, Field]:

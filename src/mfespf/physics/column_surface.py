@@ -46,6 +46,7 @@ from mfespf.core.quantities import (
 from mfespf.core.versioning import VersionRange
 from mfespf.coupling.conservation import ModuleBudget
 from mfespf.coupling.transfers import ConservedQuantity, Transfer
+from mfespf.coupling.validity import INTEGRATED_OVER
 from mfespf.physics.equations import EQUATION_IDS
 from mfespf.physics.surface import (
     SURFACE_INTERFACE,
@@ -111,6 +112,21 @@ class ColumnSurfaceModule(Module):
                 EQUATION_IDS["slab"],
                 EQUATION_IDS["planck"],
                 EQUATION_IDS["forward_euler"],
+            ),
+            equation_variables=(
+                (
+                    EQUATION_IDS["planck"],
+                    (
+                        # This module cites Planck for the provenance of the
+                        # longwave flux it exchanges, but it never evaluates the
+                        # function at a wavelength: the radiation module does
+                        # that band by band and hands over a broadband flux.
+                        # Binding lambda to this module's grid edges would state
+                        # a wavelength support for a quantity that has none left.
+                        ("lambda", INTEGRATED_OVER, "m"),
+                        ("T", SURFACE_TEMPERATURE_STATE, "K"),
+                    ),
+                ),
             ),
             assumptions=(
                 "the layer is isothermal and well mixed",

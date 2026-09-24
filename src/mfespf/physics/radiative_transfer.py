@@ -227,6 +227,15 @@ class ColumnRadiationSolution:
     surface_emitted: float
     grid: SpectralGrid
     shortwave_mask: np.ndarray
+    # The optical properties the solve was actually performed with, carried out
+    # rather than recomputed. Three registered equations declare ranges on the
+    # optical depth and one more on the single-scattering albedo, and none of
+    # them could be checked while these stayed local to the solver. Recomputing
+    # them outside would check a reconstruction rather than the thing used.
+    # None on a mixed sky, where there is no single set: see ``_mix_columns``.
+    optical_depth: np.ndarray | None  # (n_layers, n_bands), extinction
+    single_scattering_albedo: np.ndarray | None  # (n_layers, n_bands)
+    layer_emissivity: np.ndarray | None  # (n_layers, n_bands)
 
     @property
     def n_layers(self) -> int:
@@ -440,7 +449,29 @@ def solve_column_radiation(
         ),
         grid=grid,
         shortwave_mask=shortwave_mask,
+        optical_depth=total_optical_depth,
+        single_scattering_albedo=single_scattering_albedo,
+        layer_emissivity=emissivity,
     )
+
+
+def _extent_over(solutions: list[ColumnRadiationSolution], attribute: str) -> np.ndarray:
+    """The smallest and largest value an optical property took across the skies.
+
+    **Why the extent and not the field.** Three equations declare ranges on the
+    optical depth and one on the single-scattering albedo, and a declared range
+    is a statement about the extent a relation was evaluated over -- which is
+    two numbers, whatever the resolution behind them. Publishing the whole
+    (sky, layer, band) array instead was measured at 80 MB across the 25,916
+    steps of the historical replay, enough to exhaust memory on a run that was
+    already near the limit, in order to carry information that is consumed as a
+    minimum and a maximum. The full arrays remain on each
+    ``ColumnRadiationSolution`` for the current step, where anyone who wants to
+    know *which* layer is thick can still ask.
+    """
+    values = [np.asarray(getattr(s, attribute), dtype=float) for s in solutions]
+    stacked = np.concatenate([v.reshape(-1) for v in values])
+    return np.array([float(stacked.min()), float(stacked.max())])
 
 
 def _mix_columns(
@@ -466,6 +497,15 @@ def _mix_columns(
         surface_emitted=(1.0 - weight) * clear.surface_emitted + weight * overcast.surface_emitted,
         grid=clear.grid,
         shortwave_mask=clear.shortwave_mask,
+        # The fluxes mix; the optical properties do not. A fraction-weighted
+        # optical depth is not the optical depth of any column that was solved,
+        # and the transfer is linear in the *source* terms, not in tau. Carrying
+        # the weighted mean would publish a number that looks checkable and
+        # describes nothing, so the mixed sky declines to claim one and the
+        # module reports the two skies it actually solved instead.
+        optical_depth=None,
+        single_scattering_albedo=None,
+        layer_emissivity=None,
     )
 
 
@@ -523,6 +563,46 @@ class SpectralRadiationModule(Module):
                     else ()
                 ),
             ),
+            equation_variables=(
+                (
+                    EQUATION_IDS["schwarzschild"],
+                    (
+                        # The source function of the medium is the layer
+                        # temperature. The surface enters this solve as the
+                        # lower boundary condition, not as the transfer
+                        # equation's T, so binding it here would judge the
+                        # wrong quantity against this record's range.
+                        ("T", ATMOSPHERE_TEMPERATURE_STATE, "K"),
+                    ),
+                ),
+                *(
+                    (
+                        (
+                            EQUATION_IDS["cloud_optics"],
+                            (
+                                ("W", "cloud_liquid_water_path", "kg m^-2"),
+                                ("W", "cloud_ice_water_path", "kg m^-2"),
+                                ("r_eff", "cloud_effective_radius", "m"),
+                            ),
+                        ),
+                    )
+                    if couple_clouds
+                    else ()
+                ),
+                (
+                    EQUATION_IDS["planck"],
+                    (
+                        # Planck, unlike Schwarzschild, genuinely is evaluated
+                        # at both: once per layer for the emission source and
+                        # once at the surface for the boundary. Both are bound
+                        # rather than one chosen, because choosing would leave
+                        # the other evaluated and unjudged.
+                        ("T", ATMOSPHERE_TEMPERATURE_STATE, "K"),
+                        ("T", "surface_temperature", "K"),
+                        ("lambda", "spectral_edges", "m"),
+                    ),
+                ),
+            ),
             assumptions=(
                 "plane-parallel, horizontally homogeneous column",
                 "gases absorb and emit but do not scatter; only clouds scatter",
@@ -539,9 +619,14 @@ class SpectralRadiationModule(Module):
                 ),
             ),
             validity_domain=(
-                "Optical depths where the diffusivity approximation holds to a few "
-                "percent, roughly 0.1 to 10 per layer. Scattering atmospheres, cloudy "
-                "columns and strongly inhomogeneous layers are outside it."
+                "Optical depths up to about 10 per layer. The lower end used to be "
+                "declared as 0.1, which measurement contradicts: the diffusivity "
+                "approximation is most accurate in the thin limit, not least, and its "
+                "worst absolute error falls near unit optical depth in the middle of "
+                "the range. What survives of the thin-limit concern is a fixed 17 "
+                "percent underestimate of a vanishing absorptance, reported as the "
+                "diffusivity_approximation uncertainty rather than as a bound. "
+                "Strongly inhomogeneous layers are outside this domain."
             ),
             required_inputs=(
                 "toa_spectral_irradiance",
@@ -550,13 +635,32 @@ class SpectralRadiationModule(Module):
                 "atmosphere_layer_heat_capacity",
                 "surface_temperature",
                 "surface_spectral_albedo",
-                *(("cloud_fraction",) if couple_clouds else ()),
+                # All four, not just the fraction. This module derives the cloud
+                # optical properties itself from the water paths and the radii,
+                # so it consumes them as surely as it consumes the fraction.
+                # Declaring only the fraction left the other three undeclared
+                # inputs: the coupler could not check the wiring, and a missing
+                # one surfaced as a run-time error from inside the solve rather
+                # than as an unsatisfied contract before the run started.
+                *(
+                    (
+                        "cloud_fraction",
+                        "cloud_liquid_water_path",
+                        "cloud_ice_water_path",
+                        "cloud_effective_radius",
+                    )
+                    if couple_clouds
+                    else ()
+                ),
                 *(("co2_mole_fraction",) if couple_greenhouse else ()),
                 *(("stratospheric_aerosol_optical_depth",) if couple_volcanic else ()),
                 *(("atmosphere_water_vapour",) if couple_water else ()),
             ),
             produced_outputs=(
                 "layer_radiative_heating",
+                "layer_optical_depth_extent",
+                "layer_single_scattering_albedo_extent",
+                "layer_emissivity_extent",
                 "toa_downward_radiation",
                 "toa_upward_radiation",
                 "surface_downward_radiation",
@@ -669,6 +773,9 @@ class SpectralRadiationModule(Module):
         self.cloud_module_id = cloud_module_id
         self.solution: ColumnRadiationSolution | None = None
         self.clear_sky: ColumnRadiationSolution | None = None
+        # Kept so the published optical properties cover every sky the
+        # diffusivity approximation was applied to, not just the clear one.
+        self.overcast: ColumnRadiationSolution | None = None
         self._cloud_fraction = 0.0
         self._layer_heat_capacity: np.ndarray | None = None
         # A property of the grid, not of the run: computed once and reported
@@ -795,6 +902,7 @@ class SpectralRadiationModule(Module):
         cloud = self._cloud_optics() if self.couple_clouds else None
         if cloud is None or cloud[0] <= 0.0:
             self._cloud_fraction = 0.0
+            self.overcast = None
             self.solution = self.clear_sky
         else:
             fraction, optics = cloud
@@ -819,6 +927,7 @@ class SpectralRadiationModule(Module):
                     "asymmetry": asymmetry,
                 }  # type: ignore[arg-type]
             )
+            self.overcast = overcast
             self.solution = _mix_columns(self.clear_sky, overcast, fraction)
 
         heat_capacity = self.input_field("atmosphere_layer_heat_capacity").require_units(
@@ -852,7 +961,47 @@ class SpectralRadiationModule(Module):
         toa = solution.toa_index
         toa_up_sw, toa_up_lw = solution.partition(solution.upward[toa])
 
+        # Every sky this step was solved for, stacked. Two when a cloud is
+        # active, because the diffusivity approximation and the two-stream
+        # coefficients were applied to both of them and a diagnostic that
+        # covered only the clear one would leave the more demanding column --
+        # the optically thick one -- unreported.
+        skies = [s for s in (self.clear_sky, self.overcast) if s is not None]
+        optics = {
+            "quantity_kind": QuantityKind.DIAGNOSTIC,
+            "time_semantics": TimeSemantics.INSTANTANEOUS,
+            "timestamp": ctx.time,
+            "spatial_support": SpatialSupport.LAYER_AVERAGE,
+            "dimensions": ("bound",),
+            "sign_convention": SignConvention.POSITIVE_DEFINITE,
+            "provenance": provenance,
+        }
+
         outputs = {
+            "layer_optical_depth_extent": Field(
+                field_id="layer_optical_depth_extent",
+                physical_name="smallest and largest layer extinction optical depth solved",
+                symbol="tau",
+                values=_extent_over(skies, "optical_depth"),
+                units="1",
+                **optics,  # type: ignore[arg-type]
+            ),
+            "layer_single_scattering_albedo_extent": Field(
+                field_id="layer_single_scattering_albedo_extent",
+                physical_name="smallest and largest layer single-scattering albedo solved",
+                symbol="omega",
+                values=_extent_over(skies, "single_scattering_albedo"),
+                units="1",
+                **optics,  # type: ignore[arg-type]
+            ),
+            "layer_emissivity_extent": Field(
+                field_id="layer_emissivity_extent",
+                physical_name="smallest and largest layer emissivity solved",
+                symbol="e_i",
+                values=_extent_over(skies, "layer_emissivity"),
+                units="1",
+                **optics,  # type: ignore[arg-type]
+            ),
             "layer_radiative_heating": Field(
                 field_id="layer_radiative_heating",
                 physical_name="net radiative heating of each layer",
@@ -1022,6 +1171,7 @@ class SpectralRadiationModule(Module):
             "spectral_grid_id": self.grid.grid_id,
             "spectral_resolution_identifier": self.grid.resolution_identifier,
             "n_bands": self.grid.n_bins,
+            "spectral_edges": self.grid.edges.tolist(),
             # Recorded band by band: a band-mean would make two spectrally
             # different atmospheres hash alike.
             "absorption_coefficient_m2_kg": self.absorption_coefficient.tolist(),

@@ -136,6 +136,22 @@ class SolarSource(Module):
                 "declared spectral shape."
             ),
             governing_equation_ids=(EQUATION_IDS["planck"],),
+            equation_variables=(
+                (
+                    EQUATION_IDS["planck"],
+                    (
+                        # Planck is evaluated here only to shape the spectrum,
+                        # never to set the total, so its temperature is the
+                        # declared effective temperature rather than any state.
+                        # A subclass that prescribes a measured spectrum instead
+                        # does not supply this parameter and the check says so.
+                        ("T", "spectral_shape_effective_temperature", "K"),
+                        # The wavelengths the relation is actually evaluated at
+                        # are the band edges of this module's grid.
+                        ("lambda", "spectral_edges", "m"),
+                    ),
+                ),
+            ),
             assumptions=assumptions,
             validity_domain=(
                 "Irradiance at the reference distance of 1 au, over the declared spectral "

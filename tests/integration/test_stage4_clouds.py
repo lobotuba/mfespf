@@ -235,3 +235,42 @@ def test_the_cloud_reaches_the_configuration_hash():
         thin.parameters["cloud"]["liquid_water_path_kg_m2"]
         != (thick.parameters["cloud"]["liquid_water_path_kg_m2"])
     )
+
+
+@pytest.mark.req("EQR-003", "RAD-002", "CLD-002")
+def test_the_published_optics_cover_both_skies_not_just_the_clear_one():
+    """Three equations declare ranges on the optical depth, and none could be
+    checked while it stayed local to the solver.
+
+    A cloudy step solves two columns, and the cloudy one is the demanding
+    column. An extent that covered only the clear sky would leave the optically
+    thicker half of the calculation unjudged, and the all-sky mix is not an
+    alternative: the fluxes mix linearly and the optical depths do not, so a
+    fraction-weighted tau is not the tau of any column that was solved.
+    """
+    import numpy as np
+
+    clear_run, clear = _run(prescribed_cloud(fraction=0.0, **BASE), 200)
+    cloudy_run, cloudy = _run(prescribed_cloud(fraction=0.6, **BASE), 200)
+
+    clear_tau = np.asarray(clear["layer_optical_depth_extent"].values)
+    cloudy_tau = np.asarray(cloudy["layer_optical_depth_extent"].values)
+
+    # Two numbers, because a declared range is a statement about the extent.
+    assert clear["layer_optical_depth_extent"].dimensions == ("bound",)
+    assert clear_tau.shape == (2,) and cloudy_tau.shape == (2,)
+    assert clear_tau[0] <= clear_tau[1]
+
+    # Adding a cloud can only thicken the column, and the extent reaches the
+    # overcast sky rather than stopping at the clear one.
+    assert cloudy_tau[1] > clear_tau[1]
+
+    for run in (clear_run, cloudy_run):
+        assert run.validity_domains is not None
+        assert run.validity_domains.passed
+
+    # Gases do not scatter here, so only a cloudy column has any scattering at
+    # all -- which is what makes the two-stream albedo range worth checking.
+    assert np.asarray(clear["layer_single_scattering_albedo_extent"].values).max() == 0.0
+    assert np.asarray(cloudy["layer_single_scattering_albedo_extent"].values).max() > 0.0
+    assert np.all(np.asarray(cloudy["layer_emissivity_extent"].values) <= 1.0)

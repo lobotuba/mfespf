@@ -16,23 +16,46 @@ These are the items where the framework fails to do the thing it exists to do.
 They come before the physics, because the physics is what they are supposed to
 be protecting.
 
-### Validity-domain coverage is 18 of 30
+### Validity-domain coverage is closed, and the latent heat is not
 
-Enforcement is a mandatory gate and modules can now bind an equation's symbol to
-one of their own fields or parameters, which took coverage from 9 to 18 and
-found a seventh out-of-domain evaluation on the way.
+Coverage is 31 of 32 declared ranges on a cloudy column and 0 violated on every
+reference configuration. The one remaining unresolvable is not a gap: the
+surface's thermal emission is Planck integrated over every wavelength, so its
+`lambda` has no value a range could be checked against, and the module now says
+so through `INTEGRATED_OVER` instead of leaving the checker to report that it
+could not find the variable. Two unresolvables that mean different things no
+longer read alike.
 
-The twelve that remain are quantities no module publishes or holds as a
-parameter: optical depth, single-scattering albedo, wavelength, layer
-emissivity, the CO2 mole fraction as a fraction rather than as ppm. Each needs
-the module to expose the value before it can be bound, which is a small change
-per module and worth doing where the quantity is diagnostically interesting
-anyway -- optical depth most of all, since three separate records declare a
-range on it.
+What is left here is the coarseness rather than the coverage. The check still
+judges the extent a quantity spans, not the region an equation was applied to,
+except where a module masks the field. Convection is the remaining case: it
+computes its lapse-rate target for every layer and adjusts only below the
+convective top, so a stratospheric temperature can flag a relation whose output
+is never used up there. The cure now exists -- publish the target masked to the
+adjusted layers -- and has not been applied.
 
-Two of the twelve are ambiguity refusals in the radiation module, where `T`
-could be the layer or the surface temperature. Those need only a binding, not a
-new diagnostic.
+### The saturation is over ice and the latent heat is not
+
+Found while measuring the latent-energy domain, and left open because fixing it
+moves the climate and needs a recalibration.
+
+`saturation_vapour_pressure` saturates over the phase that is actually present,
+so below the triple point it uses the latent heat of sublimation. The latent
+*energy* bookkeeping in `WaterModule` still uses one constant latent heat of
+vaporisation at 273.16 K. The column's vapour sits at 259.6 K, below the triple
+point, so its condensate should be depositing as ice and releasing the heat of
+sublimation.
+
+Measured on the reduced-ocean column: respecting the phase raises the column's
+latent energy by **13.5 percent**, against **1.3 percent** for merely letting
+L_v vary with temperature by Kirchhoff. So the phase term is ten times the
+temperature term, and the module's declared
+`latent_heat_constant_approximation` uncertainty is carrying both.
+
+This is an energy the column releases on condensation, so it is not a
+bookkeeping detail -- it warms the atmosphere where the condensation happens.
+The fix is to make the latent heat phase-aware the way the saturation already
+is, and then to recalibrate whatever it moves.
 
 ### Uncertainty is declared everywhere and propagated nowhere
 

@@ -18,7 +18,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from mfespf.coupling.validity import check_validity_domains
+from mfespf.coupling.validity import INTEGRATED_OVER, check_validity_domains
 from mfespf.registries.equations import ValidityDomain
 
 pytestmark = pytest.mark.stage(3)
@@ -37,11 +37,16 @@ class _Contract:
     governing_equation_ids: tuple[str, ...]
     required_inputs: tuple[str, ...] = ()
     produced_outputs: tuple[str, ...] = ()
+    equation_variables: tuple[tuple[str, tuple[tuple[str, str, str], ...]], ...] = ()
 
 
 @dataclass
 class _Module:
     contract: _Contract
+    _parameters: dict[str, Any] | None = None
+
+    def parameters(self) -> dict[str, Any]:
+        return dict(self._parameters or {})
 
 
 @dataclass
@@ -58,9 +63,9 @@ class _Registry:
         return list(self._records.values())
 
 
-def _report(record, contract, fields):
+def _report(record, contract, fields, parameters=None):
     return check_validity_domains(
-        registry=_Registry(record), modules=[_Module(contract)], fields=fields
+        registry=_Registry(record), modules=[_Module(contract, parameters)], fields=fields
     )
 
 
@@ -152,3 +157,126 @@ def test_a_range_in_other_units_is_not_silently_compared():
     assert not report.violations
     assert len(report.unchecked) == 1
     assert "degC" in report.unchecked[0].detail
+
+
+@pytest.mark.req("EQR-003", "SYS-006")
+def test_every_binding_on_one_symbol_is_judged_not_just_the_first():
+    """One symbol can name several quantities, and checking one is checking none.
+
+    The cloud optics declare a range on ``W`` and the module carries a liquid
+    path and an ice path; the water module evaluates saturation at the layer
+    temperature and again at the surface. Keeping only the first binding would
+    leave the other quantity evaluated and silently unjudged, which is the
+    half-answer this check refuses when it refuses an ambiguity.
+    """
+    record = _Record("EQ-W", ValidityDomain(ranges=(("W", 0.0, 10.0, "kg m^-2"),)))
+    contract = _Contract(
+        "cloud",
+        ("EQ-W",),
+        produced_outputs=("liquid", "ice"),
+        equation_variables=(("EQ-W", (("W", "liquid", "kg m^-2"), ("W", "ice", "kg m^-2"))),),
+    )
+    fields = {
+        "liquid": _Field("LWP", "kg m^-2", np.array([0.0, 0.05])),
+        "ice": _Field("IWP", "kg m^-2", np.array([0.0, 40.0])),  # outside
+    }
+
+    report = _report(record, contract, fields)
+
+    assert len(report.checks) == 2
+    assert len(report.violations) == 1
+    assert "ice" in report.violations[0].detail
+
+
+@pytest.mark.req("EQR-003")
+def test_a_binding_beats_a_unique_but_wrong_inferred_match():
+    """A single candidate is not evidence of a correct one.
+
+    The ambiguity refusal only fires when a second candidate exists to notice.
+    The deep ocean's slab balance was matched against the *mixed layer's* heat
+    capacity, which was the only field of that symbol and units in scope, and
+    so was reported on confidently. Only the module can say otherwise.
+    """
+    record = _Record("EQ-C", ValidityDomain(ranges=(("C", 1.0e3, 1.0e10, "J m^-2 K^-1"),)))
+    inferred = _Contract("ocean", ("EQ-C",), required_inputs=("surface_heat_capacity",))
+    fields = {"surface_heat_capacity": _Field("C", "J m^-2 K^-1", np.array([1.0e6]))}
+
+    # Left to inference it resolves -- to the wrong reservoir.
+    assert "surface_heat_capacity" in _report(record, inferred, fields).checks[0].detail
+
+    bound = _Contract(
+        "ocean",
+        ("EQ-C",),
+        required_inputs=("surface_heat_capacity",),
+        equation_variables=(("EQ-C", (("C", "deep_capacity", "J m^-2 K^-1"),)),),
+    )
+    check = _report(record, bound, fields, {"deep_capacity": 4.1e8}).checks[0]
+
+    assert check.status == "inside"
+    assert "deep_capacity" in check.detail
+    assert "surface_heat_capacity" not in check.detail
+
+
+@pytest.mark.req("EQR-003", "SYS-006")
+def test_a_masked_value_narrows_the_check_to_where_the_relation_was_applied():
+    """NaN means "not evaluated here", which is the standing coarseness's cure.
+
+    ``E = L_v sum_i w_i`` was flagged for reaching 225 K against a floor of 230,
+    and the column holds exactly zero vapour below 230 K -- every temperature
+    that broke the range multiplied a weight of zero. Masking the layers that
+    carry no vapour turns the extent a quantity *spans* into the region the
+    equation was *applied* to.
+    """
+    record = _Record("EQ-L", ValidityDomain(ranges=(("T", 230.0, 340.0, "K"),)))
+    contract = _Contract("water", ("EQ-L",), produced_outputs=("T_where_vapour",))
+    unmasked = {"T_where_vapour": _Field("T", "K", np.array([259.6, 232.7, 225.2]))}
+    masked = {"T_where_vapour": _Field("T", "K", np.array([259.6, np.nan, np.nan]))}
+
+    assert _report(record, contract, unmasked).violations
+    report = _report(record, contract, masked)
+    assert not report.violations
+    assert report.checks[0].status == "inside"
+    assert "259.6" in report.checks[0].detail
+
+
+@pytest.mark.req("EQR-003")
+def test_an_infinity_is_a_defect_rather_than_a_mask():
+    """Masking is a statement a module makes; an infinity is a bug.
+
+    If a non-finite value simply meant "skip me", a field that had blown up
+    could pass the check by being broken.
+    """
+    record = _Record("EQ-I", ValidityDomain(ranges=(("T", 230.0, 340.0, "K"),)))
+    contract = _Contract("water", ("EQ-I",), produced_outputs=("temperature",))
+    fields = {"temperature": _Field("T", "K", np.array([288.0, np.inf]))}
+
+    report = _report(record, contract, fields)
+
+    assert not report.violations
+    assert len(report.unchecked) == 1
+    assert "finite" in report.unchecked[0].detail
+
+
+@pytest.mark.req("EQR-003")
+def test_a_variable_integrated_over_is_declared_rather_than_left_unfound():
+    """Two unresolvables that mean different things should not read alike.
+
+    The surface's thermal emission is Planck integrated over every wavelength,
+    so its ``lambda`` has no value a range could be checked against. That is not
+    a gap to close -- closing it would state a wavelength support for a quantity
+    that has none left.
+    """
+    record = _Record("EQ-P", ValidityDomain(ranges=(("lambda", 1e-9, 1e-2, "m"),)))
+    contract = _Contract(
+        "surface",
+        ("EQ-P",),
+        produced_outputs=("surface_temperature",),
+        equation_variables=(("EQ-P", (("lambda", INTEGRATED_OVER, "m"),)),),
+    )
+    fields = {"surface_temperature": _Field("T_s", "K", np.array([288.0]))}
+
+    report = _report(record, contract, fields)
+
+    assert not report.violations
+    assert len(report.unchecked) == 1
+    assert "integrates over this variable" in report.unchecked[0].detail

@@ -54,10 +54,20 @@ from typing import Any
 import numpy as np
 
 __all__ = [
+    "INTEGRATED_OVER",
     "DomainCheck",
     "DomainReport",
     "check_validity_domains",
 ]
+
+#: Bind a symbol to this when the module integrates over the variable rather
+#: than evaluating the relation at any value of it. The surface's thermal
+#: emission is the Planck function integrated over every wavelength, so its
+#: ``lambda`` has no value a range could be checked against -- and that is a
+#: different thing from a variable the checker merely failed to find. Both stay
+#: unchecked, because neither was checked; the distinction is that one is a gap
+#: to close and the other is a category error that closing would introduce.
+INTEGRATED_OVER = "<integrated over its full support>"
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,8 +113,9 @@ class DomainReport:
         means something different from no violations over forty.
 
         A violation *does* invalidate: the driver records this as a mandatory
-        gate. Coverage is presently 9 of 30 declared ranges on a column
-        configuration, so a pass is a weaker statement than a failure.
+        gate. Coverage is presently 31 of 32 declared ranges on a cloudy column,
+        the one exception being a variable a module integrates over rather than
+        evaluates at, so a pass is no longer the much weaker statement it was.
         """
         return not self.violations
 
@@ -120,11 +131,27 @@ class DomainReport:
 
 
 def _extent(values: Any) -> tuple[float, float] | None:
-    """The range a field actually spans, or None if it is not numeric."""
+    """The range a field actually spans, or None if there is nothing to judge.
+
+    **A NaN means the relation was not evaluated there, and is skipped.** That
+    is what lets a module narrow a check from the extent a quantity *spans* to
+    the region the equation was *applied* to, which is otherwise this module's
+    standing coarseness. The latent energy of vapour is the case that forced it:
+    ``E = L_v sum_i w_i`` was flagged for reaching 225 K against a floor of 230,
+    and the column holds exactly zero vapour below 230 K, so every temperature
+    that broke the range multiplied a weight of zero.
+
+    An infinity is *not* skipped. A masked-out entry is a statement the module
+    is making on purpose; an infinity is a defect, and treating it as a mask
+    would let the check pass by being broken.
+    """
     array = np.asarray(values, dtype=float)
-    if array.size == 0 or not np.all(np.isfinite(array)):
+    if array.size == 0 or bool(np.any(np.isinf(array))):
         return None
-    return (float(np.min(array)), float(np.max(array)))
+    finite = array[~np.isnan(array)]
+    if finite.size == 0:
+        return None
+    return (float(np.min(finite)), float(np.max(finite)))
 
 
 def check_validity_domains(
@@ -155,10 +182,15 @@ def check_validity_domains(
             if symbol:
                 in_scope.append((field_id, field, str(symbol)))
 
-        declared = {
-            equation: {symbol: (name, stated) for symbol, name, stated in bindings}
-            for equation, bindings in (getattr(contract, "equation_variables", ()) or ())
-        }
+        # A symbol may be bound more than once. One equation's ``r_eff`` covers
+        # both the droplet and the crystal radius, and checking whichever was
+        # declared first would leave the other silently unjudged -- the same
+        # half-answer this module refuses when it refuses an ambiguity.
+        declared: dict[str, dict[str, list[tuple[str, str]]]] = {}
+        for equation, bindings in getattr(contract, "equation_variables", ()) or ():
+            per_symbol = declared.setdefault(equation, {})
+            for symbol, name, stated in bindings:
+                per_symbol.setdefault(symbol, []).append((name, stated))
         parameters = _parameters_of(module)
 
         for equation_id in getattr(contract, "governing_equation_ids", ()) or ():
@@ -169,23 +201,24 @@ def check_validity_domains(
             for name, low, high, units in record.validity_domain.ranges:
                 # A binding the module declared beats anything inferred: it is
                 # the one statement here that cannot be a coincidence of naming.
-                resolved, ambiguity = (
-                    _bound(bound.get(name), fields, parameters)
+                attempts = (
+                    [_bound(binding, fields, parameters) for binding in bound[name]]
                     if name in bound
-                    else _resolve(name, units, in_scope)
+                    else [_resolve(name, units, in_scope)]
                 )
-                checks.append(
-                    _judge(
-                        module_id=contract.module_id,
-                        equation_id=equation_id,
-                        name=name,
-                        low=low,
-                        high=high,
-                        units=units,
-                        resolved=resolved,
-                        ambiguity=ambiguity,
+                for resolved, ambiguity in attempts:
+                    checks.append(
+                        _judge(
+                            module_id=contract.module_id,
+                            equation_id=equation_id,
+                            name=name,
+                            low=low,
+                            high=high,
+                            units=units,
+                            resolved=resolved,
+                            ambiguity=ambiguity,
+                        )
                     )
-                )
 
     return DomainReport(tuple(checks))
 
@@ -208,7 +241,7 @@ def _parameters_of(module: Any) -> Mapping[str, Any]:
 
 
 def _bound(
-    binding: tuple[str, str] | None,
+    binding: tuple[str, str],
     fields: Mapping[str, Any],
     parameters: Mapping[str, Any],
 ) -> tuple[tuple[str, Any] | None, str]:
@@ -218,9 +251,12 @@ def _bound(
     none of its own -- is still judged on a stated basis rather than on the
     assumption that it matches whatever the equation declared.
     """
-    if binding is None:
-        return None, ""
     name, stated = binding
+    if name == INTEGRATED_OVER:
+        return None, (
+            "the module integrates over this variable rather than evaluating the "
+            "relation at any value of it, so no range applies"
+        )
     field = fields.get(name)
     if field is not None:
         return (name, _StatedField(field.values, stated)), ""
@@ -330,7 +366,8 @@ def _judge(
         equation_id,
         name,
         "inside",
-        f"{name} spans [{lowest:g}, {highest:g}] {units} within [{low:g}, {high:g}]",
+        f"{name} spans [{lowest:g}, {highest:g}] {units} in {field_id}, "
+        f"within the declared [{low:g}, {high:g}]",
     )
 
 

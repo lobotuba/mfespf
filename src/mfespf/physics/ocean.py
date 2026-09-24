@@ -281,6 +281,24 @@ class DeepOceanModule(Module):
                 EQUATION_IDS["slab"],
                 EQUATION_IDS["forward_euler"],
             ),
+            equation_variables=(
+                (
+                    EQUATION_IDS["slab"],
+                    (
+                        # Both of these were wrong before they were stated. The
+                        # temperature was refused as ambiguous, which was the
+                        # check working. The capacity was not: the mixed layer's
+                        # surface_heat_capacity is a declared input of this
+                        # module and carries the symbol C in the right units, so
+                        # it was the *only* candidate and inference reported
+                        # confidently on the wrong reservoir. A unique match is
+                        # not evidence of a correct one -- the ambiguity refusal
+                        # only fires when a second candidate exists to notice.
+                        ("T", OCEAN_DEEP_STATE, "K"),
+                        ("C", "areal_heat_capacity_J_m2_K", "J m^-2 K^-1"),
+                    ),
+                ),
+            ),
             assumptions=(
                 "the deep reservoir is isothermal and well mixed",
                 "heat exchange is linear in the mixed-layer to deep temperature difference",
