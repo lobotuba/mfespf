@@ -163,6 +163,18 @@ saying out loud.
   none of the first four hundred. A per-step mask made the same configuration
   resolvable at 2000 steps and unresolvable at 400 -- a fact about where the run
   stopped, not about the physics.
+- **Two gates can pull against each other, and neither is the one to weaken.**
+  VAL-002 asks for grid refinement; refining the grid makes the top layer colder
+  until it leaves Clausius-Clapeyron's measured 170 K floor, and the domain check
+  refuses the run. The floor was right, the refinement was right, and the water
+  in dispute was one part in ten million. The repair was to stop *evaluating* the
+  relation outside its domain, which cost 0.01 K -- not to widen the floor and
+  not to coarsen the grid.
+- **Declining to evaluate is not the same as clipping.** A humidity closure that
+  places no vapour below the relation's floor is making a statement about its own
+  scope. In the prognostic module the same rule means a too-cold layer's vapour
+  condenses and precipitates -- it leaves as water, by the ordinary route, with
+  the budget closing.
 - **A declared domain is a guess until someone measures it.** Three optical-depth
   ceilings -- 10, 100 and 1000 -- were all exceeded by the greenhouse
   configuration at tau = 1110, and all three were wrong rather than the run. The

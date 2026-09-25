@@ -391,6 +391,48 @@ def test_the_prescribed_profile_follows_clausius_clapeyron():
         PrescribedHumidityModule(relative_humidity=1.4).validate_configuration()
 
 
+@pytest.mark.req("EQR-003", "VAL-002", "DAT-007")
+def test_a_layer_too_cold_for_the_relation_is_left_dry_and_unjudged():
+    """Refining the grid walked the column out of its own equation's domain.
+
+    `EQ-CLAUSIUS-CLAPEYRON-SATURATION` is declared from 170 K, and the floor is
+    measured rather than asserted: against Murphy and Koop (2005) the
+    constant-heat-capacity form is within 2 percent to 200 K, 6.3 percent at
+    172 K and 13.6 percent by 150 K. A radiative-convective top layer gets
+    colder as it gets thinner, so the greenhouse column reached 159 K at twenty
+    layers and 150 K at forty, and every such run was refused.
+
+    Both sides of that were right. VAL-002 asks for the refinement and the
+    relation really is 13.6 percent wrong down there. What was wrong was
+    evaluating it at all: the closure now declines below the floor, which costs
+    one part in ten million of the column's water, and publishes the
+    temperatures it did evaluate at so the check judges it there.
+    """
+    module = PrescribedHumidityModule(n_layers=N_LAYERS, relative_humidity=0.7)
+    module.validate_configuration()
+    module.initialize({}, {"master_start_time": 0.0})
+
+    # A profile whose top two layers are below the floor and whose bottom is not.
+    profile = np.linspace(288.0, 150.0, N_LAYERS)
+    vapour = _stepped(module, profile, 0)
+    published = module.emit_outputs()
+    masked = np.asarray(published["saturated_layer_temperature"].values, dtype=float)
+
+    too_cold = profile < 170.0
+    assert too_cold.any() and not too_cold.all(), "the profile must straddle the floor"
+
+    # Nothing is placed where the relation does not hold, and it is exactly zero
+    # rather than small -- a declined evaluation, not a rounded one.
+    assert np.all(vapour[too_cold] == 0.0)
+    assert np.all(vapour[~too_cold] > 0.0)
+
+    # And the published profile says where it was evaluated, so the extent the
+    # domain check judges stops at the floor instead of running to 150 K.
+    assert np.all(np.isnan(masked[too_cold]))
+    assert masked[~too_cold] == pytest.approx(profile[~too_cold])
+    assert np.nanmin(masked) >= 170.0
+
+
 @pytest.mark.req("VAL-001", "CLM-003", "HYP-007")
 def test_holding_the_vapour_removes_the_feedback_and_nothing_else():
     """The null control for the control.

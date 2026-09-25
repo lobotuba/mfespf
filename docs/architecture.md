@@ -1685,6 +1685,114 @@ The general point: a diagnostic added to make something checkable is still a
 diagnostic that runs every step of every configuration, and publishing at a
 resolution nothing consumes is a cost with no claim attached to it.
 
+## What the warm bias actually is, assembled in one place
+
+The figure this project has carried -- seventeen kelvin -- had never been set
+beside the other columns' biases, and it could not be, because they are
+different radiative configurations. Assembled, with the top-of-atmosphere
+imbalance beside every temperature:
+
+**Window-absorption family**, 20000 hourly steps, equilibrated:
+
+| configuration | T_s | bias | PW (25) | mm/day (2.7) |
+|---|---|---|---|---|
+| dry radiative-convective | 283.50 | -4.50 | 0 | 0 |
+| moist, vapour radiatively inert | 283.47 | -4.53 | 7.8 | 0.04 |
+| moist, vapour radiative | 288.04 | **+0.04** | 7.4 | 0.09 |
+| moist + transport (configured) | 291.12 | +3.12 | 3.1 | 0.22 |
+| moist + transport, C_E calibrated | 297.85 | **+9.85** | 23.0 | 2.53 |
+
+**Greenhouse-grid family**, 20 layers, 3000 daily steps:
+
+| configuration | T_s | bias | PW | imbalance |
+|---|---|---|---|---|
+| prescribed RH 0.40 | 288.31 | +0.31 | 7.5 | -0.38 |
+| prescribed RH 0.45 (near observed) | 289.51 | +1.51 | 9.2 | -0.30 |
+| prescribed RH 0.50 | 290.70 | +2.70 | 11.1 | -0.20 |
+| prescribed RH 0.725 | 296.15 | +8.15 | 23.3 | +0.65 |
+| bulk plume, alpha 0.3 (assumed) | 289.79 | +1.79 | 14.3 | -0.28 |
+| bulk plume, alpha 0.67 (measured) | 299.84 | **+11.84** | 60.4 | +2.55 |
+
+**The answer is about ten kelvin, and the two routes to it agree.** The only
+window-family column with Earth-like process quantities is +9.85 K. The plume
+column at its measured parameter is +11.84 K and still carrying 2.55 W m^-2 of
+imbalance, so it is not converged -- it is on its way to the 305 K recorded
+elsewhere in this file, which is the seventeen.
+
+Three things this makes visible that no single number did.
+
+**The best-looking column is the least trustworthy.** "Moist, vapour radiative"
+is +0.04 K -- dead on observation -- while holding 7.4 kg m^-2 of water against
+25 and evaporating 0.09 mm/day against 2.7. It is the compensating-error pattern
+in its purest form and it is the configuration a reader would pick out of this
+table if the process columns were not next to the temperature.
+
+**The bias is not a sum of small terms.** Across the prescribed-humidity rows one
+lever moves the answer from +0.31 to +8.15 K, and the plume rows move from +1.79
+to +11.84 K on the value of a single parameter. A factor of 1.6 in relative
+humidity produces a seven-fold error in precipitable water and of order ten
+kelvin, because the vapour feedback compounds it. A small cause with a large
+effect is the signature of one mechanism under strong feedback.
+
+**The dry column is cold, not warm.** -4.50 K with no water at all. So the bias
+is not a background offset that water sits on top of; the entire warm bias and
+more is the water, which is why every route to it goes through the humidity
+closure.
+
+## Refining the grid walked the column out of its own equation's domain
+
+Found while assembling the table above, and it invalidated every row of the
+greenhouse-grid family: `EQ-CLAUSIUS-CLAPEYRON-SATURATION: T spans [159.1,
+294.0] K, outside the declared [170, 340]`, so `may_support_a_claim` was False
+for all of them.
+
+Unlike the three optical-depth ceilings, this floor is not a guess. The record
+measures it: against Murphy and Koop (2005) the constant-heat-capacity form is
+within 2 percent to 200 K, 6.3 percent at 172 K and 13.6 percent by 150 K. The
+floor is right and the column really was evaluating the relation where it is
+wrong.
+
+What puts it there is the grid. A radiative-convective top layer gets colder as
+it gets thinner:
+
+| layers | T_s | coldest layer | water below 170 K | as a fraction of the column | refused |
+|---|---|---|---|---|---|
+| 8 | 293.15 | 174.40 | 0 | 0 | no |
+| 12 | 294.63 | 166.99 | 2.6e-5 | 1.3e-6 | yes |
+| 20 | 295.81 | 159.07 | 3.7e-6 | 1.6e-7 | yes |
+| 30 | 296.39 | 153.70 | 1.4e-5 | 5.7e-7 | yes |
+| 40 | 296.69 | 150.30 | 5.0e-6 | 2.1e-7 | yes |
+
+**VAL-002 asks for the refinement and the domain check refuses the result, and
+both are right.** That is worth stating plainly, because it is the first time
+two of this framework's own gates have pulled against each other. The refinement
+is necessary; the relation really is 13.6 percent wrong at 150 K; and the water
+under dispute is one part in ten million of the column.
+
+The repair is neither to widen the floor nor to coarsen the grid. It is for the
+closure to stop evaluating a relation outside its domain:
+`saturation_humidity_within_domain` returns the humidity where the relation
+holds and exactly zero below it, together with the mask of layers it was
+evaluated at, and the humidity modules publish
+`saturated_layer_temperature` -- NaN where they declined -- and bind
+`EQ-CLAUSIUS-CLAPEYRON-SATURATION` to that rather than to the whole profile.
+
+Declining is a statement about the closure rather than a repair of the relation,
+and its price is measured: the surface temperature moves by 0.01 K at every
+resolution from 12 to 40 layers, and the precipitable water by about a tenth of
+a percent. The real upper atmosphere is not in equilibrium with ice anyway --
+its few parts per million of water are set by transport and by methane
+oxidation, neither of which a single column contains -- so a saturation closure
+has nothing to say up there and now says nothing.
+
+In the prognostic water module the same change has a consequence worth naming:
+saturation of exactly zero means whatever vapour a too-cold layer holds
+condenses out and precipitates. That is a transfer by the ordinary route with
+the budget closing, not a clip -- the water leaves as water.
+
+All six greenhouse-grid configurations now report 0 violated and can support a
+claim.
+
 ## The vapour splitting was additive where the temperature splitting was sequential
 
 The over-draw recorded below -- two modules jointly taking 3.79 kg m^-2 from a

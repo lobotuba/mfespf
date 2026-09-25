@@ -63,7 +63,10 @@ from mfespf.physics.plume import (
     fractional_entrainment_rate,
     water_vapour_lapse_rate,
 )
-from mfespf.physics.thermodynamics import saturation_specific_humidity
+from mfespf.physics.thermodynamics import (
+    saturation_humidity_within_domain,
+    saturation_specific_humidity,
+)
 from mfespf.registries.states import (
     StateBudget,
     StateEntry,
@@ -172,7 +175,12 @@ class WaterModule(Module):
                         # adjustment, and once at the surface for the
                         # evaporative deficit. Both are bound, because binding
                         # one would leave the other evaluated and unjudged.
-                        ("T", ATMOSPHERE_TEMPERATURE_STATE, "K"),
+                        # The layer branch is bound to the masked profile: the
+                        # closure declines to evaluate below the relation's
+                        # floor, so the layers it skipped are not temperatures
+                        # the relation was applied at. The surface branch is
+                        # never near the floor and stays bound to the state.
+                        ("T", "saturated_layer_temperature", "K"),
                         ("T", "surface_temperature", "K"),
                     ),
                 ),
@@ -220,6 +228,7 @@ class WaterModule(Module):
                 "vapour_phase_change_rate",
                 "atmosphere_precipitable_water",
                 "vapour_bearing_layer_temperature",
+                "saturated_layer_temperature",
             ),
             imported_transfers=("evaporation_water", "evaporation_latent_energy"),
             exported_transfers=("precipitation_water", "latent_heat_release"),
@@ -297,6 +306,7 @@ class WaterModule(Module):
         # order can act on the profile this module is about to commit rather than
         # on the one it started from. See ``vapour_phase_change_rate``.
         self._vapour_rate = np.zeros(n_layers)
+        self._saturation_evaluated = np.ones(n_layers, dtype=bool)
         self._specific_humidity = np.zeros(n_layers)
         self._relative_humidity = np.zeros(n_layers)
         self._interval = (0.0, 0.0)
@@ -364,7 +374,16 @@ class WaterModule(Module):
         self._interval = (ctx.time, ctx.time + ctx.dt)
         self._stored_initial = self.latent_energy()
 
-        saturation = saturation_specific_humidity(temperature, pressure)
+        # Not evaluated below the relation's declared floor: a refined grid
+        # reaches 150 K in its topmost layer, where the constant-heat-capacity
+        # form is 13.6 percent wrong. Saturation is then exactly zero there,
+        # so whatever vapour a cold layer holds condenses out and precipitates
+        # rather than being held at a saturation nobody can defend. That is a
+        # transfer, not a clip: the water leaves by the ordinary route and the
+        # budget closes.
+        saturation, self._saturation_evaluated = saturation_humidity_within_domain(
+            np.asarray(temperature, dtype=float), np.asarray(pressure, dtype=float)
+        )
         specific_humidity = self.vapour / self._layer_mass
 
         # Evaporation into the lowest layer only: with no vertical transport there
@@ -514,6 +533,29 @@ class WaterModule(Module):
                 # The mask is the content of this field, so it declares the
                 # policy DAT-007 already provides for it rather than smuggling
                 # the NaNs past a default that exists to catch them.
+                missing_value_policy=MissingValuePolicy.MASKED,
+                provenance=provenance,
+            ),
+            # Where the saturation relation was evaluated this step. NaN says the
+            # closure declined below the relation's declared floor, which a
+            # refined grid reaches in its coldest layer.
+            "saturated_layer_temperature": Field(
+                field_id="saturated_layer_temperature",
+                physical_name="layer temperature where the saturation relation was evaluated",
+                symbol="T_sat",
+                values=np.where(
+                    self._saturation_evaluated,
+                    np.asarray(self._layer_temperature, dtype=float),
+                    np.nan,
+                ),
+                units="K",
+                quantity_kind=QuantityKind.DIAGNOSTIC,
+                time_semantics=TimeSemantics.INSTANTANEOUS,
+                timestamp=timestamp,
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                coordinate_system="pressure_layers",
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
                 missing_value_policy=MissingValuePolicy.MASKED,
                 provenance=provenance,
             ),
@@ -881,11 +923,25 @@ class PrescribedHumidityModule(Module):
                 "atmosphere_specific_humidity",
                 "atmosphere_relative_humidity",
                 "atmosphere_precipitable_water",
+                "saturated_layer_temperature",
+            ),
+            equation_variables=(
+                (
+                    EQUATION_IDS["clausius_clapeyron"],
+                    # The masked profile, because the closure declines to place
+                    # vapour below the relation's declared floor. Bound to the
+                    # whole profile this flagged a twenty-layer column whose
+                    # coldest layer reaches 159 K -- correctly, since the
+                    # relation is 13.6 percent wrong by 150 K, and uselessly,
+                    # since the water there is one part in ten million.
+                    (("T", "saturated_layer_temperature", "K"),),
+                ),
             ),
             conserved_quantities=(),
             uncertainty_outputs=("prescribed_relative_humidity_boundary_condition",),
             correctness_tests=(
                 "test_the_prescribed_profile_follows_clausius_clapeyron",
+                "test_a_layer_too_cold_for_the_relation_is_left_dry_and_unjudged",
                 "test_holding_the_vapour_removes_the_feedback_and_nothing_else",
                 "test_the_prescribed_profile_is_republished_every_step",
             ),
@@ -939,6 +995,7 @@ class PrescribedHumidityModule(Module):
         self.vapour = np.zeros(self.n_layers)
         self._specific_humidity = np.zeros(self.n_layers)
         self._saturation = np.ones(self.n_layers)
+        self._saturation_evaluated = np.ones(self.n_layers, dtype=bool)
         self._relative_humidity_profile = np.full(self.n_layers, float(self.relative_humidity))
         self._held = None
         self.mark_initialized()
@@ -948,7 +1005,7 @@ class PrescribedHumidityModule(Module):
         layer_mass = self.input_field("atmosphere_layer_mass").require_units("kg m^-2").values
         pressure = self.input_field("atmosphere_layer_pressure").require_units("Pa").values
 
-        saturation = saturation_specific_humidity(
+        saturation, self._saturation_evaluated = saturation_humidity_within_domain(
             np.asarray(temperature, dtype=float), np.asarray(pressure, dtype=float)
         )
         self._saturation = saturation
@@ -1061,7 +1118,30 @@ class PrescribedHumidityModule(Module):
                 sign_convention=SignConvention.POSITIVE_DEFINITE,
                 provenance=provenance,
             ),
+            # Where the saturation relation was actually evaluated. NaN is the
+            # statement that the closure declined to place vapour there, not a
+            # gap: below 170 K the relation is outside its measured domain, and
+            # a refined grid reaches 150 K in its topmost layer.
+            "saturated_layer_temperature": Field(
+                field_id="saturated_layer_temperature",
+                physical_name="layer temperature where the saturation relation was evaluated",
+                symbol="T_sat",
+                values=np.where(
+                    self._saturation_evaluated,
+                    np.asarray(self._layer_temperature(), dtype=float),
+                    np.nan,
+                ),
+                units="K",
+                **{**profile, "missing_value_policy": MissingValuePolicy.MASKED},  # type: ignore[arg-type]
+            ),
         }
+
+    def _layer_temperature(self) -> np.ndarray:
+        """The profile the saturation was last evaluated against."""
+        field = self._inputs.get(ATMOSPHERE_TEMPERATURE_STATE)
+        if field is None:
+            return np.full(self.n_layers, np.nan)
+        return np.asarray(field.require_units("K").values, dtype=float)
 
     def emit_state(self) -> dict[str, Field]:
         return self._fields(self._context.time if self._context else 0.0)
@@ -1207,6 +1287,7 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
                 "atmosphere_specific_humidity",
                 "atmosphere_relative_humidity",
                 "atmosphere_precipitable_water",
+                "saturated_layer_temperature",
             ),
             conserved_quantities=(),
             equation_variables=(
@@ -1219,7 +1300,11 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
                 ),
                 (
                     EQUATION_IDS["clausius_clapeyron"],
-                    (("T", ATMOSPHERE_TEMPERATURE_STATE, "K"),),
+                    # The masked profile, as in the prescribed module this
+                    # inherits from: the closure declines below the relation's
+                    # floor, so the layers it skipped are not temperatures the
+                    # relation was applied at.
+                    (("T", "saturated_layer_temperature", "K"),),
                 ),
             ),
             uncertainty_outputs=(

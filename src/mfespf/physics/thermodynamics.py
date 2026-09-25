@@ -23,6 +23,7 @@ from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError
 
 __all__ = [
+    "SATURATION_DOMAIN_FLOOR_K",
     "convective_adjustment_with_groups",
     "dry_adiabatic_lapse_rate",
     "dry_convective_adjustment",
@@ -32,10 +33,21 @@ __all__ = [
     "lapse_rate_offsets",
     "moist_adiabatic_lapse_rate",
     "potential_temperature",
+    "saturation_humidity_within_domain",
     "saturation_specific_humidity",
     "saturation_vapour_pressure",
     "surface_coupled_adjustment",
 ]
+
+#: Coldest temperature at which `EQ-CLAUSIUS-CLAPEYRON-SATURATION` is declared
+#: valid, and therefore the coldest at which a humidity closure in this
+#: framework will evaluate it. It lives here so the relation, its declared
+#: domain and every caller share one number.
+#:
+#: The floor is measured rather than asserted. Against Murphy and Koop (2005)
+#: the constant-heat-capacity form is within 2 percent to 200 K, 6.3 percent at
+#: 172 K and 13.6 percent by 150 K, and 170 K is where the record puts the line.
+SATURATION_DOMAIN_FLOOR_K = 170.0
 
 _CP_DRY = value_of("specific_heat_dry_air")
 _R_DRY = value_of("gas_constant_dry_air")
@@ -483,6 +495,41 @@ def saturation_specific_humidity(temperature: np.ndarray, pressure: np.ndarray) 
     # let the validity domain of the equation record carry the caveat.
     denominator = np.maximum(denominator, 1e-6 * p)
     return EPSILON * e_s / denominator
+
+
+def saturation_humidity_within_domain(
+    temperature: np.ndarray, pressure: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Saturation humidity where the relation holds, and exactly zero below it.
+
+    Returns the humidity and the mask of layers it was actually evaluated at, so
+    a module can publish the temperatures the relation was applied to and let the
+    domain check judge it there rather than over the whole profile.
+
+    This exists because refining the grid walks the column out of the relation's
+    own declared domain. A radiative-convective top layer gets colder as it gets
+    thinner, and at 20 layers the greenhouse column reaches 159 K against a floor
+    of 170. VAL-002 asks for the refinement and `EQ-CLAUSIUS-CLAPEYRON-
+    SATURATION` refuses the result, and both are right: the relation really is
+    13.6 percent wrong by 150 K.
+
+    Declining to place vapour below the floor is a statement about the closure
+    rather than a repair of the relation, and the price of it is measured: the
+    water in layers below 170 K is one part in ten million of the column, from
+    12 to 40 layers, because the saturation mixing ratio at the floor is already
+    of order 1e-9. The real upper atmosphere is not in equilibrium with ice
+    anyway -- its few parts per million of water are set by transport and by
+    methane oxidation, neither of which this column contains -- so a saturation
+    closure has nothing to say up there and now says nothing.
+    """
+    T = np.asarray(temperature, dtype=float)
+    evaluated = T >= SATURATION_DOMAIN_FLOOR_K
+    humidity = np.zeros_like(T)
+    if np.any(evaluated):
+        humidity[evaluated] = saturation_specific_humidity(
+            T[evaluated], np.asarray(pressure, dtype=float)[evaluated]
+        )
+    return humidity, evaluated
 
 
 def moist_adiabatic_lapse_rate(temperature: np.ndarray, pressure: np.ndarray) -> np.ndarray:
