@@ -22,7 +22,7 @@ from mfespf.core.errors import MFESPFError
 from mfespf.coupling.conservation import ConservationReport
 from mfespf.coupling.coupler import Coupler, CouplingSchedule, StepReport
 from mfespf.coupling.graph import DependencyGraph
-from mfespf.coupling.validity import DomainReport, check_validity_domains
+from mfespf.coupling.validity import DomainReport, EvaluatedExtents, check_validity_domains
 from mfespf.registries.claims import ClaimRegistry, ExperimentRegistry
 from mfespf.registries.datasets import DatasetRegistry
 from mfespf.registries.equations import EquationRegistry
@@ -260,13 +260,19 @@ class Kernel:
 
         coupler.finalize()
 
-        # Judged on the final state: the domains describe the conditions a
-        # relation holds for, and a run that ended outside them was outside them
-        # where it matters, whatever it did on the way.
+        # Judged on the extent each relation was actually evaluated over, which
+        # is a property of the whole trajectory rather than of its last step: a
+        # closure that ran out of range while spinning up and recovered was
+        # still evaluated out of range, and one that is merely idle at the end
+        # leaves no footprint on a final state to be judged on at all.
+        extents = EvaluatedExtents()
+        for step in steps:
+            extents.observe(step.outputs)
         domains = check_validity_domains(
             registry=self.equations,
             modules=[s.module for s in self.schedule.ordered()],
             fields=steps[-1].outputs if steps else {},
+            extents=extents,
         )
         manifest.record_gate("validity_domains", domains.passed)
         manifest.warnings.extend(domains.describe_violations())

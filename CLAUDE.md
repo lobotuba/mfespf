@@ -171,11 +171,15 @@ saying out loud.
   in general is not optional in the configuration that switches it on. Convection
   read the vapour and the latent heating undeclared, exactly as radiation once
   derived cloud optics from three fields it declared nowhere.
-- **The domain check judges a run by its final state, so mask over the run, not
-  over the step.** The convective adjustment mixes on 79 percent of steps and on
-  none of the first four hundred. A per-step mask made the same configuration
-  resolvable at 2000 steps and unresolvable at 400 -- a fact about where the run
-  stopped, not about the physics.
+- **A run is not its last step, and a check that reads one is answering a
+  different question.** The domain check judged the final state, so a closure
+  that ran out of range during spin-up and recovered came out clean and one
+  merely idle at the end had no footprint at all -- the convective adjustment
+  mixes on 79 percent of steps and on none of the first four hundred, and the
+  same configuration was resolvable at 2000 steps and unresolvable at 400. It
+  accumulates each relation's extent step by step now. Where a repair needs a
+  field widened to the union over the run to leave evidence behind, suspect the
+  check rather than the field.
 - **Two gates can pull against each other, and neither is the one to weaken.**
   VAL-002 asks for grid refinement; refining the grid makes the top layer colder
   until it leaves Clausius-Clapeyron's measured 170 K floor, and the domain check
@@ -244,10 +248,11 @@ saying out loud.
   percent and left the CO2 one where it was, which is itself the evidence that
   only one of them was wrong.
 - **Validity domains are enforced, as a mandatory gate.**
-  `coupling/validity.py` judges every module's cited equations against the run's
-  final state and the driver invalidates a run that steps outside one. It was
-  written after five relations had been evaluated outside their conditions and
-  caught by hand; it found a sixth within minutes. Do not downgrade it to
+  `coupling/validity.py` judges every module's cited equations against the extent
+  each one was evaluated over as the run proceeded, and the driver invalidates a
+  run that steps outside one. It was written after five relations had been
+  evaluated outside their conditions and caught by hand; it found a sixth within
+  minutes. Do not downgrade it to
   advisory -- that rebuilds the situation it ended. Resolution is scoped to the
   citing module's own fields and refuses ambiguity, cross-unit comparison and
   cross-module symbol matches rather than guessing, because `alpha` is an
@@ -259,7 +264,8 @@ saying out loud.
   everywhere, so the summary's three outcomes still matter but a pass now means
   something. The check judges the extent a quantity spans, not where the
   equation was applied, unless the module masks the field with NaN to say where
-  the relation actually ran -- so read a violation before obeying it.
+  the relation actually ran -- so read a violation before obeying it. The mask is
+  per step, because the accumulation is.
 - **A declared range is only as honest as its bounds — asserting one is not a
   substitute for looking the number up.** The evaporating condensate fraction was
   assumed at 0.3 over 0.1 to 0.5, on the reasoning that a stated range beats a

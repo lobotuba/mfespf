@@ -18,7 +18,11 @@ from typing import Any
 import numpy as np
 import pytest
 
-from mfespf.coupling.validity import INTEGRATED_OVER, check_validity_domains
+from mfespf.coupling.validity import (
+    INTEGRATED_OVER,
+    EvaluatedExtents,
+    check_validity_domains,
+)
 from mfespf.registries.equations import ValidityDomain
 
 pytestmark = pytest.mark.stage(3)
@@ -280,3 +284,91 @@ def test_a_variable_integrated_over_is_declared_rather_than_left_unfound():
     assert not report.violations
     assert len(report.unchecked) == 1
     assert "integrates over this variable" in report.unchecked[0].detail
+
+
+def _over_run(record, contract, history, parameters=None):
+    """Judge a whole trajectory the way the driver does."""
+    extents = EvaluatedExtents()
+    for fields in history:
+        extents.observe(fields)
+    return check_validity_domains(
+        registry=_Registry(record),
+        modules=[_Module(contract, parameters)],
+        fields=history[-1],
+        extents=extents,
+    )
+
+
+@pytest.mark.req("EQR-003", "SYS-006")
+def test_a_relation_that_left_its_domain_and_came_back_is_still_caught():
+    """The failure that judging a final state cannot see.
+
+    A run's last step is not where its evidence lives. A closure that ran far
+    outside its declared conditions during spin-up and settled back inside them
+    was still evaluated outside them, and every number it produced on the way is
+    in the answer.
+    """
+    record = _Record("EQ-X", ValidityDomain(ranges=(("T", 230.0, 340.0, "K"),)))
+    contract = _Contract("water", ("EQ-X",), produced_outputs=("layer_temperature",))
+    history = [
+        {"layer_temperature": _Field("T_a", "K", np.array([288.0]))},
+        {"layer_temperature": _Field("T_a", "K", np.array([201.4]))},  # out, mid-run
+        {"layer_temperature": _Field("T_a", "K", np.array([291.0]))},
+    ]
+
+    assert _report(record, contract, history[-1]).passed, "the final state alone is innocent"
+
+    report = _over_run(record, contract, history)
+
+    assert not report.passed
+    assert "over the run" in report.violations[0].detail
+    assert "201.4" in report.violations[0].detail
+
+
+@pytest.mark.req("EQR-003", "SYS-006", "DAT-007")
+def test_a_closure_idle_at_the_end_is_judged_on_the_steps_it_ran():
+    """Why the mask can now say what it means.
+
+    The convective adjustment mixes on 79 percent of steps and on none of the
+    first four hundred, so a per-step mask left nothing behind on a final state
+    and the identical configuration was resolvable at 2000 steps and
+    unresolvable at 400. Accumulating removes the incentive to widen the mask to
+    the union over the run, which would report a spin-up layer at whatever it
+    holds when the run stops.
+    """
+    record = _Record("EQ-M", ValidityDomain(ranges=(("T", 230.0, 340.0, "K"),)))
+    contract = _Contract("convection", ("EQ-M",), produced_outputs=("mixed_layer_temperature",))
+    ran = {"mixed_layer_temperature": _Field("T", "K", np.array([301.0, 288.0]))}
+    idle = {"mixed_layer_temperature": _Field("T", "K", np.array([np.nan, np.nan]))}
+
+    # The closure was active, then stopped. The final state says nothing at all.
+    assert _report(record, contract, idle).unchecked
+
+    report = _over_run(record, contract, [ran, idle, idle])
+
+    assert report.checks[0].status == "inside"
+    assert "301" in report.checks[0].detail
+
+    # And a closure that never ran at any step stays unchecked, rather than
+    # being credited with a pass it did not earn.
+    assert _over_run(record, contract, [idle, idle]).unchecked
+
+
+@pytest.mark.req("EQR-003")
+def test_an_infinity_at_any_step_disqualifies_the_field_for_the_whole_run():
+    """A field that blew up once must not be rescued by recovering.
+
+    An infinity is a defect rather than a mask, and accumulation must not turn
+    it into one: taking a running minimum and maximum over finite values alone
+    would quietly drop the step that was broken.
+    """
+    record = _Record("EQ-I", ValidityDomain(ranges=(("T", 230.0, 340.0, "K"),)))
+    contract = _Contract("water", ("EQ-I",), produced_outputs=("temperature",))
+    blew_up = {"temperature": _Field("T", "K", np.array([288.0, np.inf]))}
+    fine = {"temperature": _Field("T", "K", np.array([288.0, 290.0]))}
+
+    report = _over_run(record, contract, [fine, blew_up, fine])
+
+    assert not report.violations
+    assert len(report.unchecked) == 1
+    assert "finite" in report.unchecked[0].detail

@@ -43,6 +43,32 @@ do not match the declaration. Unchecked is reported rather than folded into
 success. A domain check that quietly passed when it could not find the variable
 would be worse than no check at all, since it would licence exactly the
 confidence it fails to earn.
+
+Over the run, not at the end of it
+----------------------------------
+
+The question a domain answers is whether a relation was *ever* evaluated
+outside the conditions it was established for, and that is a property of the
+whole trajectory. Judging the final state answers a different and much weaker
+question, and it answers it wrongly in both directions: a closure that ran out
+of range during spin-up and recovered is reported clean, and a closure that is
+simply idle on the last step has no footprint to be judged on at all. The
+convective adjustment is the case that forced this. It mixes on 79 percent of
+steps and on none of the first four hundred, so the identical configuration was
+resolvable at 2000 steps and unresolvable at 400 -- a fact about where the run
+stopped rather than about the physics.
+
+So ``EvaluatedExtents`` accumulates, per published field, the span it covered
+while the run proceeded, and the judgement is made against that. **Resolution
+still happens once, against the final state**, because which field a relation's
+``T`` refers to is a property of the configuration's declared contracts and
+does not vary from step to step; only the values do.
+
+The immediate consequence is that a module's NaN mask can now say what it
+should say -- *this step's* extent -- rather than the union over the run that
+judging the final state forced it into. A layer mixed at 250 K during spin-up
+now contributes 250 K, at the step it was mixed, instead of contributing
+whatever it happens to hold when the run stops.
 """
 
 from __future__ import annotations
@@ -57,6 +83,7 @@ __all__ = [
     "INTEGRATED_OVER",
     "DomainCheck",
     "DomainReport",
+    "EvaluatedExtents",
     "check_validity_domains",
 ]
 
@@ -154,16 +181,93 @@ def _extent(values: Any) -> tuple[float, float] | None:
     return (float(np.min(finite)), float(np.max(finite)))
 
 
+class EvaluatedExtents:
+    """The span every published field covered while a run proceeded.
+
+    Fed one step's outputs at a time, it keeps a running minimum and maximum per
+    field and nothing else, so a hundred thousand steps cost two floats each --
+    which matters, because the alternative of keeping the fields themselves is
+    how a 120000-step manifest reached four gigabytes.
+
+    The per-step rules are ``_extent``'s, applied step by step: a NaN is a
+    statement that the relation was not evaluated there and is skipped, an
+    infinity is a defect that disqualifies the field permanently rather than
+    being masked away, and a field that is NaN at every step never enters at all
+    -- which is the correct report that its relation never ran.
+    """
+
+    __slots__ = ("_disqualified", "_spans")
+
+    def __init__(self) -> None:
+        self._spans: dict[str, tuple[float, float]] = {}
+        self._disqualified: set[str] = set()
+
+    def observe(self, fields: Mapping[str, Any]) -> None:
+        """Fold one step's published quantities into the accumulated spans."""
+        for field_id, field in fields.items():
+            if field_id in self._disqualified:
+                continue
+            try:
+                array = np.asarray(getattr(field, "values", None), dtype=float)
+            except (TypeError, ValueError):
+                # Not a numeric field. No range could have been stated against
+                # it, so there is nothing here to accumulate.
+                continue
+            if array.size == 0:
+                continue
+            # This runs on every field on every step, so it takes the two-pass
+            # route when it can: a plain min and max propagate a NaN, which is
+            # the signal to pay for the mask rather than a reason to build one
+            # every time. Most fields carry none.
+            low = float(array.min())
+            high = float(array.max())
+            if low != low or high != high:
+                finite = array[~np.isnan(array)]
+                if finite.size == 0:
+                    continue
+                low = float(finite.min())
+                high = float(finite.max())
+            if low == -np.inf or high == np.inf:
+                self._disqualified.add(field_id)
+                self._spans.pop(field_id, None)
+                continue
+            previous = self._spans.get(field_id)
+            if previous is not None:
+                low = min(low, previous[0])
+                high = max(high, previous[1])
+            self._spans[field_id] = (low, high)
+
+    def __contains__(self, field_id: str) -> bool:
+        """Whether this field was seen at all, in either state.
+
+        A disqualified field counts as seen: the judgement must use the
+        accumulated verdict, not fall back to the last step's values and pass a
+        field that carried an infinity earlier in the run.
+        """
+        return field_id in self._spans or field_id in self._disqualified
+
+    def extent_of(self, field_id: str) -> tuple[float, float] | None:
+        return self._spans.get(field_id)
+
+
 def check_validity_domains(
     *,
     registry: Any,
     modules: Iterable[Any],
     fields: Mapping[str, Any],
+    extents: EvaluatedExtents | None = None,
 ) -> DomainReport:
     """Judge a run against the declared domains of the equations it cites.
 
     ``registry`` supplies equation records by id, ``modules`` are the modules
     that actually ran, and ``fields`` are the quantities they published.
+
+    ``extents`` carries what each field spanned over the whole run, and is what
+    the ranges are judged against when it is given. ``fields`` still resolves
+    the bindings -- symbols, units and ambiguity are properties of the
+    contracts, not of any one step. Without it the judgement falls back to the
+    values in ``fields`` alone, which is a single-state check and is what the
+    unit tests of the resolution machinery want.
     """
     checks: list[DomainCheck] = []
 
@@ -217,6 +321,7 @@ def check_validity_domains(
                             units=units,
                             resolved=resolved,
                             ambiguity=ambiguity,
+                            extents=extents,
                         )
                     )
 
@@ -322,6 +427,7 @@ def _judge(
     units: str,
     resolved: tuple[str, Any] | None,
     ambiguity: str = "",
+    extents: EvaluatedExtents | None = None,
 ) -> DomainCheck:
     if resolved is None:
         return DomainCheck(
@@ -345,7 +451,14 @@ def _judge(
             f"{field_id} is in {field_units!r}, the domain is stated in {units!r}",
         )
 
-    extent = _extent(getattr(field, "values", None))
+    # A parameter is never accumulated -- it has no field to publish and does
+    # not vary over the run -- so the fallback is not a special case for it.
+    if extents is not None and field_id in extents:
+        extent = extents.extent_of(field_id)
+        over = " over the run"
+    else:
+        extent = _extent(getattr(field, "values", None))
+        over = ""
     if extent is None:
         return DomainCheck(
             module_id, equation_id, name, "unchecked", f"{field_id} holds no finite values"
@@ -358,7 +471,7 @@ def _judge(
             equation_id,
             name,
             "violated",
-            f"{name} spans [{lowest:g}, {highest:g}] {units} in {field_id}, "
+            f"{name} spans [{lowest:g}, {highest:g}] {units} in {field_id}{over}, "
             f"outside the declared [{low:g}, {high:g}]",
         )
     return DomainCheck(
@@ -366,7 +479,7 @@ def _judge(
         equation_id,
         name,
         "inside",
-        f"{name} spans [{lowest:g}, {highest:g}] {units} in {field_id}, "
+        f"{name} spans [{lowest:g}, {highest:g}] {units} in {field_id}{over}, "
         f"within the declared [{low:g}, {high:g}]",
     )
 

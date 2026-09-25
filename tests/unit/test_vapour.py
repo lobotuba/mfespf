@@ -679,12 +679,13 @@ def test_the_adjustment_publishes_the_layers_it_mixed_not_the_whole_profile():
     DAT-007 provides instead of slipping non-finite values past a default that
     exists to catch them.
 
-    The mask is the union over the run and not this step's groups, because the
-    check judges a run by its final state while this closure is not active every
-    step: on the dry column it mixes on 79 percent of steps and on none of the
-    first four hundred. Masking per step made the same configuration resolvable
-    at 2000 steps and unresolvable at 400, which is a fact about where the run
-    stopped rather than about the physics.
+    The mask is this step's groups. It was briefly the union over the run, back
+    when the check judged a run by its final state and this closure -- which
+    mixes on 79 percent of steps on the dry column and on none of the first four
+    hundred -- would otherwise have left no footprint to be judged on. The check
+    now accumulates each relation's extent step by step, so the union would
+    over-report: it would offer a layer mixed during spin-up at whatever it holds
+    when the run stops.
     """
     unstable = np.array(PROFILE)
     unstable[:4] = [300.0, 288.0, 276.0, 264.0]

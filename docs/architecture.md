@@ -1685,6 +1685,64 @@ The general point: a diagnostic added to make something checkable is still a
 diagnostic that runs every step of every configuration, and publishing at a
 resolution nothing consumes is a cost with no claim attached to it.
 
+## The domain check was reading the last step, and a run is not its last step
+
+The validity check had a limitation that had been written down and left open:
+it judged a run by its **final state**. That is a different and much weaker
+question than the one a declared domain asks, and it gets the answer wrong in
+both directions. A closure that ran far outside its conditions while the column
+span up and settled back inside them is reported clean. A closure that is merely
+*idle* on the last step leaves no footprint to be judged on at all.
+
+The convective adjustment is the case that forced it. It mixes on 79 percent of
+steps on the dry column and on none of the first four hundred, the column being
+dry-stable while it spins up, so the identical configuration came out resolvable
+at 2000 steps and unresolvable at 400 -- a fact about where the run stopped
+rather than about the physics. The repair at the time was to widen the module's
+NaN mask to the *union over the run*, which left something behind at the end for
+the check to find. That worked and it was the wrong shape: the union answers
+"which layers does this relation govern" while the question is "was it in range
+when it ran", so a layer mixed at 250 K during spin-up was judged at whatever it
+held when the run stopped.
+
+**The fix is to accumulate rather than reconstruct.** `EvaluatedExtents` folds
+each step's published fields into a running minimum and maximum, and the ranges
+are judged against that. The per-step rules are unchanged and now apply per
+step: a NaN says the relation was not evaluated there and is skipped, an
+infinity is a defect that disqualifies the field for the whole run rather than
+being masked away, and a field that is NaN at every step never enters -- which
+is the correct report that its relation never ran, and is what the dry column
+gives at 200 and 400 steps.
+
+Resolution still happens once, against the final state. Which field a relation's
+`T` refers to is a property of the declared contracts, not of any one step; only
+the values vary. Separating the two is what makes the change small.
+
+**What it was hiding.** No reference configuration acquires a violation, which
+is worth saying since accumulating is strictly wider and a new violation would
+have meant the run had been failing all along unseen. But the extent being
+judged changes substantially:
+
+| | at the final step | over the run |
+|---|---|---|
+| moist column, `EQ-DRY-CONVECTIVE-ADJUSTMENT` `T` | [276.1, 287.5] K | [235.3, 287.5] K |
+| dry column at 6000 steps, same | [234.7, 256.1] K | [228.9, 256.1] K |
+
+The moist column's range is **4.6 times wider** over the run. It stays inside
+the declared [100, 400], so nothing is refused -- but the check had been
+examining a fifth of the interval the relation was actually evaluated over, and
+that it passed was not something the old check had established.
+
+**And the mask goes back to meaning what it says.** Convection publishes this
+step's mixed groups again; `_ever_mixed` is gone. A repair that removes the
+machinery an earlier repair needed is the sign the second one was at the right
+level.
+
+The cost is 7.3 percent of a 20000-step run, after taking the two-pass route: a
+plain minimum and maximum propagate a NaN, and that propagation is the signal to
+pay for building a mask rather than a reason to build one on every field on
+every step. The first version did it unconditionally and cost 17.5 percent.
+
 ## The evaporation coefficient was never free, and that is the Bowen ratio
 
 The plan here was to calibrate the evaporation coefficient against the observed

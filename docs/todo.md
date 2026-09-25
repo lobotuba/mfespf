@@ -16,38 +16,6 @@ These are the items where the framework fails to do the thing it exists to do.
 They come before the physics, because the physics is what they are supposed to
 be protecting.
 
-### Validity-domain coverage is closed, and the latent heat is not
-
-Coverage is 31 of 32 declared ranges on a cloudy column and 0 violated on every
-reference configuration. The one remaining unresolvable is not a gap: the
-surface's thermal emission is Planck integrated over every wavelength, so its
-`lambda` has no value a range could be checked against, and the module now says
-so through `INTEGRATED_OVER` instead of leaving the checker to report that it
-could not find the variable. Two unresolvables that mean different things no
-longer read alike.
-
-What is left here is the coarseness rather than the coverage. The check still
-judges the extent a quantity spans, not the region an equation was applied to,
-except where a module masks the field. Convection was the remaining case and is
-now masked: it publishes `convectively_mixed_layer_temperature`, NaN outside the
-layers the adjustment mixed, and binds the adjustment and the entraining lapse
-rate to that rather than to the whole profile.
-
-That left a limitation of the check itself, which is the open part. It judges a
-run by its **final state**, so a closure that is inactive at the end has no
-footprint to be judged on: the adjustment mixes on 79 percent of steps and on
-none of the first four hundred, the column being dry-stable while it spins up. A
-per-step mask therefore made the identical configuration resolvable at 2000 steps
-and unresolvable at 400. The mask is the union over the run as a result, which is
-the right answer to "which layers does this relation govern" and the wrong shape
-for "was it in range when it ran" -- a layer mixed at 250 K during spin-up is
-judged at whatever it holds at the end.
-
-The proper fix is for the check to accumulate the extent each relation was
-actually evaluated over as the run proceeds, rather than reconstructing it from
-the last step. That is a change to `coupling/validity.py` and to what modules
-publish, and it would also remove the need for every mask of this kind.
-
 ### Convection is an all-or-nothing closure and the column limit-cycles
 
 At a physically consistent exchange coefficient the column stops settling. The

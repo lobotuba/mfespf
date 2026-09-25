@@ -305,7 +305,6 @@ class ConvectiveAdjustmentModule(Module):
         self._held_rate: np.ndarray | None = None
         self._mixing_groups: tuple[tuple[int, int], ...] = ()
         self._adjusted = np.zeros(0)
-        self._ever_mixed = np.zeros(0, dtype=bool)
         self._vapour_dt = 0.0
         self._vapour_moved = 0.0
         self._surface_adjustment = 0.0
@@ -459,19 +458,23 @@ class ConvectiveAdjustmentModule(Module):
         were applied to -- and the only ones whose temperatures a declared
         validity range has any business being judged against.
 
-        The union over the run rather than this step's groups, because the domain
-        check judges a run by its final state and this closure is not active
-        every step. Measured on the dry radiative-convective column it mixes on
-        79 percent of steps and on none of the first few hundred, the column
-        being dry-stable while it spins up. Masking to the current step therefore
-        made the check unresolvable at 400 steps and resolvable at 2000, which is
-        an artefact of where the run stopped rather than a fact about the
-        physics. The union answers the question actually being asked -- which
-        layers does this relation govern in this configuration -- and it errs
-        wide, which is the right direction for a check whose job is to catch a
-        relation evaluated out of range.
+        This step's groups, which is the honest statement and was briefly not
+        available. While the domain check judged a run by its final state, a
+        per-step mask made the identical configuration resolvable at 2000 steps
+        and unresolvable at 400 -- this closure mixes on 79 percent of steps and
+        on none of the first four hundred, the column being dry-stable while it
+        spins up -- so the mask had to be the union over the run to have any
+        footprint left at the end. That union was the right answer to "which
+        layers does this relation govern" and the wrong one to "was it in range
+        when it ran": a layer mixed at 250 K during spin-up was judged at
+        whatever it held when the run stopped. Now that the check accumulates
+        each relation's extent step by step, the union is no longer needed and
+        the mask means what it says.
         """
-        return np.array(self._ever_mixed, dtype=bool)
+        mask = np.zeros(len(self._adjusted), dtype=bool)
+        for low, high in self._mixing_groups:
+            mask[low : high + 1] = True
+        return mask
 
     def compute_tendencies(self) -> list[TendencyContribution]:
         """Adjust the profile the radiation module has already heated.
@@ -566,10 +569,6 @@ class ConvectiveAdjustmentModule(Module):
             self._surface_convective_flux = 0.0
             self._surface_mixed = False
         self._mixing_groups = groups
-        if self._ever_mixed.size != len(temperature):
-            self._ever_mixed = np.zeros(len(temperature), dtype=bool)
-        for low, high in groups:
-            self._ever_mixed[low : high + 1] = True
 
         self._tendency = (adjusted - provisional) / ctx.dt
         self._adjusted = np.asarray(adjusted, dtype=float)
