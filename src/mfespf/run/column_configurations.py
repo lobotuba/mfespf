@@ -54,6 +54,7 @@ from mfespf.physics.surface import (
     surface_state_entry,
     surface_water_state_entry,
 )
+from mfespf.physics.thermodynamics import evaporation_coefficient_for
 from mfespf.physics.water import (
     VAPOUR_STATE,
     EntrainingPlumeHumidityModule,
@@ -641,7 +642,8 @@ def radiating_column(
     deep_ocean_depth: float = 1200.0,
     deep_ocean_exchange: float | None = None,
     initial_deep_temperature: float | None = None,
-    evaporation_coefficient: float = 2.0e-4,
+    sensible_heat_coefficient: float = 10.0,
+    evaporation_coefficient: float | None = None,
     initial_water_store: float = 1.0e4,
     conservation_tolerance: float = 1e-11,
     budget: ResourceBudget | None = None,
@@ -766,7 +768,12 @@ def radiating_column(
     elif water:
         schedules.append(
             ModuleSchedule(
-                WaterModule(n_layers=n_layers, evaporation_coefficient=evaporation_coefficient),
+                WaterModule(
+                    n_layers=n_layers,
+                    evaporation_coefficient=evaporation_coefficient
+                    if evaporation_coefficient is not None
+                    else evaporation_coefficient_for(sensible_heat_coefficient),
+                ),
                 step_multiple=1,
             )
         )
@@ -775,6 +782,7 @@ def radiating_column(
         schedules.append(
             ModuleSchedule(
                 ConvectiveAdjustmentModule(
+                    sensible_heat_coefficient=sensible_heat_coefficient,
                     transport_vapour=vapour_transport,
                     surface_based=surface_based_convection,
                     surface_pressure=surface_pressure,

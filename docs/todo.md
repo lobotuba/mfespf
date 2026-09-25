@@ -48,39 +48,24 @@ actually evaluated over as the run proceeds, rather than reconstructing it from
 the last step. That is a change to `coupling/validity.py` and to what modules
 publish, and it would also remove the need for every mask of this kind.
 
-### The evaporation coefficient has never been calibrated
+### Convection is an all-or-nothing closure and the column limit-cycles
 
-Now that the cycle can be driven without over-drawing a layer, it should be set
-against an observable that is not the thing being predicted (INF-003). The
-observable is the global-mean evaporation rate, about 2.7 mm/day, which a
-coefficient near 2.1e-3 reaches -- against the configured 2.0e-4, which reaches
-0.22. Whatever surface temperature falls out is then a prediction rather than a
-fit, and on the runs so far it is about +9.9 K.
+At a physically consistent exchange coefficient the column stops settling. The
+time-mean is a proper equilibrium -- mean imbalance zero to three decimals, and
+timestep-converged -- but it oscillates about it with a surface span of 1.75 K
+and a top-of-atmosphere span of 7.4 W m^-2.
 
-The configured value is left alone until that calibration is done properly and
-the downstream calibrations that depend on it are re-run, because a physics
-change invalidates every calibration downstream of it.
+The timestep study says this is not numerical. Halving the step twice moves the
+mean surface temperature 0.15 K while the amplitude converges to a finite value
+and the imbalance span slightly *grows*. It is a relaxation oscillation of the
+closure: moisture accumulates, destabilises the group, the adjustment homogenises
+all of it at once, the lifted vapour condenses in a burst that restabilises the
+column, and it rebuilds.
 
-### The hydrological cycle is twelve times too weak
-
-Recorded as work rather than only as a result, because it is the largest
-structural gap measured so far and several other questions turn out to be
-downstream of it.
-
-Evaporation is 0.225 mm/day against an observed 2.7, the surface latent heat
-flux 6.5 W m^-2 against about 82, the Bowen ratio 9.6 against 0.26, and the
-column holds 3.1 kg m^-2 of water against 25. The cause is known and declared --
-no vertical transport of vapour -- and the consequence is that evaporation
-saturates its own layer and shuts off. Convective transport is a partial cure
-and leaves the free troposphere at exactly zero relative humidity.
-
-The thing to be careful about: strengthening the cycle *warms* this column,
-because the vapour is a greenhouse gas and its absorption beats its own
-evaporative cooling. So this is not a missing cooling term. It is one half of a
-compensating pair, the other being a surface-to-air temperature gap four times
-too large, and repairing either one alone will make the surface temperature
-worse before it makes it better. That is the right outcome and should not be
-mistaken for a regression.
+The cure is a convective closure with a timescale rather than instantaneous
+complete mixing -- a different scheme, not a tuning of this one. Until then,
+anything read off this column must be a time-mean over at least a full cycle, and
+a single step's numbers mean very little.
 
 ### Uncertainty is declared everywhere and propagated nowhere
 

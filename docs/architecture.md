@@ -1685,6 +1685,101 @@ The general point: a diagnostic added to make something checkable is still a
 diagnostic that runs every step of every configuration, and publishing at a
 resolution nothing consumes is a cost with no claim attached to it.
 
+## The evaporation coefficient was never free, and that is the Bowen ratio
+
+The plan here was to calibrate the evaporation coefficient against the observed
+evaporation rate, which would at least have been INF-003-compliant: set it from
+something other than the temperature and report the temperature as a prediction.
+Checking the number first made the calibration unnecessary.
+
+The bulk formulae are
+
+    H = rho c_p C |U| (T_s - T_1)   =  k_H (T_s - T_1)
+    E = rho     C |U| (q_s - q_1)   =  k_E (q_s - q_1)
+
+and the ``C`` in them is the *same* ``C``: the eddies that carry heat across the
+surface layer are the eddies that carry moisture, which is the Reynolds analogy
+and why most texts write one coefficient. So
+
+    k_E = k_H / c_p
+
+exactly, with no new number. The configured pair was ``k_H = 10 W m^-2 K^-1``
+against ``k_E = 2.0e-4 kg m^-2 s^-1``, and ``10 / 1004.6 = 9.95e-3``. **Fifty
+times apart.** The column was moving heat fifty times more efficiently than
+moisture using eddies it had declared to be the same ones.
+
+That is the whole of the Bowen-ratio error, which had been recorded as a
+separate symptom -- 9.6 against an observed 0.26, "37x too large" -- for as long
+as the hydrological cycle had been measured. It was one inconsistency, not two
+errors.
+
+**What it predicts.** Tying them makes the partition a consequence rather than a
+setting, so it can be wrong. Measured, timestep-converged:
+
+| | configured, 2.0e-4 | derived, 9.95e-3 | observed |
+|---|---|---|---|
+| Bowen ratio | 9.6 | **0.349** | 0.26 |
+| evaporation | 0.22 mm/day | 4.00 mm/day | 2.7 |
+| latent flux | 6.5 W m^-2 | 118 W m^-2 | ~82 |
+| sensible flux | 62.0 W m^-2 | 37.5 W m^-2 | ~21 |
+| precipitable water | 3.1 kg m^-2 | 29 kg m^-2 | 25 |
+| surface minus air | 6.2 K | 3.0 K | ~1.5 |
+| surface temperature | 291.1 K | 294.6 K | 288 |
+
+The partition error collapses from a factor of 37 to a factor of 1.34, with
+nothing fitted to it. The precipitable water lands at 29 against 25, having been
+3.1. And the surface bias goes from +3.1 K to +6.6 K, which is the compensating
+pair separating again and is the right direction for the same reason as before:
+the +3.1 was two large errors nearly cancelling.
+
+**The remaining evaporation excess is not an independent error.** 4.0 mm/day
+against 2.7 is a factor of 1.48, and the surface is 6.6 K too warm. Clausius-
+Clapeyron over 6.6 K is a factor of about 1.6 in the saturation humidity that
+drives the bulk formula, so the excess is what a column this warm must evaporate
+at this coefficient. Fix the warm bias and the evaporation follows; there is
+nothing separate left to explain here.
+
+## The column stops settling and starts cycling, and the timestep says it is real
+
+At the derived coefficient the column no longer converges to a steady state. Over
+the last fifth of a 60000-step run the surface spans 3.4 K, the top-of-atmosphere
+imbalance spans -4.8 to +11.1 W m^-2 and the latent flux spans 100 to 237, while
+the *mean* imbalance is 0.3 W m^-2. An endpoint read off that is not an
+equilibrium whatever its imbalance happened to be on the last step.
+
+Convection names its own suspect -- "instantaneous mixing means the result is
+independent of the timestep, which is convenient and physically wrong at short
+timesteps" -- so the test is the timestep. The same physical span at three:
+
+| dt (s) | steps | T_s mean | T_s span | imbalance mean | imbalance span | mm/day | Bowen |
+|---|---|---|---|---|---|---|---|
+| 3600 | 20000 | 294.735 | 2.053 | -0.001 | 6.854 | 4.051 | 0.339 |
+| 1800 | 40000 | 294.628 | 1.842 | 0.004 | 7.228 | 4.012 | 0.346 |
+| 900 | 80000 | 294.581 | 1.756 | -0.000 | 7.443 | 3.999 | 0.349 |
+
+Two findings, and they point opposite ways.
+
+**The mean state is converged.** 294.735, 294.628, 294.581 K; evaporation 4.051,
+4.012, 3.999 mm/day; Bowen 0.339, 0.346, 0.349. Halving the step twice moves the
+surface by 0.15 K in total and the mean imbalance sits at zero to three decimals.
+So the numbers in the table above are a resolved time-mean equilibrium and may be
+quoted as one.
+
+**The oscillation is not a timestep artefact.** The surface span converges to
+about 1.75 K rather than to zero, and the imbalance span *grows* slightly as the
+step shrinks. This is a limit cycle of the coupled closures, not numerical noise:
+moisture accumulates in the boundary layer, destabilises it, the adjustment fires
+and mixes the whole group at once, the lifted vapour condenses in a burst that
+restabilises the column, and it rebuilds. All-or-nothing instantaneous mixing
+against a continuously recharging moisture supply is a relaxation oscillator.
+
+It is a closure artefact rather than a numerical one, which is a distinction the
+timestep study is what establishes. Real convection is continuous and spread
+across a domain; a single column with an adjustment that homogenises completely
+or not at all has nowhere to put the intermediate state. Recorded as open work
+rather than repaired, because the cure is a convective closure with a timescale
+-- a different scheme, not a tuning of this one.
+
 ## The saturation was over the stable phase and the energy was not
 
 Recorded twice before as a percentage and left open both times because "fixing

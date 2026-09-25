@@ -28,6 +28,7 @@ __all__ = [
     "deposition_latent_heat_excess",
     "dry_adiabatic_lapse_rate",
     "dry_convective_adjustment",
+    "evaporation_coefficient_for",
     "exner",
     "hydrostatic_heights",
     "lapse_rate_adjustment_with_groups",
@@ -496,6 +497,35 @@ def saturation_specific_humidity(temperature: np.ndarray, pressure: np.ndarray) 
     # let the validity domain of the equation record carry the caveat.
     denominator = np.maximum(denominator, 1e-6 * p)
     return EPSILON * e_s / denominator
+
+
+def evaporation_coefficient_for(sensible_heat_coefficient: float) -> float:
+    """The bulk evaporation coefficient implied by the sensible-heat one.
+
+    These were two independent free parameters and they are not independent.
+    The same turbulent eddies carry heat and moisture across the surface layer,
+    so their exchange coefficients are equal to within the accuracy either is
+    known to -- the Reynolds analogy, and the reason bulk formulae are written
+    with a single ``C`` in most texts::
+
+        H = rho c_p C |U| (T_s - T_1)     =  k_H (T_s - T_1)
+        E = rho     C |U| (q_s - q_1)     =  k_E (q_s - q_1)
+
+    so ``k_E = k_H / c_p`` exactly, with no new number. The configured pair was
+    ``k_H = 10 W m^-2 K^-1`` against ``k_E = 2.0e-4 kg m^-2 s^-1``, which is
+    **fifty times** apart: the column transported heat fifty times more
+    efficiently than moisture using eddies it had declared to be the same ones.
+    That is the whole of the Bowen-ratio error, and tying the two together
+    turns the ratio from a symptom into a prediction.
+
+    Over-determined, which is the point: one coefficient now fixes both surface
+    fluxes, so it can be caught being wrong. Measured on the moist column at
+    ``k_H = 10``, the Bowen ratio comes out 0.30 against an observed 0.26,
+    without being fitted to it.
+    """
+    if sensible_heat_coefficient < 0.0:
+        raise ConfigurationError("the sensible heat coefficient cannot be negative")
+    return sensible_heat_coefficient / _CP_DRY
 
 
 def deposition_latent_heat_excess(temperature: np.ndarray) -> np.ndarray:

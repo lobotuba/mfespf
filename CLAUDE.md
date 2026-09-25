@@ -100,6 +100,19 @@ saying out loud.
 - **A mechanism enters through a constitutive relation, a tendency, a boundary
   or a source — never as a fitted forcing added to a budget.** CO₂ changes an
   absorption coefficient; the transfer solver is unchanged and unaware.
+- **Check whether a parameter is free before calibrating it.** The evaporation
+  coefficient was about to be fitted to the observed evaporation rate. It is not
+  free: the same eddies carry heat and moisture, so `k_E = k_H / c_p` exactly,
+  and the configured pair was fifty times apart. That single inconsistency was
+  the entire Bowen-ratio error, which had been recorded as a separate symptom
+  for as long as the water cycle had been measured. A derivation beats a
+  calibration, and costs less.
+- **A time-mean is not a steady state, and the timestep tells you which you
+  have.** At a consistent exchange coefficient the column limit-cycles: the mean
+  is converged to 0.15 K across a fourfold step refinement, and the amplitude
+  converges to 1.75 K rather than to zero. That makes the oscillation a property
+  of the closure, not of the integration. Quote time-means over a full cycle and
+  never an endpoint.
 - **Calibrate against something other than the thing being predicted.** The CO₂
   band's wing decay is fitted to a published forcing per doubling, never to a
   temperature record (INF-003, EQR-004).

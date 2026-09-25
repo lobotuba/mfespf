@@ -12,6 +12,7 @@ from mfespf.physics.thermodynamics import (
     KAPPA,
     dry_adiabatic_lapse_rate,
     dry_convective_adjustment,
+    evaporation_coefficient_for,
     exner,
     hydrostatic_heights,
     lapse_rate_adjustment_with_groups,
@@ -524,3 +525,42 @@ def test_saturation_is_continuous_across_the_triple_point():
     )
     assert below == pytest.approx(above, rel=1e-4)
     assert below == pytest.approx(value_of("saturation_vapour_pressure_triple_point"), rel=1e-4)
+
+
+@pytest.mark.req("INF-003", "WAT-001", "EQR-004")
+def test_the_evaporation_coefficient_follows_from_the_sensible_heat_one():
+    """Two free parameters that were never independent.
+
+    The same turbulent eddies carry heat and moisture across the surface layer,
+    so their bulk exchange coefficients are equal to within the accuracy either
+    is known to -- the Reynolds analogy, and why most texts write one ``C``:
+
+        H = rho c_p C |U| (T_s - T_1)  =  k_H (T_s - T_1)
+        E = rho     C |U| (q_s - q_1)  =  k_E (q_s - q_1)
+
+    so ``k_E = k_H / c_p`` exactly, introducing no new number. The configured
+    pair was 10 W m^-2 K^-1 against 2.0e-4 kg m^-2 s^-1, fifty times apart: the
+    column moved heat fifty times more efficiently than moisture with eddies it
+    had declared to be the same ones. That, and not a missing process, is where
+    a Bowen ratio of 9.6 against an observed 0.26 came from.
+
+    Tying them makes the partition a *prediction*, which is what makes it
+    falsifiable rather than tunable.
+    """
+    c_p = value_of("specific_heat_dry_air")
+
+    assert evaporation_coefficient_for(10.0) == pytest.approx(10.0 / c_p, rel=1e-15)
+    assert evaporation_coefficient_for(0.0) == 0.0
+
+    # The relation is a ratio, so doubling the exchange doubles both fluxes and
+    # leaves the Bowen ratio alone -- which is why the ratio tests the analogy
+    # rather than the value.
+    assert evaporation_coefficient_for(20.0) == pytest.approx(
+        2.0 * evaporation_coefficient_for(10.0), rel=1e-15
+    )
+
+    # The size of what was wrong, pinned so it cannot quietly come back.
+    assert evaporation_coefficient_for(10.0) / 2.0e-4 == pytest.approx(49.8, abs=0.1)
+
+    with pytest.raises(ConfigurationError, match="cannot be negative"):
+        evaporation_coefficient_for(-1.0)
