@@ -1685,6 +1685,84 @@ The general point: a diagnostic added to make something checkable is still a
 diagnostic that runs every step of every configuration, and publishing at a
 resolution nothing consumes is a cost with no claim attached to it.
 
+## The saturation was over the stable phase and the energy was not
+
+Recorded twice before as a percentage and left open both times because "fixing
+it moves the climate and needs a recalibration". What had never been identified
+was the obstacle, and once identified it turned out to have a clean answer.
+
+`saturation_vapour_pressure` has saturated over the *stable* phase since the ice
+branch was added, so the model already decides that a layer below the triple
+point makes ice. The energy bookkeeping then released the latent heat of
+vaporisation for it, understating the release by the whole heat of fusion. In the
+configured moist column **half the water sits below the triple point** -- the
+mixed group spans 284.9, 273.6, 261.0 and 246.7 K -- so this was not a fringe
+case.
+
+**The declared domain hid it instead of catching it.** `T` over [230, 340] with
+no stated condition. Measured, the constant-L_v error is not a gradual
+degradation with a floor at 230; it is a *step* at the triple point and then a
+plateau:
+
+| T (K) | L(T) | constant L_v | error |
+|---|---|---|---|
+| 288.0 | 2466378 | 2501000 | +1.40% |
+| 273.2 (liquid) | 2500907 | 2501000 | +0.00% |
+| 273.1 (ice) | 2834713 | 2501000 | **-11.77%** |
+| 240.0 | 2842028 | 2501000 | -12.00% |
+| 230.0 (the floor) | 2844238 | 2501000 | -12.07% |
+| 170.0 | 2857498 | 2501000 | -12.48% |
+
+The floor sat in the middle of a region where the error is flat at about 12
+percent, so crossing it meant nothing: the check fired at 230 K and passed at
+260 K on an identical error. The constant-L_v form was within 1 percent only
+over [273.2, 283.8] K -- a ten-kelvin window above the triple point.
+
+**The obstacle, which is why this was not a swap.** Making the latent heat vary
+with temperature makes the module's energy *store* vary with temperature, and
+then a layer that simply warms changes the store with no water going anywhere
+and no transfer to balance it. That is why the constant-L_v approximation is
+self-consistent rather than merely convenient, and it is the reason two previous
+attempts stopped here.
+
+**The answer is to follow the water.** The store keeps a constant reference
+latent heat, so it never moves with temperature. The phase enters as the *excess*
+released at deposition, and that excess is traced to where it comes from:
+
+    liquid -> vapour at the surface      absorbs L_v
+    vapour -> ice aloft                  releases L_v + L_f
+    ice -> liquid at the surface         absorbs L_f
+
+Over the cycle the surface pays the fusion energy and the atmosphere receives
+it, which is exactly what freezing aloft and melting at the ground do. So it
+enters as a declared transfer, `deposition_fusion_energy`, surface to water,
+with both sides declaring it, and the surface carries a labeled
+`melting_of_frozen_precipitation` cooling. Nothing is created and the
+reconciliation closes to the same tolerance as before.
+
+**What it moved.** At the configured evaporation coefficient, -0.02 K: the phase
+error multiplies a mass flux twelve times too small, which is what was predicted
+of it and is now measured rather than estimated. At a coefficient calibrated to
+the observed evaporation it matters -- the column ends up 3 kg m^-2 wetter and
+the run needs re-equilibrating -- which is why this had to be fixed *before* the
+calibration rather than after.
+
+**And the declared domain was inverted.** With the phase term the error against
+the Kirchhoff-varying latent heat is below 1 percent from 170 to 284 K, below 2
+percent to 294 K, and 6.7 percent at 340 K. The old [230, 340] excluded the
+region where the relation is now most accurate and admitted the region where it
+is worst. The new range is [170, 340] with the accuracy stated as a condition,
+and the floor is the saturation relation's own, because below it no vapour is
+placed and there is nothing for this relation to act on.
+
+Two existing integration tests failed on this change, correctly: both asserted
+`L_v` per kilogram for every layer, which was the bug rather than the
+specification. They now assert the phase-weighted sum, layer by layer, and one
+of them additionally requires that some layer condensed below the triple point,
+so the phase term cannot silently stop being exercised. A third had to stop
+taking the *first* surface-to-water energy residual, because there are two
+energy channels now and picking one was unambiguous only while there was one.
+
 ## What the warm bias actually is, assembled in one place
 
 The figure this project has carried -- seventeen kelvin -- had never been set

@@ -14,6 +14,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from mfespf.core.constants import value_of
 from mfespf.coupling.transfers import ConservedQuantity
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.surface import SURFACE_TEMPERATURE_STATE, SURFACE_WATER_STATE
@@ -239,16 +240,33 @@ def test_evaporation_conserves_water_and_carries_its_latent_energy():
             and r.receiver == "water"
             and r.quantity is ConservedQuantity.WATER
         )
-        energy_transfer = next(
+        # Two energy channels run surface to water now -- the latent energy of
+        # the evaporated vapour, and the fusion energy owed for condensate that
+        # deposited as ice aloft -- so the residuals are summed rather than
+        # picked. Taking the first was unambiguous only while there was one.
+        energy_transfers = [
             r
             for r in report.coupling_residuals
             if r.sender == "surface"
             and r.receiver == "water"
             and r.quantity is ConservedQuantity.ENERGY
+        ]
+        assert energy_transfers
+        energy_imported = sum(r.imported for r in energy_transfers)
+        interval = (energy_transfers[0].start_time, energy_transfers[0].end_time)
+        # The surface sends the water module two energy channels and the
+        # residual aggregates them: the latent energy of the evaporated water,
+        # and the fusion energy owed for condensate that deposited as ice aloft
+        # and will melt when it lands. Both are the surface's to pay, so the sum
+        # is what has to match.
+        fusion = sum(
+            float(step.outputs["deposition_fusion_flux"].values) * step.dt
+            for step in result.steps
+            if interval[0] <= step.time < interval[1]
         )
         assert water_transfer.imported > 0.0
-        assert energy_transfer.imported == pytest.approx(
-            water.latent_heat * water_transfer.imported, rel=1e-12
+        assert energy_imported == pytest.approx(
+            water.latent_heat * water_transfer.imported + fusion, rel=1e-12
         )
 
 
@@ -286,8 +304,19 @@ def test_evaporation_stops_when_the_air_is_saturated():
 
 
 @pytest.mark.req("WAT-001", "WAT-002", "CON-007")
-def test_condensation_conserves_water_and_energy_together():
-    """Vapour above saturation must leave as precipitation and release exactly L_v per kg."""
+def test_condensation_releases_the_latent_heat_of_the_phase_it_forms():
+    """Vapour above saturation leaves as precipitation and releases the right heat per kg.
+
+    This used to assert ``L_v`` per kilogram for every layer, which was the bug
+    rather than the specification. The saturation formula has decided the
+    condensate's phase since the ice branch was added -- ice below the triple
+    point -- and the energy bookkeeping released the heat of vaporisation for it
+    regardless, understating the release by the whole heat of fusion wherever
+    the condensation was really deposition.
+
+    So the claim is sharpened rather than relaxed: the release is the
+    phase-weighted sum, layer by layer, exactly.
+    """
     kernel = moist_radiative_convective(
         1.0e-4,
         initial_surface_temperature=305.0,
@@ -301,10 +330,23 @@ def test_condensation_conserves_water_and_energy_together():
     condensing = [s for s in result.steps if float(s.outputs["precipitation_flux"].values) > 0.0]
     assert condensing, "no condensation occurred, so the phase change was never tested"
 
+    L_f = value_of("water_latent_heat_fusion")
+    T_triple = value_of("triple_point_temperature")
+    saw_ice = False
     for step in condensing:
-        precipitation = float(step.outputs["precipitation_flux"].values)
         latent = float(np.sum(step.outputs["latent_heating_rate"].values))
-        assert latent == pytest.approx(water.latent_heat * precipitation, rel=1e-12)
+        fusion = float(step.outputs["deposition_fusion_flux"].values)
+        precipitation = float(step.outputs["precipitation_flux"].values)
+        # L_v for every kilogram, plus L_f for the part that deposited as ice.
+        assert latent == pytest.approx(water.latent_heat * precipitation + fusion, rel=1e-12)
+        temperature = np.asarray(step.outputs["atmosphere_layer_temperature"].values, dtype=float)
+        if fusion > 0.0:
+            saw_ice = True
+            assert np.any(temperature < T_triple)
+            # And the excess is exactly L_f times the frozen mass, not a fraction.
+            assert fusion <= L_f * precipitation * (1.0 + 1e-12)
+
+    assert saw_ice, "no layer condensed below the triple point, so the phase term was never tested"
 
     for report in result.conservation_reports:
         assert report.passed, report.describe()

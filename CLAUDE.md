@@ -203,6 +203,19 @@ saying out loud.
   and it lands within 0.003 K of the slab. Check the imbalance before reading
   any temperature difference between configurations with different reservoirs;
   ocean structure belongs to transient response, never to an equilibrium bias.
+- **A conserved store must not depend on temperature.** Making the latent heat
+  vary with temperature makes the water module's energy store vary with it, and
+  then a layer that merely warms changes the store with no water moving and no
+  transfer to balance it. That is why constant-L_v was self-consistent and why
+  two attempts at this stopped. The way through is to keep a constant reference
+  in the store and let the phase enter as a declared transfer -- the surface pays
+  the fusion energy when the ice it made aloft lands and melts.
+- **A bound that fires on one side of a plateau and passes on the other is
+  measuring nothing.** The latent-energy domain ran from 230 K while the
+  constant-L_v error is a step at the triple point and then flat at 12 percent
+  all the way down. It refused at 230 K and passed at 260 K on an identical
+  error, and with the phase term added the true bound is inverted: most accurate
+  below the triple point, worst at the hot end the old range admitted.
 - **Saturation is over the phase that is present.** Below the triple point the
   vapour is in equilibrium with ice, so the latent heat is that of sublimation
   and the heat capacity is the ice one; the latent heat also varies with

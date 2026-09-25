@@ -82,40 +82,6 @@ too large, and repairing either one alone will make the surface temperature
 worse before it makes it better. That is the right outcome and should not be
 mistaken for a regression.
 
-### The saturation is over ice and the latent heat is not
-
-Found while measuring the latent-energy domain, and left open because fixing it
-moves the climate and needs a recalibration.
-
-`saturation_vapour_pressure` saturates over the phase that is actually present,
-so below the triple point it uses the latent heat of sublimation. The latent
-*energy* bookkeeping in `WaterModule` still uses one constant latent heat of
-vaporisation at 273.16 K. The column's vapour sits at 259.6 K, below the triple
-point, so its condensate should be depositing as ice and releasing the heat of
-sublimation.
-
-Measured on the reduced-ocean column: respecting the phase raises the column's
-latent energy by **13.5 percent**, against **1.3 percent** for merely letting
-L_v vary with temperature by Kirchhoff. So the phase term is ten times the
-temperature term, and the module's declared
-`latent_heat_constant_approximation` uncertainty is carrying both.
-
-This is an energy the column releases on condensation, so it is not a
-bookkeeping detail -- it warms the atmosphere where the condensation happens.
-The fix is to make the latent heat phase-aware the way the saturation already
-is, and then to recalibrate whatever it moves.
-
-**It has since escalated from a declared approximation to a declared
-violation.** The moist radiative-convective column run to 2000 steps reports
-`EQ-LATENT-ENERGY-OF-VAPOUR: T spans [229.1, 250.1] K, outside the declared
-[230, 340]`, and the run's `may_support_a_claim` is therefore False. The 230 K
-floor is where the relation's own record says the constant latent heat stops
-being defensible, and the column is now 0.9 K below it. So this is no longer a
-percentage to quote against an uncertainty -- it is a reference configuration
-that cannot support a claim until either the latent heat becomes phase-aware or
-the floor is re-derived and found to have been too conservative. The first is
-much more likely to be the right answer, given the 13.5 percent above.
-
 ### Uncertainty is declared everywhere and propagated nowhere
 
 UNC-005 asks for bounds, sensitivity derivatives, parameter sweeps, ensembles,

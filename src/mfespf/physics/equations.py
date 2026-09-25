@@ -1239,29 +1239,74 @@ def build_equation_registry() -> EquationRegistry:
             version=V1,
             name="Latent energy content of atmospheric vapour",
             category=EquationCategory.DIAGNOSTIC_IDENTITY,
-            mathematical_form="E_latent = L_v * sum_i w_i",
+            mathematical_form=(
+                "E_latent = L_v * sum_i w_i, with the release per layer "
+                "L_v + L_f where T_i < T_triple and L_v above it"
+            ),
             physical_basis=(
                 "Energy that was supplied to evaporate the vapour and is returned when it "
                 "condenses. Treating it as a stored quantity is what lets the water and "
-                "energy budgets close simultaneously between the two events."
+                "energy budgets close simultaneously between the two events. Below the "
+                "triple point the vapour deposits as ice rather than condensing as "
+                "liquid, so it returns the latent heat of sublimation; the fusion part of "
+                "that is paid by the surface when the ice lands and melts, which is what "
+                "makes the cycle close without a temperature-dependent store."
             ),
             variables=(
                 ("E_latent", "latent energy per unit area", "J m^-2"),
                 ("w_i", "vapour mass in a layer", "kg m^-2"),
+                ("T_i", "layer temperature, which selects the condensed phase", "K"),
             ),
             parameters=(
                 ("water_latent_heat_vaporization_273", "measured", "thermodynamic tables"),
+                ("water_latent_heat_fusion", "measured", "thermodynamic tables"),
+                ("triple_point_temperature", "measured", "thermodynamic tables"),
             ),
-            assumptions=("constant latent heat of vaporisation",),
+            assumptions=(
+                "the latent heat is held at its triple-point value within each phase",
+                "the condensed phase is ice below the triple point and liquid above, so "
+                "the energy released follows the phase the saturation formula already "
+                "assumed",
+            ),
             approximations=(
                 "The sensible heat carried by the water itself is neglected, both in the "
-                "vapour and in the precipitation that returns to the surface.",
+                "vapour and in the precipitation that returns to the surface. Holding the "
+                "latent heat constant within a phase is what that neglect buys: a store "
+                "that moved with temperature would change when a layer warmed with no "
+                "water going anywhere, and no transfer would balance it.",
+                "Against the Kirchhoff-varying latent heat the error is below 1 percent "
+                "from 170 to 284 K, below 2 percent to 294 K, 2.6 percent at 300 K and "
+                "6.7 percent at 340 K. The declared range used to be [230, 340] with no "
+                "stated condition, and it was inverted: the error below the triple point "
+                "is now the smallest anywhere, 0.3 percent at 230 K, while the hot end it "
+                "admitted is the worst.",
             ),
-            validity_domain=ValidityDomain(ranges=(("T", 230.0, 340.0, "K"),)),
-            limiting_cases=("zero in a dry column",),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 170.0, 340.0, "K"),),
+                conditions=(
+                    "the latent heat released follows the condensed phase, which is ice "
+                    "below the triple point",
+                    "accuracy better than 6.7 percent throughout and better than 2 "
+                    "percent below 294 K, against the Kirchhoff-varying latent heat",
+                    "the floor is the saturation relation's, because below it no vapour "
+                    "is placed and there is nothing for this relation to act on",
+                ),
+            ),
+            limiting_cases=(
+                "zero in a dry column",
+                "reduces to the constant-L_v form in a column that never reaches the triple point",
+            ),
             conserved_quantities=("energy",),
-            correctness_tests=("test_moist_column_budgets_close_for_water_and_energy",),
-            source="Definition",
+            correctness_tests=(
+                "test_moist_column_budgets_close_for_water_and_energy",
+                "test_depositing_as_ice_releases_the_heat_of_sublimation",
+            ),
+            known_failure_modes=(
+                "The fusion energy is settled at the surface on the same step the ice "
+                "forms, so a snowpack that persists is not represented: the melting is "
+                "immediate by construction, as the precipitation already is.",
+            ),
+            source="Definition, with the phase taken from the stable-phase saturation",
         )
     )
 

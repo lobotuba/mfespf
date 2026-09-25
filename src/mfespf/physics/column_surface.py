@@ -89,7 +89,12 @@ class ColumnSurfaceModule(Module):
         # a second conserved quantity. MOD-001 requires the contract to describe
         # the module as configured, so it is built rather than fixed.
         moist_inputs = (
-            ("surface_evaporation_flux", "precipitation_flux", "surface_latent_heat_flux")
+            (
+                "surface_evaporation_flux",
+                "precipitation_flux",
+                "surface_latent_heat_flux",
+                "deposition_fusion_flux",
+            )
             if couple_water
             else ()
         )
@@ -162,7 +167,19 @@ class ColumnSurfaceModule(Module):
             ),
             exported_transfers=(
                 "radiation_up_surface",
-                *(("evaporation_water", "evaporation_latent_energy") if couple_water else ()),
+                *(
+                    (
+                        "evaporation_water",
+                        "evaporation_latent_energy",
+                        # The fusion energy the surface pays when the ice that
+                        # formed aloft lands and melts. Declared on both sides,
+                        # because a mechanism that moves a conserved quantity
+                        # between two modules has to be.
+                        "deposition_fusion_energy",
+                    )
+                    if couple_water
+                    else ()
+                ),
                 *(("deep_ocean_heat",) if couple_deep_ocean else ()),
             ),
             conserved_quantities=("energy", "water") if couple_water else ("energy",),
@@ -257,6 +274,7 @@ class ColumnSurfaceModule(Module):
         self._evaporation = 0.0
         self._precipitation = 0.0
         self._latent_flux = 0.0
+        self._fusion_flux = 0.0
         self._water_initial = initial_water_store
         self._water_budget: StateBudget | None = None
         self._downward = 0.0
@@ -361,6 +379,13 @@ class ColumnSurfaceModule(Module):
         self._latent_flux = (
             self.input_field("surface_latent_heat_flux").require_units("W m^-2").scalar()
         )
+        # The ice that formed aloft melts when it lands, and the surface pays
+        # for it. This is the other end of the fusion energy the deposition
+        # released into the atmosphere; without it that energy would have come
+        # from nowhere.
+        self._fusion_flux = (
+            self.input_field("deposition_fusion_flux").require_units("W m^-2").scalar()
+        )
         self._water_initial = self.water_store
 
         # Evaporative cooling is a separate labeled contribution rather than
@@ -376,6 +401,17 @@ class ColumnSurfaceModule(Module):
                 equation_id=EQUATION_IDS["latent_energy"],
             )
         )
+        if self._fusion_flux:
+            contributions.append(
+                TendencyContribution(
+                    state_id=SURFACE_TEMPERATURE_STATE,
+                    provider_module_id=self.module_id,
+                    label="melting_of_frozen_precipitation",
+                    value=-self._fusion_flux / self.areal_heat_capacity,
+                    units="K s^-1",
+                    equation_id=EQUATION_IDS["latent_energy"],
+                )
+            )
         contributions.append(
             TendencyContribution(
                 state_id=SURFACE_WATER_STATE,
@@ -660,6 +696,17 @@ class ColumnSurfaceModule(Module):
                     amount=self._latent_flux * dt,
                     units="J m^-2",
                     channel="evaporation_latent_energy",
+                    equation_id=EQUATION_IDS["latent_energy"],
+                    **water_common,  # type: ignore[arg-type]
+                ),
+                Transfer(
+                    transfer_id=f"deposition_fusion_energy@{start:g}",
+                    sender_module=self.module_id,
+                    receiver_module=self.water_module_id,
+                    quantity=ConservedQuantity.ENERGY,
+                    amount=self._fusion_flux * dt,
+                    units="J m^-2",
+                    channel="deposition_fusion_energy",
                     equation_id=EQUATION_IDS["latent_energy"],
                     **water_common,  # type: ignore[arg-type]
                 ),

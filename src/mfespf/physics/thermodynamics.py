@@ -25,6 +25,7 @@ from mfespf.core.errors import ConfigurationError
 __all__ = [
     "SATURATION_DOMAIN_FLOOR_K",
     "convective_adjustment_with_groups",
+    "deposition_latent_heat_excess",
     "dry_adiabatic_lapse_rate",
     "dry_convective_adjustment",
     "exner",
@@ -495,6 +496,33 @@ def saturation_specific_humidity(temperature: np.ndarray, pressure: np.ndarray) 
     # let the validity domain of the equation record carry the caveat.
     denominator = np.maximum(denominator, 1e-6 * p)
     return EPSILON * e_s / denominator
+
+
+def deposition_latent_heat_excess(temperature: np.ndarray) -> np.ndarray:
+    """The extra latent heat released where the condensate forms as ice, in J kg^-1.
+
+    Below the triple point the stable condensed phase is ice, so vapour deposits
+    rather than condenses and releases the latent heat of sublimation, ``L_v +
+    L_f``. `saturation_vapour_pressure` has saturated over the stable phase
+    since the ice branch was added; the energy bookkeeping did not follow, and
+    the gap is the whole of ``L_f`` -- 11.8 percent of ``L_v``, discontinuously,
+    the moment the condensation is deposition.
+
+    Returned as the *excess* over ``L_v`` rather than as the total, because that
+    is what has to be accounted separately. The reference latent heat stays
+    constant, so the module's energy store does not change when a layer's
+    temperature changes with no water moving -- which a temperature-dependent
+    store would do, and which no transfer would balance.
+
+    The excess is real energy and it comes from somewhere. Water leaves the
+    surface as liquid, absorbing ``L_v``; it deposits aloft as ice, releasing
+    ``L_v + L_f``; and the ice that falls back melts at the surface, absorbing
+    ``L_f`` again. Over the cycle it is the surface that pays the fusion energy
+    and the atmosphere that receives it, which is what freezing aloft and
+    melting at the ground physically do.
+    """
+    T = np.asarray(temperature, dtype=float)
+    return np.where(T < _T_TRIPLE, _L_FUSION, 0.0)
 
 
 def saturation_humidity_within_domain(

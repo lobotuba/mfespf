@@ -64,6 +64,7 @@ from mfespf.physics.plume import (
     water_vapour_lapse_rate,
 )
 from mfespf.physics.thermodynamics import (
+    deposition_latent_heat_excess,
     saturation_humidity_within_domain,
     saturation_specific_humidity,
 )
@@ -226,11 +227,16 @@ class WaterModule(Module):
                 "surface_latent_heat_flux",
                 "latent_heating_rate",
                 "vapour_phase_change_rate",
+                "deposition_fusion_flux",
                 "atmosphere_precipitable_water",
                 "vapour_bearing_layer_temperature",
                 "saturated_layer_temperature",
             ),
-            imported_transfers=("evaporation_water", "evaporation_latent_energy"),
+            imported_transfers=(
+                "evaporation_water",
+                "evaporation_latent_energy",
+                "deposition_fusion_energy",
+            ),
             exported_transfers=("precipitation_water", "latent_heat_release"),
             conserved_quantities=("water", "energy"),
             internal_sources_and_sinks=(),
@@ -307,6 +313,8 @@ class WaterModule(Module):
         # on the one it started from. See ``vapour_phase_change_rate``.
         self._vapour_rate = np.zeros(n_layers)
         self._saturation_evaluated = np.ones(n_layers, dtype=bool)
+        self._frozen_condensation = np.zeros(n_layers)
+        self._fusion_heating = np.zeros(n_layers)
         self._specific_humidity = np.zeros(n_layers)
         self._relative_humidity = np.zeros(n_layers)
         self._interval = (0.0, 0.0)
@@ -404,7 +412,15 @@ class WaterModule(Module):
         capacity = saturation * self._layer_mass
         self._condensation = np.maximum(0.0, provisional - capacity)
         self._precipitation = float(np.sum(self._condensation)) / ctx.dt
-        self._latent_heating = self.latent_heat * self._condensation / ctx.dt
+        # Where the layer is below the triple point the vapour deposits as ice
+        # rather than condensing as liquid, so it releases the latent heat of
+        # sublimation. The saturation has been over the stable phase since the
+        # ice branch was added; this is the energy bookkeeping catching up, and
+        # it is 11.8 percent of L_v the moment the condensation is deposition.
+        excess = deposition_latent_heat_excess(self._layer_temperature)
+        self._frozen_condensation = np.where(excess > 0.0, self._condensation, 0.0)
+        self._fusion_heating = excess * self._condensation / ctx.dt
+        self._latent_heating = self.latent_heat * self._condensation / ctx.dt + self._fusion_heating
 
         final = provisional - self._condensation
         self._specific_humidity = final / self._layer_mass
@@ -619,6 +635,18 @@ class WaterModule(Module):
                 units="kg m^-2 s^-1",
                 **scalar_flux,  # type: ignore[arg-type]
             ),
+            # What the surface owes for the ice that formed aloft and will melt
+            # when it lands. Published as a flux so the surface can apply it as
+            # its own labeled cooling rather than having it folded into another
+            # term, and so both sides of the transfer declare it.
+            "deposition_fusion_flux": Field(
+                field_id="deposition_fusion_flux",
+                physical_name="fusion energy released by deposition aloft",
+                symbol="L_f C_ice",
+                values=np.array(float(np.sum(self._fusion_heating))),
+                units="W m^-2",
+                **scalar_flux,  # type: ignore[arg-type]
+            ),
             "surface_latent_heat_flux": Field(
                 field_id="surface_latent_heat_flux",
                 physical_name="latent heat flux leaving the surface with evaporation",
@@ -738,6 +766,23 @@ class WaterModule(Module):
                 equation_id=EQUATION_IDS["latent_energy"],
                 **common,  # type: ignore[arg-type]
             ),
+            # The fusion energy the deposition released aloft, drawn from the
+            # surface because that is where it is paid back: the ice that falls
+            # melts on arrival. Without this the store would export more energy
+            # than it took in and the budget would not close. The reference
+            # latent heat stays constant, so the store itself never moves with a
+            # layer's temperature -- only this labeled term does.
+            Transfer(
+                transfer_id=f"deposition_fusion_energy@{start:g}",
+                sender_module=self.surface_module_id,
+                receiver_module=self.module_id,
+                quantity=ConservedQuantity.ENERGY,
+                amount=float(np.sum(self._fusion_heating)) * dt,
+                units="J m^-2",
+                channel="deposition_fusion_energy",
+                equation_id=EQUATION_IDS["latent_energy"],
+                **common,  # type: ignore[arg-type]
+            ),
         ]
         exports = [
             Transfer(
@@ -757,7 +802,10 @@ class WaterModule(Module):
                 sender_module=self.module_id,
                 receiver_module=self.atmosphere_module_id,
                 quantity=ConservedQuantity.ENERGY,
-                amount=self.latent_heat * condensed,
+                # Includes the fusion excess where the condensate formed as
+                # ice: what the atmosphere receives there is the heat of
+                # sublimation, not the heat of vaporisation.
+                amount=self.latent_heat * condensed + float(np.sum(self._fusion_heating)) * dt,
                 units="J m^-2",
                 channel="latent_heat_release",
                 equation_id=EQUATION_IDS["condensation"],

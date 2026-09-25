@@ -440,6 +440,15 @@ def _build_graph(
             equation_ids=("EQ-LATENT-ENERGY-OF-VAPOUR",),
         )
         edge(
+            "surface",
+            "water",
+            "deposition_fusion_energy",
+            edge_type=EdgeType.PHYSICAL_TRANSFER,
+            units="J m^-2",
+            time_semantics="interval_accumulation",
+            equation_ids=("EQ-LATENT-ENERGY-OF-VAPOUR",),
+        )
+        edge(
             "water",
             "surface",
             "precipitation_water",

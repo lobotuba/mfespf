@@ -857,3 +857,134 @@ def test_over_drawing_a_layer_is_refused_rather_than_clipped():
     assert "evaporation_minus_condensation" in message
     # The vapour is left untouched rather than half-committed.
     assert module.vapour == pytest.approx([2.0, 1.0, 0.0])
+
+
+@pytest.mark.req("CON-007", "WAT-002", "EQR-003")
+def test_depositing_as_ice_releases_the_heat_of_sublimation():
+    """The saturation was over the stable phase; the energy bookkeeping was not.
+
+    `saturation_vapour_pressure` has saturated over ice below the triple point
+    since the ice branch was added, so the model already decides that a cold
+    layer's condensate is ice. What it then did was release the latent heat of
+    vaporisation for it, understating the release by the whole heat of fusion --
+    11.8 percent of L_v, discontinuously, the moment the condensation is
+    deposition. In the configured moist column half the water sits below the
+    triple point, so this was not a fringe case.
+
+    The declared domain hid it rather than catching it. It ran from 230 K with
+    no stated condition, and the error is a *step* at 273.16 K that is then flat
+    at about 12 percent all the way down -- so the floor sat in the middle of a
+    plateau and crossing it meant nothing. Measured against the Kirchhoff-
+    varying latent heat, the relation with the phase term is now within 1
+    percent from 170 to 284 K and within 2 percent to 294 K: the old bound was
+    inverted, excluding where the relation is best and admitting where it is
+    worst.
+
+    The energy is not invented. Water leaves the surface as liquid absorbing
+    L_v, deposits aloft as ice releasing L_v + L_f, and the ice melts when it
+    lands, taking L_f back out of the surface. Over the cycle the surface pays
+    the fusion energy and the atmosphere receives it, which is what freezing
+    aloft and melting at the ground do.
+    """
+    from mfespf.core.constants import value_of
+    from mfespf.physics.water import WaterModule
+
+    L_v = value_of("water_latent_heat_vaporization_273")
+    L_f = value_of("water_latent_heat_fusion")
+    T_triple = value_of("triple_point_temperature")
+
+    n = 2
+    module = WaterModule(n_layers=n, evaporation_coefficient=0.0)
+    module.validate_configuration()
+    module.initialize({}, {"master_start_time": 0.0})
+
+    # One layer either side of the triple point, both holding far more vapour
+    # than they can, so both condense. The warm layer's capacity is the
+    # larger of the two, so the load is set from it.
+    warm, cold = T_triple + 15.0, T_triple - 15.0
+    temperature = np.array([warm, cold])
+    mass = np.array([1.0e3, 1.0e3])
+    pressure = np.array([9.0e4, 7.0e4])
+    module.vapour = np.array([60.0, 60.0])
+
+    common = {
+        "quantity_kind": QuantityKind.DIAGNOSTIC,
+        "time_semantics": TimeSemantics.INSTANTANEOUS,
+        "timestamp": 0.0,
+        "spatial_support": SpatialSupport.LAYER_AVERAGE,
+        "dimensions": ("layer",),
+        "provenance": Provenance(producer="test", derivation="test fixture"),
+    }
+
+    def layer(field_id, values, units):
+        return Field(
+            field_id=field_id,
+            physical_name=field_id,
+            symbol="x",
+            values=np.asarray(values, dtype=float),
+            units=units,
+            **common,  # type: ignore[arg-type]
+        )
+
+    module.begin_step(StepContext(time=0.0, dt=3600.0, step_index=0))
+    module.receive_inputs(
+        {
+            ATMOSPHERE_TEMPERATURE_STATE: layer(ATMOSPHERE_TEMPERATURE_STATE, temperature, "K"),
+            "atmosphere_layer_mass": layer("atmosphere_layer_mass", mass, "kg m^-2"),
+            "atmosphere_layer_pressure": layer("atmosphere_layer_pressure", pressure, "Pa"),
+            "atmosphere_layer_heat_capacity": layer(
+                "atmosphere_layer_heat_capacity", mass * 1004.0, "J m^-2 K^-1"
+            ),
+            "surface_temperature": Field(
+                field_id="surface_temperature",
+                physical_name="surface temperature",
+                symbol="Ts",
+                values=np.array(warm),
+                units="K",
+                **{**common, "spatial_support": SpatialSupport.GLOBAL_SCALAR, "dimensions": ()},  # type: ignore[arg-type]
+            ),
+        }
+    )
+    module.compute_tendencies()
+
+    condensed = np.asarray(module._condensation, dtype=float)
+    heating = np.asarray(module._latent_heating, dtype=float)
+    assert np.all(condensed > 0.0), "both layers must condense for the comparison to mean anything"
+
+    # Per kilogram, the cold layer releases the heat of sublimation and the warm
+    # one the heat of vaporisation -- not the same number, which is the point.
+    per_kg = heating * 3600.0 / condensed
+    assert per_kg[0] == pytest.approx(L_v, rel=1e-12)
+    assert per_kg[1] == pytest.approx(L_v + L_f, rel=1e-12)
+    assert per_kg[1] / per_kg[0] == pytest.approx(1.1334, abs=1e-3)
+
+    # And the excess is published for the surface to pay, so it is not created.
+    published = float(np.asarray(module.emit_outputs()["deposition_fusion_flux"].values))
+    assert published == pytest.approx(L_f * condensed[1] / 3600.0, rel=1e-12)
+
+    # A column that never reaches the triple point owes nothing, which is the
+    # limiting case the record claims.
+    module.vapour = np.array([60.0, 60.0])
+    module.begin_step(StepContext(time=3600.0, dt=3600.0, step_index=1))
+    module.receive_inputs(
+        {
+            ATMOSPHERE_TEMPERATURE_STATE: layer(
+                ATMOSPHERE_TEMPERATURE_STATE, np.array([warm, warm]), "K"
+            ),
+            "atmosphere_layer_mass": layer("atmosphere_layer_mass", mass, "kg m^-2"),
+            "atmosphere_layer_pressure": layer("atmosphere_layer_pressure", pressure, "Pa"),
+            "atmosphere_layer_heat_capacity": layer(
+                "atmosphere_layer_heat_capacity", mass * 1004.0, "J m^-2 K^-1"
+            ),
+            "surface_temperature": Field(
+                field_id="surface_temperature",
+                physical_name="surface temperature",
+                symbol="Ts",
+                values=np.array(warm),
+                units="K",
+                **{**common, "spatial_support": SpatialSupport.GLOBAL_SCALAR, "dimensions": ()},  # type: ignore[arg-type]
+            ),
+        }
+    )
+    module.compute_tendencies()
+    assert float(np.asarray(module.emit_outputs()["deposition_fusion_flux"].values)) == 0.0
