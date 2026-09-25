@@ -59,6 +59,7 @@ from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError
 from mfespf.core.quantities import (
     Field,
+    MissingValuePolicy,
     Provenance,
     QuantityKind,
     SignConvention,
@@ -169,10 +170,20 @@ class ConvectiveAdjustmentModule(Module):
                 "layer_radiative_heating",
                 SURFACE_TEMPERATURE_STATE,
                 "surface_heat_capacity",
+                # Optional in general -- a dry column has no water module -- but
+                # not optional once vapour transport is switched on, and a module
+                # that reads a field it declares nowhere is a contract defect
+                # whatever its ``.get`` says.
+                *(
+                    (VAPOUR_STATE, "vapour_phase_change_rate", "latent_heating_rate")
+                    if transport_vapour
+                    else ()
+                ),
             ),
             produced_outputs=(
                 "convective_temperature_tendency",
                 "convective_layer_count",
+                "convectively_mixed_layer_temperature",
                 "atmosphere_potential_temperature",
                 "surface_sensible_heat_flux",
                 *(("surface_convective_heat_flux",) if surface_based else ()),
@@ -189,14 +200,20 @@ class ConvectiveAdjustmentModule(Module):
                         ("p", "atmosphere_layer_pressure", "Pa"),
                     ),
                 ),
+                # Bound to the masked profile, not the whole column. The
+                # adjustment mixes only inside its unstable groups, so a
+                # stratospheric temperature judged against these ranges flags a
+                # relation whose output never reaches that layer. The potential
+                # temperature above is different and stays bound to the full
+                # state: it is diagnosed for every layer.
                 (
                     EQUATION_IDS["convective_adjustment"],
-                    (("T", ATMOSPHERE_TEMPERATURE_STATE, "K"),),
+                    (("T", "convectively_mixed_layer_temperature", "K"),),
                 ),
                 (
                     EQUATION_IDS["entraining_lapse_rate"],
                     (
-                        ("T", ATMOSPHERE_TEMPERATURE_STATE, "K"),
+                        ("T", "convectively_mixed_layer_temperature", "K"),
                         ("a", "bulk_plume_parameter", "1"),
                     ),
                 ),
@@ -215,6 +232,8 @@ class ConvectiveAdjustmentModule(Module):
                 "test_sensible_heat_flux_vanishes_when_isothermal",
                 "test_sensible_heat_is_transferred_not_created",
                 "test_convection_changes_the_profile_it_is_given",
+                "test_the_transport_mixes_the_profile_condensation_leaves_not_the_one_it_found",
+                "test_the_adjustment_publishes_the_layers_it_mixed_not_the_whole_profile",
             ),
             known_limitations=(
                 "Targets the dry adiabat by default, so a saturated troposphere is left "
@@ -285,6 +304,9 @@ class ConvectiveAdjustmentModule(Module):
         self.target_responds_to_temperature = target_responds_to_temperature
         self._held_rate: np.ndarray | None = None
         self._mixing_groups: tuple[tuple[int, int], ...] = ()
+        self._adjusted = np.zeros(0)
+        self._ever_mixed = np.zeros(0, dtype=bool)
+        self._vapour_dt = 0.0
         self._vapour_moved = 0.0
         self._surface_adjustment = 0.0
         self._surface_convective_flux = 0.0
@@ -385,11 +407,37 @@ class ConvectiveAdjustmentModule(Module):
         completely is therefore an upper bound on the moistening, and the water
         module's saturation adjustment will leave the layers above at saturation
         rather than at the observed thirty to fifty percent.
+
+        The profile mixed here is the *provisional* one -- the committed vapour
+        plus what the water module has already published as its own phase-change
+        rate for this step -- for the same reason the temperature mixed here is
+        the post-radiative, post-latent one. Mixing the start-of-step vapour
+        instead made the two tendencies additive rather than sequential, so both
+        modules charged the same layer for water only one of them could have:
+        each affordable alone, jointly drawing 3.79 kg m^-2 from a layer holding
+        3.17. Composed this way the committed vapour is exactly ``mixed``, which
+        is non-negative by construction because the water module's provisional
+        profile is, and the group total is untouched.
         """
         vapour = self._inputs.get(VAPOUR_STATE)
         if vapour is None:
             return None
         w = np.array(vapour.require_units("kg m^-2").values, dtype=float)
+        self._vapour_dt = self.context.dt
+        phase = self._inputs.get("vapour_phase_change_rate")
+        if phase is not None:
+            # Over the interval the *water* module published the rate for, and
+            # the contribution below is divided by the same interval, because
+            # that is the one the owner of the vapour will multiply back when it
+            # commits. Using this module's step instead would make the
+            # composition exact only where the two happen to share a schedule,
+            # and silently inexact where they do not.
+            self._vapour_dt = float(phase.time_interval or self.context.dt)
+            w = (
+                w
+                + np.asarray(phase.require_units("kg m^-2 s^-1").values, dtype=float)
+                * self._vapour_dt
+            )
         mixed = np.array(w)
         for low, high in groups:
             span = slice(low, high + 1)
@@ -402,6 +450,28 @@ class ConvectiveAdjustmentModule(Module):
             # enthalpy-conserving mixed temperature rests on.
             mixed[span] = total_water * layer_mass[span] / total_mass
         return mixed - w
+
+    def _mixed_mask(self) -> np.ndarray:
+        """True on the layers this run's adjustment has mixed.
+
+        The closure evaluates its stability criterion everywhere and mixes only
+        within the unstable groups, so these are the layers its cited relations
+        were applied to -- and the only ones whose temperatures a declared
+        validity range has any business being judged against.
+
+        The union over the run rather than this step's groups, because the domain
+        check judges a run by its final state and this closure is not active
+        every step. Measured on the dry radiative-convective column it mixes on
+        79 percent of steps and on none of the first few hundred, the column
+        being dry-stable while it spins up. Masking to the current step therefore
+        made the check unresolvable at 400 steps and resolvable at 2000, which is
+        an artefact of where the run stopped rather than a fact about the
+        physics. The union answers the question actually being asked -- which
+        layers does this relation govern in this configuration -- and it errs
+        wide, which is the right direction for a check whose job is to catch a
+        relation evaluated out of range.
+        """
+        return np.array(self._ever_mixed, dtype=bool)
 
     def compute_tendencies(self) -> list[TendencyContribution]:
         """Adjust the profile the radiation module has already heated.
@@ -496,8 +566,13 @@ class ConvectiveAdjustmentModule(Module):
             self._surface_convective_flux = 0.0
             self._surface_mixed = False
         self._mixing_groups = groups
+        if self._ever_mixed.size != len(temperature):
+            self._ever_mixed = np.zeros(len(temperature), dtype=bool)
+        for low, high in groups:
+            self._ever_mixed[low : high + 1] = True
 
         self._tendency = (adjusted - provisional) / ctx.dt
+        self._adjusted = np.asarray(adjusted, dtype=float)
         self._adjusted_layers = int(np.count_nonzero(~np.isclose(adjusted, provisional)))
         self._potential_temperature = potential_temperature(
             adjusted, pressure, self.reference_pressure
@@ -565,7 +640,10 @@ class ConvectiveAdjustmentModule(Module):
                         state_id=VAPOUR_STATE,
                         provider_module_id=self.module_id,
                         label="convective_vapour_transport",
-                        value=vapour_change / ctx.dt,
+                        # Divided by the interval the provisional profile was
+                        # formed over, so the owner's commit reproduces the
+                        # mixed profile exactly rather than to a schedule.
+                        value=vapour_change / self._vapour_dt,
                         units="kg m^-2",
                         equation_id=EQUATION_IDS["convective_adjustment"],
                     ),
@@ -595,6 +673,32 @@ class ConvectiveAdjustmentModule(Module):
                 dimensions=("layer",),
                 coordinate_system="pressure_layers",
                 sign_convention=SignConvention.POSITIVE_INTO_RECEIVER,
+                provenance=provenance,
+            ),
+            # The layers the closure actually ran on. It computes a target for
+            # every layer and mixes only inside the unstable groups, so judging
+            # its declared temperature range against the whole profile lets a
+            # stratospheric layer flag a relation whose output is never used up
+            # there. NaN says "not evaluated here" rather than "missing".
+            "convectively_mixed_layer_temperature": Field(
+                field_id="convectively_mixed_layer_temperature",
+                physical_name="layer temperature where the adjustment has mixed",
+                symbol="T_conv",
+                values=np.where(
+                    self._mixed_mask(), np.asarray(self._adjusted, dtype=float), np.nan
+                ),
+                units="K",
+                quantity_kind=QuantityKind.DIAGNOSTIC,
+                time_semantics=TimeSemantics.END_OF_STEP,
+                timestamp=ctx.time,
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                coordinate_system="pressure_layers",
+                sign_convention=SignConvention.POSITIVE_DEFINITE,
+                # The mask is the content of this field, so it declares the
+                # policy DAT-007 provides rather than slipping NaNs past a
+                # default that exists to catch them.
+                missing_value_policy=MissingValuePolicy.MASKED,
                 provenance=provenance,
             ),
             "atmosphere_potential_temperature": Field(

@@ -217,6 +217,7 @@ class WaterModule(Module):
                 "precipitation_flux",
                 "surface_latent_heat_flux",
                 "latent_heating_rate",
+                "vapour_phase_change_rate",
                 "atmosphere_precipitable_water",
                 "vapour_bearing_layer_temperature",
             ),
@@ -292,6 +293,10 @@ class WaterModule(Module):
         self._condensation = np.zeros(n_layers)
         self._precipitation = 0.0
         self._latent_heating = np.zeros(n_layers)
+        # Published so a module that redistributes vapour later in the splitting
+        # order can act on the profile this module is about to commit rather than
+        # on the one it started from. See ``vapour_phase_change_rate``.
+        self._vapour_rate = np.zeros(n_layers)
         self._specific_humidity = np.zeros(n_layers)
         self._relative_humidity = np.zeros(n_layers)
         self._interval = (0.0, 0.0)
@@ -391,12 +396,14 @@ class WaterModule(Module):
             where=saturation > 0.0,
         )
 
+        self._vapour_rate = (final - self.vapour) / ctx.dt
+
         return [
             TendencyContribution(
                 state_id=VAPOUR_STATE,
                 provider_module_id=self.module_id,
                 label="evaporation_minus_condensation",
-                value=(final - self.vapour) / ctx.dt,
+                value=self._vapour_rate,
                 units="kg m^-2",
                 equation_id=EQUATION_IDS["condensation"],
             ),
@@ -431,6 +438,16 @@ class WaterModule(Module):
         having computed its own tendency from the same starting state without
         seeing the other's. That is an operator-splitting defect and it is
         reported as one, naming the layer and the over-draw.
+
+        The one splitting that was known to do this -- convective vapour
+        transport against this module's saturation adjustment -- has since been
+        composed sequentially instead: convection mixes the profile this module
+        publishes as ``vapour_phase_change_rate`` rather than the one it started
+        from, so the committed vapour is the mixed provisional profile and is
+        non-negative by construction. This check is therefore a guard on an
+        invariant rather than the mechanism that finds the defect, and it stays
+        because the next module to contribute to this state will not have been
+        written with that argument in mind.
         """
         initial = np.array(self.vapour, dtype=float)
         total = np.zeros(self.n_layers)
@@ -587,6 +604,29 @@ class WaterModule(Module):
                 symbol="LC",
                 values=np.array(self._latent_heating),
                 units="W m^-2",
+                quantity_kind=QuantityKind.SOURCE_RATE,
+                time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                time_interval=ctx.dt,
+                timestamp=ctx.time,
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                coordinate_system="pressure_layers",
+                sign_convention=SignConvention.POSITIVE_INTO_RECEIVER,
+                provenance=provenance,
+            ),
+            # The vapour profile this module is about to commit, expressed as a
+            # rate so a module further down the splitting order can form the
+            # provisional profile itself -- exactly as convection already forms
+            # the provisional temperature from ``layer_radiative_heating`` and
+            # ``latent_heating_rate``. Without this, a module that redistributes
+            # vapour mixes the profile from the *start* of the step and its
+            # tendency double-counts whatever this module removed.
+            "vapour_phase_change_rate": Field(
+                field_id="vapour_phase_change_rate",
+                physical_name="net vapour added to each layer by evaporation and condensation",
+                symbol="dw/dt|phase",
+                values=np.array(self._vapour_rate),
+                units="kg m^-2 s^-1",
                 quantity_kind=QuantityKind.SOURCE_RATE,
                 time_semantics=TimeSemantics.INTERVAL_AVERAGE,
                 time_interval=ctx.dt,

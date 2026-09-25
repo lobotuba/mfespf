@@ -146,6 +146,23 @@ saying out loud.
   evaporative cooling: 5x the evaporation is +3.5 K. Repairing either half of the
   compensating pair alone makes the surface temperature worse first. Expect that
   and do not read it as a regression.
+- **Compose split operators, do not cap them.** Convection took the provisional
+  temperature and the *stale* vapour, so its mixing and the water module's
+  condensation were additive rather than sequential and jointly over-drew a
+  layer. The cure is for the later module to act on the profile the earlier one
+  published -- `vapour_phase_change_rate` beside `latent_heating_rate` -- which
+  makes the over-draw structurally impossible instead of detected. If two
+  modules contribute to one state, check that the second sees the first's
+  tendency for *every* quantity, not just the one someone thought about.
+- **A module that reads a field through `.get` still has to declare it.** Optional
+  in general is not optional in the configuration that switches it on. Convection
+  read the vapour and the latent heating undeclared, exactly as radiation once
+  derived cloud optics from three fields it declared nowhere.
+- **The domain check judges a run by its final state, so mask over the run, not
+  over the step.** The convective adjustment mixes on 79 percent of steps and on
+  none of the first four hundred. A per-step mask made the same configuration
+  resolvable at 2000 steps and unresolvable at 400 -- a fact about where the run
+  stopped, not about the physics.
 - **A declared domain is a guess until someone measures it.** Three optical-depth
   ceilings -- 10, 100 and 1000 -- were all exceeded by the greenhouse
   configuration at tau = 1110, and all three were wrong rather than the run. The

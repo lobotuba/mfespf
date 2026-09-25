@@ -1685,6 +1685,100 @@ The general point: a diagnostic added to make something checkable is still a
 diagnostic that runs every step of every configuration, and publishing at a
 resolution nothing consumes is a cost with no claim attached to it.
 
+## The vapour splitting was additive where the temperature splitting was sequential
+
+The over-draw recorded below -- two modules jointly taking 3.79 kg m^-2 from a
+layer holding 3.17 -- was not a hard coupling problem. It was an asymmetry
+inside convection, and finding it took reading the module rather than the
+symptom.
+
+Convection has always adjusted the *provisional* temperature: the profile after
+radiation and after the water module's latent release. Its own docstring says
+why -- adjusting the pre-heating profile would stabilise a column that
+condensation is about to destabilise. The vapour was not treated the same way.
+`_vapour_transport` mixed the committed, start-of-step vapour, so convection's
+tendency and the water module's condensation were *additive* rather than
+sequential, and both charged the same layer for water only one of them could
+have. Each was affordable alone. Together they were not.
+
+The repair is composition, not a limiter:
+
+    w_provisional = w_committed + vapour_phase_change_rate * dt
+    contribution  = mix(w_provisional) - w_provisional
+
+so the committed vapour is exactly `mix(w_provisional)`. That is non-negative
+because the water module's provisional profile is (it condenses at most the
+excess over saturation) and because mixing to a uniform specific humidity cannot
+take a non-negative group negative. The group total is untouched. Nothing is
+clipped and no demand is scaled back: the over-draw becomes *structurally
+impossible* rather than detected.
+
+The water module publishes `vapour_phase_change_rate` for this, as a rate,
+exactly as it already published `latent_heating_rate` for the temperature half
+of the same composition. And convection now declares the vapour, the phase-change
+rate and the latent heating as required inputs when vapour transport is on. It
+was reading all three through `.get`, which is the same contract defect the
+radiation module had when it derived cloud optics from three fields it declared
+nowhere: optional in general is not optional in the configuration that switches
+it on.
+
+The rate is converted over the interval the water module published it for rather
+than over convection's own step, so the owner's commit reproduces the mixed
+profile exactly rather than only where the two modules happen to share a
+schedule.
+
+**What it unlocked.** Every evaporation coefficient strong enough to approach the
+observed evaporation rate used to over-draw a layer and halt. They now run:
+
+| C_E | T_s | latent | sensible | Bowen | mm/day | precipitable water | imbalance |
+|---|---|---|---|---|---|---|---|
+| 2.0e-4 (configured) | 291.12 | 6.5 | 62.0 | 9.54 | 0.224 | 3.1 | 0.000 |
+| 1.0e-3 | 294.72 | 36.1 | 60.5 | 1.68 | 1.247 | 11.0 | 0.571 |
+| 2.0e-3 | 297.85 | 73.1 | 53.9 | 0.74 | 2.526 | 23.0 | -0.786 |
+| observed | 288 | ~82 | ~21 | ~0.26 | 2.7 | 25 | ~0.7 |
+
+20000 hourly steps each, with the top-of-atmosphere imbalance in the last
+column: the first row is equilibrated and the last still carries most of a watt,
+so read 297.85 as a close waypoint rather than a converged equilibrium.
+
+At 2.0e-3 the column carries an Earth-like hydrological cycle for the first
+time: evaporation 2.53 mm/day against 2.7, precipitable water 23.0 against 25,
+latent flux 73 against 82. And the surface temperature goes the wrong way, from
+291.1 to 297.8 -- a bias of +9.9 K where the too-dry column had +3.1.
+
+That is the compensating pair, measured from the other side. Repairing the dry
+half alone does exactly what was predicted of it: the process quantities become
+right and the temperature becomes worse. The remaining error is now
+concentrated in the half that is still wrong -- a surface sitting far too far
+above the air beneath it -- rather than split between two errors of opposite
+sign. That is a better place to be even though the headline number is worse.
+
+## A relation is judged where it ran, which is not everywhere it was evaluated
+
+Convection computes its stability criterion for every layer and mixes only
+inside the unstable groups, so judging its declared temperature range against
+the whole profile let a stratospheric layer flag a relation whose output never
+reaches it. It now publishes `convectively_mixed_layer_temperature`, NaN outside
+the mixed layers, and binds `EQ-DRY-CONVECTIVE-ADJUSTMENT` and
+`EQ-ENTRAINING-LAPSE-RATE` to it. The potential temperature stays bound to the
+full state, because that one *is* diagnosed for every layer.
+
+The mask is the union over the run rather than the current step's groups, and
+the reason is a limitation of the check worth stating: **it judges a run by its
+final state, so a closure that is inactive at the end has no footprint to be
+judged on.** Measured on the dry radiative-convective column, the adjustment
+mixes on 79 percent of steps and on *none* of the first four hundred -- the
+column is dry-stable while it spins up. Masking per step made the identical
+configuration resolvable at 2000 steps and unresolvable at 400, which is a fact
+about where the run stopped and not about the physics. The union answers the
+question actually being asked -- which layers does this relation govern in this
+configuration -- and it errs wide, which is the right direction for a check
+whose job is to catch a relation evaluated out of range.
+
+Worth recording as a negative result: the first version of this mask *lowered*
+coverage, from 23 inside to 22, and the drop was correct. The check it removed
+had been passing on a relation that had never run.
+
 ## The hydrological cycle is an order of magnitude too weak, and the surface temperature hides it
 
 The most consequential measurement in this file, because the quantity that looks

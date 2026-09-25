@@ -440,7 +440,10 @@ def test_the_prescribed_profile_is_republished_every_step():
 
 
 def _convection_inputs(
-    temperature: np.ndarray, vapour: np.ndarray, surface: float | None = None
+    temperature: np.ndarray,
+    vapour: np.ndarray,
+    surface: float | None = None,
+    phase_rate: np.ndarray | None = None,
 ) -> dict[str, Field]:
     common = {
         "quantity_kind": QuantityKind.DIAGNOSTIC,
@@ -471,6 +474,26 @@ def _convection_inputs(
         "atmosphere_layer_mass": layer("atmosphere_layer_mass", MASS, "kg m^-2"),
         "layer_radiative_heating": layer("layer_radiative_heating", np.zeros(N_LAYERS), "W m^-2"),
         VAPOUR_STATE: layer(VAPOUR_STATE, vapour, "kg m^-2"),
+        # The vapour above and these two are declared required once vapour
+        # transport is on, because transporting vapour presupposes a water module
+        # to have produced it. The rate is published the way the water module
+        # publishes it, an interval average
+        # carrying its own interval, because convection converts the rate over
+        # *that* interval rather than over its own step.
+        "vapour_phase_change_rate": Field(
+            field_id="vapour_phase_change_rate",
+            physical_name="net vapour added by evaporation and condensation",
+            symbol="dw/dt|phase",
+            values=np.zeros(N_LAYERS) if phase_rate is None else np.asarray(phase_rate, float),
+            units="kg m^-2 s^-1",
+            **{
+                **common,
+                "quantity_kind": QuantityKind.SOURCE_RATE,
+                "time_semantics": TimeSemantics.INTERVAL_AVERAGE,
+                "time_interval": 3600.0,
+            },  # type: ignore[arg-type]
+        ),
+        "latent_heating_rate": layer("latent_heating_rate", np.zeros(N_LAYERS), "W m^-2"),
         SURFACE_TEMPERATURE_STATE: Field(
             field_id=SURFACE_TEMPERATURE_STATE,
             physical_name="surface temperature",
@@ -496,6 +519,7 @@ def _transport(
     *,
     surface_based: bool = False,
     surface: float | None = None,
+    phase_rate: np.ndarray | None = None,
 ):
     module = ConvectiveAdjustmentModule(
         transport_vapour=True,
@@ -505,7 +529,7 @@ def _transport(
     )
     module.initialize({}, {"master_start_time": 0.0})
     module.begin_step(StepContext(time=0.0, dt=3600.0, step_index=0))
-    module.receive_inputs(_convection_inputs(temperature, vapour, surface))
+    module.receive_inputs(_convection_inputs(temperature, vapour, surface, phase_rate))
     tendencies = module.compute_tendencies()
     moved = [t for t in tendencies if t.state_id == VAPOUR_STATE]
     return module, (moved[0].as_array() * 3600.0 if moved else np.zeros(N_LAYERS))
@@ -539,6 +563,108 @@ def test_convection_carries_water_over_the_layers_it_mixes_and_conserves_it():
     final = (vapour + moved)[low : high + 1]
     specific = final / MASS[low : high + 1]
     assert np.allclose(specific, specific[0])
+
+
+@pytest.mark.req("CON-001", "WAT-002", "SYS-006")
+def test_the_transport_mixes_the_profile_condensation_leaves_not_the_one_it_found():
+    """The operator-splitting defect, closed by composition rather than by a cap.
+
+    Convection has always taken the *provisional* temperature -- the profile
+    after radiation and after latent release -- because adjusting the pre-heating
+    profile would stabilise a column condensation is about to destabilise. The
+    vapour was not treated the same way: it was mixed from the state at the start
+    of the step, so convection's tendency and the water module's condensation
+    were additive rather than sequential and both charged the same layer for
+    water only one of them could have. Each affordable alone, together they drew
+    3.79 kg m^-2 from a layer holding 3.17.
+
+    The cure is composition, not a limiter. Convection mixes the profile the
+    water module has published as its own phase-change rate for this step, so the
+    committed vapour is exactly the mixed provisional profile -- non-negative
+    because the provisional one is, and with the group total untouched. Nothing
+    is clipped and no demand is scaled back.
+    """
+    unstable = np.array(PROFILE)
+    unstable[:4] = [300.0, 288.0, 276.0, 264.0]
+    vapour = np.zeros(N_LAYERS)
+    vapour[0] = 20.0
+    dt = 3600.0
+
+    # Condensation removes most of what the lowest layer holds. Alone that is
+    # affordable; mixed out of the start-of-step profile as well, it is not.
+    phase_rate = np.zeros(N_LAYERS)
+    phase_rate[0] = -18.0 / dt
+
+    fresh, moved = _transport(unstable, vapour, phase_rate=phase_rate)
+    low, high = fresh._mixing_groups[0]
+    span = slice(low, high + 1)
+
+    def mixed_from(profile: np.ndarray) -> np.ndarray:
+        """Uniform specific humidity over the group -- the closure, arithmetically."""
+        total = np.array(profile, dtype=float)
+        total[span] = float(np.sum(profile[span])) * MASS[span] / float(np.sum(MASS[span]))
+        return total
+
+    # The defect, stated as arithmetic rather than by asking the module to
+    # misbehave: mixing the start-of-step profile takes 20 - q out of layer 0
+    # while condensation is independently taking 18 out of it.
+    stale_draw = (mixed_from(vapour) - vapour)[0] + phase_rate[0] * dt
+    assert vapour[0] + stale_draw < 0.0
+
+    # Composed, it cannot. The committed vapour is the mixed provisional profile.
+    provisional = vapour + phase_rate * dt
+    committed = provisional + moved
+    assert np.all(committed >= 0.0)
+    assert committed == pytest.approx(mixed_from(provisional), abs=1e-12)
+    assert float(np.sum(moved)) == pytest.approx(0.0, abs=1e-12)
+
+    # And what it moves has scaled with what is actually there to move: the
+    # provisional layer holds 2 of the 20 the stale one did.
+    assert abs(float(moved[0])) == pytest.approx(
+        abs(float((mixed_from(vapour) - vapour)[0])) * 2.0 / 20.0, rel=1e-9
+    )
+
+
+@pytest.mark.req("EQR-003", "DAT-007")
+def test_the_adjustment_publishes_the_layers_it_mixed_not_the_whole_profile():
+    """A declared range should be judged where the relation ran, and nowhere else.
+
+    The closure evaluates its stability criterion over the whole column and mixes
+    only inside the unstable groups, so binding its declared temperature range to
+    the full profile let a stratospheric layer flag a relation whose output never
+    reaches it. NaN outside the mixed layers says "not evaluated here", which is
+    a statement rather than a gap, and the field declares the masked policy
+    DAT-007 provides instead of slipping non-finite values past a default that
+    exists to catch them.
+
+    The mask is the union over the run and not this step's groups, because the
+    check judges a run by its final state while this closure is not active every
+    step: on the dry column it mixes on 79 percent of steps and on none of the
+    first four hundred. Masking per step made the same configuration resolvable
+    at 2000 steps and unresolvable at 400, which is a fact about where the run
+    stopped rather than about the physics.
+    """
+    unstable = np.array(PROFILE)
+    unstable[:4] = [300.0, 288.0, 276.0, 264.0]
+    vapour = np.zeros(N_LAYERS)
+    vapour[0] = 20.0
+
+    module, _ = _transport(unstable, vapour)
+    masked = np.asarray(module.emit_outputs()["convectively_mixed_layer_temperature"].values)
+
+    low, high = module._mixing_groups[0]
+    assert np.all(np.isfinite(masked[low : high + 1]))
+    assert np.all(np.isnan(masked[high + 1 :]))  # above the convective top
+    # And the finite part is the profile after mixing, not before it.
+    assert masked[low : high + 1] == pytest.approx(module._adjusted[low : high + 1])
+
+    # A stable profile mixes nothing, and says so rather than offering the
+    # stratosphere as evidence that the closure ran there.
+    stable, _ = _transport(np.array(PROFILE), vapour)
+    assert stable._mixing_groups == ()
+    assert np.all(
+        np.isnan(np.asarray(stable.emit_outputs()["convectively_mixed_layer_temperature"].values))
+    )
 
 
 @pytest.mark.req("CLM-003", "VAL-005", "CON-001")

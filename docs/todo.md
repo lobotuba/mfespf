@@ -28,28 +28,38 @@ longer read alike.
 
 What is left here is the coarseness rather than the coverage. The check still
 judges the extent a quantity spans, not the region an equation was applied to,
-except where a module masks the field. Convection is the remaining case: it
-computes its lapse-rate target for every layer and adjusts only below the
-convective top, so a stratospheric temperature can flag a relation whose output
-is never used up there. The cure now exists -- publish the target masked to the
-adjusted layers -- and has not been applied.
+except where a module masks the field. Convection was the remaining case and is
+now masked: it publishes `convectively_mixed_layer_temperature`, NaN outside the
+layers the adjustment mixed, and binds the adjustment and the entraining lapse
+rate to that rather than to the whole profile.
 
-### The vapour tendencies are split and can over-draw a layer
+That left a limitation of the check itself, which is the open part. It judges a
+run by its **final state**, so a closure that is inactive at the end has no
+footprint to be judged on: the adjustment mixes on 79 percent of steps and on
+none of the first four hundred, the column being dry-stable while it spins up. A
+per-step mask therefore made the identical configuration resolvable at 2000 steps
+and unresolvable at 400. The mask is the union over the run as a result, which is
+the right answer to "which layers does this relation govern" and the wrong shape
+for "was it in range when it ran" -- a layer mixed at 250 K during spin-up is
+judged at whatever it holds at the end.
 
-Convection and the water module each compute a vapour tendency from the state at
-the start of the step, and neither sees the other's. Each is affordable alone;
-together they can draw more from a layer than it holds. That state is now
-refused with a diagnosis rather than clipped to zero, so the defect is visible,
-but it is not repaired.
+The proper fix is for the check to accumulate the extent each relation was
+actually evaluated over as the run proceeds, rather than reconstructing it from
+the last step. That is a change to `coupling/validity.py` and to what modules
+publish, and it would also remove the need for every mask of this kind.
 
-It only bites once the evaporation is strong enough to matter, which is why it
-was never seen: at the configured coefficient the cycle is twelve times too weak
-to reach it. Any work that strengthens the hydrological cycle will hit this
-first.
+### The evaporation coefficient has never been calibrated
 
-The repair is to reconcile the committed vapour tendencies against what each
-layer holds before they are applied, rather than to have either module guess at
-the other's demand. That is a coupling-layer change, not a physics one.
+Now that the cycle can be driven without over-drawing a layer, it should be set
+against an observable that is not the thing being predicted (INF-003). The
+observable is the global-mean evaporation rate, about 2.7 mm/day, which a
+coefficient near 2.1e-3 reaches -- against the configured 2.0e-4, which reaches
+0.22. Whatever surface temperature falls out is then a prediction rather than a
+fit, and on the runs so far it is about +9.9 K.
+
+The configured value is left alone until that calibration is done properly and
+the downstream calibrations that depend on it are re-run, because a physics
+change invalidates every calibration downstream of it.
 
 ### The hydrological cycle is twelve times too weak
 
@@ -94,6 +104,17 @@ This is an energy the column releases on condensation, so it is not a
 bookkeeping detail -- it warms the atmosphere where the condensation happens.
 The fix is to make the latent heat phase-aware the way the saturation already
 is, and then to recalibrate whatever it moves.
+
+**It has since escalated from a declared approximation to a declared
+violation.** The moist radiative-convective column run to 2000 steps reports
+`EQ-LATENT-ENERGY-OF-VAPOUR: T spans [229.1, 250.1] K, outside the declared
+[230, 340]`, and the run's `may_support_a_claim` is therefore False. The 230 K
+floor is where the relation's own record says the constant latent heat stops
+being defensible, and the column is now 0.9 K below it. So this is no longer a
+percentage to quote against an uncertainty -- it is a reference configuration
+that cannot support a claim until either the latent heat becomes phase-aware or
+the floor is re-derived and found to have been too conservative. The first is
+much more likely to be the right answer, given the 13.5 percent above.
 
 ### Uncertainty is declared everywhere and propagated nowhere
 
