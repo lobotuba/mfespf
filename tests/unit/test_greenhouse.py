@@ -19,6 +19,7 @@ import pytest
 from mfespf.core.errors import ConfigurationError
 from mfespf.physics.atmosphere import hydrostatic_layer_masses
 from mfespf.physics.greenhouse import (
+    CALIBRATION_N_LAYERS,
     CO2_BAND_CENTRE_M,
     CO2_BAND_LOWER_M,
     CO2_BAND_RESOLUTION,
@@ -35,14 +36,14 @@ from mfespf.physics.radiative_transfer import solve_column_radiation
 pytestmark = pytest.mark.stage(6)
 
 GRID = greenhouse_grid()  # the grid the band is calibrated on, taken by default
-N_LAYERS = 10
+N_LAYERS = CALIBRATION_N_LAYERS  # the resolution the bands are fitted at
 _, MASS = hydrostatic_layer_masses(
     n_layers=N_LAYERS, surface_pressure=101325.0, top_pressure=1.0e3, gravity=9.80665
 )
 PROFILE = np.linspace(285.0, 220.0, N_LAYERS)
 
 
-def _toa_net(ppm: float, grid=GRID, **kwargs) -> float:
+def _toa_net(ppm: float, grid=GRID, *, mass=None, profile=None, **kwargs) -> float:
     shortwave = grid.centers < 4.0e-6
     weights = np.where(shortwave, grid.widths, 0.0)
     incident = np.where(
@@ -51,8 +52,8 @@ def _toa_net(ppm: float, grid=GRID, **kwargs) -> float:
     solution = solve_column_radiation(
         grid=grid,
         incident_spectral_irradiance=incident,
-        layer_temperature=PROFILE,
-        layer_mass=MASS,
+        layer_temperature=PROFILE if profile is None else profile,
+        layer_mass=MASS if mass is None else mass,
         absorption_coefficient=co2_band_absorption(grid, ppm, **kwargs),
         surface_temperature=288.0,
         surface_albedo=np.where(shortwave, 0.3, 0.0),
@@ -264,6 +265,29 @@ def test_the_band_is_calibrated_at_the_background_the_runs_use():
     assert parameters["band_lower_m"].default == CO2_BAND_LOWER_M
     assert parameters["band_upper_m"].default == CO2_BAND_UPPER_M
     assert greenhouse_replay_n_band() == CO2_BAND_RESOLUTION
+
+    # And the vertical resolution: the vapour bands were fitted on a 10-layer
+    # profile while every configuration ran 8, and neither was converged.
+    # The historical replay is the declared exception: its two-day explicit step
+    # is unstable at 30 layers, and the calibration it depends on -- this band,
+    # against the fixed background -- does not vary with the layer count.
+    from mfespf.run.column_configurations import radiating_column
+    from mfespf.run.greenhouse import REPLAY_N_LAYERS
+    from mfespf.run.greenhouse import greenhouse_replay as replay
+
+    columns = inspect.signature(radiating_column).parameters["n_layers"].default
+    assert columns == CALIBRATION_N_LAYERS
+    assert inspect.signature(replay).parameters["n_layers"].default == REPLAY_N_LAYERS
+    for n_layers in (10, CALIBRATION_N_LAYERS, 60):
+        _, mass = hydrostatic_layer_masses(
+            n_layers=n_layers, surface_pressure=101325.0, top_pressure=1.0e3, gravity=9.80665
+        )
+        profile = np.linspace(285.0, 220.0, n_layers)
+
+        def toa(ppm: float, mass=mass, profile=profile) -> float:
+            return _toa_net(ppm, mass=mass, profile=profile)
+
+        assert toa(569.4) - toa(284.7) == pytest.approx(3.70, abs=0.01)
 
     # And the calibrated forcing is the one all of those defaults produce.
     assert _forcing(284.7, 569.4) == pytest.approx(3.70, abs=0.05)

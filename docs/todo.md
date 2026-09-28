@@ -24,15 +24,24 @@ time grows with the grid and whose temperature has not stopped climbing by 60
 layers may be a closure that amplifies grid-scale structure, which the plume's
 mass-flux derivative has done before.
 
-### Most tests still run at 8 layers
+### A step in the headline between 30 and 40 layers
 
-The headline error is quoted at 40 layers now
-(`test_the_headline_error_is_quoted_at_a_converged_resolution`), and the 8-layer
-figures elsewhere are labelled. But the configurations' default is 8 layers, and
-every calibration downstream -- the CO2 and vapour wing decays -- was fitted at
-some resolution that is not recorded beside the constant. Moving the default is
-a decision with a refit attached, not an edit: check which grid each
-calibration used before changing it.
+With the vapour band calibrated at 30 layers the full column reads +9.70 K at
+20 layers, +9.81 at 30, +10.62 at 40 and +10.63 at 60. Two plateaus and a step
+of 0.8 K between them, not a creep toward a limit -- the same shape as the old
+feedback study's excursion at 30 layers. The default sits on the lower plateau.
+Nothing concluded here depends on the 0.8 K, and the resolution test pins its
+size; what is open is why the step exists, and the obvious suspect is which
+layer the top of the convective mixing lands in.
+
+### Tests that still pin 8 layers
+
+The Stage 3, 4 and 5 integration tests pass `n_layers=8`
+explicitly: their assertions are about mechanisms (signs, orderings, closures)
+and were measured there. The historical replay runs at 8 by declaration
+(`REPLAY_N_LAYERS`), and whether its *response* is layer-converged has not been
+checked -- its forcing is (3.698 to 3.701 W m^-2 per doubling from 10 to 60
+layers). The plume column runs at 8 because it does not settle above it.
 
 ## Framework integrity
 

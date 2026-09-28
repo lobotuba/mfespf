@@ -30,6 +30,7 @@ from mfespf.core.quantities import (
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE, hydrostatic_layer_masses
 from mfespf.physics.convection import ConvectiveAdjustmentModule
 from mfespf.physics.greenhouse import (
+    CALIBRATION_N_LAYERS,
     CO2_WING_DECAY_PER_METRE,
     CO2_WING_DECAY_WITH_VAPOUR_PER_METRE,
     VAPOUR_BAND_ABSORPTION,
@@ -47,7 +48,7 @@ from mfespf.physics.water import VAPOUR_STATE, PrescribedHumidityModule
 pytestmark = pytest.mark.stage(6)
 
 GRID = greenhouse_grid()
-N_LAYERS = 10
+N_LAYERS = CALIBRATION_N_LAYERS  # the resolution the bands are fitted at
 INTERFACES, MASS = hydrostatic_layer_masses(
     n_layers=N_LAYERS, surface_pressure=101325.0, top_pressure=1.0e3, gravity=9.80665
 )
@@ -727,7 +728,9 @@ def test_the_transport_moves_nothing_when_the_adjustment_is_inactive():
     is. The missing transport sustains the stratification that blocks the
     transport, and adding the transport alone does not break the loop.
     """
-    stable = 290.0 - 4.0 * np.arange(N_LAYERS)  # gentler than the adiabat: stable
+    # 36 K over the whole column, whatever the layer count: gentler than the
+    # adiabat. Written per layer, it would steepen with every refinement.
+    stable = np.linspace(290.0, 254.0, N_LAYERS)
     vapour = np.zeros(N_LAYERS)
     vapour[0] = 20.0
 

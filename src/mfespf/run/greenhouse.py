@@ -140,10 +140,23 @@ def spin_up(
     )
 
 
+REPLAY_N_LAYERS = 8
+"""The historical replay's vertical resolution, deliberately not the calibration's.
+
+The replay takes two-day steps with forward Euler, and at 30 layers the thinnest
+layers relax radiatively faster than that: the run goes unstable, a layer reaches
+-63 K, and the conservation gate refuses it. It can keep 8 layers without
+breaking a calibration because the one it depends on -- the CO2 band against the
+fixed background -- is resolution-independent, 3.698 to 3.701 W m^-2 per
+doubling from 10 to 60 layers. Whether its *response* is converged in the layer
+grid is a separate question and is open (docs/todo.md).
+"""
+
+
 def greenhouse_replay(
     *,
     master_dt: float = 2.0 * DAY,
-    n_layers: int = 8,
+    n_layers: int = REPLAY_N_LAYERS,
     areal_heat_capacity: float = 2.04e8,
     hold_co2: bool = False,
     hold_solar: bool = False,

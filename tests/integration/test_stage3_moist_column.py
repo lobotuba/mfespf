@@ -45,10 +45,16 @@ def _layer_pressure(kernel) -> np.ndarray:
 @pytest.mark.req("ATM-002", "CON-009", "KER-012")
 def test_radiative_convective_equilibrium_is_stable_and_closes(report_bias):
     """The Stage 3 configuration must reach a dry-stable profile with a closed budget."""
+    # At the default resolution rather than BASE's 8 layers, because this run is
+    # where the dry column's error is reported from: -4.50 K at 8 layers, -3.50
+    # at 30 and -3.42 at 40, settled by 8000 steps at each.
     kernel = radiative_convective(
-        1.0e-4, initial_surface_temperature=270.0, initial_air_temperature=250.0, **BASE
+        1.0e-4,
+        initial_surface_temperature=270.0,
+        initial_air_temperature=250.0,
+        **{k: v for k, v in BASE.items() if k != "n_layers"},
     )
-    result = kernel.run(6000)
+    result = kernel.run(8000)
 
     assert result.may_support_a_claim
     temperatures = result.steps[-1].outputs[ATMOSPHERE_TEMPERATURE_STATE].values
@@ -56,10 +62,9 @@ def test_radiative_convective_equilibrium_is_stable_and_closes(report_bias):
     assert np.all(np.diff(theta) >= -1e-6)
     assert result.worst_relative_residual() < 1e-11
 
-    # The dry column's error, if it has settled enough to have one. At this heat
-    # capacity and step count it usually has not, and the report says so rather
-    # than offering the number -- which is the case that motivated the refusal.
-    report_bias(result, label="Stage 3 dry radiative-convective")
+    # The dry column's error, reported whether or not it has settled; the report
+    # refuses a number for a run that has not, rather than offering one.
+    report_bias(result, label="30 layers: Stage 3 dry radiative-convective")
 
 
 @pytest.mark.req("ATM-002", "CON-009")

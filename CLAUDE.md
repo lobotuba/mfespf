@@ -250,13 +250,27 @@ saying out loud.
 - **Report the error in kelvin from every test that equilibrates a column.**
   `report_bias` collects it and the suite prints them together at the end. The
   number the project is judged on used to be recomputed by hand in a scratch
-  script, so it moved between commits without anyone noticing. Currently: -33.42 K
-  airless, -4.49 K dry, and **+12.0 K** with the full water cycle at 40 layers,
-  against 288.0 K. The 8-layer column the rest of the suite uses reads +6.73 K
-  and is **not resolution-converged**; label any 8-layer error as such.
-- **The headline was quoted for weeks at a resolution nobody had tested.** The
-  full water-cycle column reads +6.73 K at 8 layers, +11.1 at 20, +12.0 at 30
-  and 40, +12.5 at 60. The layer study had been run on an older, drier column
+  script, so it moved between commits without anyone noticing. Currently, at the
+  default 30 layers: -33.42 K airless, -3.50 K dry, **+9.8 K** with the full water
+  cycle -- and **+10.6 K** at the resolution limit (40 and 60 layers agree to
+  0.02 K), against 288.0 K. Label any error computed at another resolution with
+  its layer count.
+- **The calibration resolution and the run resolution are one constant.**
+  `CALIBRATION_N_LAYERS = 30` sits beside the fitted wing decays and is the
+  default of every column configuration. The vapour bands were fitted on a
+  10-layer profile while every run used 8, and neither was converged; refitting
+  at 30 moved the vapour wing decay 3.6 percent and the headline from +12.1 to
+  +9.8 K. The historical replay is the declared exception (`REPLAY_N_LAYERS =
+  8`): its two-day explicit step is unstable at 30 layers, and the calibration it
+  uses is resolution-independent. A new exception needs the same two reasons.
+- **A default that is not at the limit says so, in a test.** At 30 layers the
+  full column is 0.8 K below its limit, and not by creeping: 20 and 30 layers
+  agree, 40 and 60 agree, and there is an unexplained step between them.
+  `test_the_headline_error_is_quoted_against_its_resolution_limit` holds both
+  the limit and the step's size.
+- **The headline was quoted for weeks at a resolution nobody had tested.** With
+  the old 10-layer calibration the full water-cycle column read +6.73 K at 8
+  layers, +11.1 at 20, +12.0 at 30 and 40, +12.5 at 60. The layer study had been run on an older, drier column
   and never repeated after the water cycle changed it. The finding surfaced only
   because a sweep disagreed with a recorded table and the difference had to be
   explained -- the same lesson as the feedback's resolution study, one level up:

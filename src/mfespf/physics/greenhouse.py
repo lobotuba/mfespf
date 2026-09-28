@@ -63,6 +63,7 @@ from mfespf.physics.equations import EQUATION_IDS
 V1 = Version(1, 0, 0)
 
 __all__ = [
+    "CALIBRATION_N_LAYERS",
     "CO2_BAND_CENTRE_ABSORPTION",
     "CO2_BAND_CENTRE_M",
     "CO2_MOLAR_MASS",
@@ -118,6 +119,22 @@ decay below is calibrated *against it*. They were once separated -- the
 calibration used one value and every configuration passed another -- and the
 forcing per doubling in the runs came out 1.75 times the calibrated figure. One
 constant, used in both places, is what stops that recurring.
+"""
+
+CALIBRATION_N_LAYERS = 30
+"""The vertical resolution the vapour and vapour-masked CO2 bands are fitted at.
+
+And the default every configuration runs at, for the reason the background and
+the spectral grid are shared constants: a fit is only valid at the conditions it
+was made at. The fits used to be made on a 10-layer prescribed profile while
+every configuration ran 8 layers, and neither was converged -- the coupled
+column's error moves from +6.7 K at 8 layers to about +12 K at 30 and finer,
+while the fixed profile's outgoing longwave falls 2.5 W m^-2 between 10 and 30.
+
+The fixed-background CO2 calibration does not depend on it: its forcing per
+doubling is 3.698, 3.699, 3.700, 3.700 and 3.701 W m^-2 at 10, 20, 30, 40 and 60
+layers. The vapour-dependent two do, because the vapour a prescribed humidity
+places in each layer depends on where the layer midpoints fall.
 """
 
 CO2_BAND_LOWER_M = 8.0e-6
@@ -183,8 +200,8 @@ mattering. What the fitted numbers below control is where the wings cross unit
 optical depth.
 """
 
-VAPOUR_WING_DECAY_PER_METRE = 3.970e3
-"""Wing decay of both vapour bands, about 36 cm^-1. Calibrated.
+VAPOUR_WING_DECAY_PER_METRE = 3.827e3
+"""Wing decay of both vapour bands, about 38 cm^-1. Calibrated.
 
 Fitted against a *published radiation observation* -- the CERES all-sky
 outgoing longwave flux of about 240 W m^-2 -- and never against a temperature
@@ -207,6 +224,12 @@ upper column to sublimation removed vapour from the cold layers -- a factor of
 five at 172 K -- and the same target then needs about ten percent more
 absorption per kilogram. The number changed because the physics under it did,
 which is what a calibration tied to its conditions is supposed to do.
+
+**Refitted again at 30 layers** (``CALIBRATION_N_LAYERS``). It was 3970 m^-1
+fitted on a 10-layer profile; the same method on the same profile reproduces
+3971 at 10 layers and gives 3827 at 30, a 3.6 percent narrower wing for the same
+238.2 W m^-2 target. Nothing about the target or the method changed -- only the
+resolution, to the one the configurations now run at.
 
 It weakens the base state as a prediction without abolishing it. Equilibrium
 requires the outgoing flux to equal the absorbed flux, and the fit sets the
@@ -236,13 +259,17 @@ vapour amount, because it is dominated by self-broadening. Both are declared
 approximations of the reduced model and both are listed in the equation record.
 """
 
-CO2_WING_DECAY_WITH_VAPOUR_PER_METRE = 1.2725e3
+CO2_WING_DECAY_WITH_VAPOUR_PER_METRE = 1.2749e3
 """The CO2 wing decay for a column whose infrared background *is* the vapour.
 
 A band's fitted width depends on what else is absorbing around it. With water
 vapour active the 15 micron band is partly masked, so reproducing the same
 published 3.7 W m^-2 per doubling takes a narrower band than the 1410 m^-1 that
 ``CO2_WING_DECAY_PER_METRE`` uses against the fixed background.
+
+Fitted jointly with the vapour wing decay at ``CALIBRATION_N_LAYERS``: 1272.5 at
+10 layers, 1274.9 at 30. The band barely moves because the narrower vapour wing
+unmasks it by about as much as the finer grid thins the vapour.
 
 Two calibrations of one band therefore coexist, and that is not a duplication to
 be tidied away: each is correct for its own configuration and neither is correct

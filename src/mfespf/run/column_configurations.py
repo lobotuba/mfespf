@@ -33,6 +33,7 @@ from mfespf.physics.column_surface import ColumnSurfaceModule
 from mfespf.physics.convection import ConvectiveAdjustmentModule
 from mfespf.physics.equations import EQUATION_IDS, build_equation_registry
 from mfespf.physics.gravity import GravityField
+from mfespf.physics.greenhouse import CALIBRATION_N_LAYERS
 from mfespf.physics.ocean import (
     OCEAN_DEEP_STATE,
     DeepOceanModule,
@@ -608,7 +609,7 @@ def radiating_column(
     purpose: str,
     absorption_coefficient: np.ndarray,
     grid: SpectralGrid | None = None,
-    n_layers: int = 8,
+    n_layers: int = CALIBRATION_N_LAYERS,
     albedo: float | np.ndarray | None = None,
     areal_heat_capacity: float = _DEFAULT_AREAL_HEAT_CAPACITY,
     initial_surface_temperature: float = 250.0,
@@ -1092,7 +1093,7 @@ def no_cloud_control(kappa: float = 1.0e-4, **kwargs: Any) -> Kernel:
 def prescribed_cloud(
     kappa: float = 1.0e-4,
     *,
-    layer: int = 4,
+    layer: int | None = None,
     liquid_water_path: float = 0.05,
     fraction: float = 0.6,
     droplet_effective_radius: float = 1.0e-5,
@@ -1108,7 +1109,11 @@ def prescribed_cloud(
     so a run using this does not conserve water through its cloud. The cloud
     module's budget names that source rather than hiding it.
     """
-    n_layers = int(kwargs.get("n_layers", 8))
+    n_layers = int(kwargs.get("n_layers", CALIBRATION_N_LAYERS))
+    # Mid-level at any resolution: the middle layer, which is layer 4 of 8. A
+    # fixed index would move the cloud toward the ground as the grid refines.
+    if layer is None:
+        layer = n_layers // 2
     kwargs.setdefault("run_id", f"STAGE4-CLOUD-LWP{liquid_water_path:g}-F{fraction:g}")
     kwargs.setdefault(
         "purpose",

@@ -3313,3 +3313,60 @@ remove a +12 K bias any more than a +6.7 K one, and the plume column is further
 from observation, not closer. Both still run at 8 layers because that is what
 they can afford, and both now say so in every label they print.
 
+## Thirty layers, and the calibration moved with it
+
+The default column resolution is now 30 layers, and it is a constant beside the
+fitted wing decays, `CALIBRATION_N_LAYERS`, rather than a default of its own.
+The vapour bands had been fitted on a 10-layer prescribed profile while every
+configuration ran 8, which was the same defect the background opacity once had:
+two conditions that should be one, separated by nothing but the fact that they
+lived in different files.
+
+**What the fits depend on.** The same calibration profile, at increasing layer
+count, with the old constants:
+
+| layers | CO2 forcing, fixed background | outgoing longwave (target 238.2) | CO2 forcing, vapour background |
+|---|---:|---:|---:|
+| 10 | 3.698 | 238.20 | 3.700 |
+| 30 | 3.700 | 235.69 | 3.640 |
+| 60 | 3.701 | 235.12 | 3.626 |
+
+The fixed-background CO2 fit does not depend on it and was left alone. The two
+vapour-dependent fits do, because the vapour a prescribed humidity places in a
+layer depends on where the midpoints fall. Refit jointly at 30 layers against
+the original published targets -- the 238.2 W m^-2 the column absorbs, and 3.70
+W m^-2 per doubling -- the vapour wing decay moves from 3970 to 3827 m^-1 and the
+masked CO2 one from 1272.5 to 1274.9. The method was checked first by rerunning
+it at 10 layers, where it returned 3971 and 1272.7.
+
+**What it did to the headline**, the full water-cycle column:
+
+| layers | 8 | 20 | 30 (default) | 40 | 60 |
+|---|---:|---:|---:|---:|---:|
+| error (K) | +5.58 | +9.70 | **+9.81** | +10.62 | +10.63 |
+| Bowen ratio (obs 0.26) | 0.363 | 0.211 | 0.177 | 0.158 | 0.142 |
+
+**+9.8 K at the default, +10.6 K at the limit.** The narrower vapour wing lets
+the column radiate more, and it is 2.3 K cooler at 30 layers than the same
+resolution was under the 10-layer fit. The shape is not a smooth convergence:
+20 and 30 agree, 40 and 60 agree, and there is a 0.8 K step between. The test
+holds the step's size rather than pretending it is not there.
+
+Everything else that was measured moved the way this suggests and changed no
+conclusion. The dry column, which has no vapour, reads -3.50 K at 30 layers
+(-4.50 at 8, -3.42 at 40). Across the declared sensible heat coefficient range
+the full column is +9.8 to +11.0 K, the weakly coupled end still the warmest.
+The plume column, pinned at 8 layers, is +4.1 to +9.6 K across the measured
+evaporating fraction and so still refuted at every point, and at 8 layers only
+because above that it does not settle.
+
+**The one exception is declared.** The historical replay takes two-day steps
+with forward Euler, and at 30 layers its thinnest layers relax faster than that:
+the run goes unstable, a layer reaches -63 K, and the conservation gate refuses
+it -- which is the gate working. It stays at 8 layers as `REPLAY_N_LAYERS`,
+because the calibration it depends on is the resolution-independent one. Its
+response has not been checked for layer convergence.
+
+The suite now takes about twenty minutes, most of it in the equilibrated runs
+that report the error.
+
