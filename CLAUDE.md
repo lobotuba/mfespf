@@ -251,8 +251,17 @@ saying out loud.
   `report_bias` collects it and the suite prints them together at the end. The
   number the project is judged on used to be recomputed by hand in a scratch
   script, so it moved between commits without anyone noticing. Currently: -33.42 K
-  airless, -4.49 K dry, **+6.73 K** with the full water cycle, against 288.0 K,
-  and +6.7 to +8.4 K across the declared range of the sensible heat coefficient.
+  airless, -4.49 K dry, and **+12.0 K** with the full water cycle at 40 layers,
+  against 288.0 K. The 8-layer column the rest of the suite uses reads +6.73 K
+  and is **not resolution-converged**; label any 8-layer error as such.
+- **The headline was quoted for weeks at a resolution nobody had tested.** The
+  full water-cycle column reads +6.73 K at 8 layers, +11.1 at 20, +12.0 at 30
+  and 40, +12.5 at 60. The layer study had been run on an older, drier column
+  and never repeated after the water cycle changed it. The finding surfaced only
+  because a sweep disagreed with a recorded table and the difference had to be
+  explained -- the same lesson as the feedback's resolution study, one level up:
+  the quantity being quoted gets its own resolution study, and gets it again
+  after the physics under it changes (VAL-002).
 - **A bias from a run that has not equilibrated is a different quantity, not an
   uncertain one.** `BiasReport.error_k` returns `None` above 0.1 W m^-2 of
   imbalance and reports the imbalance instead. The dry column reads -16.3 K at

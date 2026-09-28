@@ -178,8 +178,12 @@ def test_the_surface_exchange_coefficient_cannot_be_the_warm_bias(report_bias):
     The sensible heat coefficient fixes both surface fluxes, so it is the first
     suspect for a warm surface. Across its declared range the error never comes
     near zero, and the *low* end is the warmest: a weaker coupling traps more
-    heat at the surface. Whatever the +6.7 K is, no value of this parameter
+    heat at the surface. Whatever the warm bias is, no value of this parameter
     anyone has declared plausible removes it.
+
+    At 8 layers, which is not resolution-converged: the resolved error is near
+    +12 K (``test_the_headline_error_is_quoted_at_a_converged_resolution``),
+    and the finer grid is warmer, so the conclusion holds with more margin.
 
     The interval is the full range with no coverage, because the members were
     chosen, not drawn.
@@ -195,7 +199,7 @@ def test_the_surface_exchange_coefficient_cannot_be_the_warm_bias(report_bias):
     def surface_temperature_error_k(result) -> float:
         report = report_bias(
             result,
-            label=f"full water cycle, {result.manifest.ensemble_membership['member']}",
+            label=f"8 layers: full water cycle, {result.manifest.ensemble_membership['member']}",
         )
         reports.append(report)
         assert report.error_k is not None, report.describe()
@@ -216,3 +220,83 @@ def test_the_surface_exchange_coefficient_cannot_be_the_warm_bias(report_bias):
     assert interval.high < 9.0, interval.describe()
     weakest, nominal, _strongest = result.values
     assert weakest > nominal + 1.0, "the weakest coupling should be the warmest"
+
+
+#: The plume column as the closure requires it: convection relaxes to the
+#: plume's own lapse rate, so the humidity and the profile come from the same
+#: number, and the vapour is radiatively active, which is the only way the
+#: humidity reaches the surface temperature at all.
+SELF_CONSISTENT_PLUME = dict(
+    radiative_vapour=True,
+    surface_based_convection=True,
+    convective_target="entraining_plume",
+    areal_heat_capacity=1.0e6,
+)
+#: At alpha = 0.81 the imbalance is 0.068 W m^-2 here and 0.014 at 32000 steps,
+#: with the time-mean moving 0.05 K between them.
+PLUME_SETTLED_STEPS = 24_000
+
+
+@pytest.mark.req("UNC-005", "UNC-007", "KER-012", "VAL-005", "WAT-002")
+def test_the_plume_column_is_refuted_across_its_whole_measured_range(report_bias):
+    """The refutation, re-measured through the machinery rather than a script.
+
+    The configuration was refuted at the measured evaporating fraction with a
+    table of 13 to 26 K too warm, produced by a scratch script at 20 layers and
+    daily steps. Nobody re-ran it, because the runs did not exist anywhere a
+    later commit could re-run them.
+
+    At 8 layers the column is +5.9 to +11.5 K too warm across the range, which
+    looked for an afternoon like a refutation half the size of the recorded one.
+    It is not: the plume column is strongly resolution-dependent, and at the
+    nominal fraction it is still warming past +15.8 K at 20 layers and +20.9 K
+    at 40 after 24000 steps. The 8-layer sweep runs here because it is
+    affordable and its conclusion only strengthens with resolution -- the
+    column is refuted at every point of the measured range.
+
+    The old central value, 0.3, cannot be run here at all: it lies outside the
+    declared range, which is what the declaration is for.
+    """
+    declared = _declared(plume_column(**SELF_CONSISTENT_PLUME)).ranges["evaporating_fraction"]
+    design = across(declared, points=3)
+    assert [m.overrides["evaporating_fraction"] for m in design.members] == [0.62, 0.67, 0.81]
+
+    precipitable_water = []
+
+    def surface_temperature_error_k(result) -> float:
+        report = report_bias(
+            result,
+            label=(
+                "8 layers: plume column, self-consistent, "
+                f"{result.manifest.ensemble_membership['member']}"
+            ),
+        )
+        assert report.error_k is not None, report.describe()
+        assert report.precipitable_water_kg_m2 is not None
+        precipitable_water.append(report.precipitable_water_kg_m2)
+        return report.error_k
+
+    result = run_ensemble(
+        design,
+        build=lambda **o: plume_column(**SELF_CONSISTENT_PLUME, **o),
+        observe=surface_temperature_error_k,
+        n_steps=PLUME_SETTLED_STEPS,
+    )
+
+    interval = result.interval()
+    assert interval.nominal_coverage is None
+    # Refuted everywhere in the range, not only at the nominal.
+    assert interval.low > 10 * OBSERVED_TEMPERATURE_SPREAD_K, interval.describe()
+    # More condensate re-evaporating makes a wetter column and a warmer one.
+    assert list(result.values) == sorted(result.values)
+    # And the mechanism is the one the refutation named: too much water, from a
+    # convecting-column closure applied to a global mean.
+    assert min(precipitable_water) > 25.0, precipitable_water
+
+    with pytest.raises(ConfigurationError, match="outside its declared range"):
+        run_ensemble(
+            sweep("evaporating_fraction", [0.3, 0.67], basis="asserted: the old value"),
+            build=lambda **o: plume_column(**SELF_CONSISTENT_PLUME, **o),
+            observe=surface_temperature_error_k,
+            n_steps=1,
+        )

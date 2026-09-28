@@ -10,6 +10,30 @@ happened. Negative results that closed an item stay in
 
 Ordered by what the evidence says is worth doing first, not by area.
 
+## The number being quoted
+
+### The plume column does not settle, and warms with every refinement
+
+At the measured evaporating fraction, after 24000 hourly steps, the
+self-consistent plume column is at +7.4 K (8 layers, settled), and still
+warming at 12, 20, 30, 40 and 60 layers -- past +11.3, +15.8, +19.0, +20.9 and
++23.1 K, carrying 0.1 to 1.6 W m^-2 of imbalance that grows with resolution. It
+is refuted at every one of them, so no conclusion is waiting on this. What is
+open is whether it has a resolution limit at all: a column whose equilibration
+time grows with the grid and whose temperature has not stopped climbing by 60
+layers may be a closure that amplifies grid-scale structure, which the plume's
+mass-flux derivative has done before.
+
+### Most tests still run at 8 layers
+
+The headline error is quoted at 40 layers now
+(`test_the_headline_error_is_quoted_at_a_converged_resolution`), and the 8-layer
+figures elsewhere are labelled. But the configurations' default is 8 layers, and
+every calibration downstream -- the CO2 and vapour wing decays -- was fitted at
+some resolution that is not recorded beside the constant. Moving the default is
+a decision with a refit attached, not an edit: check which grid each
+calibration used before changing it.
+
 ## Framework integrity
 
 These are the items where the framework fails to do the thing it exists to do.

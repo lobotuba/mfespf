@@ -3265,3 +3265,51 @@ The ocean exchange coefficient was left undeclared. Its value sits beside the
 published multi-model mean, but the spread across models has not been looked
 up, and writing one down from memory is the mistake this section began with.
 
+## The headline error was an eight-layer number
+
+Rerunning the plume refutation through `across` gave +5.9 to +11.5 K across the
+measured evaporating fraction, against a recorded +13 to +26 K. It read as a
+refutation half the size of the recorded one, and nearly went into the record
+as that. The recorded table had been made at 20 layers; the reference builder
+defaults to 8. Before explaining the difference by the physics changes since, it
+was checked -- and the grid explained it, and more.
+
+**The full water-cycle column**, 16 bands, hourly steps, equilibrated:
+
+| layers | 8 | 12 | 20 | 30 | 40 | 60 |
+|---|---:|---:|---:|---:|---:|---:|
+| error (K) | +6.73 | +10.46 | +11.12 | +12.07 | +11.98 | +12.46 |
+| evaporation (mm/day, obs 2.7) | 4.05 | 4.50 | 4.65 | 4.86 | 4.86 | 4.92 |
+| precipitable water (kg m^-2, obs 25) | 28.3 | 35.2 | 35.2 | 37.4 | 36.7 | 37.5 |
+| Bowen ratio (obs 0.26) | 0.339 | 0.253 | 0.196 | 0.155 | 0.142 | 0.125 |
+
+**The error is about +12 K, not +6.7.** Thirty layers and finer agree to half a
+kelvin, and the suite now reports the 40-layer figure on every run. The process
+quantities move with it: the column is wetter and evaporates more, and the
+Bowen ratio that sat reassuringly near the observed 0.26 at 8 and 12 layers
+passes straight through it and keeps falling. An agreement that holds at one
+resolution and not at the next is a coincidence of the grid.
+
+No layer study had been run on this column. One existed -- the vapour
+feedback's, 10 to 60 layers -- but on an older configuration carrying 5 kg m^-2
+of water, and it was never repeated after the transport and the derived
+exchange coefficient changed what the column is. So the quoted number rested on
+a convergence result about a different column.
+
+**The plume column** at the measured fraction does not settle at any
+resolution above 8 layers in 24000 steps:
+
+| layers | 8 | 12 | 20 | 30 | 40 | 60 |
+|---|---:|---:|---:|---:|---:|---:|
+| error (K) | +7.40 | > +11.3 | > +15.8 | > +19.0 | > +20.9 | > +23.1 |
+| imbalance (W m^-2) | 0.03 | 0.10 | 0.50 | 0.90 | 1.21 | 1.63 |
+
+It is refuted at every resolution, so the verdict stands and the recorded +13
+to +26 K is not contradicted. Whether it has a limit is open (`docs/todo.md`).
+
+What this changes in the sweeps just added: nothing about their conclusions,
+both of which strengthen with resolution. The exchange coefficient cannot
+remove a +12 K bias any more than a +6.7 K one, and the plume column is further
+from observation, not closer. Both still run at 8 layers because that is what
+they can afford, and both now say so in every label they print.
+

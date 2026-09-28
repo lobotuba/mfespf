@@ -65,10 +65,10 @@ def test_the_water_is_the_whole_warm_bias(equilibrate):
     surface temperature worse on the way to a more complete water cycle is not a
     regression.
     """
-    inert = equilibrate("vapour present, radiatively inert", **BASE)
-    radiative = equilibrate("vapour radiatively active", radiative_vapour=True, **BASE)
+    inert = equilibrate("8 layers: vapour present, radiatively inert", **BASE)
+    radiative = equilibrate("8 layers: vapour radiatively active", radiative_vapour=True, **BASE)
     transported = equilibrate(
-        "vapour radiatively active and transported",
+        "8 layers: vapour radiatively active and transported",
         radiative_vapour=True,
         vapour_transport=True,
         **BASE,
@@ -85,9 +85,9 @@ def test_the_water_is_the_whole_warm_bias(equilibrate):
     # land near zero in the middle of that would be passing through, not right.
     assert inert.error_k < 0.0 < transported.error_k
 
-    # The full column, which is the number to quote. Held to a wide band on
-    # purpose: this asserts that the bias has not moved by more than a kelvin
-    # without anyone saying so, not that +6.7 K is correct.
+    # The full column at 8 layers. NOT the number to quote: the layer study
+    # below puts the resolved error near +12 K. Held to a wide band so that the
+    # coarse figure cannot move by more than a kelvin without anyone saying so.
     assert transported.error_k == pytest.approx(6.7, abs=1.0)
     assert transported.distinguishable, "a bias inside the observational spread"
 
@@ -114,7 +114,7 @@ def test_an_unfinished_run_reports_no_error_rather_than_a_small_one(equilibrate)
     3 K cooler for the same reason.
     """
     early = equilibrate(
-        "the same column, stopped early",
+        "8 layers: the same column, stopped early",
         radiative_vapour=True,
         vapour_transport=True,
         steps=2000,
@@ -124,3 +124,62 @@ def test_an_unfinished_run_reports_no_error_rather_than_a_small_one(equilibrate)
     assert early.error_k is None
     assert "no error to report" in early.describe()
     assert abs(early.imbalance_w_m2) > OBSERVED_TEMPERATURE_SPREAD_K
+
+
+#: Enough for 20 and 40 layers to settle with margin: at 30000 steps the
+#: imbalance is under 0.02 W m^-2 at 30 and 60 layers, and the time-mean moves
+#: under 0.06 K between a tail of a fifth and of two fifths.
+RESOLVED_STEPS = 24_000
+
+
+@pytest.mark.req("VAL-002", "KER-012", "VAL-005")
+def test_the_headline_error_is_quoted_at_a_converged_resolution(equilibrate):
+    """The eight-layer column understates the error by about five kelvin.
+
+    The +6.7 K this suite reported as the headline came from 8 layers, and no
+    layer study had been run on the full water-cycle column. Run, it moves:
+
+    ======  =========  =====
+    layers  error (K)  Bowen
+    ======  =========  =====
+    8       +6.73      0.339
+    12      +10.46     0.253
+    20      +11.12     0.196
+    30      +12.07     0.155
+    40      +11.98     0.142
+    60      +12.46     0.125
+    ======  =========  =====
+
+    So the error is about +12 K, not +6.7, and the Bowen ratio that looked
+    close to observed at 8 layers overshoots it the other way once resolved.
+    The eight-layer tests above stay, labelled as such, because the mechanism
+    ordering they assert holds at any resolution and costs a third as much to
+    check; this is the one that says what the number is.
+    """
+    coarse = equilibrate(
+        "full water cycle, 8 layers (NOT resolution-converged)",
+        radiative_vapour=True,
+        vapour_transport=True,
+        **BASE,
+    )
+    resolved = {
+        n: equilibrate(
+            f"full water cycle, {n} layers",
+            radiative_vapour=True,
+            vapour_transport=True,
+            steps=RESOLVED_STEPS,
+            **{**BASE, "n_layers": n},
+        )
+        for n in (20, 40)
+    }
+    for report in (coarse, *resolved.values()):
+        assert report.error_k is not None, report.describe()
+
+    fine, finer = resolved[20].error_k, resolved[40].error_k
+    assert fine is not None and finer is not None and coarse.error_k is not None
+    # Converged to within a kelvin between 20 and 40 layers ...
+    assert abs(finer - fine) < 1.0
+    # ... at about +12 K, which is the number to quote.
+    assert finer == pytest.approx(12.0, abs=1.0)
+    # And the coarse grid is not a small correction away from it.
+    assert finer - coarse.error_k > 3.0
