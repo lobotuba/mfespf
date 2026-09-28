@@ -35,6 +35,7 @@ from mfespf.contracts.module import (
     ModuleStatus,
     UncertaintyReport,
 )
+from mfespf.contracts.uncertainty import DerivedParameter
 from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError, ConservationError
 from mfespf.core.quantities import (
@@ -61,10 +62,12 @@ from mfespf.physics.plume import (
     BULK_PLUME_PARAMETER,
     EVAPORATING_CONDENSATE_FRACTION,
     EVAPORATING_FRACTION_RANGE,
+    bulk_plume_declaration,
     bulk_plume_relative_humidity,
     convective_mass_flux,
     detrainment_rate,
     equilibrium_relative_humidity,
+    evaporating_fraction_declaration,
     fractional_entrainment_rate,
     water_vapour_lapse_rate,
 )
@@ -152,6 +155,7 @@ class WaterModule(Module):
         evaporation_coefficient: float = 2.0e-4,
         initial_relative_humidity: float = 0.0,
         latent_heat: float | None = None,
+        evaporation_coefficient_follows: str = "",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         contract = ModuleContract(
@@ -321,6 +325,10 @@ class WaterModule(Module):
         self.surface_module_id = surface_module_id
         self.n_layers = n_layers
         self.evaporation_coefficient = evaporation_coefficient
+        # The keyword of the parameter that fixes this coefficient, when a
+        # configuration derived it rather than setting it. Empty means it was
+        # set directly and is independently uncertain.
+        self.evaporation_coefficient_follows = evaporation_coefficient_follows
         self.initial_relative_humidity = initial_relative_humidity
         self.latent_heat = (
             latent_heat
@@ -858,6 +866,7 @@ class WaterModule(Module):
         ]
 
     def report_uncertainty(self) -> UncertaintyReport:
+        derived = bool(self.evaporation_coefficient_follows)
         return UncertaintyReport(
             module_id=self.module_id,
             quantified={
@@ -866,12 +875,33 @@ class WaterModule(Module):
             },
             method="none propagated at this fidelity",
             distributional_assumptions="unresolved",
-            correlations="unresolved",
+            correlations=(
+                "the evaporation coefficient is k_H / c_p exactly and moves with the "
+                "sensible heat coefficient"
+                if derived
+                else "unresolved"
+            ),
             unresolved=(
-                "evaporation_coefficient_parameter_uncertainty",
+                *(() if derived else ("evaporation_coefficient_parameter_uncertainty",)),
                 "structural_uncertainty_of_omitting_vapour_transport",
                 "structural_uncertainty_of_omitting_cloud_storage",
                 "constant_latent_heat_approximation",
+            ),
+            derived=(
+                (
+                    DerivedParameter(
+                        parameter="evaporation_coefficient_kg_m2_s",
+                        keyword="evaporation_coefficient",
+                        follows=self.evaporation_coefficient_follows,
+                        relation=(
+                            "k_E = k_H / c_p (the Reynolds analogy: the same eddies carry "
+                            "heat and moisture). Perturbing it alone reintroduces the "
+                            "fifty-fold inconsistency that was the whole Bowen-ratio error."
+                        ),
+                    ),
+                )
+                if derived
+                else ()
             ),
         )
 
@@ -1540,13 +1570,23 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
                     self.bulk_plume_parameter, high
                 ),
             },
-            method="range over the declared evaporating-fraction assumption",
-            distributional_assumptions="unresolved; a range is asserted, not a distribution",
-            correlations="unresolved",
+            method="declared ranges; propagated only by an ensemble built from them",
+            distributional_assumptions=(
+                "a range, not a distribution: no probability is assigned within either "
+                "declared range, so a sweep across them states no coverage"
+            ),
+            correlations=(
+                "the bulk-plume parameter is shared with the convective target and moves "
+                "with it; the two parameters are treated as independent of each other, "
+                "which nothing here has tested"
+            ),
             unresolved=(
-                "the evaporating condensate fraction is assumed, not measured",
                 "a tropical closure is applied to a global-mean column",
                 "the humidity is uniform in height and the observed profile is not",
+            ),
+            declared_ranges=(
+                bulk_plume_declaration(self.bulk_plume_parameter),
+                evaporating_fraction_declaration(self.evaporating_fraction),
             ),
         )
 

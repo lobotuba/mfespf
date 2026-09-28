@@ -35,22 +35,33 @@ complete mixing -- a different scheme, not a tuning of this one. Until then,
 anything read off this column must be a time-mean over at least a full cycle, and
 a single step's numbers mean very little.
 
-### Uncertainty has methods now and nothing uses them
+### Three modules declare ranges; the rest of the parameters do not
 
-`evaluation/uncertainty.py` implements UNC-005's six methods, UNC-006's
-quadrature refusal and UNC-007's declared intervals, and the sensitivity
-derivative is checked against a closed form. What is still open is that **no
-module and no configuration reports through it**. Every module's
-`report_uncertainty` still returns `unresolved` for distributional assumptions
-and correlations (UNC-002), and no manifest records that a run was a member of an
-ensemble.
+Modules now report through the ensemble machinery (`docs/architecture.md`, "A
+module declares its ranges, and an ensemble is held to them"), and a run knows
+when it is a member of one. What is declared is small, on purpose: the
+evaporating fraction (measured), the bulk-plume parameter (asserted) and the
+sensible heat coefficient (asserted), with the evaporation coefficient declared
+*derived* from the last.
 
-That is the half with the evidence behind it. Five sweeps have been run by hand
-in scratch scripts -- the bulk-plume parameter, the evaporating fraction, the
-timestep, the exchange coefficient, gravity -- and each produced a decision-
-relevant number that lives only in a commit message. The machinery exists to stop
-the sixth from doing the same, and using it means a run knowing it was a member
-of something.
+Still open, each for a stated reason rather than an oversight:
+
+- **The ocean exchange coefficient has no range.** Its 0.7 W m^-2 K^-1 sits
+  beside the 0.73 multi-model mean of two-layer fits to CMIP5 (Geoffroy et al.
+  2013), but the spread across those models has not been looked up, and an
+  asserted range there would repeat the evaporating-fraction mistake. It stays
+  UNRESOLVED until someone reads the table.
+- **Four of the five hand sweeps are still hand sweeps.** Only the exchange
+  coefficient has been rerun through `across`. The evaporating fraction and the
+  bulk-plume parameter now have declarations to sweep across, and their
+  equilibrated sweeps on the plume column have not been rerun. The timestep and
+  gravity are a numerical sweep and a model-form comparison respectively, and
+  belong in an undeclared-setting sweep and `model_forms` rather than in a
+  module's ranges.
+- **Nothing declares a distribution.** Every declared range is "a range, not a
+  distribution", which is honest and means no interval in this project can yet
+  state a coverage. A Monte Carlo needs a parameter whose distribution was
+  measured.
 
 ### Six mandatory requirements are still unbound
 

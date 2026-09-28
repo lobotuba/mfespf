@@ -776,6 +776,9 @@ def radiating_column(
                     evaporation_coefficient=evaporation_coefficient
                     if evaporation_coefficient is not None
                     else evaporation_coefficient_for(sensible_heat_coefficient),
+                    evaporation_coefficient_follows=(
+                        "" if evaporation_coefficient is not None else "sensible_heat_coefficient"
+                    ),
                 ),
                 step_multiple=1,
             )

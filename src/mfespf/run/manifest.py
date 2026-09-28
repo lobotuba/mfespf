@@ -158,6 +158,14 @@ class RunManifest:
     tolerances: dict[str, float] = dc_field(default_factory=dict)
     random_seeds: dict[str, int] = dc_field(default_factory=dict)
     uncertainty_methods: dict[str, str] = dc_field(default_factory=dict)
+    declared_uncertainty: dict[str, Any] = dc_field(default_factory=dict)
+    """Per module: declared ranges, derived parameters and what is unresolved."""
+    ensemble_membership: dict[str, Any] = dc_field(default_factory=dict)
+    """Empty for a standalone run; the ensemble's design and this member otherwise.
+
+    Kept out of the configuration hash on purpose: a member computes exactly
+    what the same configuration computes alone, and the two must hash alike.
+    """
     support_criterion: str = ""
     failure_criterion: str = ""
 
@@ -215,6 +223,7 @@ class RunManifest:
                 "failure_criterion": self.failure_criterion,
                 "tolerances": self.tolerances,
                 "uncertainty_methods": self.uncertainty_methods,
+                "declared_uncertainty": self.declared_uncertainty,
             },
             length=16,
         )
@@ -276,6 +285,8 @@ class RunManifest:
             "environment": self.environment,
             "dependency_graph": self.dependency_graph,
             "uncertainty_methods": self.uncertainty_methods,
+            "declared_uncertainty": self.declared_uncertainty,
+            "ensemble_membership": self.ensemble_membership,
             "support_criterion": self.support_criterion,
             "failure_criterion": self.failure_criterion,
             "dataset_roles": self.dataset_roles,

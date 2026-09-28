@@ -1020,3 +1020,39 @@ def test_every_configuration_negotiated_every_declared_requirement(kernels, step
         assert negotiated == declared, name
         assert kernel.manifest is not None, name
         assert len(kernel.manifest.negotiated_interfaces) == len(declared), name
+
+
+# --- UNC-001 and UNC-002: declared uncertainty in every configuration ------
+
+
+@pytest.mark.req("UNC-001", "UNC-002", "UNC-004")
+def test_every_declared_range_describes_the_configuration_as_built(kernels):
+    """A declaration is checked against the module, not trusted.
+
+    Its nominal must be the value the module runs with, its setting must be a
+    keyword a configuration can actually be built with -- or no ensemble could
+    ever move it -- and a derived parameter must follow something this same
+    configuration declares, or the derivation points at nothing.
+    """
+    import inspect
+
+    keywords = set(inspect.signature(cc.radiating_column).parameters)
+    for name, kernel in kernels.items():
+        settings: set[str] = set()
+        follows: set[str] = set()
+        for slot in kernel.schedule.ordered():
+            report = slot.module.report_uncertainty()
+            parameters = slot.module.parameters()
+            for declared in report.declared_ranges:
+                assert parameters[declared.parameter] == declared.nominal, (name, declared)
+                assert declared.setting in keywords, (name, declared.setting)
+                settings.add(declared.setting)
+            for dependent in report.derived:
+                assert dependent.setting in keywords, (name, dependent.setting)
+                follows.add(dependent.follows)
+        assert follows <= settings, (name, follows - settings)
+        manifest = kernel.manifest
+        assert manifest is not None
+        assert set(manifest.declared_uncertainty) == {
+            slot.module_id for slot in kernel.schedule.ordered()
+        }, name

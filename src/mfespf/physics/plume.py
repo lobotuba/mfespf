@@ -101,6 +101,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from mfespf.contracts.uncertainty import DeclaredRange, RangeBasis
 from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError
 from mfespf.physics.thermodynamics import saturation_specific_humidity
@@ -162,6 +163,46 @@ EVAPORATING_CONDENSATE_FRACTION = 0.67
 #: precipitation efficiency genuinely is: definitions differ, and estimates
 #: differ within a definition.
 EVAPORATING_FRACTION_RANGE = (0.62, 0.81)
+
+#: The range the bulk-plume parameter is declared over. Asserted, and labelled
+#: so: Romps (2016) gives 0.2 for Earth's tropics and no spread, and no
+#: measurement recorded here narrows it. Wide enough to be honest about that,
+#: and marked so that nobody mistakes it for the evaporating fraction's range,
+#: which *was* measured.
+BULK_PLUME_PARAMETER_RANGE = (0.1, 0.3)
+
+
+def evaporating_fraction_declaration(nominal: float) -> DeclaredRange:
+    """The evaporating fraction's declared range, from measured efficiencies."""
+    low, high = EVAPORATING_FRACTION_RANGE
+    return DeclaredRange(
+        parameter="evaporating_condensate_fraction",
+        keyword="evaporating_fraction",
+        nominal=nominal,
+        low=low,
+        high=high,
+        basis=RangeBasis.MEASURED,
+        source=(
+            "alpha = 1 - PE, with precipitation efficiencies of 19 to 38 percent "
+            "(Langhans, Yeo and Romps 2015; Braham 1952)"
+        ),
+    )
+
+
+def bulk_plume_declaration(nominal: float) -> DeclaredRange:
+    """The bulk-plume parameter's declared range -- asserted, not measured."""
+    low, high = BULK_PLUME_PARAMETER_RANGE
+    return DeclaredRange(
+        parameter="bulk_plume_parameter",
+        nominal=nominal,
+        low=low,
+        high=high,
+        basis=RangeBasis.ASSERTED,
+        source=(
+            "Romps (2016) gives 0.2 for Earth's tropics with no spread; +/-0.1 is a "
+            "judgement made here, not a measurement"
+        ),
+    )
 
 
 def water_vapour_lapse_rate(temperature: np.ndarray, lapse_rate: np.ndarray | float) -> np.ndarray:

@@ -26,6 +26,7 @@ from mfespf.coupling.conservation import ConservationReport
 from mfespf.coupling.coupler import Coupler, CouplingSchedule, StepReport
 from mfespf.coupling.graph import DependencyGraph
 from mfespf.coupling.validity import DomainReport, EvaluatedExtents, check_validity_domains
+from mfespf.evaluation.uncertainty import EnsembleMembership
 from mfespf.registries.claims import ClaimRegistry, ExperimentRegistry
 from mfespf.registries.datasets import DatasetRegistry
 from mfespf.registries.equations import EquationRegistry
@@ -137,6 +138,8 @@ class Kernel:
     field on the kernel rather than on a module because an adapter reconciles
     two modules and belongs to neither.
     """
+    ensemble_membership: EnsembleMembership | None = None
+    """Set by ``run_ensemble`` on each member, so the run knows it is one."""
     coupler: Coupler | None = None
 
     def declared_boundary_state(self) -> dict[str, Any]:
@@ -199,7 +202,19 @@ class Kernel:
         manifest.temporal_resolution = f"{self.schedule.master_dt:g} s master step"
         manifest.spectral_resolution = f"{self.spectral_bins} bins"
         manifest.tolerances = {"conservation_relative": self.conservation_tolerance}
-        manifest.uncertainty_methods = {m.module_id: m.report_uncertainty().method for m in modules}
+        reports = {m.module_id: m.report_uncertainty() for m in modules}
+        manifest.uncertainty_methods = {k: r.method for k, r in reports.items()}
+        manifest.declared_uncertainty = {k: r.to_dict() for k, r in reports.items()}
+        # A run outside a declared range is allowed -- it may be the point of the
+        # run -- and it is never unremarked.
+        for module_id, report in reports.items():
+            for declared in report.declared_ranges:
+                note = f"{module_id}: {declared.describe()}"
+                if not declared.nominal_inside and note not in manifest.warnings:
+                    manifest.warnings.append(note)
+        manifest.ensemble_membership = (
+            self.ensemble_membership.to_dict() if self.ensemble_membership is not None else {}
+        )
         manifest.resource_class = self.budget.resource_class
         manifest.resource_budget = {
             "max_memory_bytes": self.budget.max_memory_bytes,

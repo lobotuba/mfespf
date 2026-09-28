@@ -75,7 +75,8 @@ def test_a_sweep_recovers_a_sensitivity_that_has_a_closed_form():
     result = run_ensemble(
         design,
         build=lambda **kw: airless_radiating_body(
-            initial_temperature=equilibrium_temperature(kw["total_irradiance"], 0.3, 1.0), **kw
+            initial_temperature=equilibrium_temperature(kw.get("total_irradiance", s_0), 0.3, 1.0),
+            **kw,
         ),
         observe=surface_temperature,
         n_steps=48,
@@ -199,7 +200,7 @@ def test_a_sweep_gives_a_range_and_refuses_to_call_it_a_coverage():
     """
     design = sweep("alpha", [0.1, 0.3, 0.5], basis="asserted, pending a literature value")
     result = run_ensemble(
-        design, build=lambda **kw: _Stub(10.0 * kw["alpha"]), observe=_value, n_steps=1
+        design, build=lambda **kw: _Stub(10.0 * kw.get("alpha", 0.0)), observe=_value, n_steps=1
     )
 
     interval = result.interval()
@@ -228,7 +229,9 @@ def test_a_sampled_ensemble_may_state_a_coverage():
         basis="a published spread",
         distributional_assumptions="normal about the published central value",
     )
-    result = run_ensemble(design, build=lambda **kw: _Stub(kw["alpha"]), observe=_value, n_steps=1)
+    result = run_ensemble(
+        design, build=lambda **kw: _Stub(kw.get("alpha", 0.0)), observe=_value, n_steps=1
+    )
 
     interval = result.interval(0.95)
     assert interval.meaning is IntervalMeaning.PERCENTILE_INTERVAL
@@ -332,3 +335,82 @@ def _value(result: _Stub) -> float:
 def test_a_member_needs_a_label():
     with pytest.raises(ConfigurationError, match="needs a label"):
         Member("  ")
+
+
+# --- declared ranges and derivations (UNC-001, UNC-002) ---------------------
+
+
+def _range(**overrides):
+    from mfespf.contracts.uncertainty import DeclaredRange, RangeBasis
+
+    declared = dict(
+        parameter="p",
+        nominal=0.5,
+        low=0.2,
+        high=0.8,
+        basis=RangeBasis.ASSERTED,
+        source="a judgement made for this test",
+    )
+    declared.update(overrides)
+    return DeclaredRange(**declared)
+
+
+@pytest.mark.req("UNC-001")
+def test_a_declared_range_needs_a_spread_and_a_source():
+    with pytest.raises(ConfigurationError, match="must be increasing"):
+        _range(low=0.5, high=0.5)
+    with pytest.raises(ConfigurationError, match="names no source"):
+        _range(source="  ")
+    assert not _range(nominal=0.9).nominal_inside
+
+
+@pytest.mark.req("UNC-002", "UNC-004")
+def test_a_report_with_a_range_must_say_what_distribution_it_assumes():
+    from mfespf.contracts.module import UncertaintyReport
+    from mfespf.contracts.uncertainty import DerivedParameter
+
+    with pytest.raises(ConfigurationError, match="distributional assumptions unresolved"):
+        UncertaintyReport(module_id="m", declared_ranges=(_range(),))
+    derived = DerivedParameter(parameter="q", follows="p", relation="q = 2p")
+    with pytest.raises(ConfigurationError, match="which is a correlation"):
+        UncertaintyReport(module_id="m", derived=(derived,))
+    with pytest.raises(ConfigurationError, match="cannot be both"):
+        UncertaintyReport(
+            module_id="m",
+            distributional_assumptions="a range, not a distribution",
+            correlations="q follows p",
+            declared_ranges=(_range(parameter="q"),),
+            derived=(derived,),
+        )
+
+
+@pytest.mark.req("UNC-001", "UNC-005")
+def test_two_modules_may_not_declare_different_ranges_for_one_setting():
+    from mfespf.contracts.module import UncertaintyReport
+    from mfespf.evaluation.uncertainty import declared_uncertainty
+
+    def report(module_id, declared):
+        return UncertaintyReport(
+            module_id=module_id,
+            distributional_assumptions="a range, not a distribution",
+            declared_ranges=(declared,),
+        )
+
+    agreeing = declared_uncertainty([report("a", _range()), report("b", _range(nominal=0.3))])
+    assert set(agreeing.ranges) == {"p"}
+    with pytest.raises(ConfigurationError, match="declare different ranges"):
+        declared_uncertainty([report("a", _range()), report("b", _range(high=0.9))])
+
+
+@pytest.mark.req("UNC-005", "UNC-007")
+def test_an_ensemble_across_a_declaration_carries_its_basis_and_its_nominal():
+    from mfespf.evaluation.uncertainty import across
+
+    declared = _range(nominal=0.45)
+    ends = across(declared)
+    assert ends.method is UncertaintyMethod.BOUNDS
+    assert ends.basis == "asserted: a judgement made for this test"
+    three = across(declared, points=3)
+    assert [m.overrides["p"] for m in three.members] == [0.2, 0.45, 0.8]
+    assert three.design_id() != across(declared, points=4).design_id()
+    assert three.design_id() == across(declared, points=3).design_id()

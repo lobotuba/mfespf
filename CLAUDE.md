@@ -251,7 +251,8 @@ saying out loud.
   `report_bias` collects it and the suite prints them together at the end. The
   number the project is judged on used to be recomputed by hand in a scratch
   script, so it moved between commits without anyone noticing. Currently: -33.42 K
-  airless, -4.49 K dry, **+6.73 K** with the full water cycle, against 288.0 K.
+  airless, -4.49 K dry, **+6.73 K** with the full water cycle, against 288.0 K,
+  and +6.7 to +8.4 K across the declared range of the sensible heat coefficient.
 - **A bias from a run that has not equilibrated is a different quantity, not an
   uncertain one.** `BiasReport.error_k` returns `None` above 0.1 W m^-2 of
   imbalance and reports the imbalance instead. The dry column reads -16.3 K at
@@ -349,6 +350,14 @@ saying out loud.
   declaring its approximation, information loss and conservation residual, and
   translating only the keys it names (VER-006, VER-008) -- never a looser
   `negotiate`.
+- **A module declares a parameter's range with its basis, or marks it derived,
+  or leaves it UNRESOLVED -- and an ensemble is held to the declaration.**
+  `run_ensemble` refuses a member that leaves a declared range or perturbs a
+  derived parameter, reading the declarations from the *unperturbed*
+  configuration: overriding the evaporation coefficient is exactly what stops a
+  configuration deriving it, so a member cannot be asked whether its own
+  override is allowed. Do not declare a range you have not looked up; the ocean
+  exchange coefficient stays UNRESOLVED for that reason.
 - **Validity domains are enforced, as a mandatory gate.**
   `coupling/validity.py` judges every module's cited equations against the extent
   each one was evaluated over as the run proceeded, and the driver invalidates a

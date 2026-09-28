@@ -18,6 +18,7 @@ from enum import StrEnum
 from typing import Any
 
 from mfespf.contracts.cost import CostDeclaration
+from mfespf.contracts.uncertainty import DeclaredRange, DerivedParameter
 from mfespf.core.errors import ConfigurationError
 from mfespf.core.quantities import Field
 from mfespf.core.versioning import InterfaceContract, RequiredInterface, Version
@@ -197,10 +198,16 @@ class StepContext:
 
 @dataclass
 class UncertaintyReport:
-    """MOD-009, UNC-001, UNC-004.
+    """MOD-009, UNC-001, UNC-002, UNC-004.
 
     ``unresolved`` is not decoration: a module that cannot quantify a
     contribution it knows applies must say so, and the run report prints it.
+
+    ``declared_ranges`` and ``derived`` are the two states between a number and
+    UNRESOLVED (see ``contracts/uncertainty.py``). A module that declares a
+    range must also say what distribution, if any, it assumes across it: "a
+    range, not a distribution" is a valid answer and has to be given, because
+    the difference is whether an ensemble across it may state a coverage.
     """
 
     module_id: str
@@ -209,14 +216,52 @@ class UncertaintyReport:
     distributional_assumptions: str = "unresolved"
     correlations: str = "unresolved"
     unresolved: tuple[str, ...] = ()
+    declared_ranges: tuple[DeclaredRange, ...] = ()
+    derived: tuple[DerivedParameter, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.declared_ranges and self.distributional_assumptions.strip() == "unresolved":
+            raise ConfigurationError(
+                f"{self.module_id} declares ranges for "
+                f"{[r.parameter for r in self.declared_ranges]} and leaves its "
+                "distributional assumptions unresolved (UNC-002). Say whether the range "
+                "carries a distribution; 'a range, not a distribution' is an answer."
+            )
+        if self.derived and self.correlations.strip() == "unresolved":
+            raise ConfigurationError(
+                f"{self.module_id} declares {[d.parameter for d in self.derived]} derived "
+                "from another parameter, which is a correlation, and reports its "
+                "correlations as unresolved"
+            )
+        both = {r.setting for r in self.declared_ranges} & {d.setting for d in self.derived}
+        if both:
+            raise ConfigurationError(
+                f"{self.module_id} declares {sorted(both)} both independently uncertain "
+                "and derived from something else; it cannot be both"
+            )
 
     def describe(self) -> str:
         lines = [f"{self.module_id}: method={self.method}"]
         for name, value in sorted(self.quantified.items()):
             lines.append(f"  {name} = {value:.6g}")
+        for declared in self.declared_ranges:
+            lines.append(f"  {declared.describe()}")
+        for dependent in self.derived:
+            lines.append(f"  {dependent.describe()}")
         for name in self.unresolved:
             lines.append(f"  {name} = UNRESOLVED")
         return "\n".join(lines)
+
+    def to_dict(self) -> dict[str, Any]:
+        """What a manifest records: the declarations, not the diagnostics."""
+        return {
+            "method": self.method,
+            "distributional_assumptions": self.distributional_assumptions,
+            "correlations": self.correlations,
+            "declared_ranges": [r.to_dict() for r in self.declared_ranges],
+            "derived": [d.to_dict() for d in self.derived],
+            "unresolved": list(self.unresolved),
+        }
 
 
 class Module(ABC):

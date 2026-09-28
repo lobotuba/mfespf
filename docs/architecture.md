@@ -3195,3 +3195,73 @@ now, so that the first time someone needs one, the way through is a declaration
 rather than a change to `negotiate`.
 
 Traceability moves from 178 to 179 of 185.
+
+## A module declares its ranges, and an ensemble is held to them
+
+`evaluation/uncertainty.py` implemented UNC-005's six methods and nothing
+reported through them. Every module's `report_uncertainty` had two ways to talk
+about a parameter it knew was uncertain -- a number, or the word UNRESOLVED --
+and neither fitted what the project actually knew. The evaporating fraction has
+a measured range, and it lived in a comment beside a constant. The evaporation
+coefficient is *not* independently uncertain, because it is `k_H / c_p` exactly,
+and that lived in a docstring. Five sweeps had been run from scratch scripts,
+and none of their runs knew it was part of anything.
+
+**Two new states between a number and UNRESOLVED** (`contracts/uncertainty.py`):
+
+| state | meaning | declared now |
+|---|---|---|
+| `DeclaredRange` | bounded, with its basis: measured, published or asserted | evaporating fraction 0.62-0.81 (measured); bulk-plume parameter 0.1-0.3 (asserted); sensible heat coefficient 6-14.5 W m^-2 K^-1 (asserted) |
+| `DerivedParameter` | fixed by another parameter, so not to be perturbed alone | evaporation coefficient follows the sensible heat coefficient |
+
+A report that declares a range must say what distribution it assumes across it,
+and one that declares a derivation must state the correlation; both are refused
+as "unresolved". "A range, not a distribution" is a valid answer and is the one
+every module gives, which is also why no interval here states a coverage.
+
+**An ensemble is checked against the declarations before it runs.**
+`run_ensemble` reads them from the configuration and refuses a member that
+perturbs a derived parameter or leaves a declared range. The two refusals are
+the project's own mistakes, replayed as tests: the 0.1-0.5 sweep of the
+evaporating fraction that was actually run, which excluded the measured value,
+and a sweep of the evaporation coefficient alone, which is how the fifty-fold
+Bowen-ratio inconsistency would come back.
+
+The first version of that check read each *member's* configuration, and the
+derived-parameter refusal did not fire. Passing the evaporation coefficient
+explicitly is precisely what stops a configuration deriving it, so the
+perturbed configuration no longer declared the rule its own override broke --
+asking it whether the perturbation was allowed got the answer yes. The
+declarations are read from the unperturbed configuration now, which is why an
+ensemble's `build()` with no overrides must produce its baseline.
+
+**Every member knows it is one.** A run built by `run_ensemble` records the
+design's hash, the method, the basis, its label and the member count in
+`RunManifest.ensemble_membership`, and the `EnsembleResult` lists each member's
+configuration hash. Membership is kept out of the configuration hash: a member
+computes exactly what the same configuration computes alone, and the test
+checks that they hash alike. A standalone run configured outside a declared
+range is allowed, and the manifest says so in a warning.
+
+**The first result through it, in kelvin.** The sensible heat coefficient fixes
+both surface fluxes, so it is the first suspect for a warm surface. Across its
+declared range, equilibrated at 20000 steps:
+
+| k_H (W m^-2 K^-1) | error | evaporation (mm/day) | PW (kg m^-2) | Bowen |
+|---|---:|---:|---:|---:|
+| 6.0 | +8.42 K | 3.65 | 27.0 | 0.343 |
+| 10.0 (as configured) | +6.74 K | 4.05 | 28.3 | 0.339 |
+| 14.5 | +6.92 K | 4.47 | 32.8 | 0.308 |
+
+The error never gets closer than +6.7 K, and the weakly coupled end is the
+warmest. Whatever the warm bias is, no value of this parameter anyone has
+declared plausible removes it. The 0.19 K between the nominal and the strong
+end is inside the limit cycle's time-mean convergence of about 0.15 K, so it is
+not evidence of a minimum inside the range, and nothing here claims one. The
+interval is stated as the full range with no coverage, because the members were
+chosen rather than drawn.
+
+The ocean exchange coefficient was left undeclared. Its value sits beside the
+published multi-model mean, but the spread across models has not been looked
+up, and writing one down from memory is the mistake this section began with.
+

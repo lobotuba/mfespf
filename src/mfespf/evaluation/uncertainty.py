@@ -51,7 +51,7 @@ wrong as granting one to a sweep.
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 from enum import StrEnum
@@ -59,17 +59,23 @@ from typing import Any
 
 import numpy as np
 
+from mfespf.contracts.uncertainty import DeclaredRange, DerivedParameter
 from mfespf.core.errors import ConfigurationError
+from mfespf.core.hashing import digest
 from mfespf.data.records import UncertaintyKind
 
 __all__ = [
+    "DeclaredUncertainty",
     "Ensemble",
+    "EnsembleMembership",
     "EnsembleResult",
     "IntervalMeaning",
     "Member",
     "PredictiveInterval",
     "UncertaintyMethod",
+    "across",
     "bounds",
+    "declared_uncertainty",
     "ensemble",
     "model_forms",
     "monte_carlo",
@@ -168,6 +174,150 @@ class Ensemble:
                 "(UNC-002); an undeclared distribution makes the coverage meaningless"
             )
 
+    def design_id(self) -> str:
+        """A hash of everything that makes this the ensemble it is.
+
+        Two runs are members of the same ensemble exactly when they carry the
+        same ``design_id``, which lets a reader of one manifest find the others
+        without a registry.
+        """
+        return digest(
+            {
+                "method": self.method.value,
+                "members": [[m.label, dict(m.overrides)] for m in self.members],
+                "parameters": list(self.parameters),
+                "basis": self.basis,
+                "distributional_assumptions": self.distributional_assumptions,
+                "correlations": self.correlations,
+            },
+            length=16,
+        )
+
+    def membership(self, index: int) -> EnsembleMembership:
+        member = self.members[index]
+        return EnsembleMembership(
+            design_id=self.design_id(),
+            method=self.method,
+            basis=self.basis,
+            member_label=member.label,
+            member_index=index,
+            n_members=len(self.members),
+            overrides=dict(member.overrides),
+            parameters=self.parameters,
+            distributional_assumptions=self.distributional_assumptions,
+            correlations=self.correlations,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class EnsembleMembership:
+    """What a single run needs to know about the ensemble it belongs to.
+
+    Five sweeps were run by hand before this existed, and each produced a
+    decision-relevant number from runs whose manifests were identical in kind to
+    any standalone run's. Nothing in a member said it was one, so nothing said
+    that reading it alone was reading a fraction of a result.
+    """
+
+    design_id: str
+    method: UncertaintyMethod
+    basis: str
+    member_label: str
+    member_index: int
+    n_members: int
+    overrides: Mapping[str, Any]
+    parameters: tuple[str, ...]
+    distributional_assumptions: str
+    correlations: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "design_id": self.design_id,
+            "method": self.method.value,
+            "basis": self.basis,
+            "member": self.member_label,
+            "member_index": self.member_index,
+            "n_members": self.n_members,
+            "overrides": dict(self.overrides),
+            "parameters": list(self.parameters),
+            "distributional_assumptions": self.distributional_assumptions,
+            "correlations": self.correlations,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DeclaredUncertainty:
+    """Every declared range and derivation in one configuration, by setting.
+
+    Gathered across modules because one parameter can be declared by more than
+    one: the bulk-plume parameter sets both the convective target and the
+    humidity closure, and a configuration passes one value to both. Two modules
+    declaring different ranges for one setting is refused -- they would be
+    making incompatible claims about the same number.
+    """
+
+    ranges: Mapping[str, DeclaredRange]
+    derived: Mapping[str, DerivedParameter]
+
+    def check(self, design: Ensemble) -> None:
+        """Refuse a design that reaches past what the configuration declares.
+
+        A derived parameter may not be perturbed on its own at all. A declared
+        range may not be exceeded by any method that *chooses* its members; a
+        Monte Carlo sample draws from a distribution whose tails legitimately
+        leave any finite range, and is answerable to its declared distribution
+        instead. Settings nobody declared -- a timestep, a resolution -- are
+        numerical rather than physical and pass.
+        """
+        for member in design.members:
+            for setting, value in member.overrides.items():
+                if setting in self.derived:
+                    dependent = self.derived[setting]
+                    raise ConfigurationError(
+                        f"ensemble member {member.label!r} perturbs {setting!r}, which this "
+                        f"configuration derives: {dependent.describe()}. Perturb "
+                        f"{dependent.follows!r} instead, or the ensemble measures an "
+                        "inconsistency rather than an uncertainty."
+                    )
+                declared = self.ranges.get(setting)
+                if (
+                    declared is not None
+                    and design.method is not UncertaintyMethod.MONTE_CARLO
+                    and isinstance(value, int | float)
+                    and not declared.contains(float(value))
+                ):
+                    raise ConfigurationError(
+                        f"ensemble member {member.label!r} sets {setting}={value:g}, outside "
+                        f"its declared range: {declared.describe()}. A spread over a range "
+                        "nobody declared is a claim with no basis; declare the wider range, "
+                        "and its basis, where the parameter lives."
+                    )
+
+
+def declared_uncertainty(reports: Iterable[Any]) -> DeclaredUncertainty:
+    """Collect the declarations from a set of ``UncertaintyReport`` objects."""
+    ranges: dict[str, DeclaredRange] = {}
+    derived: dict[str, DerivedParameter] = {}
+    owners: dict[str, str] = {}
+    for report in reports:
+        for declared in report.declared_ranges:
+            existing = ranges.get(declared.setting)
+            if existing is not None and (existing.low, existing.high, existing.basis) != (
+                declared.low,
+                declared.high,
+                declared.basis,
+            ):
+                raise ConfigurationError(
+                    f"{owners[declared.setting]} and {report.module_id} declare different "
+                    f"ranges for {declared.setting!r}: {existing.describe()} against "
+                    f"{declared.describe()}"
+                )
+            ranges[declared.setting] = declared
+            owners.setdefault(declared.setting, report.module_id)
+        for dependent in report.derived:
+            derived[dependent.setting] = dependent
+    return DeclaredUncertainty(ranges=ranges, derived=derived)
+
 
 @dataclass(frozen=True, slots=True)
 class PredictiveInterval:
@@ -228,6 +378,8 @@ class EnsembleResult:
     design: Ensemble
     observable: str
     values: tuple[float, ...]
+    member_runs: tuple[str, ...] = ()
+    """Each member's configuration hash, in member order, when the runs had one."""
 
     @property
     def labels(self) -> tuple[str, ...]:
@@ -327,6 +479,29 @@ def bounds(parameter: str, low: float, high: float, *, basis: str) -> Ensemble:
     )
 
 
+def across(declared: DeclaredRange, *, points: int = 2) -> Ensemble:
+    """An ensemble across a module's declared range, carrying its basis with it.
+
+    The preferred constructor wherever a declaration exists, because the basis
+    is then the declaration's rather than a string retyped at the call site --
+    which is how "asserted" quietly becomes nothing at all. Two points are
+    ``bounds``; more are a ``sweep`` whose interior point nearest the nominal
+    is moved onto it, so the result can be read against the configuration as
+    run and the member count is still the one asked for.
+    """
+    basis = f"{declared.basis.value}: {declared.source}"
+    if points == 2:
+        return bounds(declared.setting, declared.low, declared.high, basis=basis)
+    if points < 2:
+        raise ConfigurationError("an ensemble across a range needs at least two points")
+    values = [float(v) for v in np.linspace(declared.low, declared.high, points)]
+    if declared.nominal_inside and declared.nominal not in values:
+        interior = range(1, points - 1)
+        nearest = min(interior, key=lambda i: abs(values[i] - declared.nominal))
+        values[nearest] = float(declared.nominal)
+    return sweep(declared.setting, values, basis=basis)
+
+
 def sweep(parameter: str, values: Sequence[float], *, basis: str) -> Ensemble:
     """Members along one parameter, which is what a sensitivity is taken over."""
     return Ensemble(
@@ -420,14 +595,47 @@ def run_ensemble(
 
     ``build`` takes the member's overrides as keyword arguments and returns
     something with a ``run(n_steps)``; ``observe`` reduces that run to a number.
-    Deliberately thin -- what this module is for is the declarations around the
-    loop, not the loop.
+
+    Where ``build`` returns a kernel, two things make the result more than a
+    loop. Each member is checked, before it runs, against what its
+    configuration's modules declare, so an ensemble cannot quietly sweep a
+    derived parameter or reach past a declared range. And each member is told
+    it is one, so its manifest records the ensemble it belongs to.
+
+    The declarations are read from the *unperturbed* configuration, never from
+    a member's. A member's configuration cannot be trusted to declare the rule
+    its own override breaks: passing the evaporation coefficient explicitly is
+    precisely what stops it being derived from the sensible heat coefficient, so
+    asking the perturbed configuration whether the perturbation is allowed gets
+    the answer yes. So ``build()`` with no overrides must produce the baseline
+    configuration; every reference configuration builder does.
     """
+    baseline = build()
+    schedule = getattr(baseline, "schedule", None)
+    if schedule is not None:
+        declared_uncertainty(
+            slot.module.report_uncertainty()
+            for slot in schedule.ordered()
+            if slot.module.status.participates
+        ).check(design)
+
     values = []
-    for member in design.members:
-        result = build(**member.overrides).run(n_steps)
+    runs = []
+    for index, member in enumerate(design.members):
+        kernel = build(**member.overrides)
+        if schedule is not None:
+            kernel.ensemble_membership = design.membership(index)
+        result = kernel.run(n_steps)
+        manifest = getattr(result, "manifest", None)
+        if manifest is not None:
+            runs.append(manifest.configuration_hash())
         values.append(float(observe(result)))
-    return EnsembleResult(design=design, observable=observe.__name__, values=tuple(values))
+    return EnsembleResult(
+        design=design,
+        observable=observe.__name__,
+        values=tuple(values),
+        member_runs=tuple(runs) if len(runs) == len(values) else (),
+    )
 
 
 # --- UNC-006 ----------------------------------------------------------------

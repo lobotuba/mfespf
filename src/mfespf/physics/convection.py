@@ -55,6 +55,7 @@ from mfespf.contracts.module import (
     ModuleStatus,
     UncertaintyReport,
 )
+from mfespf.contracts.uncertainty import DeclaredRange, RangeBasis
 from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError
 from mfespf.core.quantities import (
@@ -74,7 +75,11 @@ from mfespf.core.versioning import (
 )
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.equations import EQUATION_IDS
-from mfespf.physics.plume import BULK_PLUME_PARAMETER, entraining_lapse_rate
+from mfespf.physics.plume import (
+    BULK_PLUME_PARAMETER,
+    bulk_plume_declaration,
+    entraining_lapse_rate,
+)
 from mfespf.physics.surface import SURFACE_TEMPERATURE_STATE
 from mfespf.physics.thermodynamics import (
     convective_adjustment_with_groups,
@@ -103,6 +108,30 @@ CONVECTION_INTERFACE = InterfaceContract(
         "energy_role": "redistributes_within_the_column_and_adds_nothing",
     },
 )
+
+
+#: Declared range of the bulk sensible-heat coefficient ``k_H = rho c_p C_H |U|``,
+#: in W m^-2 K^-1. The bounds are the arithmetic of typical bulk values --
+#: ``C_H`` of 1.0e-3 to 1.5e-3 and a global-mean near-surface wind of 5 to
+#: 8 m s^-1 at ``rho c_p`` of 1205 J m^-3 K^-1 -- which is a judgement about
+#: which values are typical, not a measured global mean, and is labelled so.
+SENSIBLE_HEAT_COEFFICIENT_RANGE = (6.0, 14.5)
+
+
+def sensible_heat_declaration(nominal: float) -> DeclaredRange:
+    low, high = SENSIBLE_HEAT_COEFFICIENT_RANGE
+    return DeclaredRange(
+        parameter="sensible_heat_coefficient_W_m2_K",
+        keyword="sensible_heat_coefficient",
+        nominal=nominal,
+        low=low,
+        high=high,
+        basis=RangeBasis.ASSERTED,
+        source=(
+            "rho c_p C_H |U| over C_H of 1.0e-3 to 1.5e-3 and |U| of 5 to 8 m/s; "
+            "typical bulk values, not a measured global mean"
+        ),
+    )
 
 
 class ConvectiveAdjustmentModule(Module):
@@ -802,13 +831,34 @@ class ConvectiveAdjustmentModule(Module):
                 "surface_took_part_in_the_mixing": float(self._surface_mixed),
                 "surface_convective_flux_W_m2": self._surface_convective_flux,
             },
-            method="none propagated; the closure's error is structural, not parametric",
-            distributional_assumptions="unresolved",
-            correlations="unresolved",
+            method=(
+                "declared ranges, propagated only by an ensemble built from them; the "
+                "closure's own error is structural and is not among them"
+            ),
+            distributional_assumptions=(
+                "a range, not a distribution: no probability is assigned within the "
+                "declared ranges, so a sweep across them states no coverage"
+            ),
+            correlations=(
+                "the sensible heat coefficient fixes the evaporation coefficient exactly "
+                "(k_E = k_H / c_p), so the two surface fluxes move together"
+                + (
+                    "; the bulk-plume parameter is shared with the humidity closure"
+                    if self.target == "entraining_plume"
+                    else ""
+                )
+            ),
             unresolved=(
                 "structural_uncertainty_of_instantaneous_complete_mixing",
                 "structural_uncertainty_of_a_dry_rather_than_moist_target",
-                "sensible_heat_coefficient_parameter_uncertainty",
+            ),
+            declared_ranges=(
+                sensible_heat_declaration(self.sensible_heat_coefficient),
+                *(
+                    (bulk_plume_declaration(self.bulk_plume_parameter),)
+                    if self.target == "entraining_plume"
+                    else ()
+                ),
             ),
         )
 
