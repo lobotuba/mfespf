@@ -277,6 +277,12 @@ class ConvectiveAdjustmentModule(Module):
                 "exchange in particular, is left to the splitting, so in a coupled-ocean "
                 "configuration the surface convects from a slightly stale temperature.",
             ),
+            fidelity_justification=(
+                "Pure radiative equilibrium is convectively unstable in the lower "
+                "troposphere, so it produces a lapse rate steeper than any observed one "
+                "and a surface far too warm. The comparison is the point of Stage 3 and "
+                "is kept as the null control."
+            ),
             cost=CostDeclaration(
                 module_id=module_id,
                 time_complexity="O(n_layers^2) worst case, O(n_layers) typical",

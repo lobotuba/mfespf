@@ -332,6 +332,13 @@ class PrescribedCloudModule(Module):
                 "One effective radius per phase, no size distribution, no mixed phase.",
                 "Maximum overlap only; partial overlap between layers is not represented.",
             ),
+            fidelity_justification=(
+                "The no-cloud control produces no shortwave or longwave cloud effect, "
+                "so it cannot be compared against the observed -47 and +27 W m^-2 that "
+                "SPC-010 requires be reported separately. It is kept as the null "
+                "control for exactly that comparison rather than as an alternative to "
+                "it."
+            ),
             cost=CostDeclaration(
                 module_id=module_id,
                 time_complexity="O(n_layers * n_bands)",

@@ -237,6 +237,11 @@ class SlabSurfaceModule(Module):
                     "philosophy expects a real system to have."
                 ),
             ),
+            fidelity_justification=(
+                "Instant equilibrium has no response time, so every forcing experiment "
+                "becomes a sequence of equilibrium states and the transient the "
+                "experiment is measuring does not exist."
+            ),
             cost=CostDeclaration(
                 module_id=module_id,
                 time_complexity="O(n_bands)",

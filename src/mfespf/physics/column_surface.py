@@ -233,6 +233,12 @@ class ColumnSurfaceModule(Module):
                     else ()
                 ),
             ),
+            fidelity_justification=(
+                "An airless slab exchanges no sensible or latent heat with the air, so "
+                "it has no Bowen ratio and no evaporation -- the two process quantities "
+                "that caught this column being right about temperature for the wrong "
+                "reasons."
+            ),
             cost=CostDeclaration(
                 module_id=module_id,
                 time_complexity="O(n_bands)",

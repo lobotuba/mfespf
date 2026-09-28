@@ -52,22 +52,46 @@ relevant number that lives only in a commit message. The machinery exists to sto
 the sixth from doing the same, and using it means a run knowing it was a member
 of something.
 
-### Nine mandatory requirements are still unbound
+### The preflight memory estimate misses the term that dominates
 
-176 of 185 have a bound acceptance test, with 4 architectural carve-outs counted
+CMP-004 requires the estimator to report estimated memory. It does, and the
+number is wrong by two orders of magnitude in the direction that admits a run
+which then exhausts memory -- which has happened here once already, at 4.3 GB on
+a 120000-step sweep that had to be killed.
+
+Every module declares `persistent_output_bytes_per_step = 0` while the driver
+retains every step's outputs for the manifest, so what actually grows is
+invisible. Measured on the moist column: 37.7 kB per retained step, linear to
+four decimal places, against a total estimate of 0.90 MiB. 120000 steps is
+4.5 GB, which is the figure that was hit; the 16 GiB budget would be reached at
+about 455000 steps.
+
+The fix is for each module to declare its retained output per step in the scaled
+form the cost declaration already uses, and for `estimate_cost` to add
+`n_steps * sum(persistent_output_bytes_per_step)` as a named memory term.
+`CostDeclaration.scaled` would have to scale that field too, which it currently
+does not. `test_the_preflight_memory_estimate_omits_the_term_that_dominates`
+asserts the discrepancy rather than a bound, so it fails when this is done --
+it is a marker, not a tolerance.
+
+### Seven mandatory requirements are still unbound
+
+178 of 185 have a bound acceptance test, with 4 architectural carve-outs counted
 separately rather than folded into the denominator. What is left is three kinds
 of thing, and only the first is a backlog:
 
 | | requirements | what it needs |
 |---|---|---|
-| unimplemented | VER-008, CMP-007, ACC-010 | the machinery they describe |
+| unimplemented | VER-008 | a declared migration adapter |
 | a spatial decision | SPA-001, SPA-003, SPA-004, SPA-005, SPA-006 | see below |
 | true only when the rest are | ACC-001 | everything above |
 
-Of the three unimplemented, ACC-010 is the odd one: the reference kernel shall
-complete its baseline suite within the configured ENGINEERING_WORKSTATION budget.
-The preflight estimator and the budget both exist, so this is a matter of
-measuring the suite against them rather than building anything.
+VER-008 asks that migration adapters declare any approximation, information loss
+or conservation residual they introduce. There are none: `negotiate` either
+matches the versions and semantics or refuses the run, so there is no bridge and
+nothing to declare. The requirement binds the moment someone writes one, and the
+right implementation is to make the only path across a version gap a declared
+adapter -- so that loosening `negotiate` is never the way through.
 
 **The spatial five need a decision before they need code.** The kernel has two
 spatial representations, global scalar and vertical column, and it changes the

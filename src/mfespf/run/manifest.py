@@ -121,6 +121,15 @@ class RunManifest:
     module_implementations: dict[str, str] = dc_field(default_factory=dict)
     module_versions: dict[str, str] = dc_field(default_factory=dict)
     interface_versions: dict[str, str] = dc_field(default_factory=dict)
+    fidelity_levels: dict[str, str] = dc_field(default_factory=dict)
+    fidelity_justifications: dict[str, str] = dc_field(default_factory=dict)
+    """Why each module ran above the cheaper form it declares (CMP-007).
+
+    Only the modules that name a ``lower_fidelity_alternative`` appear: a module
+    with no cheaper form made no choice to justify. The contract validator
+    refuses the other case, so an entry missing here means the module offered no
+    alternative, never that the reason was omitted.
+    """
     equation_bindings: dict[str, str] = dc_field(default_factory=dict)
     state_ownership: dict[str, str] = dc_field(default_factory=dict)
 
@@ -264,6 +273,8 @@ class RunManifest:
             "failure_criterion": self.failure_criterion,
             "dataset_roles": self.dataset_roles,
             "gate_results": self.gate_results,
+            "fidelity_levels": self.fidelity_levels,
+            "fidelity_justifications": self.fidelity_justifications,
             "output_checksums": self.output_checksums,
             "warnings": self.warnings,
         }

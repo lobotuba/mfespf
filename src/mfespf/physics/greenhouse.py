@@ -506,6 +506,11 @@ class PrescribedGreenhouseModule(Module):
                 "dependence are all inside a fixed background coefficient, so this "
                 "configuration has no water-vapour feedback either.",
             ),
+            fidelity_justification=(
+                "A fixed coefficient cannot produce a forcing per doubling at all, "
+                "which is the only quantity this module exists to predict and the one "
+                "thing about it that is calibrated against a published value (INF-003)."
+            ),
             cost=CostDeclaration(
                 module_id=module_id,
                 time_complexity="O(1)",

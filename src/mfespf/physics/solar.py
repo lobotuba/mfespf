@@ -169,6 +169,11 @@ class SolarSource(Module):
             known_limitations=(
                 "No solar-cycle, flare, particle or magnetic output at this fidelity.",
             ),
+            fidelity_justification=(
+                "A broadband constant carries no spectral shape, so the surface's "
+                "wavelength-dependent albedo has nothing to act on and shortwave "
+                "absorption cannot be separated from thermal emission band by band."
+            ),
             cost=CostDeclaration(
                 module_id=module_id,
                 time_complexity="O(n_bands)",

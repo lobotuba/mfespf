@@ -124,6 +124,18 @@ class ModuleContract:
     manifest, and two runs that bind differently must not hash alike.
     """
     cost: CostDeclaration | None = None
+    fidelity_justification: str = ""
+    """Why this fidelity rather than the cheaper one this module offers (CMP-007).
+
+    Required exactly when ``cost.lower_fidelity_alternatives`` is non-empty: a
+    module that names a cheaper implementation and then does not use it has made
+    a scientific choice, and CMP-007 asks that the reason travel in the manifest
+    rather than in whoever configured the run.
+
+    It must say what the cheaper form would *fail to produce*, because that is
+    the falsifiable half. "More accurate" is not a justification; "a single layer
+    cannot have a lapse rate, and the lapse rate is what convection acts on" is.
+    """
     supports_checkpoint: bool = True
 
     def validate(self) -> None:
@@ -144,6 +156,16 @@ class ModuleContract:
         elif self.cost.module_id != self.module_id:
             problems.append(
                 f"cost declaration names module {self.cost.module_id!r}, not {self.module_id!r}"
+            )
+        if (
+            self.cost is not None
+            and self.cost.lower_fidelity_alternatives
+            and not self.fidelity_justification.strip()
+        ):
+            problems.append(
+                f"names the cheaper alternatives "
+                f"{list(self.cost.lower_fidelity_alternatives)} and gives no reason for "
+                f"running at {self.fidelity_level.value} instead (CMP-007)"
             )
         if self.owned_state_ids and not self.conserved_quantities:
             problems.append(

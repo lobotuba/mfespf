@@ -206,6 +206,13 @@ class PrescribedVolcanicModule(Module):
                 "Globally uniform, so the hemispheric asymmetry of a one-sided eruption "
                 "cannot be represented even though the record carries it.",
             ),
+            fidelity_justification=(
+                "Without the aerosol there is no short pulse of known amplitude, and a "
+                "pulse is what measures a feedback parameter where a slow ramp cannot "
+                "-- a ramp lets a forcing error and a sensitivity error cancel. That "
+                "measurement found a calibration defect four claims had been reported "
+                "against."
+            ),
             cost=CostDeclaration(
                 module_id=module_id,
                 time_complexity="O(1)",

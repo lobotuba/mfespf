@@ -350,6 +350,13 @@ class DeepOceanModule(Module):
                 "Heat uptake is proportional to the temperature difference at all times, "
                 "so the efficiency cannot change as a real ocean's does under warming.",
             ),
+            fidelity_justification=(
+                "A fixed deep temperature has no second timescale, so the column has "
+                "one exponential response and TIM-008's separated-mode test has nothing "
+                "to separate. The deep reservoir changes the path and not the "
+                "equilibrium, which is precisely what a transient-response claim rests "
+                "on."
+            ),
             cost=CostDeclaration(
                 module_id=module_id,
                 time_complexity="O(1)",

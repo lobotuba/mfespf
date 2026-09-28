@@ -30,7 +30,7 @@ SMALL_HEAT_CAPACITY = 1.0e6  # a thin slab, so equilibrium is reached quickly
 
 
 @pytest.mark.req("KER-012", "KER-013", "VAL-001")
-def test_slab_reaches_analytic_equilibrium():
+def test_slab_reaches_analytic_equilibrium(report_bias):
     """The coupled run must land on the closed-form temperature, not near it.
 
     Run for roughly 27 e-folding times from well below equilibrium, so what is
@@ -55,6 +55,13 @@ def test_slab_reaches_analytic_equilibrium():
 
     assert result.may_support_a_claim
     assert final == pytest.approx(expected, rel=1e-9)
+
+    # Reported for the same reason as everywhere else, and it is the useful end
+    # of the scale: this column has no atmosphere, so its 33 K deficit against
+    # the observed surface temperature is the greenhouse effect, measured.
+    bias = report_bias(result, label="Stage 1 airless body (no atmosphere)")
+    assert bias.equilibrated
+    assert bias.error_k == pytest.approx(expected - 288.0, abs=1e-6)
 
 
 @pytest.mark.req("KER-012", "TIM-007", "TIM-008")

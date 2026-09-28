@@ -247,6 +247,27 @@ saying out loud.
   rather than widening a tolerance; here it moved the vapour wing decay by ten
   percent and left the CO2 one where it was, which is itself the evidence that
   only one of them was wrong.
+- **Report the error in kelvin from every test that equilibrates a column.**
+  `report_bias` collects it and the suite prints them together at the end. The
+  number the project is judged on used to be recomputed by hand in a scratch
+  script, so it moved between commits without anyone noticing. Currently: -33.42 K
+  airless, -4.49 K dry, **+6.73 K** with the full water cycle, against 288.0 K.
+- **A bias from a run that has not equilibrated is a different quantity, not an
+  uncertain one.** `BiasReport.error_k` returns `None` above 0.1 W m^-2 of
+  imbalance and reports the imbalance instead. The dry column reads -16.3 K at
+  20000 steps while carrying +43.8 W m^-2, and it is unfinished rather than cold.
+  Returning a number with a wide error bar would let it be compared against a
+  real one.
+- **A cheaper form declared and not used is a choice, so say what it would fail
+  to produce.** Nine module contracts name a lower-fidelity alternative;
+  `ModuleContract.validate` now refuses one that gives no reason (CMP-007). "More
+  accurate" is unfalsifiable -- "a single layer has no lapse rate, and the lapse
+  rate is what convection acts on" can be checked by running it.
+- **The preflight memory estimate does not include the retained trajectory, and
+  it is the whole of the memory.** 37.7 kB per step on the moist column against a
+  0.90 MiB total estimate; 120000 steps is 4.5 GB, which is what was hit and
+  killed once. Do not trust `CostEstimate.peak_memory_bytes` for a long run until
+  the todo item is closed.
 - **A spread means nothing until you say how its members were chosen.** The six
   UNC-005 methods are one mechanism and differ only in that, so a sweep across an
   asserted range gets a `FULL_RANGE` with **no** nominal coverage and a note

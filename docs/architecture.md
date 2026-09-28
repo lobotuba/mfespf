@@ -1685,6 +1685,103 @@ The general point: a diagnostic added to make something checkable is still a
 diagnostic that runs every step of every configuration, and publishing at a
 resolution nothing consumes is a cost with no claim attached to it.
 
+## The error in kelvin, reported by the suite instead of by hand
+
+The number the project is judged on had no test. It was recomputed in a scratch
+script whenever anyone wanted it, so it moved between commits without anyone
+noticing and whatever figure appeared in this file was whatever the last person
+to run a script had seen. It is now measured by
+`tests/acceptance/test_surface_temperature_error.py`, and every test that
+equilibrates a column reports its own through the `report_bias` fixture, with
+the whole set printed together at the end of the run.
+
+**Where the column stands**, against an observed global-mean surface temperature
+of 288.0 K, each as a time-mean over the last fifth of a 16000-step run:
+
+| configuration | error | evaporation | PW | Bowen |
+|---|---|---|---|---|
+| airless body, no atmosphere | **-33.42 K** | — | — | — |
+| dry radiative-convective | **-4.49 K** | — | — | — |
+| vapour present, radiatively inert | **-5.22 K** | 0.99 | 8.6 | 0.810 |
+| vapour radiatively active | **-2.55 K** | 2.46 | 8.4 | 0.754 |
+| vapour active and transported | **+6.73 K** | 4.05 | 28.3 | 0.339 |
+| observed | 0 | 2.7 | 25 | 0.26 |
+
+The last row of the model is the answer: **+6.7 K**. The sequence above it is
+what the answer is made of, and the shape matters more than any single entry.
+The dry column is *cold*; every step toward a complete water cycle warms it,
+because the vapour is a greenhouse gas and its absorption beats its own
+evaporative cooling. So the bias changes sign along the sequence, and a
+configuration that happens to land near zero in the middle of that is passing
+through rather than right -- which is exactly what "vapour radiatively active"
+at -2.55 K is doing while carrying a third of the observed water.
+
+The -33.42 K of the airless body is the useful end of the scale: it is the
+greenhouse effect, measured, and it is the quantity the other rows are eating
+into.
+
+### Three ways this number has been quoted wrongly, and what stops each
+
+**From a run that had not equilibrated.** The dry radiative-convective column at
+a large heat capacity reads -16.3 K at 20000 steps. It is not 16 K too cold; it
+is unfinished, carrying +43.8 W m^-2 and still warming. A deep ocean under the
+same column looked 3 K cooler at eleven years for the same reason. So
+`BiasReport.error_k` is **`None`** unless the mean top-of-atmosphere imbalance is
+below 0.1 W m^-2, and the report says what the imbalance was instead. `None`
+rather than a wide error bar, because a bias from an unfinished run is not an
+uncertain result -- it is a different quantity, and returning a number would let
+it be compared against a real one.
+
+The threshold was set against what the imbalance *is* rather than what would be
+convenient: an equilibrated column here sits at 0.001 W m^-2 and an unfinished
+one at 43.8, so anything between the two separates them and 0.1 leaves three
+orders of magnitude of margin on the side that matters.
+
+**From an endpoint rather than a mean.** The column limit-cycles with a surface
+span of 2.08 K that does not shrink with the timestep, so a single step is a
+point on a cycle. Every figure here is a tail mean.
+
+**Without its process quantities.** This column has sat 3 K from the observed
+temperature while its evaporation was twelve times too small and its Bowen ratio
+thirty-seven times too large -- two large errors of opposite sign cancelling at
+the one number anyone looks at. So the report carries the water cycle beside the
+temperature and the table above has four columns rather than one.
+
+One more guard, in the other direction: the observational records disagree among
+themselves by about 0.5 K, so a modelled bias smaller than that is not a
+distinguishable result and `BiasReport` marks it as inside the spread rather
+than quoting three decimals of it.
+
+## Two requirements that were about declaring rather than computing
+
+**CMP-007**: higher fidelity shall record its scientific justification in the
+experiment manifest. Nine of the eleven module implementations name a
+lower-fidelity alternative -- a single-layer column, a grey atmosphere, a dry
+column, an airless slab -- and then do not use it, which is a scientific choice
+that was living in whoever configured the run. Each now states what the cheaper
+form would *fail to produce*, because that is the falsifiable half: "a single
+layer has no lapse rate, and the lapse rate is what convection acts on" can be
+checked by running the cheaper form and looking, where "more accurate" cannot.
+`ModuleContract.validate` refuses a contract that names an alternative and gives
+no reason, so the requirement is structural rather than a habit.
+
+**ACC-010**: the reference kernel shall complete its baseline suite within the
+ENGINEERING_WORKSTATION budget. Bound to *measured* resources rather than to the
+estimate, since the estimator already gates every run and binding the requirement
+to it would bind it to the thing already enforced. Measured: the suite uses 0.42
+percent of the work-unit budget and its worst member holds 80 MiB against 16 GiB.
+
+Writing it found something. **The preflight memory estimate is wrong by two
+orders of magnitude**, in the direction that admits a run which then exhausts
+memory -- which has already happened here once, at 4.3 GB on a 120000-step sweep
+that had to be killed. Every module declares
+`persistent_output_bytes_per_step = 0` while the driver retains every step's
+outputs for the manifest, so the term that actually grows is invisible to the
+estimate. Measured on the moist column the retained trajectory costs 37.7 kB per
+step and scales linearly to four decimal places; 120000 steps is 4.5 GB, which is
+the figure that was hit. Recorded as open work, with a test that asserts the
+discrepancy so it fails when the estimator is fixed.
+
 ## The six uncertainty methods are one mechanism, and the refusal is the point
 
 UNC-005 asks for bounds, sensitivity derivatives, parameter sweeps, ensembles,

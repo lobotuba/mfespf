@@ -275,6 +275,12 @@ class WaterModule(Module):
                 "through the troposphere, and an amplification of exactly 1.00 against "
                 "2.23. The feedback is not weakened here; it is absent.",
             ),
+            fidelity_justification=(
+                "A dry column has no latent heat transport, no condensation and no "
+                "water-vapour greenhouse effect, so CON-007's simultaneous closure of "
+                "the water and energy budgets across a phase change has nothing to "
+                "close."
+            ),
             cost=CostDeclaration(
                 module_id=module_id,
                 time_complexity="O(n_layers)",
@@ -1005,6 +1011,11 @@ class PrescribedHumidityModule(Module):
                 "the mid-troposphere, so this overstates the vapour aloft, which is "
                 "where the feedback is most sensitive.",
             ),
+            fidelity_justification=(
+                "A dry column has no vapour for the radiation module to absorb in, so "
+                "there is no water-vapour feedback to measure and the amplification "
+                "factor this configuration exists to report is identically one."
+            ),
             cost=CostDeclaration(
                 module_id=module_id,
                 time_complexity="O(n_layers)",
@@ -1387,6 +1398,12 @@ class EntrainingPlumeHumidityModule(PrescribedHumidityModule):
                 "No water or latent-energy budget. The distribution is predicted; the "
                 "cycle that would sustain it is not, which is why this module still "
                 "conserves nothing and says so.",
+            ),
+            fidelity_justification=(
+                "A prescribed humidity cannot be wrong: it fixes the answer it is "
+                "meant to predict. The entraining plume sets the humidity and the "
+                "lapse rate from one parameter, so both can be checked, and one of "
+                "them caught the convective adjustment still targeting a dry adiabat."
             ),
             cost=CostDeclaration(
                 module_id=module_id,

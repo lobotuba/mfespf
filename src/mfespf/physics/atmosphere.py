@@ -252,6 +252,12 @@ class AtmosphericColumnModule(Module):
                 "No dynamics, convection or water. Pure radiative equilibrium only.",
                 "Layer temperatures may become convectively unstable; nothing corrects it.",
             ),
+            fidelity_justification=(
+                "A single layer has no lapse rate, and the lapse rate is the quantity "
+                "convection acts on and the one the entraining-plume closure predicts. "
+                "It would also put the whole column's emission at one temperature, "
+                "which removes the height dependence the greenhouse effect is made of."
+            ),
             cost=CostDeclaration(
                 module_id=module_id,
                 time_complexity="O(n_layers)",

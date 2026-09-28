@@ -27,6 +27,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import pkgutil
+import tracemalloc
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,7 @@ import pytest
 import yaml
 
 import mfespf.physics
+from mfespf.contracts.cost import ParallelismModel, ResourceBudget, ResourceClass
 from mfespf.contracts.module import Module, ModuleStatus
 from mfespf.core.errors import ConfigurationError, OwnershipError, RegistryError
 from mfespf.core.versioning import Version
@@ -779,3 +781,174 @@ def _traceability_problems(traceability: Any, requirements: dict[str, dict]) -> 
             if bindings.get(row["id"]):
                 problems.append(f"{row['id']}: carved out and has a bound test")
     return problems
+
+
+# --- CMP-007: a cheaper form declared and not taken is a choice -------------
+
+
+@pytest.mark.req("CMP-007", "CMP-006")
+def test_a_module_that_declines_its_cheaper_form_says_what_it_would_lose(kernels, stepped):
+    """CMP-007, swept over every module of every configuration.
+
+    Nine of the eleven module implementations name a lower-fidelity alternative
+    -- a single-layer column, a grey atmosphere, a dry column, an airless slab --
+    and then do not use it. That is a scientific choice, and CMP-007 asks that the
+    reason reach the manifest rather than living in whoever configured the run.
+
+    The justification has to name what the cheaper form would *fail to produce*,
+    because that is the falsifiable half. "More accurate" is unfalsifiable; "a
+    single layer has no lapse rate, and the lapse rate is what convection acts
+    on" can be checked by running the cheaper form and looking.
+    """
+    for name, kernel in kernels.items():
+        for module in _modules(kernel):
+            cost = module.contract.cost
+            assert cost is not None
+            if not cost.lower_fidelity_alternatives:
+                continue
+            reason = module.contract.fidelity_justification
+            assert reason.strip(), (
+                f"{name}: {module.module_id} declines "
+                f"{list(cost.lower_fidelity_alternatives)} without saying why"
+            )
+            # Long enough to be a reason rather than a label. The shortest of the
+            # real ones is 180 characters; a bare adjective would not reach it.
+            assert len(reason) > 80, f"{name}: {module.module_id} gives a label, not a reason"
+
+    # And it reaches the manifest, for exactly the modules that made a choice.
+    for name, result in stepped.items():
+        declared = result.manifest.fidelity_justifications
+        expected = {
+            m.module_id
+            for m in _modules(kernels[name])
+            if m.contract.cost is not None and m.contract.cost.lower_fidelity_alternatives
+        }
+        assert set(declared) == expected, f"{name}: the manifest records the wrong modules"
+        assert all(declared.values()), f"{name}: an empty justification reached the manifest"
+        assert set(result.manifest.fidelity_levels) == {
+            m.module_id for m in _modules(kernels[name])
+        }
+
+
+@pytest.mark.req("CMP-007")
+def test_a_contract_that_names_a_cheaper_form_and_no_reason_is_refused(kernels):
+    """The counterfactual, without which the sweep proves only good habits."""
+    contract = next(m.contract for m in _modules(kernels["radiative_convective"]))
+    assert contract.cost is not None and contract.cost.lower_fidelity_alternatives
+    with pytest.raises(ConfigurationError, match="gives no reason for running at"):
+        dataclass_replace(contract, fidelity_justification="   ").validate()
+
+    # A module with no cheaper form made no choice, so it is not asked for one.
+    no_alternative = dataclass_replace(
+        contract,
+        fidelity_justification="",
+        cost=dataclass_replace(contract.cost, lower_fidelity_alternatives=()),
+    )
+    no_alternative.validate()
+
+
+# --- ACC-010: the baseline suite against the workstation budget ------------
+
+
+#: The baseline suite, and the step count each member runs at here. Short enough
+#: that this test is not itself the expensive thing in the suite, and the memory
+#: term is linear in the step count (measured below), so the figure extrapolates.
+BASELINE_SUITE = {
+    "airless_radiating_body": rc.airless_radiating_body,
+    "surface_thermal_storage": rc.surface_thermal_storage,
+    "reduced_ocean_heat_storage": rc.reduced_ocean_heat_storage,
+    "window_atmosphere": cc.window_atmosphere,
+    "radiative_convective": cc.radiative_convective,
+    "moist_radiative_convective": cc.moist_radiative_convective,
+    "prescribed_cloud": cc.prescribed_cloud,
+    "column_over_reduced_ocean": cc.column_over_reduced_ocean,
+}
+BASELINE_STEPS = 500
+
+
+@pytest.mark.req("ACC-010", "CMP-004", "CMP-008")
+def test_the_baseline_suite_runs_inside_the_workstation_budget():
+    """ACC-010, measured rather than estimated.
+
+    The estimator already checks every run against the budget before it starts,
+    so binding this requirement to the estimate would be binding it to the thing
+    that is already enforced. What ACC-010 asks is whether the suite *completes*
+    within the budget, and that is answered by watching it.
+
+    Measured at 500 steps a member: the suite uses 0.4 percent of the declared
+    work-unit budget and its worst member holds about 20 MiB, against 16 GiB. The
+    baseline acceptance configuration also needs no distributed resource (CMP-008),
+    which holds trivially here -- every module declares serial parallelism.
+    """
+    budget = ResourceBudget(resource_class=ResourceClass.ENGINEERING_WORKSTATION)
+    total_work = 0.0
+    worst_memory = 0
+
+    for name, build in BASELINE_SUITE.items():
+        kernel = build()
+        tracemalloc.start()
+        try:
+            result = kernel.run(BASELINE_STEPS)
+            _current, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+
+        estimate = result.cost_estimate
+        assert estimate.within_budget, f"{name}: {estimate.violations}"
+        assert result.manifest.status != "failed", f"{name}: did not complete"
+        total_work += estimate.total_work_units
+        worst_memory = max(worst_memory, peak)
+
+        for module in _modules(kernel):
+            assert module.contract.cost is not None
+            assert module.contract.cost.parallelism is ParallelismModel.SERIAL, (
+                f"{name}: {module.module_id} needs {module.contract.cost.parallelism} (CMP-008)"
+            )
+
+    assert total_work < budget.max_work_units, (
+        f"the suite needs {total_work:g} work units against a budget of {budget.max_work_units:g}"
+    )
+    assert worst_memory < budget.max_memory_bytes
+    # Not merely inside: inside with room, which is what makes the requirement a
+    # statement about the kernel rather than about the budget being generous.
+    assert total_work < 0.05 * budget.max_work_units
+    assert worst_memory < 0.05 * budget.max_memory_bytes
+
+
+@pytest.mark.req("CMP-004", "ACC-010")
+def test_the_preflight_memory_estimate_omits_the_term_that_dominates():
+    """A negative result, pinned so it cannot be lost (charter 3.5).
+
+    CMP-004 requires the preflight estimator to report estimated memory. It does,
+    and the number is wrong by two orders of magnitude in the direction that
+    admits a run which then exhausts memory -- which has already happened in this
+    project once, at 4.3 GB on a 120000-step sweep that had to be killed.
+
+    The cause is that every module declares ``persistent_output_bytes_per_step =
+    0`` while the driver retains every step's outputs for the manifest, so what
+    actually grows is invisible to the estimate. Measured on the moist column,
+    the retained trajectory costs about 37.7 kB per step and scales linearly;
+    120000 steps is 4.5 GB, which is the figure that was hit.
+
+    This test asserts the discrepancy rather than a bound, so it fails when the
+    estimator is fixed -- which is the point. It is a marker, not a tolerance.
+    """
+    kernel = cc.moist_radiative_convective()
+    tracemalloc.start()
+    try:
+        result = kernel.run(BASELINE_STEPS)
+        _current, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    estimated = result.cost_estimate.peak_memory_bytes
+    assert estimated > 0
+    assert peak > 20 * estimated, (
+        "the preflight memory estimate is no longer wildly low -- if the estimator "
+        "now accounts for the retained trajectory, delete this test and the todo "
+        f"item it belongs to (estimated {estimated}, actual {peak})"
+    )
+    assert all(
+        m.contract.cost is not None and m.contract.cost.persistent_output_bytes_per_step == 0
+        for m in _modules(kernel)
+    ), "a module now declares its retained output; the estimate can account for it"

@@ -147,6 +147,14 @@ class Kernel:
             for m in modules
             for iface in m.contract.provided_interfaces
         }
+        manifest.fidelity_levels = {m.module_id: m.contract.fidelity_level.value for m in modules}
+        # CMP-007: only where a cheaper form was declared and not taken, because
+        # that is where a choice was made.
+        manifest.fidelity_justifications = {
+            m.module_id: m.contract.fidelity_justification
+            for m in modules
+            if m.contract.cost is not None and m.contract.cost.lower_fidelity_alternatives
+        }
         manifest.equation_bindings = self.equations.bindings()
         manifest.parameters = {m.module_id: m.parameters() for m in modules}
         manifest.state_ownership = {

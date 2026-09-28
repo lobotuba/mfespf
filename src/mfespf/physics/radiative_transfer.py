@@ -724,6 +724,13 @@ class SpectralRadiationModule(Module):
                     else ()
                 ),
             ),
+            fidelity_justification=(
+                "A grey atmosphere has no window and no band wings, so it cannot "
+                "produce a logarithmic forcing in carbon dioxide or a water-vapour "
+                "continuum. Measured: a grid too coarse to resolve the wings gives "
+                "linear growth or complete saturation instead, which is why "
+                "greenhouse_grid refuses one."
+            ),
             cost=CostDeclaration(
                 module_id=module_id,
                 time_complexity="O(n_layers * n_bands)",

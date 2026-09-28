@@ -43,7 +43,7 @@ def _layer_pressure(kernel) -> np.ndarray:
 
 
 @pytest.mark.req("ATM-002", "CON-009", "KER-012")
-def test_radiative_convective_equilibrium_is_stable_and_closes():
+def test_radiative_convective_equilibrium_is_stable_and_closes(report_bias):
     """The Stage 3 configuration must reach a dry-stable profile with a closed budget."""
     kernel = radiative_convective(
         1.0e-4, initial_surface_temperature=270.0, initial_air_temperature=250.0, **BASE
@@ -55,6 +55,11 @@ def test_radiative_convective_equilibrium_is_stable_and_closes():
     theta = potential_temperature(temperatures, _layer_pressure(kernel))
     assert np.all(np.diff(theta) >= -1e-6)
     assert result.worst_relative_residual() < 1e-11
+
+    # The dry column's error, if it has settled enough to have one. At this heat
+    # capacity and step count it usually has not, and the report says so rather
+    # than offering the number -- which is the case that motivated the refusal.
+    report_bias(result, label="Stage 3 dry radiative-convective")
 
 
 @pytest.mark.req("ATM-002", "CON-009")
