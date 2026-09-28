@@ -119,6 +119,15 @@ class CostEstimate:
 
     total_work_units: float = 0.0
     peak_memory_bytes: int = 0
+    retained_trajectory_bytes: int = 0
+    """The part of ``peak_memory_bytes`` that grows with the step count.
+
+    Reported separately because it behaves differently from the rest: the
+    modules' working set is fixed and this is linear in ``n_steps``, so a
+    configuration that fits at 2000 steps and not at 200000 differs only here.
+    Kept out of the budget checks as a separate line -- it is already inside
+    ``peak_memory_bytes`` -- and printed on its own by ``describe``.
+    """
     output_bytes: int = 0
     spectral_bins: int = 0
     spatial_cells: int = 0
@@ -135,6 +144,7 @@ class CostEstimate:
         lines = [
             f"work units:    {self.total_work_units:.4g}",
             f"peak memory:   {self.peak_memory_bytes / 1024**3:.3f} GiB",
+            f"  of which retained trajectory: {self.retained_trajectory_bytes / 1024**3:.3f} GiB",
             f"output:        {self.output_bytes / 1024**2:.1f} MiB",
             f"spectral bins: {self.spectral_bins}",
             f"spatial cells: {self.spatial_cells}",

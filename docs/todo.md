@@ -52,28 +52,6 @@ relevant number that lives only in a commit message. The machinery exists to sto
 the sixth from doing the same, and using it means a run knowing it was a member
 of something.
 
-### The preflight memory estimate misses the term that dominates
-
-CMP-004 requires the estimator to report estimated memory. It does, and the
-number is wrong by two orders of magnitude in the direction that admits a run
-which then exhausts memory -- which has happened here once already, at 4.3 GB on
-a 120000-step sweep that had to be killed.
-
-Every module declares `persistent_output_bytes_per_step = 0` while the driver
-retains every step's outputs for the manifest, so what actually grows is
-invisible. Measured on the moist column: 37.7 kB per retained step, linear to
-four decimal places, against a total estimate of 0.90 MiB. 120000 steps is
-4.5 GB, which is the figure that was hit; the 16 GiB budget would be reached at
-about 455000 steps.
-
-The fix is for each module to declare its retained output per step in the scaled
-form the cost declaration already uses, and for `estimate_cost` to add
-`n_steps * sum(persistent_output_bytes_per_step)` as a named memory term.
-`CostDeclaration.scaled` would have to scale that field too, which it currently
-does not. `test_the_preflight_memory_estimate_omits_the_term_that_dominates`
-asserts the discrepancy rather than a bound, so it fails when this is done --
-it is a marker, not a tolerance.
-
 ### Seven mandatory requirements are still unbound
 
 178 of 185 have a bound acceptance test, with 4 architectural carve-outs counted

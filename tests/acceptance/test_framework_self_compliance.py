@@ -48,6 +48,7 @@ from mfespf.run import column_configurations as cc
 from mfespf.run import configurations as rc
 from mfespf.run.driver import Kernel
 from mfespf.run.greenhouse import greenhouse_grid
+from mfespf.run.preflight import estimate_cost
 
 pytestmark = pytest.mark.stage(0)
 
@@ -916,39 +917,86 @@ def test_the_baseline_suite_runs_inside_the_workstation_budget():
 
 
 @pytest.mark.req("CMP-004", "ACC-010")
-def test_the_preflight_memory_estimate_omits_the_term_that_dominates():
-    """A negative result, pinned so it cannot be lost (charter 3.5).
+def test_the_memory_estimate_accounts_for_the_trajectory_it_retains():
+    """CMP-004's memory figure, against what the run actually holds.
 
-    CMP-004 requires the preflight estimator to report estimated memory. It does,
-    and the number is wrong by two orders of magnitude in the direction that
-    admits a run which then exhausts memory -- which has already happened in this
-    project once, at 4.3 GB on a 120000-step sweep that had to be killed.
+    This check replaces one that asserted the estimate was *wrong*, which is
+    what it was for: a marker on a known defect, written to fail when the defect
+    was fixed. The estimate summed the modules' working sets and came out a
+    factor of twenty low, in the direction that admits a run which then exhausts
+    memory -- and that run happened, at 4.3 GB on a 120000-step sweep that had to
+    be killed.
 
-    The cause is that every module declares ``persistent_output_bytes_per_step =
-    0`` while the driver retains every step's outputs for the manifest, so what
-    actually grows is invisible to the estimate. Measured on the moist column,
-    the retained trajectory costs about 37.7 kB per step and scales linearly;
-    120000 steps is 4.5 GB, which is the figure that was hit.
-
-    This test asserts the discrepancy rather than a bound, so it fails when the
-    estimator is fixed -- which is the point. It is a marker, not a tolerance.
+    What grows is the retained trajectory: every step's published fields are kept
+    so the manifest can be audited, which is linear in the step count while the
+    working set is not. Measured, that cost is 714 bytes per field plus 17.6 per
+    value, and the per-field term is forty times the per-value one -- what is
+    stored is each field's units, provenance, uncertainty and semantics, not its
+    numbers.
     """
-    kernel = cc.moist_radiative_convective()
-    tracemalloc.start()
-    try:
-        result = kernel.run(BASELINE_STEPS)
-        _current, peak = tracemalloc.get_traced_memory()
-    finally:
-        tracemalloc.stop()
+    for name, build in (
+        ("dry, 8 layers", lambda: cc.radiative_convective(grid=cc.column_grid(8), n_layers=8)),
+        (
+            "moist, 8 layers",
+            lambda: cc.moist_radiative_convective(grid=cc.column_grid(16), n_layers=8),
+        ),
+        (
+            "moist, 24 layers",
+            lambda: cc.moist_radiative_convective(grid=cc.column_grid(16), n_layers=24),
+        ),
+    ):
+        tracemalloc.start()
+        try:
+            result = build().run(300)
+            _current, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
 
-    estimated = result.cost_estimate.peak_memory_bytes
-    assert estimated > 0
-    assert peak > 20 * estimated, (
-        "the preflight memory estimate is no longer wildly low -- if the estimator "
-        "now accounts for the retained trajectory, delete this test and the todo "
-        f"item it belongs to (estimated {estimated}, actual {peak})"
+        estimate = result.cost_estimate
+        assert estimate.retained_trajectory_bytes > 0, f"{name}: no trajectory term"
+        # Within a quarter either way, where it used to be a factor of twenty.
+        # Not tighter: `tracemalloc` counts allocations the run makes for other
+        # reasons too, and a bound that only holds on one interpreter would be
+        # measuring the interpreter.
+        assert 0.75 < peak / estimate.retained_trajectory_bytes < 1.5, (
+            f"{name}: estimate {estimate.retained_trajectory_bytes}, actual {peak}"
+        )
+        # It dominates, which is the fact that makes it worth estimating at all.
+        assert estimate.retained_trajectory_bytes > 0.9 * estimate.peak_memory_bytes
+
+
+@pytest.mark.req("CMP-004", "CMP-005")
+def test_the_trajectory_term_is_what_makes_a_long_run_different():
+    """A configuration that fits at 2000 steps and not at 200000 differs only here.
+
+    The working set does not depend on the step count and the retained
+    trajectory is linear in it, so this is the whole of what a preflight can say
+    about the difference between a short run and a long one -- and saying nothing
+    about it was the defect.
+    """
+    kernel = cc.moist_radiative_convective(grid=cc.column_grid(16), n_layers=8)
+    estimates = {
+        steps: estimate_cost(
+            schedule=kernel.schedule,
+            n_steps=steps,
+            budget=ResourceBudget(resource_class=ResourceClass.ENGINEERING_WORKSTATION),
+            spectral_bins=16,
+        )
+        for steps in (1_000, 10_000, 100_000)
+    }
+    retained = [estimates[s].retained_trajectory_bytes for s in (1_000, 10_000, 100_000)]
+    assert retained[1] == pytest.approx(10 * retained[0], rel=1e-9)
+    assert retained[2] == pytest.approx(100 * retained[0], rel=1e-9)
+
+    # And the figure that was hit and killed: a 120000-step moist column.
+    at_120k = estimate_cost(
+        schedule=kernel.schedule,
+        n_steps=120_000,
+        budget=ResourceBudget(resource_class=ResourceClass.ENGINEERING_WORKSTATION),
+        spectral_bins=16,
     )
-    assert all(
-        m.contract.cost is not None and m.contract.cost.persistent_output_bytes_per_step == 0
-        for m in _modules(kernel)
-    ), "a module now declares its retained output; the estimate can account for it"
+    gigabytes = at_120k.retained_trajectory_bytes / 1024**3
+    assert 3.0 < gigabytes < 6.0, (
+        f"the 120000-step sweep that had to be killed reached 4.3 GB; the estimate "
+        f"now says {gigabytes:.2f} GB"
+    )

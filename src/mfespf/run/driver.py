@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from dataclasses import field as dc_field
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
+
 from mfespf.contracts.cost import CostEstimate, ResourceBudget
 from mfespf.core.errors import MFESPFError
 from mfespf.coupling.conservation import ConservationReport
@@ -29,7 +31,11 @@ from mfespf.registries.equations import EquationRegistry
 from mfespf.registries.states import StateRegistry
 from mfespf.run.manifest import RunManifest, RunStatus
 from mfespf.run.modes import OperatingMode
-from mfespf.run.preflight import assert_within_budget, estimate_cost
+from mfespf.run.preflight import (
+    assert_within_budget,
+    estimate_cost,
+    retained_trajectory_bytes,
+)
 
 if TYPE_CHECKING:  # pragma: no cover - a type-only import, to keep run free of data
     from mfespf.data.adapter import HistoricalDataAdapter
@@ -267,6 +273,23 @@ class Kernel:
             )
 
         coupler.finalize()
+
+        # The exact retained-trajectory figure, now that the fields exist and
+        # their value count is known. The preflight has to omit the per-value
+        # term -- nothing before initialisation knows how many numbers a field
+        # holds -- so this is where the estimate stops being an estimate.
+        if steps:
+            estimate.retained_trajectory_bytes = retained_trajectory_bytes(
+                n_fields=len(steps[-1].outputs),
+                n_steps=len(steps),
+                n_values=sum(int(np.asarray(f.values).size) for f in steps[-1].outputs.values()),
+            )
+            if estimate.retained_trajectory_bytes > self.budget.max_memory_bytes:
+                manifest.warnings.append(
+                    f"the retained trajectory holds "
+                    f"{estimate.retained_trajectory_bytes / 1024**3:.2f} GiB, above the "
+                    f"declared budget; it grows linearly with the step count"
+                )
 
         # Judged on the extent each relation was actually evaluated over, which
         # is a property of the whole trajectory rather than of its last step: a

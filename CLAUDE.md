@@ -263,11 +263,17 @@ saying out loud.
   `ModuleContract.validate` now refuses one that gives no reason (CMP-007). "More
   accurate" is unfalsifiable -- "a single layer has no lapse rate, and the lapse
   rate is what convection acts on" can be checked by running it.
-- **The preflight memory estimate does not include the retained trajectory, and
-  it is the whole of the memory.** 37.7 kB per step on the moist column against a
-  0.90 MiB total estimate; 120000 steps is 4.5 GB, which is what was hit and
-  killed once. Do not trust `CostEstimate.peak_memory_bytes` for a long run until
-  the todo item is closed.
+- **What a run stores is its metadata, not its physics.** The retained
+  trajectory costs 714 bytes per field per step plus 17.6 per value -- the
+  per-field term is forty times the per-value one, because each `Field` carries
+  its units, provenance, uncertainty and semantics. The moist column holds 1.7 kB
+  of numbers per step out of 37.7 kB. That is the price of being able to say what
+  a number means, and it is the memory profile.
+- **A preflight that only sums working sets says nothing about a long run.** The
+  working set is fixed and the retained trajectory is linear in the step count,
+  so the second is the whole of the difference between 2000 steps and 200000.
+  Leaving it out made the estimate a factor of twenty low, in the direction that
+  admits a run which then exhausts memory -- and that run happened, at 4.3 GB.
 - **A spread means nothing until you say how its members were chosen.** The six
   UNC-005 methods are one mechanism and differ only in that, so a sweep across an
   asserted range gets a `FULL_RANGE` with **no** nominal coverage and a note

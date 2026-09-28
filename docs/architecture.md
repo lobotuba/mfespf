@@ -1685,6 +1685,48 @@ The general point: a diagnostic added to make something checkable is still a
 diagnostic that runs every step of every configuration, and publishing at a
 resolution nothing consumes is a cost with no claim attached to it.
 
+## What the column stores is its metadata, not its physics
+
+The preflight memory estimate was wrong by a factor of twenty, and fixing it
+turned up a better fact than the fix.
+
+The estimate summed the modules' declared working sets, which is a real quantity
+and not the one that matters. What grows is the **retained trajectory**: the
+driver keeps every step's published fields so the manifest can be audited, and
+that is linear in the step count while the working set is not. A configuration
+that fits at 2000 steps and not at 200000 differs only there, and the estimate
+said nothing about it -- which is how a 120000-step sweep reached 4.3 GB and had
+to be killed.
+
+Measured across six configurations from 4 to 24 layers and 8 to 32 bands, the
+retained cost fits
+
+    bytes per step = 714 * n_fields + 17.6 * n_values
+
+to within 8.8 percent. **The per-field term is forty times the per-value term.**
+The moist column's 49 fields carry 1.7 kB of floating-point numbers per step out
+of 37.7 kB retained; the other 36 kB is each field's units, quantity kind, time
+semantics, spatial support, provenance, uncertainty, sign convention and
+missing-value policy.
+
+That is worth stating plainly, because it is a fact about what this framework
+*is*. The metadata is not overhead around the model -- it is most of what the
+model stores, by a factor of twenty, and it is the part that makes a run
+auditable. The cost of being able to say what a number means is about 700 bytes
+per field per step.
+
+**The field count needs no declaration.** It is ``len(produced_outputs)`` summed
+over the participating modules, and it matches the retained count exactly on
+every configuration tested -- 35 for the dry column, 49 for the moist one. The
+value count does not follow from the contracts, so the preflight omits that term
+and says so in a warning; the estimate then comes out 9 to 19 percent low instead
+of a factor of twenty low, and the driver records the exact figure once the
+fields exist. Measured after the fix, estimate against actual: 1.08 at 8 layers
+and 1.003 at 24.
+
+The 120000-step sweep now estimates 4.2 GB before it starts, against the 4.3 GB
+it reached.
+
 ## The error in kelvin, reported by the suite instead of by hand
 
 The number the project is judged on had no test. It was recomputed in a scratch
