@@ -14,6 +14,7 @@ on a cycle.
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from mfespf.evaluation.bias import OBSERVED_TEMPERATURE_SPREAD_K
@@ -130,64 +131,82 @@ def test_an_unfinished_run_reports_no_error_rather_than_a_small_one(equilibrate)
     assert abs(early.imbalance_w_m2) > OBSERVED_TEMPERATURE_SPREAD_K
 
 
-#: Enough for 40 layers to settle with margin: at 36000 steps the imbalance is
-#: 0.013 W m^-2 and the time-mean moves 0.01 K between a tail of a fifth and of
-#: two fifths. At 24000 it carries 0.086, too close to the threshold to rely on.
-RESOLVED_STEPS = 36_000
+#: Enough for 30 and 40 layers to settle with margin: at 28000 steps both carry
+#: under 0.02 W m^-2 and the time-means move under 0.03 K with the tail length.
+RESOLVED_STEPS = 28_000
+
+
+def _mean_convective_top_hpa(result, tail_fraction: float = 0.2) -> float:
+    """Time-mean pressure of the highest layer the adjustment mixed, in hPa."""
+    tops = []
+    for step in result.steps[-int(len(result.steps) * tail_fraction) :]:
+        mixed = np.asarray(step.outputs["convectively_mixed_layer_temperature"].values)
+        pressure = np.asarray(step.outputs["atmosphere_layer_pressure"].values)
+        levels = np.flatnonzero(~np.isnan(mixed))
+        if levels.size:
+            tops.append(pressure[levels.max()])
+    return float(np.mean(tops)) / 100.0
 
 
 @pytest.mark.req("VAL-002", "KER-012", "VAL-005")
-def test_the_headline_error_is_quoted_against_its_resolution_limit(equilibrate):
-    """What the default resolution reports, and how far it is from the limit.
+def test_the_headline_error_is_quoted_with_its_resolution_scatter(report_bias):
+    """The error does not converge with layer count; it scatters, and why.
 
-    The headline was once quoted at 8 layers with no layer study behind it. With
-    the vapour band calibrated at the default 30 layers
+    With the vapour band calibrated at the default 30 layers
     (``CALIBRATION_N_LAYERS``), the full column reads:
 
-    ======  =========  =====
-    layers  error (K)  Bowen
-    ======  =========  =====
-    8       +5.58      0.363
-    20      +9.70      0.211
-    30      +9.81      0.177
-    40      +10.62     0.158
-    60      +10.63     0.142
-    ======  =========  =====
+    ======  =========  =====================
+    layers  error (K)  top of mixing (hPa)
+    ======  =========  =====================
+    8       +5.58
+    20      +9.70
+    25      +9.89      462
+    30      +9.81      446
+    32      +10.53     400
+    36      +10.23     413
+    40      +10.64     391
+    45      +10.16     415
+    60      +10.63
+    ======  =========  =====================
 
-    Converged at +10.6 K: 40 and 60 layers agree to 0.02 K. The default reads
-    0.8 K low, and not because it is creeping toward the limit -- 20 and 30
-    agree, 40 and 60 agree, and there is a step between them nobody has
-    explained yet. This test holds both facts: the limit, and the size of the
-    step, so that it cannot grow or vanish without the test noticing.
+    From 25 layers up there is no trend -- the error scatters from +9.8 to
+    +10.6 K around +10.3 -- and it follows the convective top almost exactly:
+    the deeper the mixing reaches, the warmer the surface, about 0.015 K per hPa,
+    at an outgoing longwave of 240.0 W m^-2 in every case. The adjustment mixes
+    whole layers or none, so its top snaps to a layer edge, and the edges fall
+    somewhere different at each resolution. The scatter is the all-or-nothing
+    closure, seen through the grid.
+
+    It was first read, from 30, 40 and 60 layers alone, as a step between two
+    plateaus. More points showed a scatter, and the diagnostic showed its cause.
     """
-    coarse = equilibrate(
-        "full water cycle, 8 layers (NOT resolution-converged)",
-        radiative_vapour=True,
-        vapour_transport=True,
-        **{**BASE, "n_layers": 8},
+    base = dict(radiative_vapour=True, vapour_transport=True, **BASE)
+    coarse = report_bias(
+        moist_radiative_convective(**{**base, "n_layers": 8}).run(STEPS),
+        label="full water cycle, 8 layers (NOT resolution-converged)",
     )
-    default = equilibrate(
-        "full water cycle, 30 layers (the default)",
-        radiative_vapour=True,
-        vapour_transport=True,
-        **BASE,
-    )
-    limit = equilibrate(
-        "full water cycle, 40 layers (resolution limit)",
-        radiative_vapour=True,
-        vapour_transport=True,
-        steps=RESOLVED_STEPS,
-        **{**BASE, "n_layers": 40},
-    )
-    for report in (coarse, default, limit):
-        assert report.error_k is not None, report.describe()
-    assert coarse.error_k is not None and default.error_k is not None
-    assert limit.error_k is not None
+    runs = {
+        n: moist_radiative_convective(**{**base, "n_layers": n}).run(RESOLVED_STEPS)
+        for n in (30, 40)
+    }
+    reports = {
+        n: report_bias(result, label=f"full water cycle, {n} layers") for n, result in runs.items()
+    }
+    errors = {n: r.error_k for n, r in reports.items()}
+    assert coarse.error_k is not None
+    assert all(e is not None for e in errors.values()), [r.describe() for r in reports.values()]
+    e30, e40 = errors[30], errors[40]
+    assert e30 is not None and e40 is not None
 
-    # The number to quote.
-    assert limit.error_k == pytest.approx(10.6, abs=0.5)
-    # The default is below it by the unexplained step, and by no more than a
-    # kelvin: enough to state, not enough to change any conclusion drawn here.
-    assert 0.3 < limit.error_k - default.error_k < 1.2
-    # And 8 layers is not a small correction away from either.
-    assert default.error_k - coarse.error_k > 3.0
+    # Both inside the scatter band the layer study measured, about +10.3 K.
+    for error in (e30, e40):
+        assert error == pytest.approx(10.3, abs=0.6)
+    # The scatter is bounded: resolution moves the answer by under a kelvin.
+    assert abs(e40 - e30) < 1.2
+    # And its cause: whichever resolution mixes deeper is the warmer one.
+    tops = {n: _mean_convective_top_hpa(result) for n, result in runs.items()}
+    deeper = min(tops, key=lambda n: tops[n])
+    warmer = max(errors, key=lambda n: errors[n] or 0.0)
+    assert deeper == warmer, (tops, errors)
+    # 8 layers is not a small correction away from any of it.
+    assert min(e30, e40) - coarse.error_k > 3.0

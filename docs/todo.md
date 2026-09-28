@@ -24,15 +24,21 @@ time grows with the grid and whose temperature has not stopped climbing by 60
 layers may be a closure that amplifies grid-scale structure, which the plume's
 mass-flux derivative has done before.
 
-### A step in the headline between 30 and 40 layers
+### The convective top snaps to layer edges, and the error follows it
 
-With the vapour band calibrated at 30 layers the full column reads +9.70 K at
-20 layers, +9.81 at 30, +10.62 at 40 and +10.63 at 60. Two plateaus and a step
-of 0.8 K between them, not a creep toward a limit -- the same shape as the old
-feedback study's excursion at 30 layers. The default sits on the lower plateau.
-Nothing concluded here depends on the 0.8 K, and the resolution test pins its
-size; what is open is why the step exists, and the obvious suspect is which
-layer the top of the convective mixing lands in.
+Across 25 to 60 layers the full column's error scatters from +9.8 to +10.6 K
+around +10.3, with no trend, and it tracks the time-mean top of the convective
+mixing almost exactly: 462 hPa gives +9.89 K, 391 hPa gives +10.64, at about
+0.015 K per hPa and an outgoing longwave of 240.0 W m^-2 in every case. The
+adjustment mixes whole layers or none, so its top lands on a layer edge, and the
+edges move with the grid.
+
+This is a second measured symptom of the all-or-nothing closure, beside the
+limit cycle: the same scheme that makes the column oscillate in time makes its
+answer jitter in resolution. A timescale-based closure would address both, and
+the resolution scatter gives it a measurable target -- the error should stop
+following the grid. That is still a different scheme, and still waits on a
+decision.
 
 ### Tests that still pin 8 layers
 

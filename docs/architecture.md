@@ -3370,3 +3370,37 @@ response has not been checked for layer convergence.
 The suite now takes about twenty minutes, most of it in the equilibrated runs
 that report the error.
 
+### The step was a scatter, and the scatter is the convective top
+
+The 0.8 K "step" between 30 and 40 layers came from three points. Six more
+dissolved it:
+
+| layers | 20 | 25 | 30 | 32 | 34 | 36 | 40 | 45 | 60 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| error (K) | +9.70 | +9.91 | +9.81 | +10.51 | +10.35 | +10.21 | +10.62 | +10.17 | +10.63 |
+
+No plateaus and no trend: from 25 layers up the error scatters over 0.8 K
+around +10.3. The time-means are stable to 0.03 K against the tail length, so
+the scatter is in the column, not in the averaging. It follows one thing:
+
+| layers | mean top of mixing | error |
+|---|---:|---:|
+| 25 | 462 hPa | +9.89 K |
+| 30 | 446 hPa | +9.81 K |
+| 45 | 415 hPa | +10.16 K |
+| 36 | 413 hPa | +10.23 K |
+| 32 | 400 hPa | +10.53 K |
+| 40 | 391 hPa | +10.64 K |
+
+Deeper mixing, warmer surface, about 0.015 K per hPa, with the outgoing
+longwave at 240.0 W m^-2 throughout -- so it is the column's vertical structure
+moving under a fixed energy balance, not the balance moving. The adjustment
+mixes whole layers or none, and the top of what it mixes is a layer edge; where
+the edges fall relative to the true neutral level differs with every grid.
+
+So the headline is **+10.3 +/- 0.4 K**, the scatter being the resolution
+uncertainty, and the 30-layer default's +9.8 sits at the low edge of it by
+chance of where its edges fall. The test asserts the band and the mechanism --
+of 30 and 40 layers, the one that mixes deeper is the warmer -- rather than a
+limit that does not exist.
+

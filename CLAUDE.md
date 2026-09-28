@@ -252,9 +252,9 @@ saying out loud.
   number the project is judged on used to be recomputed by hand in a scratch
   script, so it moved between commits without anyone noticing. Currently, at the
   default 30 layers: -33.42 K airless, -3.50 K dry, **+9.8 K** with the full water
-  cycle -- and **+10.6 K** at the resolution limit (40 and 60 layers agree to
-  0.02 K), against 288.0 K. Label any error computed at another resolution with
-  its layer count.
+  cycle, against 288.0 K. Across 25 to 60 layers the full column scatters from
+  +9.8 to +10.6 K around **+10.3 K**, with no trend. Quote it as +10.3 +/- 0.4 K,
+  and label any error computed at another resolution with its layer count.
 - **The calibration resolution and the run resolution are one constant.**
   `CALIBRATION_N_LAYERS = 30` sits beside the fitted wing decays and is the
   default of every column configuration. The vapour bands were fitted on a
@@ -263,11 +263,13 @@ saying out loud.
   +9.8 K. The historical replay is the declared exception (`REPLAY_N_LAYERS =
   8`): its two-day explicit step is unstable at 30 layers, and the calibration it
   uses is resolution-independent. A new exception needs the same two reasons.
-- **A default that is not at the limit says so, in a test.** At 30 layers the
-  full column is 0.8 K below its limit, and not by creeping: 20 and 30 layers
-  agree, 40 and 60 agree, and there is an unexplained step between them.
-  `test_the_headline_error_is_quoted_against_its_resolution_limit` holds both
-  the limit and the step's size.
+- **An error that scatters with resolution does not have a limit to quote.** The
+  full column's error follows the top of the convective mixing -- 0.015 K per
+  hPa, at identical outgoing longwave -- and that top snaps to a layer edge,
+  because the adjustment mixes whole layers or none. Three resolutions read as
+  "a step between two plateaus"; nine showed a scatter, and a diagnostic showed
+  its cause. Take a resolution study far enough to tell a limit from a scatter
+  before naming either, and when it is a scatter, find what it follows.
 - **The headline was quoted for weeks at a resolution nobody had tested.** With
   the old 10-layer calibration the full water-cycle column read +6.73 K at 8
   layers, +11.1 at 20, +12.0 at 30 and 40, +12.5 at 60. The layer study had been run on an older, drier column
