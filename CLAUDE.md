@@ -247,6 +247,23 @@ saying out loud.
   rather than widening a tolerance; here it moved the vapour wing decay by ten
   percent and left the CO2 one where it was, which is itself the evidence that
   only one of them was wrong.
+- **"Already satisfied, just needs a test" is a reading, not a measurement.**
+  Ten mandatory requirements were listed in `docs/todo.md` as enforced by
+  machinery elsewhere. Nine were. ACC-005's output checksums were empty on every
+  run in the tree, because the only path that fills them hashes a file and no
+  reference configuration writes one -- a requirement counted as met on the
+  strength of a method nothing called. Write the test before believing the table.
+- **A sweep with a hole in it makes a claim it has not earned.** The
+  self-compliance checks run over every reference configuration, and
+  `test_the_sweep_reaches_every_module_implementation` fails and names any module
+  in `mfespf.physics` that none of them exercises. A check run against one
+  configuration establishes that one configuration complies.
+- **The coupler's lifecycle order is not charter 6.3's numbering, on purpose.**
+  6.3 numbers `advance_state` before `emit_outputs`; the coupler publishes every
+  module's diagnostics in the tendency pass and commits state afterwards, so no
+  owner commits while another module's tendency is outstanding. That is the
+  operator-splitting invariant, and it is what the convection/water over-draw
+  violated. Preserve the semantics, not the numbering.
 - **Validity domains are enforced, as a mandatory gate.**
   `coupling/validity.py` judges every module's cited equations against the extent
   each one was evaluated over as the run proceeded, and the driver invalidates a

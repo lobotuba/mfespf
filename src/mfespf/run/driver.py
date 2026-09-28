@@ -279,6 +279,25 @@ class Kernel:
 
         reports = [s.conservation for s in steps if s.conservation is not None]
         final = reports[-1] if reports else None
+
+        # ACC-005 and KER-014: a run that cannot be fingerprinted cannot be shown
+        # to have been reproduced. The endpoint alone would not distinguish two
+        # trajectories that met at the end, so the residual series goes in beside
+        # it -- a scalar per step, which costs nothing and fingerprints the path.
+        if steps:
+            manifest.record_computed_output(
+                "final_outputs", {k: f.values for k, f in steps[-1].outputs.items()}
+            )
+            manifest.record_computed_output(
+                "conservation_trajectory", [r.worst_relative_residual() for r in reports]
+            )
+        manifest.record_computed_output(
+            "final_state",
+            {
+                s.module.module_id: {k: f.values for k, f in s.module.emit_state().items()}
+                for s in self.schedule.ordered()
+            },
+        )
         passed = bool(reports) and all(r.passed for r in reports)
         manifest.record_gate("conservation_reconciliation", passed)
         if manifest.status == RunStatus.PENDING:

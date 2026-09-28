@@ -1685,6 +1685,65 @@ The general point: a diagnostic added to make something checkable is still a
 diagnostic that runs every step of every configuration, and publishing at a
 resolution nothing consumes is a cost with no claim attached to it.
 
+## Nine requirements were satisfied by machinery nobody had run
+
+`docs/todo.md` carried an item saying that about ten unbound mandatory
+requirements needed a test rather than an implementation, because the machinery
+they describe is enforced elsewhere. It listed them in a table. That table was
+written from reading the code, and reading is not measuring.
+
+Nine of them were true. Every module implements configuration validation, every
+contract carries a cost declaration, every dependency edge is typed, the state
+registry enforces single ownership, the registries supersede rather than
+overwrite. All of it held on every reference configuration in the tree, which is
+what `tests/acceptance/test_framework_self_compliance.py` now establishes.
+
+**One was not.** ACC-005 requires every mandatory run to produce manifests,
+dependency graphs, equation bindings, provenance records and *output checksums*.
+The first four were there. `output_checksums` was **empty on every run in the
+tree**: the only path that fills it, `RunManifest.record_output`, hashes a file,
+and no reference configuration writes one. The requirement had been recorded as
+already satisfied on the strength of a method nothing called.
+
+So the run now fingerprints itself in memory, with three digests:
+
+| digest | what it identifies |
+|---|---|
+| `final_outputs` | every field the last step published |
+| `final_state` | every module's committed state at the end |
+| `conservation_trajectory` | the worst relative residual, per step |
+
+The third is the one worth arguing for. An endpoint digest cannot distinguish
+two trajectories that met at the end, and KER-014 asks for a reference run to be
+*reproducible* from its manifest, which is a claim about the path. A scalar per
+step costs nothing -- 2000 steps of the dry column fingerprint in the noise of
+the run -- and it catches a divergence that recovered.
+
+**On writing sweeps rather than examples.** Each of these checks runs over all
+seventeen reference configurations, and
+`test_the_sweep_reaches_every_module_implementation` fails when a module exists
+in `mfespf.physics` that none of them exercises, naming it. A sweep with a hole
+in it makes a claim it has not earned, and the hole is exactly what nobody
+notices.
+
+Two of the checks were written over-strict and had to be corrected by
+measurement rather than by taste, which is worth recording because both
+corrections went the same way -- the framework was right and the test was wrong:
+
+* **The lifecycle is not the charter's numbering, deliberately.** Charter 6.3
+  numbers `advance_state` before `emit_outputs`, and the coupler calls them the
+  other way round, publishing every module's diagnostics in the tendency pass and
+  committing state afterwards. That is *stronger* than the per-module sequence:
+  it is the operator-splitting invariant, and the convection/water over-draw
+  earlier in this project came from violating it. The test asserts the semantics
+  6.3 says to preserve -- inputs before computation, every tendency before any
+  commit -- rather than the order it lists them in.
+* **Six edges cite no equation, correctly.** Handing a module a heat capacity, an
+  albedo or an irradiance record is a dependency, not a relation. Only a
+  `physical_transfer` is computed by an equation and has to name it.
+
+Traceability moves from 160 to 170 of 189.
+
 ## The domain check was reading the last step, and a run is not its last step
 
 The validity check had a limitation that had been written down and left open:

@@ -225,6 +225,20 @@ class RunManifest:
     def record_output(self, path: str | Path) -> None:
         self.output_checksums[str(Path(path).name)] = file_digest(path)
 
+    def record_computed_output(self, name: str, payload: Any) -> None:
+        """Checksum something the run produced in memory rather than wrote to disk.
+
+        ACC-005 requires every mandatory run to publish output checksums, and
+        ``record_output`` only answers that for a run that writes a file. Every
+        reference configuration here returns its results in memory, so until this
+        existed the field was empty on every one of them -- the requirement was
+        being counted as satisfied on the strength of a method nothing called.
+
+        The checksum is of the canonical form, so it is stable across
+        serialisation formats and records a NaN rather than dropping it.
+        """
+        self.output_checksums[name] = digest(payload)
+
     # --- serialisation ----------------------------------------------------
     def to_dict(self) -> dict[str, Any]:
         payload = {

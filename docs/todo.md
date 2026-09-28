@@ -49,27 +49,30 @@ two resolutions, run by hand in scratch scripts, and the answer — a factor of
 most decision-relevant number produced that day. That is UNC-005, done manually
 because the framework cannot do it.
 
-### Ten mandatory requirements are unbound but already satisfied
+### Nineteen mandatory requirements are still unbound, and they are not alike
 
-160 of 189 mandatory requirements have a bound acceptance test. About a third of
-the remainder need a test rather than an implementation, because the machinery
-they describe is already enforced elsewhere:
+170 of 189 mandatory requirements have a bound acceptance test, after the
+self-compliance sweep in `tests/acceptance/test_framework_self_compliance.py`
+closed nine of them. What is left divides three ways, and the headline number
+hides the division:
 
-| requirement | already true because |
-|---|---|
-| MOD-005 | every module implements `validate_configuration` |
-| MOD-007 | the `Module` lifecycle is the contract every ACTIVE module runs under |
-| CMP-002 | `ModuleContract.validate` refuses a module with no cost declaration |
-| CMP-003 | runs declare a resource class and budget |
-| ATM-001 | the state registry enforces single ownership |
-| CAU-003 | dependency-graph edges carry a type |
-| SYS-002 | `ModuleStatus` distinguishes carve-outs from active modules |
-| ACC-005 | manifests, graphs, equation bindings and checksums are produced per run |
-| SYS-007 | the claims registry supersedes rather than overwrites |
+| | requirements | what they need |
+|---|---|---|
+| architectural carve-outs | BIO-001, ICE-001, LND-001, PAR-001, SPA-001, SPA-003 to SPA-006 | a classification, not an implementation |
+| genuinely unimplemented | UNC-005, UNC-006, UNC-007, GRV-001, VER-008, CMP-007, ACC-010 | the machinery they describe |
+| satisfied, needing a test | HUM-001, SYS-002 | a test |
+| true only when the rest are | ACC-001 | everything above |
 
-A framework whose thesis is that compliance should be demonstrated rather than
-asserted ought to demonstrate its own. These are sweep tests over the
-registries, not new physics.
+The ten carve-outs are the item below. The uncertainty trio is the item above.
+HUM-001 -- human activity alters model state only through explicit physical
+inputs -- is satisfied by the carbon dioxide pathway, which enters as an
+absorption coefficient rather than as a fitted forcing, and wants a test that
+says so.
+
+The lesson from closing the nine is in
+[`architecture.md`](architecture.md): the table that listed them as "already
+satisfied" was written from reading the code, and one of the ten was wrong.
+ACC-005's output checksums were empty on every run in the tree.
 
 ### The carve-out requirements are counted as undone
 
