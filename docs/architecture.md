@@ -1685,6 +1685,82 @@ The general point: a diagnostic added to make something checkable is still a
 diagnostic that runs every step of every configuration, and publishing at a
 resolution nothing consumes is a cost with no claim attached to it.
 
+## The six uncertainty methods are one mechanism, and the refusal is the point
+
+UNC-005 asks for bounds, sensitivity derivatives, parameter sweeps, ensembles,
+Monte Carlo propagation and model-form comparison. There were interfaces and no
+implementations, and the evidence that it mattered was accidental: the bulk-plume
+parameter sweep that established a factor of 2.7 in the feedback and eleven
+kelvin of surface temperature was run by hand in scratch scripts. Four more have
+been run by hand since -- the evaporating fraction, the timestep, the exchange
+coefficient, and gravity in the section above.
+
+**All six are the same mechanism.** Each runs a configuration several times with
+something changed and collects an observable; they differ only in *how the
+members are chosen*. So there is one `Ensemble` and six constructors:
+
+| | members are |
+|---|---|
+| `bounds` | the two ends of a declared range |
+| `sweep` | points along one parameter |
+| `ensemble` | joint assignments, chosen |
+| `monte_carlo` | joint assignments, sampled from declared distributions |
+| `model_forms` | different configurations |
+| sensitivity derivative | a secant over a numeric `sweep` |
+
+Writing six mechanisms would have made the difference between an ensemble and a
+Monte Carlo sample a matter of which function was called. It is not: it is a
+matter of how the members were chosen, and that is the only thing carrying any
+information about what the spread means.
+
+**Which is UNC-007, and is why this module refuses more than it computes.** A
+three-point sweep across an asserted range tells you what the model does across
+that range. It says nothing about how likely any part of it is, so a number
+between 0 and 1 printed beside it will be read as a probability it has not
+earned -- the same false precision as quoting an assumed parameter's midpoint,
+which this project has warned about since the evaporating condensate fraction.
+So a `PredictiveInterval` carries its meaning and its nominal coverage, and a
+method that cannot support a coverage must state `None` **and say why**. An
+absence with no reason reads as an oversight.
+
+The refusal runs both ways, which is what makes it a distinction rather than a
+prohibition. A Monte Carlo sample from declared distributions *can* state a
+coverage, and refusing it one would be as wrong as granting one to a sweep.
+
+`Ensemble` also requires a `basis`: where the values came from. A range asserted
+from taste and a range read out of the literature produce identical numbers and
+mean different things, and the evaporating condensate fraction is the case --
+swept over 0.1 to 0.5 when published precipitation efficiencies put it near two
+thirds, so the sweep excluded the answer and nothing in its output said where the
+bounds had come from.
+
+**UNC-006 is the factor of two that leaves no trace.** Root-sum-square is valid
+only for independent standard uncertainties. A 95 percent half-width is about two
+sigma, so passing one in unconverted halves the combined figure and nothing about
+the result looks wrong. `UncertaintyKind` already existed because real records
+disagree about which they publish -- HadCRUT5 a 95 percent interval, NOAA's heat
+content a standard error -- and this is the place that disagreement would do its
+damage. Both conditions are checked, and independence has to be *justified*
+rather than asserted.
+
+### The test corrected me, which is the reason to write it that way
+
+The sensitivity check runs against a closed form: an airless body sits at
+`T = (S(1-a)/4 e sigma)^(1/4)`, so `dT/dS = T/4S` exactly. Landing on that would
+be worth something and could be a coincidence. Missing it by a *predictable*
+amount cannot be, so the test asserts the finite-difference error too -- and I
+wrote it with the sign backwards.
+
+The reasoning that fails: `T` is concave in `S`, so the secant should fall below
+the tangent. The measurement says otherwise, and it is right. A secant measures
+the *mean of the derivative* over the interval, `f'` is convex here (`f'' < 0`
+but `f''' > 0` for a fourth root), and by Jensen the mean of a convex function
+exceeds its midpoint value. The excess is `h^2 f'''(S_0) / 6`, which is
+8.837e-6 predicted against 8.839e-6 measured -- four significant figures, and a
+far stronger statement than the inequality I set out to write.
+
+Traceability 173 to 176 of 185.
+
 ## The gravity constant was an approximation nobody had to declare
 
 GRV-001 asks that gravity be provided through a replaceable interface beginning

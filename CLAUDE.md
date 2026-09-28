@@ -247,6 +247,24 @@ saying out loud.
   rather than widening a tolerance; here it moved the vapour wing decay by ten
   percent and left the CO2 one where it was, which is itself the evidence that
   only one of them was wrong.
+- **A spread means nothing until you say how its members were chosen.** The six
+  UNC-005 methods are one mechanism and differ only in that, so a sweep across an
+  asserted range gets a `FULL_RANGE` with **no** nominal coverage and a note
+  saying why, while a Monte Carlo from declared distributions gets a real one.
+  Granting a coverage to a sweep and refusing one to a sample are the same
+  mistake. Every ensemble also declares its `basis`: 0.1 to 0.5 asserted and 0.1
+  to 0.5 measured produce identical numbers.
+- **Check a finite difference against its error term, not just against the
+  answer.** Landing on the closed form could be luck; missing it by exactly the
+  term that was dropped could not. Doing this caught me asserting the wrong sign:
+  a secant measures the *mean of the derivative*, so for a fourth root -- concave,
+  but with a convex derivative -- it lies *above* the midpoint tangent by
+  `h^2 f'''/6`, verified to four significant figures.
+- **Quadrature has two preconditions and both fail silently downward.** Root-sum-
+  square needs independent contributions that are each one sigma. A 95 percent
+  half-width passed in unconverted halves the answer and leaves no trace, which
+  is why `UncertaintyKind` travels with the value. Independence must be
+  justified, not asserted.
 - **An approximation nobody has to declare is one nobody has to measure.**
   Gravity was a constant read from a table at four call sites, and the
   hydrostatic record's bound for it -- "negligible through the troposphere" --

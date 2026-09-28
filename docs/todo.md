@@ -35,33 +35,39 @@ complete mixing -- a different scheme, not a tuning of this one. Until then,
 anything read off this column must be a time-mean over at least a full cycle, and
 a single step's numbers mean very little.
 
-### Uncertainty is declared everywhere and propagated nowhere
+### Uncertainty has methods now and nothing uses them
 
-UNC-005 asks for bounds, sensitivity derivatives, parameter sweeps, ensembles,
-Monte Carlo propagation and model-form comparison. There are interfaces and no
-implementations, and every module's `report_uncertainty` returns `unresolved`
-for both distributional assumptions and correlations.
+`evaluation/uncertainty.py` implements UNC-005's six methods, UNC-006's
+quadrature refusal and UNC-007's declared intervals, and the sensitivity
+derivative is checked against a closed form. What is still open is that **no
+module and no configuration reports through it**. Every module's
+`report_uncertainty` still returns `unresolved` for distributional assumptions
+and correlations (UNC-002), and no manifest records that a run was a member of an
+ensemble.
 
-The evidence that this matters is accidental and recent. Establishing what the
-bulk-plume closure's assumed parameter was worth needed a three-point sweep at
-two resolutions, run by hand in scratch scripts, and the answer — a factor of
-2.7 in the feedback and eleven kelvin of surface temperature — was the single
-most decision-relevant number produced that day. That is UNC-005, done manually
-because the framework cannot do it.
+That is the half with the evidence behind it. Five sweeps have been run by hand
+in scratch scripts -- the bulk-plume parameter, the evaporating fraction, the
+timestep, the exchange coefficient, gravity -- and each produced a decision-
+relevant number that lives only in a commit message. The machinery exists to stop
+the sixth from doing the same, and using it means a run knowing it was a member
+of something.
 
-### Twelve mandatory requirements are still unbound
+### Nine mandatory requirements are still unbound
 
-173 of 185 have a bound acceptance test, with 4 architectural carve-outs counted
+176 of 185 have a bound acceptance test, with 4 architectural carve-outs counted
 separately rather than folded into the denominator. What is left is three kinds
 of thing, and only the first is a backlog:
 
 | | requirements | what it needs |
 |---|---|---|
-| unimplemented | UNC-005, UNC-006, UNC-007, VER-008, CMP-007, ACC-010 | the machinery they describe |
+| unimplemented | VER-008, CMP-007, ACC-010 | the machinery they describe |
 | a spatial decision | SPA-001, SPA-003, SPA-004, SPA-005, SPA-006 | see below |
 | true only when the rest are | ACC-001 | everything above |
 
-The uncertainty trio is the item above.
+Of the three unimplemented, ACC-010 is the odd one: the reference kernel shall
+complete its baseline suite within the configured ENGINEERING_WORKSTATION budget.
+The preflight estimator and the budget both exist, so this is a matter of
+measuring the suite against them rather than building anything.
 
 **The spatial five need a decision before they need code.** The kernel has two
 spatial representations, global scalar and vertical column, and it changes the
