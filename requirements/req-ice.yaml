@@ -8,8 +8,9 @@ requirements:
   strength: mandatory
   section: CORE PHYSICAL INTERFACE REQUIREMENTS
   verification: TEST
-  status: not_started
+  status: carved_out
   design_component: ''
   implementation: ''
   evidence: []
-  waiver: ''
+  waiver: Architectural carve-out. The cryosphere module (charter 9.11) is outside charter 18's candidate active
+    modules for the first kernel. No configuration carries ice as a state, and the interface is reserved.

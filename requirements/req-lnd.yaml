@@ -4,13 +4,14 @@ source: MFESPF-IRS-001 v1.0 Draft
 generated_by: tools/extract_requirements.py
 requirements:
 - id: LND-001
-  text: The land interface SHALL provide surface temperature, reflected and emitted spectra, turbulent
-    fluxes, ground heat flux, and water exchange at the active fidelity.
+  text: The land interface SHALL provide surface temperature, reflected and emitted spectra, turbulent fluxes, ground
+    heat flux, and water exchange at the active fidelity.
   strength: mandatory
   section: CORE PHYSICAL INTERFACE REQUIREMENTS
   verification: TEST
-  status: not_started
+  status: carved_out
   design_component: ''
   implementation: ''
   evidence: []
-  waiver: ''
+  waiver: Architectural carve-out. The land-surface module (charter 9.9) is outside charter 18's candidate active
+    modules; the kernel's surface is a generic energy-storing surface (charter 18 item 10), not a land surface.

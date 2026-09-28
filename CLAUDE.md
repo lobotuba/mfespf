@@ -247,6 +247,20 @@ saying out loud.
   rather than widening a tolerance; here it moved the vapour wing decay by ten
   percent and left the CO2 one where it was, which is itself the evidence that
   only one of them was wrong.
+- **A carve-out is a domain the kernel does not use; one it uses without the
+  declared interface is a gap.** That rule is what keeps the classification from
+  being an excuse. The gravity module is as absent from charter 18's candidate
+  list as the cryosphere, but the column computes hydrostatic layer mass with
+  gravity every step out of a bare constant, so GRV-001 is counted and ICE-001 is
+  not. The estimate before anyone applied the rule was "about ten"; the answer is
+  four. A carved-out requirement must name the clause that defers it, and
+  `tools/traceability.py` refuses one that does not, or that also has a bound
+  test.
+- **A human influence enters as a constitutive relation, and the test has three
+  parts.** That the carbon dioxide module adds nothing to a budget would also be
+  true of a module that does nothing, so show it acts -- doubling the
+  concentration lowers the outgoing longwave -- and show the budget still closes
+  to 1e-16, which a forcing added to a budget could not do.
 - **"Already satisfied, just needs a test" is a reading, not a measurement.**
   Ten mandatory requirements were listed in `docs/todo.md` as enforced by
   machinery elsewhere. Nine were. ACC-005's output checksums were empty on every

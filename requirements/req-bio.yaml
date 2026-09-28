@@ -4,13 +4,15 @@ source: MFESPF-IRS-001 v1.0 Draft
 generated_by: tools/extract_requirements.py
 requirements:
 - id: BIO-001
-  text: Biological and biogeochemical transfers SHALL use ordinary physical mass, energy, water, and species
-    interfaces.
+  text: Biological and biogeochemical transfers SHALL use ordinary physical mass, energy, water, and species interfaces.
   strength: mandatory
   section: CORE PHYSICAL INTERFACE REQUIREMENTS
   verification: TEST
-  status: not_started
+  status: carved_out
   design_component: ''
   implementation: ''
   evidence: []
-  waiver: ''
+  waiver: Architectural carve-out. The biosphere and biogeochemistry modules (charter 9.12, 9.13) are outside charter
+    18's candidate active modules for the first kernel, and IRS 23 defers 'complete biosphere and biogeochemical
+    cycles' while retaining the interface. No biological or biogeochemical transfer exists in any configuration,
+    so there is nothing for this requirement to govern until one is added.

@@ -8,15 +8,41 @@ This tool reads those markers statically -- it parses the test sources rather
 than importing them -- cross-references the registry under ``requirements/``, and
 writes ``docs/traceability.md``.
 
-Two failure modes are checked, and they are the ones that matter:
+Four failure modes are checked, and they are the ones that matter:
 
 * a test cites a requirement ID that does not exist (a typo silently claiming
   coverage that was never specified);
-* a requirement is marked ``verified`` with no evidence behind it.
+* a requirement is marked ``verified`` with no evidence behind it;
+* a requirement is marked ``carved_out`` with no waiver naming the clause that
+  defers it;
+* a requirement is marked ``carved_out`` and has a bound test, which is a
+  contradiction in one direction or the other.
 
 Coverage of the remaining mandatory requirements is *reported*, not enforced.
 Version 1.0 is not finished, and a tool that failed the build for unimplemented
 requirements would only encourage marking them done.
+
+Carve-outs (SYS-002)
+--------------------
+
+Charter 4.3 defines an architectural carve-out as a reserved and documented
+place for a domain, guaranteeing that an implementation may be added and
+asserting nothing about whether it is important or active. Charter 18 lists the
+fifteen candidate active modules of the first executable kernel and says that
+exclusion from it "does not remove the corresponding architectural interface";
+IRS 23 repeats it for nine named extensions.
+
+Counting those requirements as unstarted work makes the headline figure mean
+less than it should: it reads as a backlog when part of it is a decision. So a
+carve-out is a status here, it must cite the clause that defers it, and it is
+reported against its own denominator rather than silently inflating the other.
+
+**The rule that decides the hard cases: a carve-out is a domain the kernel does
+not use.** A domain it uses without the declared interface is a gap. Gravity
+forces the distinction -- the gravity module is as absent from charter 18's list
+as the cryosphere is, but the column computes hydrostatic layer mass with it on
+every step, out of a bare constant whose own note says the module supersedes it.
+GRV-001 is not carved out; it is unimplemented.
 """
 
 from __future__ import annotations
@@ -78,6 +104,13 @@ def _requirement_marks(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str
     return found
 
 
+CARVED_OUT = "carved_out"
+
+
+def is_carve_out(row: dict) -> bool:
+    return row.get("status") == CARVED_OUT
+
+
 def build_matrix(requirements: dict[str, dict], bindings: dict[str, list[str]]) -> str:
     by_group: dict[str, list[dict]] = defaultdict(list)
     for row in requirements.values():
@@ -85,7 +118,9 @@ def build_matrix(requirements: dict[str, dict], bindings: dict[str, list[str]]) 
 
     total = len(requirements)
     mandatory = [r for r in requirements.values() if r["strength"] == "mandatory"]
-    covered = [r for r in mandatory if bindings.get(r["id"])]
+    carved = [r for r in mandatory if is_carve_out(r)]
+    expected = [r for r in mandatory if not is_carve_out(r)]
+    covered = [r for r in expected if bindings.get(r["id"])]
 
     lines = [
         "# Requirement traceability matrix",
@@ -95,22 +130,33 @@ def build_matrix(requirements: dict[str, dict], bindings: dict[str, list[str]]) 
         "",
         f"- requirements: **{total}**",
         f"- mandatory (SHALL / SHALL NOT): **{len(mandatory)}**",
-        f"- mandatory with a bound test: **{len(covered)}** ({len(covered) / len(mandatory):.0%})"
-        if mandatory
+        f"- architectural carve-outs (SYS-002, charter 4.3 and 18): **{len(carved)}**",
+        f"- mandatory outside a carve-out: **{len(expected)}**",
+        f"- of those, with a bound test: **{len(covered)}** ({len(covered) / len(expected):.0%})"
+        if expected
         else "",
         "",
         "Coverage below 100% is expected while the reference kernel is incomplete.",
         "A requirement with no bound test and no waiver is unverified, and this table",
         "is where that shows.",
         "",
+        "A carve-out is a reserved place in the architecture for a domain this kernel",
+        "does not use, not a task nobody has started; each one names the clause that",
+        "defers it. A domain the kernel *does* use without its declared interface is a",
+        "gap and is counted as one.",
+        "",
     ]
 
     for group in sorted(by_group):
         rows = sorted(by_group[group], key=lambda r: r["id"])
         title = rows[0].get("group_title") or group
-        group_mandatory = [r for r in rows if r["strength"] == "mandatory"]
+        group_mandatory = [r for r in rows if r["strength"] == "mandatory" and not is_carve_out(r)]
         group_covered = [r for r in group_mandatory if bindings.get(r["id"])]
-        share = f"{len(group_covered)}/{len(group_mandatory)}" if group_mandatory else "n/a"
+        share = (
+            f"{len(group_covered)}/{len(group_mandatory)}"
+            if group_mandatory
+            else ("all carved out" if any(is_carve_out(r) for r in rows) else "n/a")
+        )
         lines.append(f"## {group} — {title} (mandatory covered: {share})")
         lines.append("")
         lines.append("| ID | Strength | Verification | Status | Evidence |")
@@ -150,6 +196,19 @@ def main() -> int:
             bindings.get(row["id"]) or row.get("evidence") or row.get("waiver")
         ):
             problems.append(f"{row['id']} is marked verified with no evidence")
+        if is_carve_out(row):
+            # A carve-out excuses a requirement from the count, so it has to say
+            # on whose authority. Without this the status is a way of making the
+            # number look better.
+            if not row.get("waiver"):
+                problems.append(
+                    f"{row['id']} is carved out with no waiver naming the clause that defers it"
+                )
+            if bindings.get(row["id"]):
+                problems.append(
+                    f"{row['id']} is carved out and has a bound test "
+                    f"({', '.join(bindings[row['id']])}); one of the two is wrong"
+                )
 
     matrix = build_matrix(requirements, bindings)
     output = Path(args.output)
@@ -157,9 +216,12 @@ def main() -> int:
     output.write_text(matrix, encoding="utf-8")
 
     mandatory = [r for r in requirements.values() if r["strength"] == "mandatory"]
-    covered = [r for r in mandatory if bindings.get(r["id"])]
+    carved = [r for r in mandatory if is_carve_out(r)]
+    expected = [r for r in mandatory if not is_carve_out(r)]
+    covered = [r for r in expected if bindings.get(r["id"])]
     print(f"{output.relative_to(ROOT)}: {len(requirements)} requirements, ")
-    print(f"  mandatory with a bound test: {len(covered)}/{len(mandatory)}")
+    print(f"  mandatory with a bound test: {len(covered)}/{len(expected)}")
+    print(f"  architectural carve-outs, not counted: {len(carved)}")
 
     if problems:
         print("\ntraceability problems:", file=sys.stderr)

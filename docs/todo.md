@@ -49,39 +49,35 @@ two resolutions, run by hand in scratch scripts, and the answer — a factor of
 most decision-relevant number produced that day. That is UNC-005, done manually
 because the framework cannot do it.
 
-### Nineteen mandatory requirements are still unbound, and they are not alike
+### Thirteen mandatory requirements are still unbound
 
-170 of 189 mandatory requirements have a bound acceptance test, after the
-self-compliance sweep in `tests/acceptance/test_framework_self_compliance.py`
-closed nine of them. What is left divides three ways, and the headline number
-hides the division:
+172 of 185 have a bound acceptance test, with 4 architectural carve-outs counted
+separately rather than folded into the denominator. What is left is three kinds
+of thing, and only the first is a backlog:
 
-| | requirements | what they need |
+| | requirements | what it needs |
 |---|---|---|
-| architectural carve-outs | BIO-001, ICE-001, LND-001, PAR-001, SPA-001, SPA-003 to SPA-006 | a classification, not an implementation |
-| genuinely unimplemented | UNC-005, UNC-006, UNC-007, GRV-001, VER-008, CMP-007, ACC-010 | the machinery they describe |
-| satisfied, needing a test | HUM-001, SYS-002 | a test |
+| unimplemented | UNC-005, UNC-006, UNC-007, GRV-001, VER-008, CMP-007, ACC-010 | the machinery they describe |
+| a spatial decision | SPA-001, SPA-003, SPA-004, SPA-005, SPA-006 | see below |
 | true only when the rest are | ACC-001 | everything above |
 
-The ten carve-outs are the item below. The uncertainty trio is the item above.
-HUM-001 -- human activity alters model state only through explicit physical
-inputs -- is satisfied by the carbon dioxide pathway, which enters as an
-absorption coefficient rather than as a fitted forcing, and wants a test that
-says so.
+The uncertainty trio is the item above. GRV-001 is the most tractable of the
+rest: the column computes hydrostatic layer mass from
+`earth_standard_gravity`, whose own note says the gravity module supersedes it,
+so the requirement is a replaceable interface around a constant the kernel
+already uses.
 
-The lesson from closing the nine is in
-[`architecture.md`](architecture.md): the table that listed them as "already
-satisfied" was written from reading the code, and one of the ten was wrong.
-ACC-005's output checksums were empty on every run in the tree.
-
-### The carve-out requirements are counted as undone
-
-BIO-001, ICE-001, LND-001, GRV-001, PAR-001 and SPA-001 through SPA-006 are
-requirements for modules that deliberately do not exist. They are recorded as
-`not_started`, so the headline figure reads as twenty-nine things left undone
-when about ten of them are architectural decisions. SYS-002 requires
-distinguishing architectural carve-outs from active modules; the traceability
-record does not yet do it, which makes the number mean less than it should.
+**The spatial five need a decision before they need code.** The kernel has two
+spatial representations, global scalar and vertical column, and it changes the
+column's resolution in every convergence study — by rebuilding the configuration
+rather than by regridding. So SPA-003 and SPA-004 (regridding preserves
+integrated quantity; intensive quantities use a documented method) have nothing
+to regrid, SPA-005 (resolution changes appear in run lineage) is arguably already
+true through the manifest's `spatial_resolution`, and SPA-001 (the architecture
+permits seven representations) is satisfied by a contract field that nothing
+constrains, which is not a demonstration. They were loosely counted as carve-outs
+and they are not: the kernel uses vertical structure. Deciding which of the five
+are honestly satisfiable now, and by what, is the work.
 
 ## The ladder
 

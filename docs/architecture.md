@@ -1685,6 +1685,67 @@ The general point: a diagnostic added to make something checkable is still a
 diagnostic that runs every step of every configuration, and publishing at a
 resolution nothing consumes is a cost with no claim attached to it.
 
+## A carve-out is a decision, and counting it as a backlog item hid four of them
+
+`docs/todo.md` complained that the carve-out requirements were recorded as
+`not_started`, so the headline figure read as twenty-nine things left undone when
+"about ten of them are architectural decisions". The complaint was right and the
+estimate was not. Looking made it **four**.
+
+The classification is the specification's rather than a judgement made here.
+Charter 4.3 defines an architectural carve-out as a reserved and documented place
+for a domain, guaranteeing an implementation may be added and asserting nothing
+about whether the domain is important or active. Charter 18 lists the fifteen
+candidate active modules of the first executable kernel and says that exclusion
+from it "does not remove the corresponding architectural interface". IRS 23
+repeats it for nine named extensions.
+
+**The rule that decides the hard cases: a carve-out is a domain the kernel does
+not use.** A domain it uses without the declared interface is a gap.
+
+Gravity is what forces the distinction and is the reason the number is four
+rather than five. The gravity module is as absent from charter 18's candidate
+list as the cryosphere is, so the mechanical reading would excuse GRV-001 with
+the rest. But the column computes hydrostatic layer mass with gravity on every
+step, out of a bare constant whose own note says the module supersedes it. That
+is not a reserved place for an unused domain; it is a used domain reaching the
+physics without the replaceable interface the requirement asks for. GRV-001 stays
+counted.
+
+So: BIO-001, ICE-001, LND-001 and PAR-001 are carved out, each naming the clause
+that defers it. The nine spatial and uncertainty requirements that were loosely
+lumped in with them are **not** — the kernel has a vertical column whose
+resolution changes in every convergence study, and it reports uncertainty from
+every module, so both are domains it uses.
+
+**The status has to be load-bearing or it is a way of making the number look
+better.** `tools/traceability.py` refuses a carve-out with no waiver, and refuses
+one that also has a bound test, because a requirement cannot both be deferred and
+be verified and whichever of the two is wrong should be said out loud. The matrix
+reports carve-outs against their own line rather than folding them into the
+denominator: **172 of 185**, with 4 carved out, where the same tree read 160 of
+189 before any of this week's work.
+
+## Carbon dioxide is the only human influence here, and it enters as an opacity
+
+HUM-001 asks that human activity alter model state only through explicit physical
+inputs, sources, sinks, transfers or boundary changes. The failure it names is a
+fitted forcing added to a budget: a term in watts per square metre, tuned to
+reproduce a record, that no physical process put there.
+
+The carbon dioxide pathway is the opposite, and it is now demonstrated rather
+than described. `PrescribedGreenhouseModule` publishes a mole fraction and
+nothing else: it owns no state, computes no tendency, declares no transfer and
+conserves nothing, and its single graph edge is a `parameter_dependency` to the
+radiation module. No state budget carries a label naming it.
+
+That much would also be true of a module that does nothing, so the check has two
+more parts. It *acts*: doubling the concentration lowers the outgoing longwave,
+through the absorption coefficient alone, with the transfer solver unchanged and
+unaware. And it adds no energy: both runs close their budget to one part in
+10^16, which is what a mechanism entering through a constitutive relation must
+do and what a forcing added to a budget could not.
+
 ## Nine requirements were satisfied by machinery nobody had run
 
 `docs/todo.md` carried an item saying that about ten unbound mandatory

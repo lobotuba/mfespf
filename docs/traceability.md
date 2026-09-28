@@ -5,11 +5,18 @@ registry under `requirements/` or the `@pytest.mark.req` markers in the tests.
 
 - requirements: **197**
 - mandatory (SHALL / SHALL NOT): **189**
-- mandatory with a bound test: **170** (90%)
+- architectural carve-outs (SYS-002, charter 4.3 and 18): **4**
+- mandatory outside a carve-out: **185**
+- of those, with a bound test: **172** (93%)
 
 Coverage below 100% is expected while the reference kernel is incomplete.
 A requirement with no bound test and no waiver is unverified, and this table
 is where that shows.
+
+A carve-out is a reserved place in the architecture for a domain this kernel
+does not use, not a task nobody has started; each one names the clause that
+defers it. A domain the kernel *does* use without its declared interface is a
+gap and is counted as one.
 
 ## ACC — Version 1.0 acceptance criteria (mandatory covered: 6/8)
 
@@ -47,11 +54,11 @@ is where that shows.
 | AUD-007 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_a_numerically_unstable_run_is_labeled_invalid_for_inference` |
 | AUD-008 | mandatory | TEST | test_bound | `tests/acceptance/test_provenance_and_audit.py::test_a_failed_gate_invalidates_the_run_for_inference`<br>`tests/acceptance/test_provenance_and_audit.py::test_the_manifest_records_the_version_of_the_code_that_produced_the_run` |
 
-## BIO — Biosphere and biogeochemistry interface (mandatory covered: 0/1)
+## BIO — Biosphere and biogeochemistry interface (mandatory covered: all carved out)
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| BIO-001 | mandatory | TEST | not_started | — |
+| BIO-001 | mandatory | TEST | carved_out | — |
 
 ## CAU — Causality and dependency requirements (mandatory covered: 8/8)
 
@@ -70,7 +77,7 @@ is where that shows.
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| CHM-001 | mandatory | TEST | test_bound | `tests/integration/test_greenhouse_experiment.py::test_the_carbon_dioxide_the_column_saw_is_the_spliced_record`<br>`tests/unit/test_greenhouse.py::test_the_mixing_ratio_converts_a_mole_fraction_to_a_mass_fraction`<br>`tests/unit/test_greenhouse.py::test_the_module_declares_what_it_does_not_represent` |
+| CHM-001 | mandatory | TEST | test_bound | `tests/acceptance/test_framework_self_compliance.py::test_human_activity_reaches_the_state_only_through_a_constitutive_relation`<br>`tests/integration/test_greenhouse_experiment.py::test_the_carbon_dioxide_the_column_saw_is_the_spliced_record`<br>`tests/unit/test_greenhouse.py::test_the_mixing_ratio_converts_a_mole_fraction_to_a_mass_fraction`<br>`tests/unit/test_greenhouse.py::test_the_module_declares_what_it_does_not_represent` |
 
 ## CLD — Cloud interface (mandatory covered: 2/2)
 
@@ -155,11 +162,11 @@ is where that shows.
 | --- | --- | --- | --- | --- |
 | GRV-001 | mandatory | TEST | not_started | — |
 
-## HUM — Human activity interface (mandatory covered: 0/1)
+## HUM — Human activity interface (mandatory covered: 1/1)
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| HUM-001 | mandatory | TEST | not_started | — |
+| HUM-001 | mandatory | TEST | test_bound | `tests/acceptance/test_framework_self_compliance.py::test_human_activity_reaches_the_state_only_through_a_constitutive_relation` |
 
 ## HYP — Hypothesis interface requirements (mandatory covered: 10/10)
 
@@ -176,11 +183,11 @@ is where that shows.
 | HYP-009 | mandatory | TEST | test_bound | `tests/acceptance/test_provenance_and_audit.py::test_thresholds_cannot_move_after_the_freeze`<br>`tests/integration/test_greenhouse_experiment.py::test_the_ocean_version_no_longer_lists_heat_uptake_as_unseparated`<br>`tests/unit/test_hypotheses.py::test_the_failure_threshold_freezes_and_an_edit_is_caught`<br>`tests/unit/test_hypotheses.py::test_the_frozen_hash_covers_what_the_experiment_could_not_separate` |
 | HYP-010 | mandatory | TEST | test_bound | `tests/unit/test_hypotheses.py::test_an_unconventional_mechanism_faces_exactly_the_same_requirements` |
 
-## ICE — Cryosphere interface (mandatory covered: 0/1)
+## ICE — Cryosphere interface (mandatory covered: all carved out)
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| ICE-001 | mandatory | TEST | not_started | — |
+| ICE-001 | mandatory | TEST | carved_out | — |
 
 ## INF — Information provenance requirements (mandatory covered: 8/8)
 
@@ -214,11 +221,11 @@ is where that shows.
 | KER-013 | mandatory | TEST | test_bound | `tests/integration/test_observed_replay.py::test_the_budget_closes_over_a_century_of_replay`<br>`tests/integration/test_stage1_airless_body.py::test_slab_reaches_analytic_equilibrium`<br>`tests/integration/test_stage1_airless_body.py::test_stage1_energy_budget_closes_at_every_coupling_interval`<br>`tests/integration/test_stage5_thermal_storage.py::test_a_pulse_gives_back_everything_it_delivered`<br>`tests/integration/test_stage5_thermal_storage.py::test_the_exchange_reconciles_and_the_budgets_close`<br>`tests/integration/test_stage6_historical_replay.py::test_the_budget_closes_over_the_whole_replay_not_just_per_interval`<br>`tests/unit/test_modes_and_reconstruction.py::test_the_whole_run_budget_sums_the_intervals_it_was_given` |
 | KER-014 | mandatory | TEST | test_bound | `tests/acceptance/test_framework_self_compliance.py::test_every_run_leaves_a_complete_record_of_itself`<br>`tests/acceptance/test_framework_self_compliance.py::test_the_output_checksum_identifies_the_run_it_came_from` |
 
-## LND — Land interface (mandatory covered: 0/1)
+## LND — Land interface (mandatory covered: all carved out)
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| LND-001 | mandatory | TEST | not_started | — |
+| LND-001 | mandatory | TEST | carved_out | — |
 
 ## MOD — Module contract requirements (mandatory covered: 12/12)
 
@@ -253,11 +260,11 @@ is where that shows.
 | ORB-001 | mandatory | TEST | test_bound | `tests/unit/test_orbit.py::test_global_mean_factor_is_one_quarter`<br>`tests/unit/test_orbit.py::test_kepler_circular_limit`<br>`tests/unit/test_orbit.py::test_kepler_perihelion_and_aphelion`<br>`tests/unit/test_orbit.py::test_kepler_radius_symmetry_about_perihelion`<br>`tests/unit/test_orbit.py::test_inverse_square_scaling`<br>`tests/unit/test_orbit.py::test_inverse_square_identity_at_the_reference_distance` |
 | ORB-002 | mandatory | TEST | test_bound | `tests/unit/test_orbit.py::test_intercepted_equals_distributed_power`<br>`tests/unit/test_radiation_physics.py::test_equilibrium_temperature_matches_the_closed_form` |
 
-## PAR — Particle and quantum interface (mandatory covered: 0/1)
+## PAR — Particle and quantum interface (mandatory covered: all carved out)
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| PAR-001 | mandatory | TEST | not_started | — |
+| PAR-001 | mandatory | TEST | carved_out | — |
 
 ## RAD — Radiation interface (mandatory covered: 3/3)
 
@@ -312,13 +319,13 @@ is where that shows.
 | STA-006 | mandatory | TEST | test_bound | `tests/integration/test_stage1_airless_body.py::test_owner_commits_state_from_labeled_contributions_only`<br>`tests/integration/test_stage2_column.py::test_radiation_supplies_the_labeled_tendency_the_column_commits`<br>`tests/integration/test_stage3_moist_column.py::test_three_modules_contribute_labeled_tendencies_to_one_state`<br>`tests/integration/test_stage3_moist_column.py::test_the_surface_budget_separates_radiative_from_turbulent_cooling`<br>`tests/integration/test_stage5_thermal_storage.py::test_the_exchange_appears_as_a_labelled_contribution_to_the_surface_state`<br>`tests/unit/test_ownership.py::test_state_budget_reconstructs_the_update_from_labeled_contributions`<br>`tests/unit/test_ownership.py::test_state_budget_residual_exposes_an_unlabeled_update` |
 | STA-007 | mandatory | TEST | test_bound | `tests/unit/test_ownership.py::test_registry_reports_the_owner_for_a_derived_view` |
 
-## SYS — System-level requirements (mandatory covered: 7/8)
+## SYS — System-level requirements (mandatory covered: 8/8)
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
 | SYS-001 | mandatory | TEST | test_bound | `tests/acceptance/test_framework_self_compliance.py::test_the_atmospheric_thermodynamic_state_is_owned_by_the_atmosphere`<br>`tests/integration/test_spectral_interchangeability.py::test_two_solar_implementations_satisfy_one_interface`<br>`tests/integration/test_stage2_column.py::test_transparent_column_recovers_the_airless_result` |
-| SYS-002 | mandatory | TEST | not_started | — |
-| SYS-003 | mandatory | TEST | test_bound | `tests/integration/test_intervention_and_contracts.py::test_every_kernel_module_publishes_a_complete_contract`<br>`tests/integration/test_intervention_and_contracts.py::test_the_manifest_declares_a_status_for_every_known_module`<br>`tests/integration/test_stage4_clouds.py::test_prescribed_cloud_water_is_declared_as_a_source`<br>`tests/unit/test_ocean.py::test_the_exchange_coefficient_is_declared_calibrated` |
+| SYS-002 | mandatory | TEST | test_bound | `tests/acceptance/test_framework_self_compliance.py::test_the_run_time_status_distinguishes_a_carve_out_from_an_active_module`<br>`tests/acceptance/test_framework_self_compliance.py::test_a_carved_out_requirement_names_the_clause_that_defers_it` |
+| SYS-003 | mandatory | TEST | test_bound | `tests/acceptance/test_framework_self_compliance.py::test_the_run_time_status_distinguishes_a_carve_out_from_an_active_module`<br>`tests/integration/test_intervention_and_contracts.py::test_every_kernel_module_publishes_a_complete_contract`<br>`tests/integration/test_intervention_and_contracts.py::test_the_manifest_declares_a_status_for_every_known_module`<br>`tests/integration/test_stage4_clouds.py::test_prescribed_cloud_water_is_declared_as_a_source`<br>`tests/unit/test_ocean.py::test_the_exchange_coefficient_is_declared_calibrated` |
 | SYS-004 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_stub_output_is_marked_and_cannot_support_a_claim` |
 | SYS-005 | mandatory | TEST | test_bound | `tests/unit/test_registries.py::test_the_reference_kernel_fits_a_workstation_budget` |
 | SYS-006 | mandatory | TEST | test_bound | `tests/acceptance/test_failure_detection.py::test_the_leaky_run_stops_when_conservation_is_enforced`<br>`tests/integration/test_observed_replay.py::test_a_file_that_does_not_match_its_recorded_checksum_is_refused`<br>`tests/integration/test_stage6_historical_replay.py::test_running_past_the_record_coverage_fails`<br>`tests/unit/test_clouds.py::test_unphysical_cloud_states_are_refused`<br>`tests/unit/test_comparison.py::test_an_unusable_baseline_window_is_refused`<br>`tests/unit/test_comparison.py::test_series_in_different_units_or_with_no_overlap_are_refused`<br>`tests/unit/test_data_records.py::test_a_record_refuses_to_be_read_outside_its_coverage`<br>`tests/unit/test_data_records.py::test_a_gap_is_a_shorter_series_not_a_sentinel`<br>`tests/unit/test_data_records.py::test_malformed_records_are_refused`<br>`tests/unit/test_data_records.py::test_a_method_the_sampling_convention_forbids_is_refused`<br>`tests/unit/test_forcing.py::test_a_pulse_must_declare_a_duration`<br>`tests/unit/test_forcing.py::test_unphysical_forcing_declarations_are_refused`<br>`tests/unit/test_greenhouse.py::test_unphysical_band_parameters_are_refused`<br>`tests/unit/test_greenhouse.py::test_the_band_is_calibrated_at_the_background_the_runs_use`<br>`tests/unit/test_greenhouse.py::test_a_coupled_radiation_module_takes_the_calibrated_background_by_itself`<br>`tests/unit/test_loaders.py::test_nrltsi2_refuses_a_file_that_does_not_declare_the_epoch_it_assumes`<br>`tests/unit/test_modes_and_reconstruction.py::test_a_lineage_cycle_is_refused`<br>`tests/unit/test_modes_and_reconstruction.py::test_the_boundary_must_be_named_rather_than_inferred`<br>`tests/unit/test_ocean.py::test_unphysical_parameters_are_refused`<br>`tests/unit/test_orbit.py::test_eccentricity_outside_the_validity_domain_is_refused`<br>`tests/unit/test_radiative_transfer.py::test_mismatched_array_lengths_are_refused`<br>`tests/unit/test_thermodynamics.py::test_unphysical_inputs_are_refused`<br>`tests/unit/test_timescales.py::test_a_response_that_does_not_move_has_no_timescale`<br>`tests/unit/test_timescales.py::test_a_fit_refuses_input_it_cannot_fit`<br>`tests/unit/test_timescales.py::test_periodic_response_refuses_a_record_shorter_than_a_period`<br>`tests/unit/test_validity_domains.py::test_a_value_outside_its_declared_range_is_reported`<br>`tests/unit/test_validity_domains.py::test_ambiguity_is_refused_rather_than_guessed`<br>`tests/unit/test_validity_domains.py::test_every_binding_on_one_symbol_is_judged_not_just_the_first`<br>`tests/unit/test_validity_domains.py::test_a_masked_value_narrows_the_check_to_where_the_relation_was_applied`<br>`tests/unit/test_validity_domains.py::test_a_relation_that_left_its_domain_and_came_back_is_still_caught`<br>`tests/unit/test_validity_domains.py::test_a_closure_idle_at_the_end_is_judged_on_the_steps_it_ran`<br>`tests/unit/test_vapour.py::test_unphysical_vapour_parameters_are_refused`<br>`tests/unit/test_vapour.py::test_the_co2_band_has_a_calibration_for_each_background_it_runs_against`<br>`tests/unit/test_vapour.py::test_the_transport_mixes_the_profile_condensation_leaves_not_the_one_it_found`<br>`tests/unit/test_volcanic.py::test_unphysical_aerosol_parameters_are_refused` |

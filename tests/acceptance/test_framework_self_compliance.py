@@ -25,11 +25,14 @@ and none of these configurations writes one. ACC-005 had been recorded as
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import pkgutil
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pytest
+import yaml
 
 import mfespf.physics
 from mfespf.contracts.module import Module, ModuleStatus
@@ -45,6 +48,8 @@ from mfespf.run.driver import Kernel
 from mfespf.run.greenhouse import greenhouse_grid
 
 pytestmark = pytest.mark.stage(0)
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 # --- the configurations every sweep runs over -------------------------------
@@ -66,6 +71,20 @@ def _greenhouse_column(**kwargs: Any) -> Kernel:
         volcanic=PrescribedVolcanicModule(optical_depth=0.05),
         convection=True,
         **kwargs,
+    )
+
+
+def _greenhouse_column_at(ppm: float) -> Kernel:
+    """The same column at another concentration, and identical in every other way."""
+    grid = greenhouse_grid()
+    return cc.radiating_column(
+        run_id=f"SELFTEST-GREENHOUSE-{ppm:g}",
+        purpose="HUM-001: the concentration is the only thing that differs.",
+        absorption_coefficient=window_absorption(grid, kappa_opaque=1.0e-4),
+        grid=grid,
+        greenhouse=PrescribedGreenhouseModule(concentration=ppm),
+        volcanic=PrescribedVolcanicModule(optical_depth=0.05),
+        convection=True,
     )
 
 
@@ -589,3 +608,174 @@ def test_the_configurations_all_build_and_step(stepped):
         assert np.isfinite(
             float(np.asarray(result.steps[-1].outputs["surface_temperature"].values).sum())
         ), f"{name}: finished with a non-finite surface temperature"
+
+
+# --- SYS-002: a carve-out is a decision, not a backlog item -----------------
+
+
+@pytest.mark.req("SYS-002", "SYS-003")
+def test_the_run_time_status_distinguishes_a_carve_out_from_an_active_module(kernels, stepped):
+    """Half of SYS-002, at run time: the status vocabulary is load-bearing.
+
+    Charter 4.3 defines a carve-out as a reserved place that asserts nothing
+    about whether the domain is important or active. The distinction has to do
+    something, or it is a comment: a STUB's output is test data and cannot
+    support a claim, an INACTIVE module does not participate, and only an ACTIVE
+    one evolves state. Every run declares every module against that vocabulary.
+    """
+    assert not ModuleStatus.STUB.may_support_a_claim
+    assert all(s.may_support_a_claim for s in ModuleStatus if s is not ModuleStatus.STUB)
+    assert not ModuleStatus.INACTIVE.participates
+    assert [s for s in ModuleStatus if s.evolves_state] == [ModuleStatus.ACTIVE]
+
+    for name, result in stepped.items():
+        declared = result.manifest.module_status
+        modules = {m.module_id: m for m in _modules(kernels[name])}
+        assert set(declared) == set(modules), f"{name}: a module ran without a declared status"
+        for module_id, status in declared.items():
+            assert status in {s.value for s in ModuleStatus}, (
+                f"{name}: {module_id} declares status {status!r}, outside the charter's vocabulary"
+            )
+            # And the declaration is the module's own, not the manifest's guess.
+            assert modules[module_id].status.value == status
+
+
+@pytest.mark.req("SYS-002")
+def test_a_carved_out_requirement_names_the_clause_that_defers_it():
+    """The other half, in the record: a carve-out excuses a requirement, so it
+    has to say on whose authority.
+
+    Without this the status is a way of making the coverage number look better.
+    The tool refuses a carve-out with no waiver, and refuses one that also has a
+    bound test -- because a requirement cannot both be deferred and be verified,
+    and whichever of the two is wrong should be said out loud.
+
+    The classification is the specification's rather than a judgement made here.
+    It is also smaller than it was estimated to be: `docs/todo.md` put it at
+    "about ten", and looking made it four. Gravity is the case that decides the
+    boundary -- the gravity module is as absent from charter 18's candidate list
+    as the cryosphere is, but the column computes hydrostatic layer mass with it
+    every step, so GRV-001 is a gap rather than a carve-out.
+    """
+    requirements = _load_requirements()
+    carved = {rid: row for rid, row in requirements.items() if row.get("status") == "carved_out"}
+
+    assert carved, "nothing is classified, so the distinction SYS-002 asks for is not being made"
+    for rid, row in carved.items():
+        waiver = row.get("waiver") or ""
+        assert waiver.strip(), f"{rid} is carved out with no waiver"
+        assert "charter" in waiver.lower() or "irs" in waiver.lower(), (
+            f"{rid}'s waiver cites no specification clause: {waiver!r}"
+        )
+
+    # Gravity is used by the column and is therefore counted, not excused.
+    assert requirements["GRV-001"].get("status") != "carved_out", (
+        "GRV-001 was excused although the column computes layer mass with gravity"
+    )
+
+    traceability = _traceability_module()
+    problems = _traceability_problems(traceability, requirements)
+    assert not problems, f"the requirement registry is inconsistent: {problems}"
+
+    # And the refusals fire, rather than being available.
+    unjustified = {**requirements, "ICE-001": {**requirements["ICE-001"], "waiver": ""}}
+    assert any("no waiver" in p for p in _traceability_problems(traceability, unjustified))
+
+
+# --- HUM-001: how a human influence is allowed to reach the state ----------
+
+
+@pytest.mark.req("HUM-001", "CHM-001")
+def test_human_activity_reaches_the_state_only_through_a_constitutive_relation():
+    """HUM-001, demonstrated on the one human influence this kernel represents.
+
+    The failure HUM-001 names is a fitted forcing added to a budget: a term in
+    watts per square metre, tuned to reproduce a record, that no physical process
+    put there. Carbon dioxide here does the opposite. The module publishes a mole
+    fraction and nothing else, owns no state, computes no tendency and declares
+    no transfer; the radiation module turns the concentration into an absorption
+    coefficient, and the transfer solver is unchanged and unaware.
+
+    So the check is in three parts, and all three are needed. That the module
+    adds nothing to a budget would also be true of a module that does nothing, so
+    the second part shows it *acts*: doubling the concentration moves the
+    outgoing longwave. And a mechanism that acts without adding anything must
+    leave the budget closing exactly as before, which is the third.
+    """
+    kernel = _greenhouse_column()
+    result = kernel.run(50)
+    greenhouse = next(m for m in _modules(kernel) if m.module_id == "greenhouse")
+
+    # It enters through none of the routes HUM-001 forbids.
+    assert greenhouse.compute_tendencies() == [], "the concentration contributes a tendency"
+    assert greenhouse.report_transfers() == ([], []), "the concentration declares a transfer"
+    assert not greenhouse.contract.owned_state_ids
+    assert not greenhouse.contract.conserved_quantities
+    assert greenhouse.contract.produced_outputs == ("co2_mole_fraction",)
+
+    edges = [
+        edge
+        for edge in result.manifest.dependency_graph["edges"]
+        if "greenhouse" in (edge["source"], edge["destination"])
+    ]
+    assert edges, "the concentration reaches nothing"
+    for edge in edges:
+        assert edge["type"] == EdgeType.PARAMETER_DEPENDENCY.value, (
+            f"carbon dioxide reaches {edge['destination']} as a {edge['type']}, not a parameter"
+        )
+
+    # No budget carries a term named for it, under any name.
+    labels = {
+        label for budget in result.steps[-1].state_budgets.values() for label in budget.by_label()
+    }
+    assert not any("greenhouse" in label or "forcing" in label for label in labels), (
+        f"a budget carries a term for the concentration: {sorted(labels)}"
+    )
+
+    # It nonetheless acts, through the absorption coefficient alone.
+    doubled = _greenhouse_column_at(560.0).run(50)
+    olr = lambda run: float(  # noqa: E731
+        np.asarray(run.steps[-1].outputs["outgoing_longwave_radiation"].values).sum()
+    )
+    assert olr(doubled) < olr(result), (
+        f"doubling the concentration did not reduce the outgoing longwave: "
+        f"{olr(result):.3f} to {olr(doubled):.3f} W m^-2"
+    )
+
+    # And it adds no energy: both budgets close to the same place.
+    for run in (result, doubled):
+        assert run.final_conservation.worst_relative_residual() < 1e-12
+
+
+def _load_requirements() -> dict[str, dict]:
+    """The requirement registry, read as a record rather than through the tool."""
+    requirements: dict[str, dict] = {}
+    for path in sorted((REPO_ROOT / "requirements").glob("req-*.yaml")):
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for row in data.get("requirements", []):
+            requirements[row["id"]] = row
+    return requirements
+
+
+def _traceability_module() -> Any:
+    """Import ``tools/traceability.py`` without putting ``tools`` on the path."""
+    spec = importlib.util.spec_from_file_location(
+        "_traceability_under_test", REPO_ROOT / "tools" / "traceability.py"
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _traceability_problems(traceability: Any, requirements: dict[str, dict]) -> list[str]:
+    """The tool's integrity check, run over a registry given to it."""
+    problems: list[str] = []
+    bindings = traceability.collect_bindings()
+    for row in requirements.values():
+        if traceability.is_carve_out(row):
+            if not row.get("waiver"):
+                problems.append(f"{row['id']}: carved out with no waiver")
+            if bindings.get(row["id"]):
+                problems.append(f"{row['id']}: carved out and has a bound test")
+    return problems

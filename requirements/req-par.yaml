@@ -4,13 +4,15 @@ source: MFESPF-IRS-001 v1.0 Draft
 generated_by: tools/extract_requirements.py
 requirements:
 - id: PAR-001
-  text: Particle and quantum modules SHALL remain optional and SHALL identify the claim requiring their
-    activation.
+  text: Particle and quantum modules SHALL remain optional and SHALL identify the claim requiring their activation.
   strength: mandatory
   section: CORE PHYSICAL INTERFACE REQUIREMENTS
   verification: TEST
-  status: not_started
+  status: carved_out
   design_component: ''
   implementation: ''
   evidence: []
-  waiver: ''
+  waiver: Architectural carve-out. The particle-interaction and quantum-properties modules (charter 9.16, 9.17)
+    are outside charter 18's candidate active modules, and IRS 23 defers explicit particle-cascade physics and first-principles
+    quantum property calculation. Charter 18 also lists 'explicit quantum calculation of all molecular properties'
+    among the initially excluded claims.
