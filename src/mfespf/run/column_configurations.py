@@ -32,6 +32,7 @@ from mfespf.physics.clouds import CloudProfile, PrescribedCloudModule, single_la
 from mfespf.physics.column_surface import ColumnSurfaceModule
 from mfespf.physics.convection import ConvectiveAdjustmentModule
 from mfespf.physics.equations import EQUATION_IDS, build_equation_registry
+from mfespf.physics.gravity import GravityField
 from mfespf.physics.ocean import (
     OCEAN_DEEP_STATE,
     DeepOceanModule,
@@ -644,6 +645,7 @@ def radiating_column(
     initial_deep_temperature: float | None = None,
     sensible_heat_coefficient: float = 10.0,
     evaporation_coefficient: float | None = None,
+    gravity: float | GravityField | None = None,
     initial_water_store: float = 1.0e4,
     conservation_tolerance: float = 1e-11,
     budget: ResourceBudget | None = None,
@@ -679,6 +681,7 @@ def radiating_column(
         top_pressure=top_pressure,
         initial_temperature=initial_air_temperature,
         couple_water=water,
+        gravity=gravity,
     )
     surface = ColumnSurfaceModule(
         grid=working_grid,

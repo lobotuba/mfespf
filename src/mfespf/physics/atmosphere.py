@@ -46,6 +46,8 @@ from mfespf.core.versioning import InterfaceContract, Version
 from mfespf.coupling.conservation import ModuleBudget
 from mfespf.coupling.transfers import ConservedQuantity, Transfer
 from mfespf.physics.equations import EQUATION_IDS
+from mfespf.physics.gravity import GravityField, as_gravity_field
+from mfespf.physics.thermodynamics import hydrostatic_heights
 from mfespf.registries.states import (
     StateBudget,
     StateEntry,
@@ -85,15 +87,23 @@ def hydrostatic_layer_masses(
     n_layers: int,
     surface_pressure: float,
     top_pressure: float,
-    gravity: float,
+    gravity: float | GravityField,
+    layer_heights: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Layer interface pressures and masses for a hydrostatic column.
 
     Returns ``(interface_pressures, layer_masses)`` with interface index 0 at the
     surface and index ``n_layers`` at the model top, so layer ``i`` lies between
-    interfaces ``i`` and ``i+1``.  Layers are equal in pressure, hence equal in
-    mass -- the simplest distribution, and one whose total is exactly
+    interfaces ``i`` and ``i+1``.  Layers are equal in pressure; with constant
+    gravity they are therefore equal in mass, and the total is exactly
     ``(p_s - p_top) / g`` so the column's mass budget is checkable by hand.
+
+    ``gravity`` may be a number -- which is the first rung of charter 9.15's
+    fidelity path, ``ConstantGravity``, and keeps the total exact -- or a
+    ``GravityField``. A field that varies with height needs ``layer_heights`` and
+    **refuses to be evaluated without them** rather than quietly using the
+    surface value, since the point of declaring the approximation is that it
+    cannot be applied by accident.
     """
     if n_layers < 1:
         raise ConfigurationError("an atmospheric column needs at least one layer")
@@ -102,8 +112,22 @@ def hydrostatic_layer_masses(
             f"top pressure {top_pressure} must be non-negative and below the surface "
             f"pressure {surface_pressure}"
         )
+    field = as_gravity_field(gravity)
     interfaces = np.linspace(surface_pressure, top_pressure, n_layers + 1)
-    masses = -np.diff(interfaces) / gravity
+    if field.varies_with_height:
+        if layer_heights is None:
+            raise ConfigurationError(
+                f"{type(field).__name__} varies with height, so the layer heights are "
+                "needed to evaluate it; pass layer_heights or use ConstantGravity"
+            )
+        heights = np.asarray(layer_heights, dtype=float)
+        if heights.size != n_layers:
+            raise ConfigurationError(
+                f"layer_heights has {heights.size} entries for {n_layers} layers"
+            )
+    else:
+        heights = np.zeros(n_layers)
+    masses = -np.diff(interfaces) / field.at_height(heights)
     return interfaces, masses
 
 
@@ -150,7 +174,7 @@ class AtmosphericColumnModule(Module):
         top_pressure: float = 1.0e3,
         initial_temperature: float | np.ndarray = 250.0,
         specific_heat: float | None = None,
-        gravity: float | None = None,
+        gravity: float | GravityField | None = None,
         couple_water: bool = False,
         water_module_id: str = "water",
         status: ModuleStatus = ModuleStatus.ACTIVE,
@@ -260,20 +284,26 @@ class AtmosphericColumnModule(Module):
         self.specific_heat = (
             specific_heat if specific_heat is not None else value_of("specific_heat_dry_air")
         )
-        self.gravity = gravity if gravity is not None else value_of("earth_standard_gravity")
+        self.gravity_field = as_gravity_field(gravity)
         self.initial_temperature = initial_temperature
 
+        # The pressure grid does not depend on gravity -- the layers are equal in
+        # pressure by construction -- so the interfaces come first and the masses
+        # follow, which is what lets a height-dependent field be evaluated at all.
+        interfaces = np.linspace(self.surface_pressure, top_pressure, n_layers + 1)
+        # Layer midpoint pressure, the level a layer's bulk properties are
+        # attributed to. Linear in pressure because the layers are equal in
+        # pressure.
+        self.layer_pressure = 0.5 * (interfaces[:-1] + interfaces[1:])
+        self.layer_height = self._initial_heights()
         self.interface_pressure, self.layer_mass = hydrostatic_layer_masses(
             n_layers=n_layers,
             surface_pressure=self.surface_pressure,
             top_pressure=top_pressure,
-            gravity=self.gravity,
+            gravity=self.gravity_field,
+            layer_heights=self.layer_height if self.gravity_field.varies_with_height else None,
         )
         self.layer_heat_capacity = self.specific_heat * self.layer_mass
-        # Layer midpoint pressure, the level a layer's bulk properties are
-        # attributed to. Linear in pressure because the layers are equal in
-        # pressure and therefore in mass.
-        self.layer_pressure = 0.5 * (self.interface_pressure[:-1] + self.interface_pressure[1:])
         self.temperature = np.full(n_layers, float(np.mean(np.asarray(initial_temperature))))
 
         self._interval = (0.0, 0.0)
@@ -283,6 +313,32 @@ class AtmosphericColumnModule(Module):
         self._latent_received = 0.0
         self._sensible_received: float | None = None
         self._convective_received: float | None = None
+
+    def _initial_heights(self) -> np.ndarray:
+        """Layer midpoint heights, from the initial profile, in metres.
+
+        Only a height-dependent gravity field needs these, and it needs them
+        before the column has taken a step, so they come from the initial
+        temperature. That is an approximation with a name: the layer masses are
+        fixed for the run either way -- the pressure grid is time-invariant by
+        declaration -- so what is fixed here is which height each *pressure* is
+        at, and that moves by a few percent over the run as the column warms. A
+        few percent of a 0.2 percent correction is not a term anything here
+        resolves, and declaring the mass field time-invariant is the assumption
+        that was already being made.
+        """
+        initial = np.asarray(self.initial_temperature, dtype=float)
+        profile = np.full(self.n_layers, float(np.mean(initial))) if initial.ndim == 0 else initial
+        if profile.size != self.n_layers:
+            # Left to validate_configuration to report properly; a placeholder
+            # keeps construction from failing before it can.
+            profile = np.full(self.n_layers, float(np.mean(profile)))
+        return hydrostatic_heights(profile, self.layer_pressure, self.surface_pressure)
+
+    @property
+    def gravity(self) -> float:
+        """The surface value, for callers that want one number (GRV-001)."""
+        return self.gravity_field.surface_value()
 
     # --- configuration ----------------------------------------------------
     def validate_configuration(self) -> None:
@@ -626,7 +682,7 @@ class AtmosphericColumnModule(Module):
             "surface_pressure_Pa": self.surface_pressure,
             "top_pressure_Pa": self.top_pressure,
             "specific_heat_J_kg_K": self.specific_heat,
-            "gravity_m_s2": self.gravity,
+            **self.gravity_field.parameters(),
             "column_mass_kg_m2": self.column_mass,
             "couple_water": self.couple_water,
             "initial_temperature_K": np.asarray(self.initial_temperature, dtype=float)

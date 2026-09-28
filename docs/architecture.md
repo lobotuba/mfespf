@@ -1685,6 +1685,67 @@ The general point: a diagnostic added to make something checkable is still a
 diagnostic that runs every step of every configuration, and publishing at a
 resolution nothing consumes is a cost with no claim attached to it.
 
+## The gravity constant was an approximation nobody had to declare
+
+GRV-001 asks that gravity be provided through a replaceable interface beginning
+with a declared approximation. It was provided by
+`value_of("earth_standard_gravity")`, read straight from the constants table at
+four call sites, and the constant's own note said that the gravity module
+supersedes it.
+
+The requirement turns out not to be about gravity. **An approximation nobody has
+to declare is one nobody has to measure**, and the hydrostatic equation's record
+proved the point by asserting a bound that was wrong for the column it was
+attached to. It said constant gravity is "about 1.5 percent at 100 km and
+negligible through the troposphere". Both halves are true and neither is about
+this column, whose top at 1000 Pa is **19 to 27 km up** depending on the
+resolution.
+
+Held against the inverse square law over the column's own heights:
+
+| | constant g | Newtonian g(z) | |
+|---|---|---|---|
+| column mass | 10230.30 | 10252.15 kg m^-2 | **+0.21%** |
+| topmost layer | — | — | **+0.61%** at 8 layers, +0.85% at 32 |
+| surface temperature | 272.444 | 272.481 K | +0.037 K |
+| outgoing longwave | 198.449 | 198.365 W m^-2 | -0.085 |
+
+The surface numbers are the time-mean over the last tenth of a 20000-step run and
+repeat to 0.001 K at 8 and 16 layers, so they are the approximation's cost and
+not the limit cycle's noise. The error sits in the worst place available: the
+topmost layer is the one that sets the outgoing longwave, and it is the layer the
+constant misses by the most.
+
+**Two of charter 9.15's four rungs are implemented.** `ConstantGravity` is what
+the framework has always done, now saying so. `NewtonianAltitudeGravity` is
+`g(z) = g_0 (R/(R+z))^2`, checked against its own series expansion term by term
+rather than against the closed form -- agreeing with the closed form would
+establish only that the code computes the formula it was handed. The spatial
+field and the relativistic correction are carve-outs in the charter's sense.
+
+**Latitude is deliberately not implemented**, although charter 9.15 pairs it with
+altitude on the second rung, and not because it is small: equator to pole is
+about 0.5 percent, the same size as the altitude effect measured above. It is
+omitted because every configuration here is a global mean or a single column,
+neither of which has a latitude to evaluate it at, and because the conventional
+value is already a latitude-weighted compromise. Supplying one would be inventing
+a coordinate the physics does not have.
+
+**The default stays constant, and that is a decision rather than an omission.**
+GRV-001 says "beginning with a declared approximation", and charter 9.15's first
+rung is constant g. The switch is a keyword away and the downstream calibration
+was checked before recommending against it: the carbon dioxide forcing per
+doubling moves from 3.6977 to 3.6943 W m^-2, which is 0.0034 of a +/-0.05 window,
+so a physics change here would *not* invalidate the fit the way the saturation
+correction did. What argues against promoting it is the trade, not the risk. The
+column carries a +6.6 K warm bias; spending a renumber of every recorded result
+in this file on 0.037 K is not where the accuracy is.
+
+The interface refuses rather than falls back. A height-dependent field asked for
+layer masses without layer heights raises, instead of quietly using the surface
+value -- which would put the approximation back to being applied without anyone
+declaring it, which is the whole thing this was written to stop.
+
 ## A carve-out is a decision, and counting it as a backlog item hid four of them
 
 `docs/todo.md` complained that the carve-out requirements were recorded as

@@ -49,23 +49,19 @@ two resolutions, run by hand in scratch scripts, and the answer — a factor of
 most decision-relevant number produced that day. That is UNC-005, done manually
 because the framework cannot do it.
 
-### Thirteen mandatory requirements are still unbound
+### Twelve mandatory requirements are still unbound
 
-172 of 185 have a bound acceptance test, with 4 architectural carve-outs counted
+173 of 185 have a bound acceptance test, with 4 architectural carve-outs counted
 separately rather than folded into the denominator. What is left is three kinds
 of thing, and only the first is a backlog:
 
 | | requirements | what it needs |
 |---|---|---|
-| unimplemented | UNC-005, UNC-006, UNC-007, GRV-001, VER-008, CMP-007, ACC-010 | the machinery they describe |
+| unimplemented | UNC-005, UNC-006, UNC-007, VER-008, CMP-007, ACC-010 | the machinery they describe |
 | a spatial decision | SPA-001, SPA-003, SPA-004, SPA-005, SPA-006 | see below |
 | true only when the rest are | ACC-001 | everything above |
 
-The uncertainty trio is the item above. GRV-001 is the most tractable of the
-rest: the column computes hydrostatic layer mass from
-`earth_standard_gravity`, whose own note says the gravity module supersedes it,
-so the requirement is a replaceable interface around a constant the kernel
-already uses.
+The uncertainty trio is the item above.
 
 **The spatial five need a decision before they need code.** The kernel has two
 spatial representations, global scalar and vertical column, and it changes the

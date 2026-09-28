@@ -247,6 +247,24 @@ saying out loud.
   rather than widening a tolerance; here it moved the vapour wing decay by ten
   percent and left the CO2 one where it was, which is itself the evidence that
   only one of them was wrong.
+- **An approximation nobody has to declare is one nobody has to measure.**
+  Gravity was a constant read from a table at four call sites, and the
+  hydrostatic record's bound for it -- "negligible through the troposphere" --
+  was true of a troposphere and wrong about this column, whose top is 19 to 27 km
+  up. Measured, the constant puts 0.21 percent too little mass in the column and
+  0.6 to 0.85 percent too little in the topmost layer, which is the one that sets
+  the outgoing longwave. Put a constant behind an interface that states its
+  approximation, and the measurement follows.
+- **A height-dependent field with no heights refuses; it does not use the
+  surface value.** A silent fallback would put the approximation back to being
+  applied without anyone declaring it, which is what the interface exists to
+  stop. Same rule as declining to evaluate Clausius-Clapeyron below its floor.
+- **Check the downstream calibration before recommending against a change, not
+  only before making one.** Promoting `NewtonianAltitudeGravity` to the default
+  moves the CO2 forcing per doubling by 0.0034 of a +/-0.05 window, so the fit is
+  safe. The reason to leave it off is the trade -- 0.037 K against a +6.6 K bias,
+  for a renumber of every recorded result -- and that is a different and better
+  argument than "it might break something".
 - **A carve-out is a domain the kernel does not use; one it uses without the
   declared interface is a gap.** That rule is what keeps the classification from
   being an excuse. The gravity module is as absent from charter 18's candidate

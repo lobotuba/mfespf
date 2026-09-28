@@ -436,11 +436,20 @@ def build_equation_registry() -> EquationRegistry:
             parameters=(("earth_standard_gravity", "fundamental", "CGPM 1901"),),
             assumptions=(
                 "no vertical acceleration",
-                "gravity constant over the depth of the column",
+                "gravity is whatever the configured GravityField says it is; the "
+                "default ConstantGravity holds it fixed over the depth of the column",
             ),
             approximations=(
-                "Constant gravity introduces an error of order z / R_earth: about 1.5 "
-                "percent at 100 km and negligible through the troposphere.",
+                "Constant gravity introduces an error of order 2 z / R_earth. This "
+                "was recorded as 'about 1.5 percent at 100 km and negligible through "
+                "the troposphere', which is true of a troposphere and wrong about "
+                "this column: its top at 1000 Pa is 19 to 27 km up depending on the "
+                "resolution. Measured against NewtonianAltitudeGravity, the constant "
+                "puts 0.21 percent too little mass in the column and 0.6 to 0.85 "
+                "percent too little in the topmost layer -- the layer that sets the "
+                "outgoing longwave -- and the equilibrated column lands 0.037 K "
+                "cooler with 0.085 W m^-2 more outgoing longwave, at 8 and at 16 "
+                "layers alike.",
             ),
             validity_domain=ValidityDomain(
                 ranges=(("p", 0.0, 1.2e5, "Pa"),),
