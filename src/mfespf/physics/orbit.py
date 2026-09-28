@@ -35,7 +35,12 @@ from mfespf.core.quantities import (
     TimeSemantics,
     Uncertainty,
 )
-from mfespf.core.versioning import InterfaceContract, Version, VersionRange
+from mfespf.core.versioning import (
+    InterfaceContract,
+    RequiredInterface,
+    Version,
+    VersionRange,
+)
 from mfespf.coupling.conservation import ModuleBudget
 from mfespf.coupling.transfers import ConservedQuantity, Transfer
 from mfespf.physics.equations import EQUATION_IDS
@@ -160,7 +165,17 @@ class OrbitalGeometryModule(Module):
             conserved_quantities=("energy",),
             internal_sources_and_sinks=("solar_input_across_system_boundary",),
             provided_interfaces=(ORBITAL_GEOMETRY_INTERFACE,),
-            required_interfaces=(("solar_source", VersionRange.parse(">=1.0.0,<2.0.0")),),
+            required_interfaces=(
+                RequiredInterface(
+                    interface_id="solar_source",
+                    version_range=VersionRange.parse(">=1.0.0,<2.0.0"),
+                    expects={
+                        "reference_distance": "1 au",
+                        "spectral_density_basis": "per_metre_of_wavelength",
+                        "sign_convention": "positive_definite",
+                    },
+                ),
+            ),
             equation_variables=(
                 (EQUATION_IDS["kepler"], (("e", "eccentricity", "1"),)),
                 (EQUATION_IDS["kepler_solver"], (("e", "eccentricity", "1"),)),

@@ -66,7 +66,12 @@ from mfespf.core.quantities import (
     SpatialSupport,
     TimeSemantics,
 )
-from mfespf.core.versioning import InterfaceContract, Version, VersionRange
+from mfespf.core.versioning import (
+    InterfaceContract,
+    RequiredInterface,
+    Version,
+    VersionRange,
+)
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.equations import EQUATION_IDS
 from mfespf.physics.plume import BULK_PLUME_PARAMETER, entraining_lapse_rate
@@ -191,7 +196,17 @@ class ConvectiveAdjustmentModule(Module):
             conserved_quantities=("energy",),
             internal_sources_and_sinks=(),
             provided_interfaces=(CONVECTION_INTERFACE,),
-            required_interfaces=(("atmospheric_state", VersionRange.parse(">=1.0.0,<2.0.0")),),
+            required_interfaces=(
+                RequiredInterface(
+                    interface_id="atmospheric_state",
+                    version_range=VersionRange.parse(">=1.0.0,<2.0.0"),
+                    expects={
+                        "layer_ordering": "index_0_is_the_lowest_layer",
+                        "vertical_coordinate": "pressure",
+                        "temperature_units": "K",
+                    },
+                ),
+            ),
             equation_variables=(
                 (
                     EQUATION_IDS["potential_temperature"],

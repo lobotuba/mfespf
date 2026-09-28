@@ -21,6 +21,11 @@ from dataclasses import field as dc_field
 from mfespf.contracts.module import Module, StepContext, UncertaintyReport
 from mfespf.core.errors import ConfigurationError
 from mfespf.core.quantities import Field
+from mfespf.core.versioning import (
+    MigrationAdapter,
+    Negotiation,
+    negotiate_configuration,
+)
 from mfespf.coupling.conservation import (
     ConservationAuditor,
     ConservationReport,
@@ -151,8 +156,13 @@ class Coupler:
         graph: DependencyGraph | None = None,
         auditor: ConservationAuditor | None = None,
         start_time: float = 0.0,
+        migration_adapters: tuple[MigrationAdapter, ...] = (),
     ) -> None:
         self.schedule = schedule
+        # Declared per configuration rather than per module: an adapter bridges
+        # two modules' disagreement and belongs to neither of them (VER-008).
+        self.migration_adapters = migration_adapters
+        self.negotiations: tuple[Negotiation, ...] = ()
         self.states = state_registry
         self.graph = graph or DependencyGraph()
         self.auditor = auditor or ConservationAuditor()
@@ -182,6 +192,27 @@ class Coupler:
         active_ids = {s.module_id for s in self.schedule.schedules if s.module.status.participates}
         for s in self.schedule.ordered():
             s.module.validate_configuration()
+
+        # VER-006: match every declared provider against every declared
+        # consumer, before anything initialises. This module's own tests were
+        # the only caller of `negotiate` for a long time, so eight provided
+        # interfaces carrying forty-four semantic keys were compared against
+        # nothing -- the validity-domain situation, in the version machinery.
+        self.negotiations = negotiate_configuration(
+            providers={
+                iface.interface_id: (s.module_id, iface)
+                for s in self.schedule.ordered()
+                if s.module.status.participates
+                for iface in s.module.contract.provided_interfaces
+            },
+            consumers=[
+                (s.module_id, required)
+                for s in self.schedule.ordered()
+                if s.module.status.participates
+                for required in s.module.contract.required_interfaces
+            ],
+            adapters=self.migration_adapters,
+        )
 
         declarations = {
             s.module_id: s.module.contract.owned_state_ids

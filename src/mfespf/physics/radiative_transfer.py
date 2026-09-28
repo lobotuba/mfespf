@@ -52,7 +52,12 @@ from mfespf.core.quantities import (
     TimeSemantics,
     Uncertainty,
 )
-from mfespf.core.versioning import InterfaceContract, Version, VersionRange
+from mfespf.core.versioning import (
+    InterfaceContract,
+    RequiredInterface,
+    Version,
+    VersionRange,
+)
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.equations import EQUATION_IDS
 from mfespf.physics.radiation import (
@@ -685,8 +690,24 @@ class SpectralRadiationModule(Module):
             supported_spectral_representations=(grid.resolution_identifier,),
             provided_interfaces=(RADIATION_INTERFACE,),
             required_interfaces=(
-                ("atmospheric_state", VersionRange.parse(">=1.0.0,<2.0.0")),
-                ("surface", VersionRange.parse(">=1.0.0,<2.0.0")),
+                RequiredInterface(
+                    interface_id="atmospheric_state",
+                    version_range=VersionRange.parse(">=1.0.0,<2.0.0"),
+                    expects={
+                        "layer_ordering": "index_0_is_the_lowest_layer",
+                        "vertical_coordinate": "pressure",
+                        "temperature_units": "K",
+                        "layer_mass_units": "kg m^-2",
+                    },
+                ),
+                RequiredInterface(
+                    interface_id="surface",
+                    version_range=VersionRange.parse(">=1.0.0,<2.0.0"),
+                    expects={
+                        "temperature_units": "K",
+                        "flux_sign_convention": "positive_upward_away_from_surface",
+                    },
+                ),
             ),
             uncertainty_outputs=(
                 "spectral_discretization",

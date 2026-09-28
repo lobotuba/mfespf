@@ -47,7 +47,12 @@ from mfespf.core.quantities import (
     TimeSemantics,
     Uncertainty,
 )
-from mfespf.core.versioning import InterfaceContract, Version, VersionRange
+from mfespf.core.versioning import (
+    InterfaceContract,
+    RequiredInterface,
+    Version,
+    VersionRange,
+)
 from mfespf.coupling.conservation import ModuleBudget
 from mfespf.coupling.transfers import ConservedQuantity, Transfer
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
@@ -242,8 +247,22 @@ class WaterModule(Module):
             internal_sources_and_sinks=(),
             provided_interfaces=(WATER_INTERFACE,),
             required_interfaces=(
-                ("atmospheric_state", VersionRange.parse(">=1.0.0,<2.0.0")),
-                ("surface", VersionRange.parse(">=1.0.0,<2.0.0")),
+                RequiredInterface(
+                    interface_id="atmospheric_state",
+                    version_range=VersionRange.parse(">=1.0.0,<2.0.0"),
+                    expects={
+                        "layer_ordering": "index_0_is_the_lowest_layer",
+                        "vertical_coordinate": "pressure",
+                        "temperature_units": "K",
+                    },
+                ),
+                RequiredInterface(
+                    interface_id="surface",
+                    version_range=VersionRange.parse(">=1.0.0,<2.0.0"),
+                    expects={
+                        "temperature_units": "K",
+                    },
+                ),
             ),
             uncertainty_outputs=(
                 "evaporation_coefficient_parameter",

@@ -53,7 +53,12 @@ from mfespf.core.quantities import (
     TimeSemantics,
     Uncertainty,
 )
-from mfespf.core.versioning import InterfaceContract, Version, VersionRange
+from mfespf.core.versioning import (
+    InterfaceContract,
+    RequiredInterface,
+    Version,
+    VersionRange,
+)
 from mfespf.coupling.conservation import ModuleBudget
 from mfespf.coupling.transfers import ConservedQuantity, Transfer
 from mfespf.physics.equations import EQUATION_IDS
@@ -325,7 +330,16 @@ class DeepOceanModule(Module):
             exported_transfers=(),
             conserved_quantities=("energy",),
             provided_interfaces=(OCEAN_INTERFACE,),
-            required_interfaces=(("surface", VersionRange.parse(">=1.0.0,<2.0.0")),),
+            required_interfaces=(
+                RequiredInterface(
+                    interface_id="surface",
+                    version_range=VersionRange.parse(">=1.0.0,<2.0.0"),
+                    expects={
+                        "temperature_units": "K",
+                        "state_owner": "surface",
+                    },
+                ),
+            ),
             uncertainty_outputs=(
                 "initial_condition",
                 "deep_reservoir_depth_parameter",

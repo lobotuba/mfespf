@@ -43,7 +43,7 @@ from mfespf.core.quantities import (
     TimeSemantics,
     Uncertainty,
 )
-from mfespf.core.versioning import VersionRange
+from mfespf.core.versioning import RequiredInterface, VersionRange
 from mfespf.coupling.conservation import ModuleBudget
 from mfespf.coupling.transfers import ConservedQuantity, Transfer
 from mfespf.coupling.validity import INTEGRATED_OVER
@@ -184,7 +184,16 @@ class ColumnSurfaceModule(Module):
             ),
             conserved_quantities=("energy", "water") if couple_water else ("energy",),
             provided_interfaces=(SURFACE_INTERFACE,),
-            required_interfaces=(("spectral_radiation", VersionRange.parse(">=1.0.0,<2.0.0")),),
+            required_interfaces=(
+                RequiredInterface(
+                    interface_id="spectral_radiation",
+                    version_range=VersionRange.parse(">=1.0.0,<2.0.0"),
+                    expects={
+                        "flux_units": "W m^-2",
+                        "sign_convention": "separate_upward_and_downward_components",
+                    },
+                ),
+            ),
             uncertainty_outputs=(
                 "initial_condition",
                 "areal_heat_capacity_parameter",

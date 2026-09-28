@@ -1000,3 +1000,23 @@ def test_the_trajectory_term_is_what_makes_a_long_run_different():
         f"the 120000-step sweep that had to be killed reached 4.3 GB; the estimate "
         f"now says {gigabytes:.2f} GB"
     )
+
+
+# --- VER-006: negotiation in every configuration ---------------------------
+
+
+@pytest.mark.req("VER-006", "VER-005")
+def test_every_configuration_negotiated_every_declared_requirement(kernels, stepped):
+    """One configuration negotiating cleanly says nothing about the other sixteen."""
+    for name, kernel in kernels.items():
+        declared = {
+            (slot.module_id, required.interface_id)
+            for slot in kernel.schedule.ordered()
+            if slot.module.status.participates
+            for required in slot.module.contract.required_interfaces
+        }
+        assert kernel.coupler is not None, name
+        negotiated = {(n.consumer_module_id, n.interface_id) for n in kernel.coupler.negotiations}
+        assert negotiated == declared, name
+        assert kernel.manifest is not None, name
+        assert len(kernel.manifest.negotiated_interfaces) == len(declared), name

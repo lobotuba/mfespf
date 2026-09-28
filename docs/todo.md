@@ -52,24 +52,19 @@ relevant number that lives only in a commit message. The machinery exists to sto
 the sixth from doing the same, and using it means a run knowing it was a member
 of something.
 
-### Seven mandatory requirements are still unbound
+### Six mandatory requirements are still unbound
 
-178 of 185 have a bound acceptance test, with 4 architectural carve-outs counted
-separately rather than folded into the denominator. What is left is three kinds
-of thing, and only the first is a backlog:
+179 of 185 have a bound acceptance test, with 4 architectural carve-outs counted
+separately rather than folded into the denominator. What is left is two kinds of
+thing, and neither is a backlog item that code alone closes:
 
 | | requirements | what it needs |
 |---|---|---|
-| unimplemented | VER-008 | a declared migration adapter |
 | a spatial decision | SPA-001, SPA-003, SPA-004, SPA-005, SPA-006 | see below |
 | true only when the rest are | ACC-001 | everything above |
 
-VER-008 asks that migration adapters declare any approximation, information loss
-or conservation residual they introduce. There are none: `negotiate` either
-matches the versions and semantics or refuses the run, so there is no bridge and
-nothing to declare. The requirement binds the moment someone writes one, and the
-right implementation is to make the only path across a version gap a declared
-adapter -- so that loosening `negotiate` is never the way through.
+VER-008 closed when negotiation was wired in -- see `docs/architecture.md`,
+"Interface negotiation existed and nothing called it".
 
 **The spatial five need a decision before they need code.** The kernel has two
 spatial representations, global scalar and vertical column, and it changes the

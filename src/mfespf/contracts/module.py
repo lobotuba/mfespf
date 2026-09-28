@@ -20,7 +20,7 @@ from typing import Any
 from mfespf.contracts.cost import CostDeclaration
 from mfespf.core.errors import ConfigurationError
 from mfespf.core.quantities import Field
-from mfespf.core.versioning import InterfaceContract, Version, VersionRange
+from mfespf.core.versioning import InterfaceContract, RequiredInterface, Version
 from mfespf.registries.states import TendencyContribution
 
 __all__ = [
@@ -97,7 +97,7 @@ class ModuleContract:
     supported_temporal_representations: tuple[str, ...] = ("fixed_step",)
     supported_spectral_representations: tuple[str, ...] = ()
     provided_interfaces: tuple[InterfaceContract, ...] = ()
-    required_interfaces: tuple[tuple[str, VersionRange], ...] = ()
+    required_interfaces: tuple[RequiredInterface, ...] = ()
     uncertainty_outputs: tuple[str, ...] = ()
     correctness_tests: tuple[str, ...] = ()
     known_limitations: tuple[str, ...] = ()

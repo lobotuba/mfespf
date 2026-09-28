@@ -7,7 +7,7 @@ registry under `requirements/` or the `@pytest.mark.req` markers in the tests.
 - mandatory (SHALL / SHALL NOT): **189**
 - architectural carve-outs (SYS-002, charter 4.3 and 18): **4**
 - mandatory outside a carve-out: **185**
-- of those, with a bound test: **178** (96%)
+- of those, with a bound test: **179** (97%)
 
 Coverage below 100% is expected while the reference kernel is incomplete.
 A requirement with no bound test and no waiver is unverified, and this table
@@ -370,7 +370,7 @@ gap and is counted as one.
 | VAL-006 | mandatory | TEST | test_bound | `tests/acceptance/test_provenance_and_audit.py::test_calibration_data_cannot_be_reported_as_independent_validation`<br>`tests/integration/test_observed_replay.py::test_a_measured_lineage_record_lifts_the_cap_a_generated_one_imposes`<br>`tests/integration/test_stage6_historical_replay.py::test_the_replay_evaluates_against_a_withheld_record_through_the_frozen_path`<br>`tests/integration/test_stage6_historical_replay.py::test_a_generated_record_cannot_support_an_empirical_claim` |
 | VAL-007 | mandatory | TEST | test_bound | `tests/integration/test_observed_replay.py::test_a_real_record_does_not_make_a_replay_into_a_prediction`<br>`tests/integration/test_solar_only_experiment.py::test_the_claim_is_refuted_against_a_threshold_declared_beforehand`<br>`tests/integration/test_solar_only_experiment.py::test_a_refutation_from_a_reconstruction_is_decisive_where_a_pass_would_not_be`<br>`tests/integration/test_stage6_historical_replay.py::test_a_prescribed_history_run_may_not_be_reported_as_a_prediction`<br>`tests/unit/test_comparison.py::test_a_failure_is_decisive_and_a_reconstruction_pass_is_only_qualified`<br>`tests/unit/test_modes_and_reconstruction.py::test_a_reconstruction_may_not_be_reported_as_a_prediction` |
 
-## VER — Interface version requirements (mandatory covered: 7/8)
+## VER — Interface version requirements (mandatory covered: 8/8)
 
 | ID | Strength | Verification | Status | Evidence |
 | --- | --- | --- | --- | --- |
@@ -378,10 +378,10 @@ gap and is counted as one.
 | VER-002 | mandatory | TEST | test_bound | `tests/unit/test_versioning.py::test_version_parsing_and_ordering`<br>`tests/unit/test_versioning.py::test_compatibility_follows_semantic_version_rules` |
 | VER-003 | mandatory | TEST | test_bound | `tests/unit/test_versioning.py::test_compatibility_follows_semantic_version_rules` |
 | VER-004 | mandatory | TEST | test_bound | `tests/unit/test_versioning.py::test_compatibility_follows_semantic_version_rules` |
-| VER-005 | mandatory | TEST | test_bound | `tests/unit/test_versioning.py::test_negotiation_succeeds_within_the_declared_range`<br>`tests/unit/test_versioning.py::test_a_missing_optional_capability_is_a_negotiation_failure` |
-| VER-006 | mandatory | TEST | test_bound | `tests/unit/test_versioning.py::test_negotiation_succeeds_within_the_declared_range`<br>`tests/unit/test_versioning.py::test_negotiation_fails_before_initialization_on_a_major_mismatch` |
-| VER-007 | mandatory | TEST | test_bound | `tests/unit/test_versioning.py::test_a_changed_sign_convention_cannot_hide_inside_a_compatible_version`<br>`tests/unit/test_versioning.py::test_physical_signature_changes_when_meaning_changes` |
-| VER-008 | mandatory | TEST | not_started | — |
+| VER-005 | mandatory | TEST | test_bound | `tests/acceptance/test_framework_self_compliance.py::test_every_configuration_negotiated_every_declared_requirement`<br>`tests/integration/test_interface_negotiation.py::test_every_declared_requirement_is_negotiated_and_recorded`<br>`tests/unit/test_versioning.py::test_negotiation_succeeds_within_the_declared_range`<br>`tests/unit/test_versioning.py::test_a_missing_optional_capability_is_a_negotiation_failure` |
+| VER-006 | mandatory | TEST | test_bound | `tests/acceptance/test_framework_self_compliance.py::test_every_configuration_negotiated_every_declared_requirement`<br>`tests/integration/test_interface_negotiation.py::test_every_declared_requirement_is_negotiated_and_recorded`<br>`tests/integration/test_interface_negotiation.py::test_a_reversed_layer_ordering_stops_the_run_before_anything_initialises`<br>`tests/integration/test_interface_negotiation.py::test_a_requirement_nobody_provides_stops_the_run_before_anything_initialises`<br>`tests/integration/test_interface_negotiation.py::test_a_declared_adapter_bridges_a_major_version_and_its_cost_reaches_the_manifest`<br>`tests/unit/test_versioning.py::test_negotiation_succeeds_within_the_declared_range`<br>`tests/unit/test_versioning.py::test_negotiation_fails_before_initialization_on_a_major_mismatch` |
+| VER-007 | mandatory | TEST | test_bound | `tests/integration/test_interface_negotiation.py::test_a_reversed_layer_ordering_stops_the_run_before_anything_initialises`<br>`tests/integration/test_interface_negotiation.py::test_an_adapter_cannot_carry_a_semantic_change_it_does_not_name`<br>`tests/unit/test_versioning.py::test_a_changed_sign_convention_cannot_hide_inside_a_compatible_version`<br>`tests/unit/test_versioning.py::test_physical_signature_changes_when_meaning_changes` |
+| VER-008 | mandatory | TEST | test_bound | `tests/integration/test_interface_negotiation.py::test_a_declared_adapter_bridges_a_major_version_and_its_cost_reaches_the_manifest`<br>`tests/integration/test_interface_negotiation.py::test_an_adapter_cannot_carry_a_semantic_change_it_does_not_name`<br>`tests/integration/test_interface_negotiation.py::test_an_adapter_that_does_not_declare_its_cost_is_refused`<br>`tests/integration/test_interface_negotiation.py::test_a_nonzero_residual_cannot_be_described_as_none` |
 
 ## WAT — Water interface (mandatory covered: 2/2)
 

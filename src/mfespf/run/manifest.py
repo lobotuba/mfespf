@@ -121,6 +121,13 @@ class RunManifest:
     module_implementations: dict[str, str] = dc_field(default_factory=dict)
     module_versions: dict[str, str] = dc_field(default_factory=dict)
     interface_versions: dict[str, str] = dc_field(default_factory=dict)
+    negotiated_interfaces: dict[str, str] = dc_field(default_factory=dict)
+    """Every provider/consumer pair the run resolved, and how (VER-006, VER-008).
+
+    An entry naming a migration adapter carries that adapter's declared
+    approximation, information loss and conservation residual, because a result
+    produced across a bridge has to be readable as having been.
+    """
     fidelity_levels: dict[str, str] = dc_field(default_factory=dict)
     fidelity_justifications: dict[str, str] = dc_field(default_factory=dict)
     """Why each module ran above the cheaper form it declares (CMP-007).
@@ -273,6 +280,7 @@ class RunManifest:
             "failure_criterion": self.failure_criterion,
             "dataset_roles": self.dataset_roles,
             "gate_results": self.gate_results,
+            "negotiated_interfaces": self.negotiated_interfaces,
             "fidelity_levels": self.fidelity_levels,
             "fidelity_justifications": self.fidelity_justifications,
             "output_checksums": self.output_checksums,

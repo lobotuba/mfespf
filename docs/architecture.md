@@ -3138,3 +3138,60 @@ Removed by later stages, recorded because the reasoning still matters:
   unstable."* Stage 3's convective adjustment removes this; the wrong answer
   stays registered as a known failure mode of `EQ-LAYER-ENERGY-BALANCE`, because
   a configuration can still be built without convection.
+
+## Interface negotiation existed and nothing called it
+
+VER-006 asks the framework to negotiate interface compatibility before
+initialisation, and `core/versioning.negotiate` did exactly that -- for a
+provider and a consumer handed to it by its own unit tests. No running code
+called it. In the moist column eight provided interfaces carried forty-four
+declared semantic keys, seven consumer declarations named what they required,
+and nothing compared the two. It was the validity-domain situation again: the
+conditions were written down, and a run was never checked against them.
+
+Two things were missing, and the second was the more important.
+
+**The call.** `Coupler.validate_configuration` now resolves every participating
+consumer's `required_interfaces` against the participating providers, after
+each module validates its own configuration and before any module initialises.
+A missing provider, a version outside the declared range or a disagreement in
+meaning fails the run there, with the configuration-validation gate recorded as
+failed. Every resolved pair is written to `RunManifest.negotiated_interfaces`.
+Across all seventeen reference configurations every declared pair resolves
+directly -- airless 2, dry 5, moist 7, cloud 5, deep ocean 8.
+
+**Something to compare against.** A consumer that states an interface id and a
+version range can only be checked for identity and version, and neither changes
+when a provider turns its column upside down inside a compatible minor release
+-- the case VER-007 exists for. So a `RequiredInterface` also states what the
+consumer *assumes* the numbers mean: `layer_ordering=index_0_is_the_lowest_layer`,
+`flux_sign_convention=positive_upward_away_from_surface`,
+`toa_irradiance_basis=global_mean_over_planetary_surface`. Only load-bearing keys
+belong there. Copying a provider's whole semantics block would make every
+provider change a consumer change and say nothing about which assumptions the
+consumer's code is built on.
+
+Writing those nine declarations caught a guess of mine: I first gave the
+radiation module an `insolation_units` expectation on `orbital_geometry`, and the
+provider publishes `toa_irradiance_units`. The negotiation refused the run on
+its first execution, which is the check doing its job on the person who wrote
+it.
+
+**One declared way across a gap (VER-008).** Refusing is the right default and
+cannot be the only option, because the way round a refusal that cannot be
+satisfied is to loosen the refusal. A `MigrationAdapter`, declared on the kernel
+rather than on a module because it reconciles two modules and belongs to
+neither, may bridge a version or semantics gap, and must state the approximation
+it introduces, the information it loses and the conservation residual it leaves.
+Each is required; "none" is a valid declaration that has to be *made*, and an
+empty string is refused -- a silent omission and a declared absence must not
+look alike. A nonzero `residual_magnitude` described as "none" is refused too.
+
+An adapter also names the semantic keys it `translates`. One written for a
+pressure-units change cannot carry a reversed layer ordering that arrived in the
+same release: the negotiation names the untranslated key and refuses. No
+shipped configuration uses an adapter. The requirement binds to the mechanism
+now, so that the first time someone needs one, the way through is a declaration
+rather than a change to `negotiate`.
+
+Traceability moves from 178 to 179 of 185.

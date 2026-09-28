@@ -41,7 +41,12 @@ from mfespf.core.quantities import (
     TimeSemantics,
     Uncertainty,
 )
-from mfespf.core.versioning import InterfaceContract, Version, VersionRange
+from mfespf.core.versioning import (
+    InterfaceContract,
+    RequiredInterface,
+    Version,
+    VersionRange,
+)
 from mfespf.coupling.conservation import ModuleBudget
 from mfespf.coupling.transfers import ConservedQuantity, Transfer
 from mfespf.physics.equations import EQUATION_IDS
@@ -204,7 +209,21 @@ class SlabSurfaceModule(Module):
             conserved_quantities=("energy",),
             internal_sources_and_sinks=(),
             provided_interfaces=(SURFACE_INTERFACE,),
-            required_interfaces=(("orbital_geometry", VersionRange.parse(">=1.0.0,<2.0.0")),),
+            required_interfaces=(
+                RequiredInterface(
+                    interface_id="orbital_geometry",
+                    version_range=VersionRange.parse(">=1.0.0,<2.0.0"),
+                    expects={
+                        # The slab multiplies this by one minus its albedo and
+                        # integrates it over the step, so a change of basis from
+                        # a global mean to a sub-solar value would quadruple the
+                        # absorbed energy while every version check still passed.
+                        "toa_irradiance_units": "W m^-2",
+                        "toa_irradiance_basis": "global_mean_over_planetary_surface",
+                        "sign_convention": "positive_definite",
+                    },
+                ),
+            ),
             uncertainty_outputs=(
                 "initial_condition",
                 "areal_heat_capacity_parameter",

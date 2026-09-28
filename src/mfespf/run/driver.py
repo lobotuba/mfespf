@@ -21,6 +21,7 @@ import numpy as np
 
 from mfespf.contracts.cost import CostEstimate, ResourceBudget
 from mfespf.core.errors import MFESPFError
+from mfespf.core.versioning import MigrationAdapter
 from mfespf.coupling.conservation import ConservationReport
 from mfespf.coupling.coupler import Coupler, CouplingSchedule, StepReport
 from mfespf.coupling.graph import DependencyGraph
@@ -129,6 +130,13 @@ class Kernel:
     lookup lands outside its coverage.
     """
     operating_mode: OperatingMode = OperatingMode.CONTROLLED_EXPERIMENT
+    migration_adapters: tuple[MigrationAdapter, ...] = ()
+    """The declared bridges across interface-version gaps (VER-008).
+
+    Empty in every shipped configuration: each pair negotiates directly. A
+    field on the kernel rather than on a module because an adapter reconciles
+    two modules and belongs to neither.
+    """
     coupler: Coupler | None = None
 
     def declared_boundary_state(self) -> dict[str, Any]:
@@ -216,11 +224,18 @@ class Kernel:
             state_registry=self.states,
             graph=self.graph,
             start_time=self.start_time,
+            migration_adapters=self.migration_adapters,
         )
         coupler.auditor.tolerance = self.conservation_tolerance
 
         try:
             coupler.validate_configuration()
+            manifest.negotiated_interfaces = {
+                f"{n.consumer_module_id}<-{n.provider_module_id}:{n.interface_id}": (
+                    n.adapter.describe() if n.adapter is not None else f"direct v{n.version}"
+                )
+                for n in coupler.negotiations
+            }
             manifest.record_gate("configuration_validation", True)
         except MFESPFError as exc:
             manifest.record_gate("configuration_validation", False)

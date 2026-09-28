@@ -341,6 +341,14 @@ saying out loud.
   owner commits while another module's tendency is outstanding. That is the
   operator-splitting invariant, and it is what the convection/water over-draw
   violated. Preserve the semantics, not the numbering.
+- **Interface negotiation runs before initialisation, and a consumer states
+  what it assumes, not just what version it wants.** `negotiate` had unit tests
+  and no caller, so forty-four declared semantic keys in the moist column were
+  compared against nothing. Put only load-bearing keys in
+  `RequiredInterface.expects`. The one way across a gap is a `MigrationAdapter`
+  declaring its approximation, information loss and conservation residual, and
+  translating only the keys it names (VER-006, VER-008) -- never a looser
+  `negotiate`.
 - **Validity domains are enforced, as a mandatory gate.**
   `coupling/validity.py` judges every module's cited equations against the extent
   each one was evaluated over as the run proceeded, and the driver invalidates a
