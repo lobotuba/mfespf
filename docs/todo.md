@@ -15,28 +15,19 @@ Ordered by what the evidence says is worth doing first, not by area.
 These are mechanisms, each with an observable other than the surface
 temperature that it has to reproduce. None is a correction.
 
-### Clouds reflect from altitude (next)
+### Clouds reflect from altitude: shortwave right, longwave waits on the air
 
-Adding water vapour's solar absorption (`solar_vapour_absorption`, Chou and
-Suarez 1999) got the absorption right -- 71 W m^-2 against an observed ~78 --
-and made the column worse, +3.9 to +16.3 K, because the 0.30 albedo stands on
-the surface: reflected sunlight crosses the vapour twice and the planetary albedo
-falls to 0.22 (`docs/protocols/solar-vapour-absorption.md`). The absorber is
-right and the reflector is in the wrong place.
+The observed cloud field (`observed_cloud_field`, ISCCP D-series, Rossow and
+Schiffer 1999) with water vapour's solar absorption puts the planetary albedo at
+0.283 against CERES 0.291 and the shortwave cloud effect at -52 against -46,
+nothing fitted. It fails the longwave cloud effect (+11.6 against +27.9) and the
+surface-energy test, so it was not adopted
+(`docs/protocols/observed-cloud-field.md`). The model's air at ISCCP's cloud-top
+pressures is 13 to 28 K warmer than ISCCP's cloud tops, so the clouds trap little;
+the cause is the over-moist, over-warm free troposphere, which is the next item.
+Both mechanisms stay in the code, off by default, with their tests.
 
-The mechanism to add is clouds at their observed heights with their observed
-optical properties -- low liquid cloud and high ice cloud, fractions and optical
-depths from a satellite climatology -- over the surface's own albedo (~0.12 to
-0.15). Its falsifiable predictions, none of which it may be tuned to: the
-planetary albedo (~0.29, CERES), the shortwave and longwave cloud radiative
-effects (about -47 and +27 W m^-2, CERES), the atmospheric and surface solar
-absorption above. Earlier work to build on: a single liquid deck gave -65 and +5,
-because Earth's longwave cloud effect comes mostly from high ice cloud.
-
-Ozone (ultraviolet absorption, an observed profile as a dataset) belongs in the
-same step or the one after; Chou and Suarez's Table 3 has its coefficients.
-
-### Sinking air: a second column
+### Sinking air: a second column (next)
 
 The free troposphere carries 0.74 relative humidity against an observed 0.4 to
 0.5, and subsiding regions observe below 0.25 with a C-shaped profile

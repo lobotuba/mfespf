@@ -119,6 +119,11 @@ def _plume_humidity_column(**kwargs: Any) -> Kernel:
     )
 
 
+def _observed_clouds_and_solar_vapour(**kwargs: Any) -> Kernel:
+    """Every radiative mechanism at once: the configuration the cloud test runs."""
+    return cc.reference_column(observed_cloud_field=True, solar_vapour_absorption=True, **kwargs)
+
+
 BUILDERS = {
     "airless_radiating_body": rc.airless_radiating_body,
     "null_control": rc.null_control,
@@ -137,6 +142,8 @@ BUILDERS = {
     "greenhouse_and_volcanic": _greenhouse_column,
     "prescribed_humidity": _prescribed_humidity_column,
     "plume_humidity": _plume_humidity_column,
+    "reference_column": cc.reference_column,
+    "observed_clouds_and_solar_vapour": _observed_clouds_and_solar_vapour,
 }
 
 #: Module implementations no reference configuration in this file reaches, with

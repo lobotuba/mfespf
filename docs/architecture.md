@@ -3593,3 +3593,54 @@ The absorption stays in the code, off by default, with its tests. The next
 mechanism is clouds at altitude over the surface's own albedo, whose planetary
 albedo and cloud radiative effects are the observations it has to reproduce.
 
+## Clouds at altitude: the reflector moves, and the air is what fails
+
+The 0.30 surface albedo was replaced by an observed cloud field: ISCCP's four
+cloud levels (Rossow and Schiffer 1999, Tables 4 and 5), each at its observed
+top pressure with its observed optical thickness and phase, partitioning the sky
+as a satellite sees it, over ISCCP's 0.17 surface reflectance. The infrared
+optical thickness comes from ISCCP's own relations (tau / 2.56 liquid,
+tau / 2.13 ice), so the whole cloud description has one source and no water path
+or per-kilogram coefficient in between. The radiation module solves one
+sub-column per cloud type and weights them by amount. The test, frozen first,
+was CERES EBAF Ed4.0 (Loeb et al. 2018):
+
+| quantity | clouds only | clouds + solar vapour | observed | test |
+|---|---:|---:|---:|---|
+| planetary albedo | 0.338 | **0.283** | 0.291 (CERES) | +/- 0.03: **pass** |
+| shortwave cloud effect (W m^-2) | -58.1 | **-52.2** | -45.8 | +/- 12: **pass** |
+| longwave cloud effect (W m^-2) | +17.9 | **+11.6** | +27.9 | +/- 8: **fail** |
+| clear-sky reflected (W m^-2) | 56.8 | 44.2 | 53.3 | |
+| clear-sky outgoing longwave (W m^-2) | 243.3 | 255.4 | 268.1 | |
+| sunlight absorbed in the atmosphere | 0.0 | 59.1 | ~78 | |
+| surface net radiation (W m^-2) | 188.4 | **159.6** (-23.9) | ~104 | fall >= 40: **fail** |
+| evaporation (mm/day) | 4.58 | **4.51** (was 4.11) | 2.7 | must fall: **fail** |
+| precipitable water (kg m^-2) | 50.7 | 86.6 | 25 | |
+| surface-temperature error (K) | +6.80 | +12.23 | 0 | |
+
+The shortwave passes -- the reflector is now where Earth's is, and the planetary
+albedo lands on the observed value without being set. The longwave fails, and a
+diagnostic says why. At the pressures where ISCCP sees cloud tops the model's
+air is far warmer than those tops:
+
+| cloud | pressure | model temperature | ISCCP top temperature | difference |
+|---|---:|---:|---:|---:|
+| cirrus and cirrostratus | 261 hPa | 252.3 K | 227.5 K | +24.8 K |
+| deep convective | 328 hPa | 262.6 K | 234.8 K | +27.8 K |
+| middle | 562 hPa | 281.3 K | 262.8 K | +18.5 K |
+| low | 829 hPa | 293.8 K | 281.1 K | +12.7 K |
+
+Warm cloud tops emit nearly what the clear sky does and trap little. The clouds
+are placed and made right; the atmosphere around them is too warm, and more so
+aloft, because its free troposphere is too wet (0.775 relative humidity against
+0.4 to 0.5). Every failure of this test runs back to that one thing.
+
+Two other things this step recorded. The validity gate caught a declaration error
+of this step's own making: the cloud record's optical-thickness range was
+inferred onto the radiation module's total layer optical depth and invalidated
+the run, and was fixed by binding a distinct symbol explicitly -- the
+unique-inferred-match rule, one more time. And the three mechanisms added since
+the lapse rate -- solar absorption, clouds, and before them latent heating --
+each did what its own observation said it should and each exposed the next. The
+next is the one this column cannot hold at all: air that sinks and dries.
+

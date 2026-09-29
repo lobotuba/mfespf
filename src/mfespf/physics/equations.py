@@ -46,6 +46,7 @@ EQUATION_IDS = {
     "convective_adjustment": "EQ-DRY-CONVECTIVE-ADJUSTMENT",
     "relaxed_convective_adjustment": "EQ-RELAXED-CONVECTIVE-ADJUSTMENT",
     "solar_vapour_absorption": "EQ-SOLAR-VAPOUR-K-DISTRIBUTION",
+    "observed_cloud_field": "EQ-ISCCP-CLOUD-FIELD",
     "fractional_top_convective_adjustment": "EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
@@ -838,6 +839,77 @@ def build_equation_registry() -> EquationRegistry:
                 "convection or any transient adjustment",
             ),
             source="Manabe and Strickler 1964; Manabe and Wetherald 1967",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["observed_cloud_field"],
+            version=V1,
+            name="Observed global cloud field as disjoint sub-columns",
+            category=EquationCategory.EMPIRICAL_RELATION,
+            mathematical_form=(
+                "F = (1 - sum_i a_i) F_clear + sum_i a_i F_i, where sub-column i holds "
+                "one cloud in the layer containing its top pressure, with solar "
+                "scattering optical depth tau_c, asymmetry 0.85, and thermal absorption "
+                "optical depth tau_i (f_ice / 2.13 + (1 - f_ice) / 2.56)"
+            ),
+            physical_basis=(
+                "Clouds reflect sunlight from their tops and emit at the temperature "
+                "there. Satellite amounts are seen from above and so partition the "
+                "sky; the independent-column approximation solves each part and "
+                "weights it, which is exact for fluxes because the transfer is linear "
+                "in its sources."
+            ),
+            variables=(
+                ("a_i", "amount of cloud type i seen from above", "1"),
+                (
+                    "tau_c",
+                    "radiatively weighted mean visible optical thickness of a cloud type",
+                    "1",
+                ),
+                ("p_top", "cloud top pressure", "Pa"),
+                ("f_ice", "ice share of the type", "1"),
+            ),
+            parameters=(
+                (
+                    "amounts, top pressures, optical thicknesses, ice shares",
+                    "measured",
+                    "Rossow and Schiffer (1999), BAMS 80, Table 4 (D2 global annual "
+                    "means) and Table 5 (phase split); infrared ratios 2.56 (liquid, "
+                    "Mie) and 2.13 (ice, Minnis et al. 1993a) from their section 3",
+                ),
+            ),
+            assumptions=(
+                "cloud types do not overlap and nothing lies beneath a visible cloud",
+                "each type occupies one model layer",
+                "no scattering of thermal radiation",
+            ),
+            approximations=(
+                "Logarithmic-mean optical thicknesses stand for each type's spread; "
+                "ISCCP chose them to reproduce area-averaged radiation.",
+                "One asymmetry parameter for liquid and ice.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("tau_c", 0.0, 400.0, "1"),),
+                conditions=("global-mean column; the field is imposed, not predicted",),
+            ),
+            limiting_cases=(
+                "zero amounts recover the clear column exactly",
+                "the amount-weighted fluxes conserve energy because each sub-column does",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("independent sub-columns",),
+            correctness_tests=(
+                "test_the_cloud_types_partition_the_sky",
+                "test_each_cloud_sits_in_the_layer_containing_its_top",
+                "test_the_infrared_optical_thickness_follows_the_phase",
+                "test_an_empty_field_is_the_clear_column",
+            ),
+            known_failure_modes=(
+                "multi-layer cloud, which ISCCP cannot see and CloudSat does, is absent",
+            ),
+            source="Rossow and Schiffer 1999, BAMS 80, 2261-2287",
         )
     )
 

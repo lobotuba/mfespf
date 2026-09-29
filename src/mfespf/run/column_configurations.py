@@ -28,6 +28,7 @@ from mfespf.physics.atmosphere import (
     atmosphere_state_entry,
 )
 from mfespf.physics.boundary import SPACE_ENERGY_STATE, SpaceBoundaryModule, space_state_entry
+from mfespf.physics.cloud_field import ISCCP_SURFACE_REFLECTANCE, ObservedCloudFieldModule
 from mfespf.physics.clouds import CloudProfile, PrescribedCloudModule, single_layer_cloud
 from mfespf.physics.column_surface import ColumnSurfaceModule
 from mfespf.physics.convection import ConvectiveAdjustmentModule
@@ -227,6 +228,7 @@ def _build_graph(
     water: bool = False,
     deep_ocean: bool = False,
     clouds: bool = False,
+    cloud_field: bool = False,
     greenhouse: bool = False,
     volcanic: bool = False,
     radiative_vapour: bool = False,
@@ -247,6 +249,8 @@ def _build_graph(
         modules.append(("water", "atmospheric water vapour"))
     if clouds:
         modules.append(("cloud", "prescribed cloud state"))
+    if cloud_field:
+        modules.append(("cloud_field", "observed global cloud field (ISCCP)"))
     if deep_ocean:
         modules.append(("ocean", "reduced deep-ocean reservoir"))
     if greenhouse:
@@ -522,6 +526,25 @@ def _build_graph(
                 ),
             )
 
+    if cloud_field:
+        for exchanged, units in (
+            ("cloud_type_amount", "1"),
+            ("cloud_type_top_pressure", "Pa"),
+            ("cloud_type_visible_optical_thickness", "1"),
+            ("cloud_type_infrared_optical_thickness", "1"),
+        ):
+            edge(
+                "cloud_field",
+                "radiation",
+                exchanged,
+                edge_type=EdgeType.BOUNDARY_DEPENDENCY,
+                units=units,
+                equation_ids=("EQ-ISCCP-CLOUD-FIELD",),
+                uncertainty_rule=(
+                    "observed climatology; responds to nothing, so no feedback path exists"
+                ),
+            )
+
     if deep_ocean:
         graph.add_node(Node(OCEAN_DEEP_STATE, NodeType.STATE, "deep reservoir temperature"))
         edge(
@@ -649,6 +672,7 @@ def radiating_column(
     convective_relaxation_timescale: float = 0.0,
     convective_fractional_top: bool = False,
     solar_vapour_absorption: bool = False,
+    observed_cloud_field: bool = False,
     evaporation_coefficient: float | None = None,
     gravity: float | GravityField | None = None,
     initial_water_store: float = 1.0e4,
@@ -683,7 +707,16 @@ def radiating_column(
     # Default to a surface that reflects sunlight and is black in the infrared.
     # A plain float would be grey in every band, which is a different -- and
     # physically distinguishable -- surface; see ``shortwave_albedo``.
-    surface_reflectance = shortwave_albedo(working_grid) if albedo is None else albedo
+    # With observed clouds the surface is only the surface: ISCCP's reflectance,
+    # 0.17, not the planetary 0.30 that stood in for the clouds. The two go
+    # together or the clouds' reflection is counted twice.
+    surface_reflectance: float | np.ndarray
+    if albedo is None:
+        surface_reflectance = shortwave_albedo(
+            working_grid, ISCCP_SURFACE_REFLECTANCE if observed_cloud_field else 0.3
+        )
+    else:
+        surface_reflectance = albedo
 
     solar = solar_source or ConstantSpectrumSolarSource(
         grid=working_grid, total_irradiance=total_irradiance, status=ModuleStatus.PRESCRIBED
@@ -698,6 +731,7 @@ def radiating_column(
         couple_volcanic=volcanic is not None,
         couple_water=radiative_vapour,
         solar_vapour_k=solar_vapour_k,
+        couple_cloud_field=observed_cloud_field,
     )
     atmosphere = AtmosphericColumnModule(
         n_layers=n_layers,
@@ -734,6 +768,14 @@ def radiating_column(
     if volcanic is not None:
         schedules.append(ModuleSchedule(volcanic, step_multiple=1))
         order_head.append("volcanic")
+    if observed_cloud_field:
+        if cloud is not None:
+            raise ConfigurationError(
+                "a column takes the observed cloud field or a prescribed cloud, not both: "
+                "each would count the other's reflection"
+            )
+        schedules.append(ModuleSchedule(ObservedCloudFieldModule(), step_multiple=1))
+        order_head.append("cloud_field")
     if cloud is not None:
         # The cloud is published before radiation reads it: a prescribed state is
         # a boundary condition on the radiation, not a response to it.
@@ -878,6 +920,7 @@ def radiating_column(
         convection=convection,
         water=water or prescribed_humidity is not None,
         clouds=cloud is not None,
+        cloud_field=observed_cloud_field,
         deep_ocean=deep_ocean,
         greenhouse=greenhouse is not None,
         volcanic=volcanic is not None,

@@ -278,6 +278,36 @@ class ColumnRadiationSolution:
         return float(np.sum(self.layer_heating)) - net_in
 
 
+def _mix_many(
+    clear: ColumnRadiationSolution, cloudy: list[tuple[float, ColumnRadiationSolution]]
+) -> ColumnRadiationSolution:
+    """The independent-column mean of a clear column and disjoint cloudy ones.
+
+    ``_mix_columns`` generalised to several cloud types that partition the sky.
+    Linear in every flux for the same reason, so the mix closes its budget.
+    """
+    total = sum(amount for amount, _ in cloudy)
+    if any(a < 0.0 for a, _ in cloudy) or total > 1.0 + 1e-12:
+        raise ConfigurationError(f"cloud amounts {[a for a, _ in cloudy]} must partition the sky")
+    parts = [(1.0 - total, clear), *cloudy]
+
+    def mix(name: str) -> Any:
+        return sum(w * getattr(s, name) for w, s in parts)
+
+    return ColumnRadiationSolution(
+        upward=mix("upward"),
+        downward=mix("downward"),
+        layer_heating=mix("layer_heating"),
+        surface_absorbed=float(mix("surface_absorbed")),
+        surface_emitted=float(mix("surface_emitted")),
+        grid=clear.grid,
+        shortwave_mask=clear.shortwave_mask,
+        optical_depth=None,
+        single_scattering_albedo=None,
+        layer_emissivity=None,
+    )
+
+
 def combine_scatterers(
     *contributions: tuple[np.ndarray, np.ndarray, np.ndarray],
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -543,6 +573,8 @@ class SpectralRadiationModule(Module):
         stratospheric_layers: int = 1,
         greenhouse_background: float | None = None,
         solar_vapour_k: np.ndarray | None = None,
+        couple_cloud_field: bool = False,
+        cloud_field_module_id: str = "cloud_field",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         n_bands = grid.n_bins
@@ -566,12 +598,30 @@ class SpectralRadiationModule(Module):
                 EQUATION_IDS["two_stream"],
                 *((EQUATION_IDS["solar_vapour_absorption"],) if solar_vapour else ()),
                 *(
+                    (EQUATION_IDS["observed_cloud_field"], EQUATION_IDS["cloud_radiative_effect"])
+                    if couple_cloud_field
+                    else ()
+                ),
+                *(
                     (EQUATION_IDS["cloud_optics"], EQUATION_IDS["cloud_radiative_effect"])
                     if couple_clouds
                     else ()
                 ),
             ),
             equation_variables=(
+                # The cloud field's optical thickness is the cloud's, published
+                # by the cloud field. Inferred, it matched this module's total
+                # layer optical depth, saturated vapour bands and all.
+                *(
+                    (
+                        (
+                            EQUATION_IDS["observed_cloud_field"],
+                            (("tau_c", "cloud_type_visible_optical_thickness", "1"),),
+                        ),
+                    )
+                    if couple_cloud_field
+                    else ()
+                ),
                 (
                     EQUATION_IDS["schwarzschild"],
                     (
@@ -666,6 +716,17 @@ class SpectralRadiationModule(Module):
                 # The solar k-distributions scale the path by pressure, so the
                 # pressure is consumed, and declared, only when they are on.
                 *(("atmosphere_layer_pressure",) if solar_vapour and couple_water else ()),
+                *(
+                    (
+                        "cloud_type_amount",
+                        "cloud_type_top_pressure",
+                        "cloud_type_visible_optical_thickness",
+                        "cloud_type_infrared_optical_thickness",
+                        "atmosphere_interface_pressure",
+                    )
+                    if couple_cloud_field
+                    else ()
+                ),
             ),
             produced_outputs=(
                 "layer_radiative_heating",
@@ -690,7 +751,7 @@ class SpectralRadiationModule(Module):
                         "cloud_longwave_radiative_effect",
                         "cloud_net_radiative_effect",
                     )
-                    if couple_clouds
+                    if couple_clouds or couple_cloud_field
                     else ()
                 ),
             ),
@@ -788,6 +849,11 @@ class SpectralRadiationModule(Module):
         self.couple_clouds = couple_clouds
         self.couple_volcanic = couple_volcanic
         self.couple_water = couple_water
+        self.couple_cloud_field = couple_cloud_field
+        self.cloud_field_module_id = cloud_field_module_id
+        # The sub-columns of an observed cloud field, as (amount, solution),
+        # solved every step alongside the clear column.
+        self.subcolumns: list[tuple[float, ColumnRadiationSolution]] = []
         # Reference absorption coefficients for sunlight, one per band, from
         # Chou and Suarez (1999); None leaves the atmosphere transparent to it.
         self.solar_vapour_k = (
@@ -957,7 +1023,14 @@ class SpectralRadiationModule(Module):
         self.clear_sky = solve_column_radiation(**common)  # type: ignore[arg-type]
 
         cloud = self._cloud_optics() if self.couple_clouds else None
-        if cloud is None or cloud[0] <= 0.0:
+        if self.couple_cloud_field:
+            # An observed field: several disjoint cloud types, each its own
+            # sub-column, weighted by the amount seen from above.
+            self.subcolumns = self._solve_cloud_field(common, base_optics)
+            self._cloud_fraction = sum(a for a, _ in self.subcolumns)
+            self.overcast = None
+            self.solution = _mix_many(self.clear_sky, self.subcolumns)
+        elif cloud is None or cloud[0] <= 0.0:
             self._cloud_fraction = 0.0
             self.overcast = None
             self.solution = self.clear_sky
@@ -1028,6 +1101,7 @@ class SpectralRadiationModule(Module):
         # covered only the clear one would leave the more demanding column --
         # the optically thick one -- unreported.
         skies = [s for s in (self.clear_sky, self.overcast) if s is not None]
+        skies.extend(solution for _, solution in self.subcolumns)
         optics = {
             "quantity_kind": QuantityKind.DIAGNOSTIC,
             "time_semantics": TimeSemantics.INSTANTANEOUS,
@@ -1159,7 +1233,7 @@ class SpectralRadiationModule(Module):
             ),
         }
 
-        if self.couple_clouds and self.clear_sky is not None:
+        if (self.couple_clouds or self.couple_cloud_field) and self.clear_sky is not None:
             clear_sw, clear_lw = self.clear_sky.partition(
                 self.clear_sky.upward[self.clear_sky.toa_index]
             )
@@ -1307,6 +1381,53 @@ class SpectralRadiationModule(Module):
         return fraction, cloud_optical_properties(
             self.grid, profile, shortwave_cutoff_m=self.shortwave_cutoff_m
         )
+
+    def _solve_cloud_field(
+        self,
+        common: dict[str, Any],
+        base_optics: tuple[np.ndarray, np.ndarray, np.ndarray] | None,
+    ) -> list[tuple[float, ColumnRadiationSolution]]:
+        """Solve one sub-column per observed cloud type (EQ-ISCCP-CLOUD-FIELD).
+
+        Each cloud is added to the clear column's own optics in the layer that
+        contains its top: scattering for sunlight, absorption for thermal
+        radiation. Added, not substituted, for the reason the prescribed cloud
+        adds: the vapour and aerosol under a cloud are still there.
+        """
+        from mfespf.physics.cloud_field import CLOUD_ASYMMETRY, cloud_type_layers
+
+        amounts = self.input_field("cloud_type_amount").require_units("1").values
+        tops = self.input_field("cloud_type_top_pressure").require_units("Pa").values
+        tau = self.input_field("cloud_type_visible_optical_thickness").require_units("1").values
+        tau_ir = self.input_field("cloud_type_infrared_optical_thickness").require_units("1").values
+        interfaces = self.input_field("atmosphere_interface_pressure").require_units("Pa").values
+        layers = cloud_type_layers(tops, interfaces)
+        n_layers = int(np.asarray(common["layer_mass"]).size)
+        shortwave = self.grid.centers < self.shortwave_cutoff_m
+        solved: list[tuple[float, ColumnRadiationSolution]] = []
+        for amount, layer, visible, infrared in zip(amounts, layers, tau, tau_ir, strict=True):
+            if amount <= 0.0:
+                continue
+            absorption = np.zeros((n_layers, self.grid.n_bins))
+            scattering = np.zeros_like(absorption)
+            asymmetry = np.zeros_like(absorption)
+            scattering[layer, shortwave] = visible
+            asymmetry[layer, shortwave] = CLOUD_ASYMMETRY
+            absorption[layer, ~shortwave] = infrared
+            combined = combine_scatterers(
+                (absorption, scattering, asymmetry),
+                *((base_optics,) if base_optics is not None else ()),
+            )
+            solution = solve_column_radiation(
+                **{
+                    **common,
+                    "absorption_optical_depth": combined[0],
+                    "scattering_optical_depth": combined[1],
+                    "asymmetry": combined[2],
+                }
+            )
+            solved.append((float(amount), solution))
+        return solved
 
     def cloud_radiative_effect(self) -> tuple[float, float]:
         """Shortwave and longwave cloud radiative effect at the top, in W m^-2.

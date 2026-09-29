@@ -78,3 +78,56 @@ Also reported, not decided on: the surface-temperature error, the atmospheric
 and surface solar absorption, the Bowen ratio and the precipitable water; and
 the same configuration without solar vapour absorption, to separate the two
 mechanisms.
+
+---
+
+## Result (appended after the runs; nothing above this line was changed)
+
+`reference_column`, 30 layers, equilibrated at 28000 steps, budgets closing to
+1e-15. Raw rows: `observed-cloud-field.results.jsonl`.
+
+| quantity | clouds only | clouds + solar vapour | observed | test |
+|---|---:|---:|---:|---|
+| planetary albedo | 0.338 | **0.283** | 0.291 (CERES) | +/- 0.03: **pass** |
+| shortwave cloud effect (W m^-2) | -58.1 | **-52.2** | -45.8 | +/- 12: **pass** |
+| longwave cloud effect (W m^-2) | +17.9 | **+11.6** | +27.9 | +/- 8: **fail** |
+| clear-sky reflected (W m^-2) | 56.8 | 44.2 | 53.3 | |
+| clear-sky outgoing longwave (W m^-2) | 243.3 | 255.4 | 268.1 | |
+| sunlight absorbed in the atmosphere | 0.0 | 59.1 | ~78 | |
+| surface net radiation (W m^-2) | 188.4 | **159.6** (-23.9) | ~104 | fall >= 40: **fail** |
+| evaporation (mm/day) | 4.58 | **4.51** (was 4.11) | 2.7 | must fall: **fail** |
+| precipitable water (kg m^-2) | 50.7 | 86.6 | 25 | |
+| surface-temperature error (K) | +6.80 | +12.23 | 0 | |
+
+**Not adopted.** The shortwave half passes: with the reflection moved from the
+surface to cloud tops, the planetary albedo is 0.283 against 0.291 and the
+shortwave cloud effect -52 against -46, nothing fitted -- the reflector is now in
+the right place, which is what this step was for. The longwave cloud effect
+fails, at +11.6 against +27.9, and the surface test fails: net radiation fell 24
+W m^-2, not 40, and evaporation rose.
+
+**Why the longwave effect fails, measured rather than assumed.** At the pressures
+where ISCCP observes the cloud tops, the model's atmosphere is far warmer:
+
+| cloud | pressure | model temperature | ISCCP top temperature | difference |
+|---|---:|---:|---:|---:|
+| cirrus and cirrostratus | 261 hPa | 252.3 K | 227.5 K | +24.8 K |
+| deep convective | 328 hPa | 262.6 K | 234.8 K | +27.8 K |
+| middle | 562 hPa | 281.3 K | 262.8 K | +18.5 K |
+| low | 829 hPa | 293.8 K | 281.1 K | +12.7 K |
+
+A cloud top that warm emits nearly what the clear sky does, so it traps little.
+The cloud optics are not the failure; the atmosphere the clouds sit in is, and
+more so with height. Its free troposphere carries 0.775 relative humidity from
+300 to 700 hPa against an observed 0.4 to 0.5. Every failure here -- the weak
+longwave effect, the low clear-sky outgoing longwave, the column too warm to let
+evaporation fall -- runs back to the same over-moist free troposphere: the
+sinking, drying air a single column cannot represent.
+
+*Gate note.* Both runs were first marked invalid by the validity-domain gate: the
+cloud record's optical-thickness range had been inferred onto the radiation
+module's *total* layer optical depth, saturated vapour bands at 1600. That was a
+declaration error in this step, fixed by a distinct symbol, `tau_c`, bound
+explicitly to the cloud field's own output. The binding changes which field the
+gate judges and no computed number; the rerun is valid and the table stands.
+
