@@ -47,6 +47,8 @@ EQUATION_IDS = {
     "relaxed_convective_adjustment": "EQ-RELAXED-CONVECTIVE-ADJUSTMENT",
     "solar_vapour_absorption": "EQ-SOLAR-VAPOUR-K-DISTRIBUTION",
     "observed_cloud_field": "EQ-ISCCP-CLOUD-FIELD",
+    "wtg_circulation": "EQ-WTG-OVERTURNING-CIRCULATION",
+    "area_weighted_mean": "EQ-AREA-WEIGHTED-GLOBAL-MEAN",
     "fractional_top_convective_adjustment": "EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
@@ -839,6 +841,127 @@ def build_equation_registry() -> EquationRegistry:
                 "convection or any transient adjustment",
             ),
             source="Manabe and Strickler 1964; Manabe and Wetherald 1967",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["wtg_circulation"],
+            version=V1,
+            name="Relaxed spectral weak-temperature-gradient overturning between two columns",
+            category=EquationCategory.REDUCED_PHYSICAL_EQUATION,
+            mathematical_form=(
+                "sinking column: f_k = c_p sigma (T_d - T_a)_k / (g tau_1 dS/dp), "
+                "A_n = 2 sum_k f_k sin(n pi zeta_k) dzeta_k, "
+                "F(zeta) = sum_(n=1..M) (A_n / n) sin(n pi zeta), "
+                "zeta = (p_s - p) / (p_s - p_t), F = 0 above p_t; "
+                "tau_1 = L / c_1, c_1 = N H / pi, N^2 = g (dS/dz) / (c_p T_bar), with "
+                "dS/dp and dS/dz the rising column's bulk tropospheric values; "
+                "rising column: -(1 - sigma) / sigma F; "
+                "d(phi m)_k/dt from upwind vertical fluxes and lateral exchange "
+                "(F_k - F_(k+1)) phi_upstream for phi in (s, q)"
+            ),
+            physical_basis=(
+                "Horizontal temperature differences in the low-latitude free "
+                "troposphere are removed by gravity waves in the time they take to "
+                "cross between rising and sinking air (Raymond and Zeng 2005); each "
+                "vertical mode travels at c_1 / n and so relaxes n times more slowly "
+                "(Herman and Raymond 2014). Mass continuity closes the overturning; "
+                "the air carries its dry static energy and water."
+            ),
+            variables=(
+                ("F", "downward mass flux per unit area of the sinking column", "kg m^-2 s^-1"),
+                ("T", "layer temperature of the sinking (d) and rising (a) column", "K"),
+                ("S", "dry static energy, c_p T + g z", "J kg^-1"),
+                ("sigma", "area fraction of the rising region", "1"),
+                ("tau_1", "gravest mode's relaxation time", "s"),
+            ),
+            parameters=(
+                (
+                    "sigma",
+                    "measured",
+                    "0.476, the area-weighted fraction of the globe with upward "
+                    "monthly-mean omega at 500 hPa, NCEP/NCAR Reanalysis 1, 1991-2020 "
+                    "long-term means (NOAA PSL)",
+                ),
+                (
+                    "L",
+                    "measured",
+                    "750 km, the area-weighted mean distance from descending "
+                    "(omega500 > 0) to the nearest ascending grid point within 20-30 "
+                    "degrees of the equator, same data; monthly 589 to 853 km",
+                ),
+                (
+                    "p_t",
+                    "parameterized",
+                    "100 hPa, the tropopause of the GASS WTG intercomparison and SCAM6",
+                ),
+                ("M", "numerical", "modes kept: the layers below p_t, at most 20"),
+            ),
+            assumptions=(
+                "two regions, one rising and one sinking",
+                "each relaxes toward the area mean on the gravity-wave crossing time",
+                "flux-form upwind transport",
+            ),
+            approximations=(
+                "Midlatitude eddy transport is absent.",
+                "The modes are sines in pressure, exact only for a uniform "
+                "stratification, which is why the bulk value is used.",
+            ),
+            validity_domain=ValidityDomain(
+                conditions=(
+                    "a troposphere stable in bulk below the declared tropopause; the "
+                    "module refuses to run otherwise",
+                ),
+            ),
+            limiting_cases=(
+                "equal column temperatures give no circulation and two independent columns",
+                "a temperature difference in the gravest mode relaxes on tau_1",
+                "energy and water leaving one column arrive in the other exactly",
+                "equal and opposite mass fluxes weighted by area at every interface",
+            ),
+            conserved_quantities=("energy", "water", "mass"),
+            permitted_discretizations=("flux-form upwind", "truncated sine series"),
+            correctness_tests=(
+                "test_the_circulation_conserves_energy_and_water_exactly",
+                "test_the_gravest_mode_relaxes_on_tau_1",
+                "test_each_mode_relaxes_n_times_more_slowly",
+                "test_no_temperature_difference_means_no_circulation",
+                "test_the_two_columns_carry_equal_and_opposite_mass",
+            ),
+            known_failure_modes=(
+                "a single sinking region cannot represent the spread of subsidence rates",
+                "the strict balance this replaced diverged near the cold top of convection "
+                "(docs/protocols/two-column-circulation.md)",
+            ),
+            source=(
+                "Herman and Raymond 2014, doi:10.1002/2014MS000359; Raymond and Zeng "
+                "2005; Cohen et al. 2024, doi:10.1029/2023MS003866; Sobel and "
+                "Bretherton 2000; Nilsson and Emanuel 1999"
+            ),
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["area_weighted_mean"],
+            version=V1,
+            name="Area-weighted global mean of partitioning regions",
+            category=EquationCategory.DIAGNOSTIC_IDENTITY,
+            mathematical_form="X_global = sum_r a_r X_r, with sum_r a_r = 1",
+            physical_basis=(
+                "The global integral of a per-area quantity over regions that "
+                "partition the globe is the area-weighted sum of their values."
+            ),
+            variables=(("a_r", "area fraction of region r", "1"),),
+            assumptions=("the regions partition the globe",),
+            approximations=(),
+            validity_domain=ValidityDomain(conditions=("regions that partition the globe",)),
+            limiting_cases=("one region of area one returns its own value",),
+            conserved_quantities=("energy", "water"),
+            permitted_discretizations=("exact",),
+            correctness_tests=("test_the_global_mean_preserves_the_integral",),
+            source="definition",
         )
     )
 

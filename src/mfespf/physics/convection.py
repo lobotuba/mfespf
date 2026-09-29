@@ -175,6 +175,7 @@ class ConvectiveAdjustmentModule(Module):
         reference_pressure: float | None = None,
         relaxation_timescale: float = 0.0,
         fractional_top: bool = False,
+        receives_advection: bool = False,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         relaxed = relaxation_timescale > 0.0
@@ -246,6 +247,14 @@ class ConvectiveAdjustmentModule(Module):
                 *(
                     (VAPOUR_STATE, "vapour_phase_change_rate", "latent_heating_rate")
                     if transport_vapour
+                    else ()
+                ),
+                # A circulation's heating and moistening this step, which the
+                # adjustment must see so that it adjusts the profile the
+                # circulation leaves rather than the one it found.
+                *(
+                    ("advective_heating_rate", "vapour_advection_rate")
+                    if receives_advection
                     else ()
                 ),
             ),
@@ -414,6 +423,7 @@ class ConvectiveAdjustmentModule(Module):
         # top of the mixing is always a layer edge and the column's answer
         # follows where the grid puts those edges.
         self.fractional_top = fractional_top
+        self.receives_advection = receives_advection
         self._partial_tops: dict[int, float] = {}
         self._held_rate: np.ndarray | None = None
         self._mixing_groups: tuple[tuple[int, int], ...] = ()
@@ -555,6 +565,11 @@ class ConvectiveAdjustmentModule(Module):
                 + np.asarray(phase.require_units("kg m^-2 s^-1").values, dtype=float)
                 * self._vapour_dt
             )
+        advection = self._inputs.get("vapour_advection_rate")
+        if advection is not None:
+            w = w + np.asarray(advection.require_units("kg m^-2 s^-1").values, dtype=float) * float(
+                advection.time_interval or self._vapour_dt
+            )
         mixed = np.array(w)
         for low, high in groups:
             span = slice(low, high + 1)
@@ -641,6 +656,9 @@ class ConvectiveAdjustmentModule(Module):
         latent = self._inputs.get("latent_heating_rate")
         if latent is not None:
             heating = heating + latent.require_units("W m^-2").values
+        advective = self._inputs.get("advective_heating_rate")
+        if advective is not None:
+            heating = heating + advective.require_units("W m^-2").values
 
         # Sensible heat out of the surface and into the lowest layer. Without it
         # the surface and the air exchange energy only by radiation, the

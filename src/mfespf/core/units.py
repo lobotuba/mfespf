@@ -226,6 +226,10 @@ _register("mol mol^-1", DIMENSIONLESS)
 _register("ppm", DIMENSIONLESS, scale=1.0e-6)
 _register("ppb", DIMENSIONLESS, scale=1.0e-9)
 _register("K s^-1", Dimension.of(temperature=1, time=-1))
+# Pressure velocity, omega: the vertical motion of large-scale circulations is
+# reported in pressure per time, and meteorology quotes it per day in hPa.
+_register("Pa s^-1", Dimension.of(mass=1, length=-1, time=-3))
+_register("hPa day^-1", Dimension.of(mass=1, length=-1, time=-3), scale=100.0 / 86400.0)
 _register("W m^-2 K^-4", Dimension.of(mass=1, time=-3, temperature=-4))
 _register("W m^-2 K^-1", Dimension.of(mass=1, time=-3, temperature=-1))
 _register("J s", Dimension.of(mass=1, length=2, time=-1))

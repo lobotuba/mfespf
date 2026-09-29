@@ -111,3 +111,94 @@ across that range is reported as fragile.
   | evaporation | below 4.11 mm/day |
 
 The observed surface temperature decides nothing here; it is reported.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+### Test A: fails. Two identical columns never make a temperature difference
+
+Two 30-layer `reference_column`s, 3600 s steps, 44000 steps. Last fifth of each
+run:
+
+| run | tau_1 | net TOA | omega500 | RH 300-700 | T_a - T_d at 495 hPa | surface |
+|---|---:|---:|---:|---:|---:|---:|
+| L = 375 km | 1.45 h | -0.027 | 0.0 | 0.741 | 0.000 K | 291.95 K |
+| **L = 750 km (verdict)** | 2.90 h | -0.027 | 0.0 | 0.741 | 0.000 K | 291.95 K |
+| L = 1500 km | 5.80 h | -0.027 | 0.0 | 0.741 | 0.000 K | 291.95 K |
+
+Energy and water closed to 9.2e-16. The two columns are bit-for-bit identical in
+all three runs, and the verdict does not change across the sensitivity range.
+
+| criterion | model | verdict |
+|---|---:|---|
+| subsidence at 500 hPa, 5-40 hPa/day | 0.0 | fail |
+| RH 300-700 hPa, 0.35-0.55 | 0.741 | fail |
+| C-shaped profile, minimum between 400 and 700 hPa | minimum 0.581 at 294 hPa | fail |
+| T_a - T_d at 500 hPa, +0.5 to +2.2 K | 0.000 | fail |
+
+**Why.** Same surface, same sunlight, same start. The relaxed balance moves air
+only in response to a temperature difference, and nothing makes one. The
+symmetric state is an exact solution. The strict balance circulated only
+because it declared which column sinks. The relaxed-WTG literature this
+follows always prescribes a contrast, usually in sea-surface temperature
+(Daleu et al. 2016). This framework has none.
+
+The tau_1 the measured L gives, 2.9 h, is close to the 3 h of the GASS
+intercomparison, but nothing was fitted to it.
+
+Test B was not run. Its premise is a free troposphere dried by sinking air, and
+there is none.
+
+### Diagnostics after the verdict (not part of it)
+
+**Sunlight does not choose the rising region.** Insolation on the NCEP omega500
+masks (daily-mean top-of-atmosphere insolation at S0 = 1361 W m^-2, averaged
+monthly):
+
+- rising regions 338.9, sinking 341.7 W m^-2, difference -2.75;
+- monthly differences range from -10.7 to +15.1.
+
+The global omega500 < 0 area includes the midlatitude storm tracks, and the
+omega500 > 0 area includes the sunny subtropics. A global partition mixes the
+tropical overturning with midlatitude weather, which is not a WTG regime. The
+declared approximations already say so, and this measures it.
+
+**The equilibrium depends on water the initial state puts above convection.**
+
+1. The two columns were rerun with the sinking column's atmosphere started
+   0.1 K cooler. The circulation decayed (omega500 0.14 hPa/day, T_a - T_d
+   -0.001 K). While it ran, it lifted water above the level convection had
+   reached.
+2. Both columns then settled into a different state:
+   - surface 296.59 K, 4.6 K warmer than the symmetric state;
+   - precipitable water 61 against 37 kg m^-2;
+   - RH about 0.96 from 160 to 94 hPa, where the symmetric state has exactly
+     zero;
+   - a cold point of 196.9 K at 94 hPa.
+3. To locate the cause, the single `reference_column` was started four ways:
+
+   | start | surface | moist (RH > 0.05) up to | above that |
+   |---|---:|---:|---|
+   | as is (dry) | 291.95 K | 261 hPa | RH 0.000 |
+   | +0.1 K | 291.97 K | 261 hPa | RH 0.000 |
+   | -0.1 K | 291.94 K | 261 hPa | RH 0.000 |
+   | 1e-6 kg/kg vapour in every layer | 293.30 K | 227 hPa | RH 0.008-0.013 |
+
+   All four runs are equilibrated (net within +/-0.03 W m^-2) and closed to
+   about 1e-15.
+
+**So the column has no single equilibrium: the state depends on how much
+water starts above the convective top.** The column starts dry by default.
+Nothing in it moves water above the level convection reaches, and nothing
+there removes water except condensation. So whatever vapour is there at the
+start stays, and it sets the longwave cooling that decides how deep convection
+goes. A trace of vapour, 1 ppm by mass and below the real lower stratosphere's
+roughly 3, moves the surface 1.35 K. The circulation's brief moistening moved
+it 4.6 K.
+
+The reference column's headline figure, +3.94 K, is the dry-start member of
+this family. It is not a unique prediction until a physical process sets the
+water above the convective top. In the real atmosphere that is transport through
+the cold point: freeze-drying of air entering the stratosphere, and large-scale
+ascent through the tropical tropopause layer.

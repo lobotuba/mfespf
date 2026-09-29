@@ -156,6 +156,7 @@ class WaterModule(Module):
         initial_relative_humidity: float = 0.0,
         latent_heat: float | None = None,
         evaporation_coefficient_follows: str = "",
+        receives_advection: bool = False,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         contract = ModuleContract(
@@ -226,6 +227,10 @@ class WaterModule(Module):
                 "atmosphere_layer_pressure",
                 "atmosphere_layer_heat_capacity",
                 "surface_temperature",
+                # A circulation that carries vapour into and out of the layers
+                # this step: the saturation adjustment must act on the profile
+                # after it, or the two draw on one layer's water independently.
+                *(("vapour_advection_rate",) if receives_advection else ()),
             ),
             produced_outputs=(
                 VAPOUR_STATE,
@@ -329,6 +334,7 @@ class WaterModule(Module):
         # configuration derived it rather than setting it. Empty means it was
         # set directly and is independently uncertain.
         self.evaporation_coefficient_follows = evaporation_coefficient_follows
+        self.receives_advection = receives_advection
         self.initial_relative_humidity = initial_relative_humidity
         self.latent_heat = (
             latent_heat
@@ -439,6 +445,16 @@ class WaterModule(Module):
         self._evaporation = self.evaporation_coefficient * deficit
 
         provisional = np.array(self.vapour)
+        # What a circulation carries in or out this step, composed rather than
+        # added afterwards: the circulation commits it, and this module adjusts
+        # the profile it leaves. Excluded from this module's own tendency below.
+        advection = self._inputs.get("vapour_advection_rate")
+        advected = (
+            np.asarray(advection.require_units("kg m^-2 s^-1").values, dtype=float) * ctx.dt
+            if advection is not None
+            else np.zeros_like(provisional)
+        )
+        provisional += advected
         provisional[0] += self._evaporation * ctx.dt
 
         # Saturation adjustment: everything above saturation condenses and leaves.
@@ -464,7 +480,7 @@ class WaterModule(Module):
             where=saturation > 0.0,
         )
 
-        self._vapour_rate = (final - self.vapour) / ctx.dt
+        self._vapour_rate = (final - self.vapour - advected) / ctx.dt
 
         return [
             TendencyContribution(

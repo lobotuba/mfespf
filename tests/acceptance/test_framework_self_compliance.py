@@ -49,6 +49,7 @@ from mfespf.run import configurations as rc
 from mfespf.run.driver import Kernel
 from mfespf.run.greenhouse import greenhouse_grid
 from mfespf.run.preflight import estimate_cost
+from mfespf.run.two_column import two_column
 
 pytestmark = pytest.mark.stage(0)
 
@@ -144,6 +145,9 @@ BUILDERS = {
     "plume_humidity": _plume_humidity_column,
     "reference_column": cc.reference_column,
     "observed_clouds_and_solar_vapour": _observed_clouds_and_solar_vapour,
+    # Two regions, the circulation between them and the global means: the one
+    # configuration whose modules are filed under regions.
+    "two_column": two_column,
 }
 
 #: Module implementations no reference configuration in this file reaches, with

@@ -673,6 +673,7 @@ def radiating_column(
     convective_fractional_top: bool = False,
     solar_vapour_absorption: bool = False,
     observed_cloud_field: bool = False,
+    receives_advection: bool = False,
     evaporation_coefficient: float | None = None,
     gravity: float | GravityField | None = None,
     initial_water_store: float = 1.0e4,
@@ -845,6 +846,7 @@ def radiating_column(
                     evaporation_coefficient_follows=(
                         "" if evaporation_coefficient is not None else "sensible_heat_coefficient"
                     ),
+                    receives_advection=receives_advection,
                 ),
                 step_multiple=1,
             )
@@ -865,6 +867,7 @@ def radiating_column(
                     target_responds_to_temperature=humidity_responds_to_temperature,
                     relaxation_timescale=convective_relaxation_timescale,
                     fractional_top=convective_fractional_top,
+                    receives_advection=receives_advection,
                 ),
                 step_multiple=1,
             )
