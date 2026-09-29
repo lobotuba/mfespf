@@ -24,29 +24,29 @@ time grows with the grid and whose temperature has not stopped climbing by 60
 layers may be a closure that amplifies grid-scale structure, which the plume's
 mass-flux derivative has done before.
 
-### The convective top snaps to layer edges, and a timescale does not fix it
+### The convective top snaps to layer edges; two fixes have been tried
 
-Across 25 to 60 layers the full column's error scatters from +9.8 to +10.6 K
-around +10.3 and follows the time-mean top of the convective mixing at about
-0.015 K per hPa, because the adjustment's unstable groups are whole layers.
+The full column's error scatters by 0.84 K across 25 to 45 layers and follows
+the time-mean top of the convective mixing, because the adjustment's groups end
+at layer edges. Both attempts so far were judged by a rule frozen before they
+ran (`docs/protocols/`), with S <= 0.3 K to be adopted:
 
-A relaxed adjustment was built and swept under a protocol frozen before the
-sweep (`docs/protocols/convective-relaxation-timescale.md`). Over the published
-1 h to 16 h it made the resolution scatter *worse* (1.1 to 2.2 K against 0.84),
-damped the limit cycle (to 0.8 K at 16 h), and warmed the column by 2 to 8 K.
-No timescale was adopted. The relaxation remains available,
-`convective_relaxation_timescale`, defaulting to zero.
+| attempt | S | adopted |
+|---|---:|---|
+| relaxation over 1 to 16 h | 1.1 to 2.2 K (worse) | no |
+| fractional top at the level of neutral buoyancy | 0.47 K | no |
 
-So the scatter is spatial, and the cure has to be too: a closure whose top is
-not a layer edge -- a plume that rises to its level of neutral buoyancy and
-mixes a fraction of the layer it stops in, or a convective top interpolated
-between levels. That is the next candidate, and it has a measurable target
-already: S below 0.3 K across 25 to 45 layers.
+The fractional top got most of the way: five of six layer counts within 0.16 K,
+the sixth (36 layers) 0.3 K above them. Its one known remaining discontinuity is
+at onset -- a newly unstable layer mixes part-way into the one above rather than
+from zero. That is the next thing to look at, with its own frozen test, and the
+36-layer case is not to be dropped from S to get under the line.
 
 ### Closure choice is the largest uncertainty measured
 
-Within the published relaxation range the error runs from +10 to +18 K. That is
-model-form uncertainty larger than any parameter range declared so far (the
+Within the published relaxation range the error runs from +10 to +18 K, and the
+fractional top moves it to +11.6. That is model-form uncertainty larger than any
+parameter range declared so far (the
 sensible heat coefficient's is 1.2 K) and larger than the resolution scatter.
 It belongs in the headline as a statement about the closure, not as a
 parameter to pick.

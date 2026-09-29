@@ -162,6 +162,7 @@ def convective_adjustment_with_groups(
     reference_pressure: float | None = None,
     tolerance: float = 1e-12,
     max_passes: int = 1000,
+    partial_tops: dict[int, float] | None = None,
 ) -> tuple[np.ndarray, tuple[tuple[int, int], ...]]:
     """The same adjustment, also reporting which layers it mixed together.
 
@@ -189,6 +190,7 @@ def convective_adjustment_with_groups(
         offset=np.zeros(T.size),
         tolerance=tolerance,
         max_passes=max_passes,
+        partial_tops=partial_tops,
     )
 
 
@@ -200,6 +202,7 @@ def _adjust_to_neutral(
     offset: np.ndarray,
     tolerance: float = 1e-12,
     max_passes: int = 1000,
+    partial_tops: dict[int, float] | None = None,
 ) -> tuple[np.ndarray, tuple[tuple[int, int], ...]]:
     """Mix to uniform ``s = (T - offset) / scale``, conserving ``sum(C T)`` exactly.
 
@@ -217,6 +220,20 @@ def _adjust_to_neutral(
 
     so the adjustment cannot create or destroy energy however the group grows,
     for either target.
+
+    **A top that is not a layer edge.** When ``partial_tops`` is given, a group
+    that stops growing penetrates the next layer by a mass fraction ``f`` rather
+    than stopping at its lower edge. Inside that layer the stability variable is
+    reconstructed as linear in mass with the gradient it has to the layer above,
+    keeping the layer's mean; the mixed part is what lies below the level where
+    that reconstruction equals the group's mixed value, i.e. the level of
+    neutral buoyancy. ``f`` reaches 1 exactly where the whole layer would have
+    joined, so the top moves continuously in pressure instead of snapping to an
+    edge -- which is what made the column's error follow the grid. The fraction
+    of each partially mixed layer is written into ``partial_tops``, keyed by
+    layer index. Enthalpy stays exact: the reconstruction integrates to the
+    layer mean, and the unmixed remainder keeps its reconstructed mean, which
+    lies above the group's value, so no instability is created.
     """
     T = np.array(temperature, dtype=float)
     C = np.asarray(heat_capacity, dtype=float)
@@ -233,27 +250,67 @@ def _adjust_to_neutral(
         return T, ()
 
     stability = (T - offset) / scale
+    fractional = partial_tops is not None
+    partial: dict[int, float] = {}
 
     groups: list[tuple[int, int]] = []
     for _ in range(max_passes):
         unstable = np.nonzero(stability[1:] < stability[:-1] - tolerance)[0]
         if unstable.size == 0:
-            return stability * scale + offset, _merged(groups)
+            final = _merged(groups)
+            if partial_tops is not None:
+                partial_tops.clear()
+                partial_tops.update(
+                    {
+                        k: f
+                        for k, f in partial.items()
+                        if not any(low <= k <= high for low, high in final)
+                    }
+                )
+            return stability * scale + offset, final
         low = int(unstable[0])
-        high = low + 1
+        # Start from the buoyant layer alone and let it rise: in whole-layer
+        # mode the unstable neighbour joins on the first pass exactly as
+        # before, and in fractional mode it joins only as far as the parcel
+        # is buoyant in it, so the mixing depth grows from zero at onset.
+        high = low
+        f = 0.0
         while True:
             span = slice(low, high + 1)
-            mixed = float(
-                (np.sum(C[span] * T[span]) - np.sum(C[span] * offset[span]))
-                / np.sum(C[span] * scale[span])
-            )
+            numerator = float(np.sum(C[span] * T[span]) - np.sum(C[span] * offset[span]))
+            denominator = float(np.sum(C[span] * scale[span]))
+            mixed = numerator / denominator
+            f = 0.0
             if low > 0 and stability[low - 1] > mixed + tolerance:
                 low -= 1
                 continue
-            if high < n - 1 and stability[high + 1] < mixed - tolerance:
-                high += 1
-                continue
+            if high < n - 1:
+                k = high + 1
+                gradient = stability[k + 1] - stability[k] if k + 1 < n else 0.0
+                if fractional and gradient > 0.0:
+                    f = _penetration(
+                        numerator, denominator, C[k] * scale[k], stability[k], gradient
+                    )
+                    if f >= 1.0:
+                        high += 1
+                        continue
+                elif stability[k] < mixed - tolerance:
+                    high += 1
+                    continue
             break
+        if f > 0.0:
+            k = high + 1
+            gradient = stability[k + 1] - stability[k]
+            bottom = stability[k] - 0.5 * gradient
+            weight = C[k] * scale[k]
+            part = bottom + 0.5 * gradient * f
+            mixed = (numerator + f * weight * part) / (denominator + f * weight)
+            # The unmixed remainder keeps its reconstructed mean, which lies
+            # above the level of neutral buoyancy and so above ``mixed``.
+            remainder = bottom + 0.5 * gradient * (1.0 + f)
+            stability[k] = f * mixed + (1.0 - f) * remainder
+            T[k] = stability[k] * scale[k] + offset[k]
+            partial[k] = f
         stability[low : high + 1] = mixed
         T[low : high + 1] = mixed * scale[low : high + 1] + offset[low : high + 1]
         groups.append((low, high))
@@ -262,6 +319,41 @@ def _adjust_to_neutral(
         f"convective adjustment did not stabilise in {max_passes} passes; the profile or "
         f"the tolerance is outside the scheme's validity domain"
     )
+
+
+def _penetration(
+    numerator: float, denominator: float, weight: float, mean: float, gradient: float
+) -> float:
+    """Mass fraction of the next layer a mixed group rises through, in [0, 1].
+
+    The group's mixed value with a fraction ``f`` of the layer included is
+    ``(numerator + f w m(f)) / (denominator + f w)``, where ``m(f)`` is the
+    mean of the reconstructed profile over the lowest ``f`` of the layer. The
+    group stops where that equals the reconstructed profile itself, at
+    ``bottom + gradient f``. Monotone in ``f`` for a positive gradient, so
+    bisection finds it; 0 when the group is not buoyant at the layer's bottom
+    edge, 1 when it is buoyant at its top.
+    """
+    bottom = mean - 0.5 * gradient
+
+    def excess(f: float) -> float:
+        mixed = (numerator + f * weight * (bottom + 0.5 * gradient * f)) / (
+            denominator + f * weight
+        )
+        return mixed - (bottom + gradient * f)
+
+    if excess(0.0) <= 0.0:
+        return 0.0
+    if excess(1.0) >= 0.0:
+        return 1.0
+    lo, hi = 0.0, 1.0
+    for _ in range(60):
+        mid = 0.5 * (lo + hi)
+        if excess(mid) > 0.0:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
 
 
 def hydrostatic_heights(
@@ -322,6 +414,7 @@ def lapse_rate_adjustment_with_groups(
     *,
     tolerance: float = 1e-12,
     max_passes: int = 1000,
+    partial_tops: dict[int, float] | None = None,
 ) -> tuple[np.ndarray, tuple[tuple[int, int], ...]]:
     """Adjust toward a prescribed lapse rate instead of toward the dry adiabat.
 
@@ -344,6 +437,7 @@ def lapse_rate_adjustment_with_groups(
         offset=-offsets,
         tolerance=tolerance,
         max_passes=max_passes,
+        partial_tops=partial_tops,
     )
 
 
@@ -359,6 +453,7 @@ def surface_coupled_adjustment(
     reference_pressure: float | None = None,
     tolerance: float = 1e-12,
     max_passes: int = 1000,
+    partial_tops: dict[int, float] | None = None,
 ) -> tuple[float, np.ndarray, tuple[tuple[int, int], ...], bool]:
     """The same adjustment with the surface as the column's bottom element.
 
@@ -404,6 +499,7 @@ def surface_coupled_adjustment(
 
     all_T = np.concatenate(([float(surface_temperature)], T))
     all_C = np.concatenate(([float(surface_heat_capacity)], C))
+    extended_partials: dict[int, float] | None = {} if partial_tops is not None else None
     if target_offsets is None:
         extended, groups = convective_adjustment_with_groups(
             all_T,
@@ -412,6 +508,7 @@ def surface_coupled_adjustment(
             reference_pressure=reference_pressure,
             tolerance=tolerance,
             max_passes=max_passes,
+            partial_tops=extended_partials,
         )
     else:
         # A prescribed lapse rate instead of the dry adiabat. The offsets are
@@ -424,13 +521,22 @@ def surface_coupled_adjustment(
                 "more value than there are layers"
             )
         extended, groups = lapse_rate_adjustment_with_groups(
-            all_T, all_C, offsets, tolerance=tolerance, max_passes=max_passes
+            all_T,
+            all_C,
+            offsets,
+            tolerance=tolerance,
+            max_passes=max_passes,
+            partial_tops=extended_partials,
         )
 
     # Back to layer indices. A group that reaches the surface starts at layer 0
     # by construction, since the surface is element zero and groups are runs.
     surface_mixed = any(low == 0 for low, _ in groups)
     layer_groups = tuple((max(low - 1, 0), high - 1) for low, high in groups if high >= 1)
+    if partial_tops is not None and extended_partials is not None:
+        # A partial layer always lies above a group, so never at the surface.
+        partial_tops.clear()
+        partial_tops.update({k - 1: f for k, f in extended_partials.items() if k >= 1})
     return float(extended[0]), extended[1:], layer_groups, surface_mixed
 
 

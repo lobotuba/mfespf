@@ -389,6 +389,9 @@ saying out loud.
   sweep found that no timescale in the published range meets it -- relaxation
   worsens the layer-edge scatter and warms the column by 2 to 8 K. The option
   stays at zero, with the result appended to the protocol, not the rule edited.
+  The fractional convective top that followed cut the scatter from 0.84 to
+  0.47 K and was not adopted either; do not drop the outlying layer count, or
+  move the 0.3 K line, to change that verdict.
 - **Validity domains are enforced, as a mandatory gate.**
   `coupling/validity.py` judges every module's cited equations against the extent
   each one was evaluated over as the run proceeded, and the driver invalidates a

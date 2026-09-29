@@ -45,6 +45,7 @@ EQUATION_IDS = {
     "potential_temperature": "EQ-POTENTIAL-TEMPERATURE",
     "convective_adjustment": "EQ-DRY-CONVECTIVE-ADJUSTMENT",
     "relaxed_convective_adjustment": "EQ-RELAXED-CONVECTIVE-ADJUSTMENT",
+    "fractional_top_convective_adjustment": "EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
     "surface_evaporation": "EQ-BULK-SURFACE-EVAPORATION",
@@ -836,6 +837,79 @@ def build_equation_registry() -> EquationRegistry:
                 "convection or any transient adjustment",
             ),
             source="Manabe and Strickler 1964; Manabe and Wetherald 1967",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["fractional_top_convective_adjustment"],
+            version=V1,
+            name="Convective adjustment with a top inside a layer",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form=(
+                "above a mixed group, s(m) = s_k + (s_{k+1} - s_k)(m - 1/2) over the "
+                "layer's mass fraction m; the group mixes the fraction f below the "
+                "level where s(f) equals its mixed value (N + f w mbar(f)) / "
+                "(D + f w), and the remainder keeps its reconstructed mean"
+            ),
+            physical_basis=(
+                "A convecting parcel rises to its level of neutral buoyancy, and that "
+                "level lies wherever the environment's stability says, not at a model "
+                "layer edge. Reconstructing the stability inside the layer above the "
+                "group lets the mixing stop there, so the depth of convection varies "
+                "continuously with the forcing instead of in whole layers."
+            ),
+            variables=(
+                ("T", "layer temperature", "K"),
+                (
+                    "s",
+                    "stability variable: potential temperature or the lapse-rate equivalent",
+                    "K",
+                ),
+                ("f", "mass fraction of the layer above the group that is mixed", "1"),
+            ),
+            assumptions=(
+                "the stability variable is linear in mass inside a layer, with the "
+                "gradient it has to the layer above, and integrates to the layer mean",
+                "the unmixed part of a partially penetrated layer keeps its "
+                "reconstructed profile's mean",
+                "vapour is uniform in specific humidity within a layer, so a mass "
+                "fraction of the layer carries the same fraction of its vapour",
+            ),
+            approximations=(
+                "The reconstruction is exact for a linear profile; at a layer interface "
+                "consecutive reconstructions disagree by half the second difference of "
+                "the stability, which vanishes as the grid refines.",
+                "Onset is not continuous: the first mixing of a newly unstable pair "
+                "already reaches part-way into the layer above. Convection that is "
+                "active continuously, as it is in the equilibrium column, does not "
+                "cross onset.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 100.0, 400.0, "K"),),
+                conditions=(
+                    "hydrostatic columns without resolved vertical motion",
+                    "a stable gradient above the group; where it is not, the layer "
+                    "joins or not as a whole, as in the whole-layer scheme",
+                ),
+            ),
+            limiting_cases=(
+                "f = 0 everywhere is the whole-layer adjustment",
+                "f = 1 is the whole layer joining, and the top then continues into "
+                "the next layer continuously",
+                "column enthalpy sum(C_i T_i) is conserved exactly",
+                "the adjusted profile is stable",
+            ),
+            conserved_quantities=("energy", "water"),
+            permitted_discretizations=("bisection for f; exact linear reconstruction",),
+            correctness_tests=(
+                "test_the_fractional_top_conserves_enthalpy_and_leaves_a_stable_profile",
+                "test_the_fractional_top_moves_continuously_with_the_forcing",
+                "test_without_partial_tops_the_adjustment_is_the_whole_layer_one",
+                "test_the_fractional_top_carries_water_in_the_same_fraction",
+            ),
+            known_failure_modes=("onset of convection is still a jump of about half a layer",),
+            source="this framework; the neutral-buoyancy top is standard (Emanuel 1994)",
         )
     )
 

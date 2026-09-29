@@ -3450,3 +3450,44 @@ Charter 3.5 keeps it in the record: the relaxation stays in the code as a
 declared option at zero, with its tests, and this section and the protocol's
 result section are the evidence for not using it.
 
+## A convective top inside a layer: most of the way, and not adopted
+
+The relaxation sweep showed the scatter is spatial, so the next attempt moved
+the top of the mixing off the layer edges. Where a mixed group stops, it now
+penetrates the layer above by a mass fraction `f`, found where a linear
+reconstruction of that layer's stability equals the group's mixed value -- the
+level of neutral buoyancy (`EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT`). The
+reconstruction integrates to the layer mean and the unmixed remainder keeps its
+reconstructed mean, so enthalpy is exact and the remainder is more stable than
+the group by construction. No parameter enters; there was nothing to choose,
+only a test, frozen before the code was written.
+
+In isolation it does what it was built to do. Warming the lowest layer in
+0.01 K steps, the whole-layer top moves only in whole layers and the fractional
+top by at most a hundredth of one, once convection is under way. Across 200
+random columns enthalpy closes to 1e-13 and every result is stable.
+
+In the column:
+
+| layers | 25 | 30 | 32 | 36 | 40 | 45 | S |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| whole-layer (reference) | +9.89 | +9.81 | +10.53 | +10.23 | +10.64 | +10.16 | 0.84 |
+| fractional top | +11.53 | +11.57 | +11.44 | +11.91 | +11.60 | +11.50 | 0.47 |
+
+**S = 0.47 K, against 0.3: not adopted.** The scatter fell by 45 percent, five
+of six layer counts agree to 0.16 K, and 36 layers sits 0.3 K above them. The
+rule counts that point, and nothing was re-cut to exclude it.
+
+Two things the sweep says beyond the verdict. The limit cycle shrank, 3.55 to
+2.31 K, so the continuous top helps in time as well as in space. And the error
+rose to about +11.6 K, for a reason not yet measured -- plausibly that a group
+that can stop at its neutral level mixes less of the air above it than one
+forced to take whole layers, so the surface keeps more heat. Every change to this closure so far has moved the answer by more
+than the scatter it was aimed at, which is the measurement behind calling the
+closure the largest model-form uncertainty here.
+
+The option stays in the code, off, with its tests. The one discontinuity it
+still has -- onset, where a newly unstable pair first mixes part-way into the
+layer above instead of from zero -- is the next suspect, and gets its own frozen
+test before anything is changed on its account.
+

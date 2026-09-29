@@ -174,6 +174,7 @@ class ConvectiveAdjustmentModule(Module):
         target_responds_to_temperature: bool = True,
         reference_pressure: float | None = None,
         relaxation_timescale: float = 0.0,
+        fractional_top: bool = False,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         relaxed = relaxation_timescale > 0.0
@@ -193,6 +194,11 @@ class ConvectiveAdjustmentModule(Module):
                 EQUATION_IDS["potential_temperature"],
                 EQUATION_IDS["convective_adjustment"],
                 *((EQUATION_IDS["relaxed_convective_adjustment"],) if relaxed else ()),
+                *(
+                    (EQUATION_IDS["fractional_top_convective_adjustment"],)
+                    if fractional_top
+                    else ()
+                ),
                 EQUATION_IDS["sensible_heat"],
                 *((EQUATION_IDS["entraining_lapse_rate"],) if target == "entraining_plume" else ()),
             ),
@@ -291,6 +297,16 @@ class ConvectiveAdjustmentModule(Module):
                         ),
                     )
                     if relaxed
+                    else ()
+                ),
+                *(
+                    (
+                        (
+                            EQUATION_IDS["fractional_top_convective_adjustment"],
+                            (("T", "convectively_mixed_layer_temperature", "K"),),
+                        ),
+                    )
+                    if fractional_top
                     else ()
                 ),
                 (
@@ -394,6 +410,11 @@ class ConvectiveAdjustmentModule(Module):
         # Zero is the instantaneous closure, exactly; anything positive relaxes
         # toward the same adjusted profile over that many seconds.
         self.relaxation_timescale = relaxation_timescale
+        # Whether a mixed group may stop part-way through a layer. Off, the
+        # top of the mixing is always a layer edge and the column's answer
+        # follows where the grid puts those edges.
+        self.fractional_top = fractional_top
+        self._partial_tops: dict[int, float] = {}
         self._held_rate: np.ndarray | None = None
         self._mixing_groups: tuple[tuple[int, int], ...] = ()
         self._adjusted = np.zeros(0)
@@ -537,14 +558,23 @@ class ConvectiveAdjustmentModule(Module):
         mixed = np.array(w)
         for low, high in groups:
             span = slice(low, high + 1)
-            total_water = float(np.sum(w[span]))
-            total_mass = float(np.sum(layer_mass[span]))
+            # The part of the layer above that the group rose into, by mass. It
+            # carries its share of that layer's vapour into the mixing, and the
+            # rest of the layer keeps the rest -- the same fraction the heat used.
+            top = high + 1
+            f = self._partial_tops.get(top, 0.0) if top < w.size else 0.0
+            total_water = float(np.sum(w[span])) + f * float(w[top] if f else 0.0)
+            total_mass = float(np.sum(layer_mass[span])) + f * float(layer_mass[top] if f else 0.0)
             if total_mass <= 0.0:
                 continue
             # Uniform specific humidity, and the group's water is unchanged by
             # construction rather than to a tolerance -- the same argument the
             # enthalpy-conserving mixed temperature rests on.
+            # In this order so the whole-layer case is bit-identical to what it
+            # always was: a limit-cycling column amplifies round-off.
             mixed[span] = total_water * layer_mass[span] / total_mass
+            if f:
+                mixed[top] = (1.0 - f) * w[top] + f * total_water * layer_mass[top] / total_mass
         return mixed - w
 
     def relaxation_fraction(self, dt: float) -> float:
@@ -630,6 +660,7 @@ class ConvectiveAdjustmentModule(Module):
         heating[0] += self._sensible_flux
 
         provisional = temperature + (heating / heat_capacity) * ctx.dt
+        partials: dict[int, float] | None = {} if self.fractional_top else None
         if self.surface_based:
             # The surface enters the profile the adjustment acts on, so its own
             # provisional temperature has to be formed the way the layers' is:
@@ -661,6 +692,7 @@ class ConvectiveAdjustmentModule(Module):
                     else None
                 ),
                 reference_pressure=self.reference_pressure,
+                partial_tops=partials,
             )
             self._surface_adjustment = (adjusted_surface - provisional_surface) / ctx.dt
             # Positive upward: what the surface loses, the air gains, and the
@@ -672,19 +704,25 @@ class ConvectiveAdjustmentModule(Module):
                 heat_capacity,
                 pressure,
                 reference_pressure=self.reference_pressure,
+                partial_tops=partials,
             )
             self._surface_adjustment = 0.0
             self._surface_convective_flux = 0.0
             self._surface_mixed = False
         self._mixing_groups = groups
+        self._partial_tops = dict(partials) if partials is not None else {}
 
         # The relaxed closure applies the exactly integrated fraction of the
         # same adjustment. One scalar across the whole column, so every group
         # still sums to zero and the enthalpy closes exactly, not on average.
         fraction = self.relaxation_fraction(ctx.dt)
-        adjusted = provisional + fraction * (np.asarray(adjusted, dtype=float) - provisional)
-        self._surface_adjustment *= fraction
-        self._surface_convective_flux *= fraction
+        if fraction < 1.0:
+            # Skipped, not multiplied by one: provisional + 1.0 * (adjusted -
+            # provisional) is not bit-identical to adjusted, and a limit-cycling
+            # column amplifies that round-off into a visible change.
+            adjusted = provisional + fraction * (np.asarray(adjusted, dtype=float) - provisional)
+            self._surface_adjustment *= fraction
+            self._surface_convective_flux *= fraction
 
         self._tendency = (adjusted - provisional) / ctx.dt
         self._adjusted = np.asarray(adjusted, dtype=float)
@@ -699,7 +737,7 @@ class ConvectiveAdjustmentModule(Module):
         vapour_change = (
             self._vapour_transport(groups, layer_mass) if self.transport_vapour else None
         )
-        if vapour_change is not None:
+        if vapour_change is not None and fraction < 1.0:
             # A convex combination of the provisional and the mixed vapour, both
             # non-negative, so this cannot over-draw a layer either.
             vapour_change = fraction * vapour_change
@@ -953,6 +991,7 @@ class ConvectiveAdjustmentModule(Module):
             "sensible_heat_coefficient_W_m2_K": self.sensible_heat_coefficient,
             "reference_pressure_Pa": self.reference_pressure,
             "relaxation_timescale_s": self.relaxation_timescale,
+            "fractional_top": self.fractional_top,
             "mixing": (
                 "relaxed_toward_complete_within_unstable_groups"
                 if self.relaxation_timescale > 0.0
