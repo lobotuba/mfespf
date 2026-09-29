@@ -3573,9 +3573,16 @@ explanation of the surface excess. Equilibrated:
 | outgoing longwave (W m^-2) | 240.0 | 264.3 | ~239 |
 | surface-temperature error (K) | +3.94 | **+16.31** | 0 |
 
-**Falsified, and the reason is the most useful thing it produced.** The
-absorption is right -- 71 W m^-2 against an observed 78 that also contains
-ozone, cloud and aerosol, with nothing fitted. But the column's 0.30 albedo is
+**Falsified, and the reason is the most useful thing it produced.** First,
+what the absorption itself is worth. 71 W m^-2 against an observed 78 was
+first reported as "right", and that was questioned correctly: the 78 includes
+ozone, oxygen, carbon dioxide, cloud and aerosol, and the 71 came from a column
+with five times Earth's water, so the comparison could show nothing. The like-
+for-like test is Chou and Suarez's Table 8 on the AFGL mid-latitude summer
+atmosphere: vapour alone absorbs 0.221 and 0.410 of the sunlight in 0.70-1.22
+and 1.22-2.27 microns against line-by-line values of 0.224 and 0.447 that also
+contain oxygen and carbon dioxide -- within a few percent, in the direction of
+the omitted gases, and now a test. But the column's 0.30 albedo is
 on the surface, so reflected sunlight crosses the absorbing vapour twice, the
 planetary albedo falls to 0.22, and the vapour feedback takes the column to
 +16.3 K and 124 kg m^-2 of water. On Earth the reflection mostly happens at

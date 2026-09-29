@@ -104,3 +104,28 @@ What the runs show, in the order the protocol declared them:
    (`solar_vapour_absorption`), until the reflection is where Earth's is: clouds
    at altitude, with the surface's own albedo -- the next mechanism.
 
+### Correction to point 1 (appended later)
+
+"The absorption itself is right" was overstated, and was questioned. 71 against
+an observed ~78 is not a valid check: the 78 includes ozone, oxygen, carbon
+dioxide, cloud and aerosol absorption this model does not have, so vapour alone
+*should* come in below it, and the 71 came from a column carrying five times
+Earth's water. It could neither confirm nor refute the absorption.
+
+The valid check is like for like: Chou and Suarez's own Table 8, the AFGL
+mid-latitude summer atmosphere (29.3 kg m^-2 of water), sun at 60 degrees,
+surface albedo 0.2, no scattering, against line-by-line calculations. As a
+fraction of each band's sunlight absorbed in the atmosphere:
+
+| band | model, vapour only, 60-degree path | model, diffuse (1.66) | line-by-line, all gases |
+|---|---:|---:|---:|
+| 0.70-1.22 microns | 0.221 | 0.207 | 0.224 |
+| 1.22-2.27 microns | 0.410 | 0.399 | 0.447 |
+
+Within 1 to 8 percent in each band, every difference in the direction and of the
+size of the oxygen and carbon dioxide the model omits (about 4.3 and 3.3
+W m^-2, their Table 7). The diffuse treatment of sunlight costs a further few
+percent. That is now `test_the_mls_atmosphere_absorbs_what_line_by_line_says`.
+The falsification verdict above does not change: it was decided by the surface
+net radiation, not by this comparison.
+
