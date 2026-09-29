@@ -3633,7 +3633,9 @@ air is far warmer than those tops:
 Warm cloud tops emit nearly what the clear sky does and trap little. The clouds
 are placed and made right; the atmosphere around them is too warm, and more so
 aloft, because its free troposphere is too wet (0.775 relative humidity against
-0.4 to 0.5). Every failure of this test runs back to that one thing.
+0.4 to 0.5). That the wetness causes the warmth is the leading hypothesis, not
+a measurement; the next step tests it, because if it is right the cloud tops cool
+toward ISCCP's with nothing about the clouds changed.
 
 Two other things this step recorded. The validity gate caught a declaration error
 of this step's own making: the cloud record's optical-thickness range was

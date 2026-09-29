@@ -119,10 +119,13 @@ where ISCCP observes the cloud tops, the model's atmosphere is far warmer:
 A cloud top that warm emits nearly what the clear sky does, so it traps little.
 The cloud optics are not the failure; the atmosphere the clouds sit in is, and
 more so with height. Its free troposphere carries 0.775 relative humidity from
-300 to 700 hPa against an observed 0.4 to 0.5. Every failure here -- the weak
-longwave effect, the low clear-sky outgoing longwave, the column too warm to let
-evaporation fall -- runs back to the same over-moist free troposphere: the
-sinking, drying air a single column cannot represent.
+300 to 700 hPa against an observed 0.4 to 0.5. The warm cloud tops are measured;
+that the over-moist free troposphere causes them is the leading hypothesis, not
+yet a measurement -- a wet column's strong vapour greenhouse and feedback would
+produce exactly this warm, weakly contrasting profile. The next mechanism, sinking
+air that dries the free troposphere, is what tests it: if it is right, the cloud
+tops cool toward ISCCP's and the longwave effect rises with nothing about the
+clouds changed.
 
 *Gate note.* Both runs were first marked invalid by the validity-domain gate: the
 cloud record's optical-thickness range had been inferred onto the radiation
