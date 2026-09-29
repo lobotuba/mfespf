@@ -15,21 +15,26 @@ Ordered by what the evidence says is worth doing first, not by area.
 These are mechanisms, each with an observable other than the surface
 temperature that it has to reproduce. None is a correction.
 
-### The atmosphere absorbs no sunlight (next)
+### Clouds reflect from altitude (next)
 
-`reference_column` nets 183.5 W m^-2 of radiation at the surface against an
-observed ~104 (Trenberth, Fasullo and Kiehl 2009), and sheds it as 119 W m^-2
-of evaporation (obs 80) and 55 of sensible heat (obs 17). The ~80 W m^-2 excess
-is the solar absorption Earth's atmosphere does and this one does not: the
-vapour bands stop at 4 microns and nothing absorbs in the ultraviolet. Needed:
-near-infrared water-vapour absorption (0.94, 1.14, 1.38, 1.87, 2.7 microns) and
-ozone (Hartley-Huggins, Chappuis) with a prescribed observed profile. The
-shortwave grid has six bands below 4 microns and cannot resolve the vapour
-bands; the correlated-k form (Lacis and Hansen 1974) fits this solver's
-per-band structure. **Blocked on a citable copy of the coefficients** -- they are
-not to be entered from memory. Predictions to freeze first: atmospheric solar
-absorption, surface net radiation, evaporation and Bowen ratio, against the
-budget above, none of which any calibration here has seen.
+Adding water vapour's solar absorption (`solar_vapour_absorption`, Chou and
+Suarez 1999) got the absorption right -- 71 W m^-2 against an observed ~78 --
+and made the column worse, +3.9 to +16.3 K, because the 0.30 albedo stands on
+the surface: reflected sunlight crosses the vapour twice and the planetary albedo
+falls to 0.22 (`docs/protocols/solar-vapour-absorption.md`). The absorber is
+right and the reflector is in the wrong place.
+
+The mechanism to add is clouds at their observed heights with their observed
+optical properties -- low liquid cloud and high ice cloud, fractions and optical
+depths from a satellite climatology -- over the surface's own albedo (~0.12 to
+0.15). Its falsifiable predictions, none of which it may be tuned to: the
+planetary albedo (~0.29, CERES), the shortwave and longwave cloud radiative
+effects (about -47 and +27 W m^-2, CERES), the atmospheric and surface solar
+absorption above. Earlier work to build on: a single liquid deck gave -65 and +5,
+because Earth's longwave cloud effect comes mostly from high ice cloud.
+
+Ozone (ultraviolet absorption, an observed profile as a dataset) belongs in the
+same step or the one after; Chou and Suarez's Table 3 has its coefficients.
 
 ### Sinking air: a second column
 

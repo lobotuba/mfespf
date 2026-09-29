@@ -61,3 +61,46 @@ On `reference_column` at 30 layers, equilibrated:
 The observed surface temperature plays no part in the decision. The physics is
 added because it is physics with published coefficients; the test decides
 whether it is the explanation claimed.
+
+---
+
+## Result (appended after the runs; nothing above this line was changed)
+
+`reference_column`, 30 layers, 16-band base grid rebuilt to 43 bands, time-means
+over the last fifth, both equilibrated (28000 steps without; 56000 with, under
+0.03 W m^-2 -- 100000 was refused by the memory preflight at 3.7 GB against a
+2 GB budget, and the budget was not raised). Budgets close to 1e-15.
+
+| quantity | without | with vapour solar absorption | observed |
+|---|---:|---:|---:|
+| sunlight absorbed in the atmosphere (W m^-2) | 0 | **71.1** | ~78 |
+| sunlight absorbed at the surface (W m^-2) | 233.7 | 186.9 | ~161 |
+| planetary albedo | 0.295 | **0.223** | ~0.30 |
+| surface net radiation (W m^-2) | 183.6 | 172.3 | ~104 |
+| latent heat (W m^-2) | 118.9 | 147.6 | ~80 |
+| sensible heat (W m^-2) | 55.0 | 15.5 | ~17 |
+| precipitable water (kg m^-2) | 37.4 | 124.2 | ~25 |
+| outgoing longwave (W m^-2) | 240.0 | 264.3 | ~239 |
+| surface-temperature error (K) | +3.94 | **+16.31** | 0 |
+
+**Falsified as the explanation of the surface excess**: surface net radiation
+fell by 11 W m^-2 against the 40 required, and evaporation rose.
+
+What the runs show, in the order the protocol declared them:
+
+1. **The absorption itself is right.** Chou and Suarez's coefficients, untouched,
+   put 71 W m^-2 of sunlight into the atmosphere against an observed ~78 that
+   also includes ozone, cloud and aerosol absorption this model does not have.
+   Nothing was fitted to it.
+2. **The declared confound decides the outcome.** With the 0.30 albedo on the
+   surface, reflected sunlight crosses the absorbing vapour twice. The planetary
+   albedo fell from 0.295 to 0.223 -- about 25 W m^-2 more sunlight absorbed --
+   and the column warmed until the vapour feedback carried it to 124 kg m^-2 of
+   water and +16.3 K. On Earth most sunlight is reflected by clouds above most of
+   the vapour, which is exactly what a surface albedo cannot do.
+3. So the surface excess is not a missing absorber alone. It is a missing
+   absorber *and* a reflector in the wrong place, and the second cannot be fixed
+   by any setting of the first. The absorption is kept, off by default
+   (`solar_vapour_absorption`), until the reflection is where Earth's is: clouds
+   at altitude, with the surface's own albedo -- the next mechanism.
+

@@ -3541,3 +3541,48 @@ ultraviolet. The whole excess of the water cycle -- 1.5 times the observed
 evaporation -- follows, with nothing fitted. That is the next physics to add,
 and `docs/todo.md` holds what it has to predict.
 
+## Water vapour absorbs sunlight, and the reflector was in the wrong place
+
+The surface budget said the atmosphere absorbed no sunlight, so the next
+mechanism was water vapour's near-infrared absorption. The coefficients are
+Chou and Suarez (1999), NASA/TM-1999-104606 vol. 15 -- public domain, fitted by
+its authors to line-by-line calculations, read here from the memorandum's own
+tables rather than recalled. (Lacis and Hansen 1974 was the first candidate; its
+tables are paywalled and were not to be entered from memory.)
+
+It enters as sub-bands. Within each of the source's bands the grid carries one
+sub-band per k-term, sized so it receives that term's share of the band's
+sunlight, which is the k-distribution for anything flat in wavelength inside the
+band. The solver is unchanged; the thermal bands, where every calibration lives,
+are kept edge for edge; and a dry column on the rebuilt grid reproduces the
+original to round-off, which is the test that the regridding moves nothing.
+
+The prediction was frozen first (`docs/protocols/solar-vapour-absorption.md`):
+the surface net radiation had to fall by 40 W m^-2 for this to be the
+explanation of the surface excess. Equilibrated:
+
+| quantity | without | with vapour solar absorption | observed |
+|---|---:|---:|---:|
+| sunlight absorbed in the atmosphere (W m^-2) | 0 | **71.1** | ~78 |
+| sunlight absorbed at the surface (W m^-2) | 233.7 | 186.9 | ~161 |
+| planetary albedo | 0.295 | **0.223** | ~0.30 |
+| surface net radiation (W m^-2) | 183.6 | 172.3 | ~104 |
+| latent heat (W m^-2) | 118.9 | 147.6 | ~80 |
+| sensible heat (W m^-2) | 55.0 | 15.5 | ~17 |
+| precipitable water (kg m^-2) | 37.4 | 124.2 | ~25 |
+| outgoing longwave (W m^-2) | 240.0 | 264.3 | ~239 |
+| surface-temperature error (K) | +3.94 | **+16.31** | 0 |
+
+**Falsified, and the reason is the most useful thing it produced.** The
+absorption is right -- 71 W m^-2 against an observed 78 that also contains
+ozone, cloud and aerosol, with nothing fitted. But the column's 0.30 albedo is
+on the surface, so reflected sunlight crosses the absorbing vapour twice, the
+planetary albedo falls to 0.22, and the vapour feedback takes the column to
++16.3 K and 124 kg m^-2 of water. On Earth the reflection mostly happens at
+cloud tops above most of the vapour. The absorber is right and the reflector is
+in the wrong place; no setting of one repairs the other.
+
+The absorption stays in the code, off by default, with its tests. The next
+mechanism is clouds at altitude over the surface's own albedo, whose planetary
+albedo and cloud radiative effects are the observations it has to reproduce.
+

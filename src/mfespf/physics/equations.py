@@ -45,6 +45,7 @@ EQUATION_IDS = {
     "potential_temperature": "EQ-POTENTIAL-TEMPERATURE",
     "convective_adjustment": "EQ-DRY-CONVECTIVE-ADJUSTMENT",
     "relaxed_convective_adjustment": "EQ-RELAXED-CONVECTIVE-ADJUSTMENT",
+    "solar_vapour_absorption": "EQ-SOLAR-VAPOUR-K-DISTRIBUTION",
     "fractional_top_convective_adjustment": "EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
@@ -837,6 +838,78 @@ def build_equation_registry() -> EquationRegistry:
                 "convection or any transient adjustment",
             ),
             source="Manabe and Strickler 1964; Manabe and Wetherald 1967",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["solar_vapour_absorption"],
+            version=V1,
+            name="Absorption of sunlight by water vapour (k-distribution)",
+            category=EquationCategory.CONSTITUTIVE_RELATION,
+            mathematical_form=(
+                "T(w) = sum_i h_i exp(-k_i w) / sum_i h_i per band, with the scaled path "
+                "w = u (p / 300 hPa)^0.8 [1 + 0.00135 (T - 240 K)]; carried as one "
+                "sub-band per term, sized to the term's share of the band's sunlight"
+            ),
+            physical_basis=(
+                "Water vapour absorbs sunlight in near-infrared vibration-rotation "
+                "bands at 0.94, 1.14, 1.38, 1.87 and 2.7 microns, and weakly in the "
+                "visible. A k-distribution sorts each band by absorption strength; the "
+                "one-parameter scaling folds the pressure broadening of line wings and "
+                "the weak temperature dependence of line strength into the path."
+            ),
+            variables=(
+                ("u", "water vapour path of a layer", "kg m^-2"),
+                ("p", "layer pressure", "Pa"),
+                ("T", "layer temperature", "K"),
+                ("k_i", "absorption coefficient of term i at 300 hPa and 240 K", "m^2 kg^-1"),
+                ("h_i", "fraction of the solar flux in term i", "1"),
+            ),
+            parameters=(
+                (
+                    "k_i, h_i, scaling exponent 0.8, temperature coefficient 0.00135",
+                    "published",
+                    "Chou and Suarez (1999), NASA/TM-1999-104606 vol. 15, Tables 2 and 3 "
+                    "and equations 3.2-3.5; fitted by its authors to line-by-line "
+                    "calculations and not adjusted here",
+                ),
+            ),
+            assumptions=(
+                "the k-distribution's ordering holds at every level (the correlation "
+                "assumption, carried by the one-parameter scaling)",
+                "within a source band the surface albedo does not vary with wavelength",
+                "vapour absorbs and does not scatter sunlight",
+            ),
+            approximations=(
+                "Sunlight is solved as diffuse radiation with the solver's diffusivity "
+                "factor, not as a beam at a mean solar zenith angle.",
+                "The 2.27-10 micron band's k-distribution is applied only up to the "
+                "grid's first edge beyond 2.27 microns; the thermal bands above keep "
+                "their own vapour representation.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 150.0, 330.0, "K"),),
+                conditions=("gas absorption only; no ozone, oxygen or carbon dioxide",),
+            ),
+            limiting_cases=(
+                "no vapour transmits every solar band unchanged",
+                "a uniform path transmits sum h exp(-k w) / sum h, the source's eq. 3.4",
+                "at 300 hPa and 240 K the scaling factor is exactly one",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("one sub-band per k-term",),
+            correctness_tests=(
+                "test_the_sub_bands_carry_the_source_weights",
+                "test_a_uniform_path_transmits_the_source_k_distribution",
+                "test_the_scaling_is_one_at_the_reference_state",
+                "test_a_dry_column_on_the_rebuilt_grid_changes_nothing",
+            ),
+            known_failure_modes=(
+                "with reflection placed at the surface, reflected sunlight crosses the "
+                "absorbing vapour twice, lowering the planetary albedo",
+            ),
+            source="Chou and Suarez 1999, NASA/TM-1999-104606 vol. 15",
         )
     )
 

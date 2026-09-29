@@ -542,9 +542,11 @@ class SpectralRadiationModule(Module):
         water_module_id: str = "water",
         stratospheric_layers: int = 1,
         greenhouse_background: float | None = None,
+        solar_vapour_k: np.ndarray | None = None,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         n_bands = grid.n_bins
+        solar_vapour = solar_vapour_k is not None
         contract = ModuleContract(
             module_id=module_id,
             module_name=f"spectral column radiative transfer ({n_bands} bands)",
@@ -562,6 +564,7 @@ class SpectralRadiationModule(Module):
                 EQUATION_IDS["planck"],
                 EQUATION_IDS["diffusivity"],
                 EQUATION_IDS["two_stream"],
+                *((EQUATION_IDS["solar_vapour_absorption"],) if solar_vapour else ()),
                 *(
                     (EQUATION_IDS["cloud_optics"], EQUATION_IDS["cloud_radiative_effect"])
                     if couple_clouds
@@ -660,6 +663,9 @@ class SpectralRadiationModule(Module):
                 *(("co2_mole_fraction",) if couple_greenhouse else ()),
                 *(("stratospheric_aerosol_optical_depth",) if couple_volcanic else ()),
                 *(("atmosphere_water_vapour",) if couple_water else ()),
+                # The solar k-distributions scale the path by pressure, so the
+                # pressure is consumed, and declared, only when they are on.
+                *(("atmosphere_layer_pressure",) if solar_vapour and couple_water else ()),
             ),
             produced_outputs=(
                 "layer_radiative_heating",
@@ -673,6 +679,8 @@ class SpectralRadiationModule(Module):
                 "surface_absorbed_radiation",
                 "outgoing_longwave_radiation",
                 "reflected_shortwave_radiation",
+                "atmosphere_absorbed_shortwave",
+                "surface_absorbed_shortwave",
                 "atmospheric_radiative_forcing_diagnostics",
                 *(
                     (
@@ -780,6 +788,16 @@ class SpectralRadiationModule(Module):
         self.couple_clouds = couple_clouds
         self.couple_volcanic = couple_volcanic
         self.couple_water = couple_water
+        # Reference absorption coefficients for sunlight, one per band, from
+        # Chou and Suarez (1999); None leaves the atmosphere transparent to it.
+        self.solar_vapour_k = (
+            np.asarray(solar_vapour_k, dtype=float) if solar_vapour_k is not None else None
+        )
+        if self.solar_vapour_k is not None and self.solar_vapour_k.size != n_bands:
+            raise ConfigurationError(
+                f"solar vapour coefficients cover {self.solar_vapour_k.size} bands and the "
+                f"grid has {n_bands}; build both with solar_vapour_bands"
+            )
         self.water_module_id = water_module_id
         self.vapour_optical_depth: np.ndarray | None = None
         self.volcanic_optics: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
@@ -892,6 +910,17 @@ class SpectralRadiationModule(Module):
 
             vapour = self.input_field("atmosphere_water_vapour").require_units("kg m^-2").values
             self.vapour_optical_depth = vapour_absorption_optical_depth(self.grid, vapour)
+            if self.solar_vapour_k is not None:
+                from mfespf.physics.solar_absorption import solar_vapour_optical_depth
+
+                pressure = self.input_field("atmosphere_layer_pressure").require_units("Pa").values
+                # Added, not substituted: the thermal bands and the solar ones
+                # are disjoint, so each band gets exactly one of the two.
+                self.vapour_optical_depth = self.vapour_optical_depth + (
+                    solar_vapour_optical_depth(
+                        self.solar_vapour_k, vapour, pressure, temperature.values
+                    )
+                )
             # Pure absorption: vapour does not scatter at these wavelengths, and
             # representing it as partly scattering would reflect the surface's
             # own emission back down and warm it, which is the wrong sign.
@@ -988,6 +1017,10 @@ class SpectralRadiationModule(Module):
         }
         toa = solution.toa_index
         toa_up_sw, toa_up_lw = solution.partition(solution.upward[toa])
+        toa_down_sw, _ = solution.partition(solution.downward[toa])
+        surface_down_sw, _ = solution.partition(solution.downward[0])
+        surface_up_sw, _ = solution.partition(solution.upward[0])
+        surface_net_sw = surface_down_sw - surface_up_sw
 
         # Every sky this step was solved for, stacked. Two when a cloud is
         # active, because the diffusivity approximation and the two-stream
@@ -1105,6 +1138,18 @@ class SpectralRadiationModule(Module):
                 sign_convention=SignConvention.POSITIVE_UPWARD,
                 **flux,  # type: ignore[arg-type]
             ),
+            "atmosphere_absorbed_shortwave": Field(
+                field_id="atmosphere_absorbed_shortwave",
+                physical_name="sunlight absorbed within the atmosphere",
+                values=np.array(toa_down_sw - toa_up_sw - surface_net_sw),
+                **flux,  # type: ignore[arg-type]
+            ),
+            "surface_absorbed_shortwave": Field(
+                field_id="surface_absorbed_shortwave",
+                physical_name="sunlight absorbed at the surface",
+                values=np.array(surface_net_sw),
+                **flux,  # type: ignore[arg-type]
+            ),
             "reflected_shortwave_radiation": Field(
                 field_id="reflected_shortwave_radiation",
                 physical_name="reflected shortwave radiation at the top of the column",
@@ -1213,6 +1258,14 @@ class SpectralRadiationModule(Module):
             "couple_greenhouse": self.couple_greenhouse,
             "couple_volcanic": self.couple_volcanic,
             "couple_water": self.couple_water,
+            "solar_vapour_absorption": (
+                {
+                    "source": "Chou and Suarez 1999, NASA/TM-1999-104606 vol. 15",
+                    "k_m2_kg": self.solar_vapour_k.tolist(),
+                }
+                if self.solar_vapour_k is not None
+                else "not_represented"
+            ),
             **({"stratospheric_layers": self.stratospheric_layers} if self.couple_volcanic else {}),
             **(
                 {

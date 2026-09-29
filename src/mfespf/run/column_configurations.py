@@ -50,6 +50,7 @@ from mfespf.physics.radiative_transfer import (
     window_absorption,
 )
 from mfespf.physics.solar import ConstantSpectrumSolarSource, banded_grid
+from mfespf.physics.solar_absorption import solar_vapour_bands
 from mfespf.physics.surface import (
     SURFACE_TEMPERATURE_STATE,
     SURFACE_WATER_STATE,
@@ -647,6 +648,7 @@ def radiating_column(
     sensible_heat_coefficient: float = 10.0,
     convective_relaxation_timescale: float = 0.0,
     convective_fractional_top: bool = False,
+    solar_vapour_absorption: bool = False,
     evaporation_coefficient: float | None = None,
     gravity: float | GravityField | None = None,
     initial_water_store: float = 1.0e4,
@@ -660,6 +662,24 @@ def radiating_column(
     """
     working_grid = grid if grid is not None else column_grid()
     kappa = np.asarray(absorption_coefficient, dtype=float)
+    solar_vapour_k = None
+    if solar_vapour_absorption:
+        # Water vapour absorbs sunlight (Chou and Suarez 1999). The solar region
+        # of the grid is rebuilt around the source's bands; everything given per
+        # band on the original grid is carried onto the new one from the band
+        # that contains each new band, which is exact for the thermal bands
+        # (kept edge for edge) and for anything flat inside a solar band.
+        original = working_grid
+        working_grid, solar_vapour_k = solar_vapour_bands(original)
+        home = np.clip(
+            np.searchsorted(original.edges, working_grid.centers, side="right") - 1,
+            0,
+            original.n_bins - 1,
+        )
+        if kappa.ndim >= 1 and kappa.shape[-1] == original.n_bins:
+            kappa = kappa[..., home]
+        if albedo is not None and np.ndim(albedo) >= 1 and np.shape(albedo)[-1] == original.n_bins:
+            albedo = np.asarray(albedo, dtype=float)[..., home]
     # Default to a surface that reflects sunlight and is black in the infrared.
     # A plain float would be grey in every band, which is a different -- and
     # physically distinguishable -- surface; see ``shortwave_albedo``.
@@ -677,6 +697,7 @@ def radiating_column(
         couple_greenhouse=greenhouse is not None,
         couple_volcanic=volcanic is not None,
         couple_water=radiative_vapour,
+        solar_vapour_k=solar_vapour_k,
     )
     atmosphere = AtmosphericColumnModule(
         n_layers=n_layers,
