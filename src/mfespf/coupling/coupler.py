@@ -15,8 +15,10 @@ than assumed harmless.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from dataclasses import field as dc_field
+from typing import TypeVar
 
 from mfespf.contracts.module import Module, StepContext, UncertaintyReport
 from mfespf.core.errors import ConfigurationError
@@ -36,7 +38,43 @@ from mfespf.coupling.graph import DependencyGraph
 from mfespf.coupling.transfers import ConservedQuantity, TransferLedger
 from mfespf.registries.states import StateBudget, StateRegistry, TendencyContribution
 
-__all__ = ["Coupler", "CouplingSchedule", "ModuleSchedule", "StepReport"]
+__all__ = [
+    "REGION_SEPARATOR",
+    "Coupler",
+    "CouplingSchedule",
+    "ModuleSchedule",
+    "StepReport",
+    "qualify",
+    "region_view",
+]
+
+#: Separates a region from a field or state name on the coupler's bus.
+REGION_SEPARATOR = ":"
+
+_V = TypeVar("_V")
+
+
+def qualify(region: str | None, name: str) -> str:
+    """The bus name of a regional module's field or state.
+
+    Regions are a coupler concern, not a module one: a module publishes and
+    reads plain names, and the coupler files them under its region. That is
+    what lets a second column reuse every module unchanged, and it keeps the
+    one module that spans regions -- a circulation -- honest about crossing
+    them, because it alone has to write a region into a name.
+    """
+    return name if region is None else f"{region}{REGION_SEPARATOR}{name}"
+
+
+def region_view(fields: Mapping[str, _V], region: str | None) -> dict[str, _V]:
+    """What a module in ``region`` sees: its own region's names, unqualified,
+    plus every global one. A global module (``region=None``) sees everything."""
+    if region is None:
+        return dict(fields)
+    prefix = f"{region}{REGION_SEPARATOR}"
+    view = {k: v for k, v in fields.items() if REGION_SEPARATOR not in k}
+    view.update({k[len(prefix) :]: v for k, v in fields.items() if k.startswith(prefix)})
+    return view
 
 
 @dataclass
@@ -47,6 +85,8 @@ class ModuleSchedule:
     step_multiple: int = 1
     interpolation: str = "zero_order_hold"
     accumulation: str = "interval_sum"
+    region: str | None = None
+    """Where the module's fields and states live on the bus; None is global."""
 
     def __post_init__(self) -> None:
         if self.step_multiple < 1:
@@ -198,24 +238,40 @@ class Coupler:
         # the only caller of `negotiate` for a long time, so eight provided
         # interfaces carrying forty-four semantic keys were compared against
         # nothing -- the validity-domain situation, in the version machinery.
-        self.negotiations = negotiate_configuration(
-            providers={
-                iface.interface_id: (s.module_id, iface)
-                for s in self.schedule.ordered()
-                if s.module.status.participates
-                for iface in s.module.contract.provided_interfaces
-            },
-            consumers=[
-                (s.module_id, required)
-                for s in self.schedule.ordered()
-                if s.module.status.participates
-                for required in s.module.contract.required_interfaces
-            ],
-            adapters=self.migration_adapters,
-        )
+        # Per region: a column's radiation negotiates with its own atmosphere,
+        # never with the other column's, and global providers serve every
+        # region. A single-region run is the one-group case.
+        participating = [s for s in self.schedule.ordered() if s.module.status.participates]
+        negotiations: list[Negotiation] = []
+        for region in sorted({s.region for s in participating}, key=lambda r: r or ""):
+            visible = [s for s in participating if s.region in (None, region)]
+            negotiations.extend(
+                negotiate_configuration(
+                    providers={
+                        iface.interface_id: (s.module_id, iface)
+                        for s in visible
+                        for iface in s.module.contract.provided_interfaces
+                        if s.region == region
+                        or not any(
+                            t.region == region
+                            and iface.interface_id
+                            in {i.interface_id for i in t.module.contract.provided_interfaces}
+                            for t in visible
+                        )
+                    },
+                    consumers=[
+                        (s.module_id, required)
+                        for s in participating
+                        if s.region == region
+                        for required in s.module.contract.required_interfaces
+                    ],
+                    adapters=self.migration_adapters,
+                )
+            )
+        self.negotiations = tuple(negotiations)
 
         declarations = {
-            s.module_id: s.module.contract.owned_state_ids
+            s.module_id: frozenset(qualify(s.region, x) for x in s.module.contract.owned_state_ids)
             for s in self.schedule.ordered()
             if s.module.status.evolves_state
         }
@@ -231,12 +287,15 @@ class Coupler:
         for s in self.schedule.ordered():
             if not s.module.status.participates:
                 continue
-            s.module.initialize(dict(initial_state or {}), dict(boundary_state or {}))
+            s.module.initialize(
+                region_view(initial_state or {}, s.region),
+                region_view(boundary_state or {}, s.region),
+            )
             # Only committed state and static properties are published before the
             # first step. A flux emitted here would have no averaging interval to
             # declare, which DAT-006 forbids; fluxes appear once a step is under
             # way and modules publish in splitting order within it.
-            self.bus.update(s.module.emit_state())
+            self.bus.update(self._filed(s, s.module.emit_state()))
 
     # --- stepping ---------------------------------------------------------
     def step(self) -> StepReport:
@@ -273,15 +332,18 @@ class Coupler:
                 master_time_units=self.schedule.master_time_units,
             )
             module.begin_step(context)
-            module.receive_inputs(self._inputs_for(module))
-            new_contributions = module.compute_tendencies()
+            module.receive_inputs(self._inputs_for(module, s.region))
+            new_contributions = [
+                replace(c, state_id=qualify(s.region, c.state_id)) if s.region else c
+                for c in module.compute_tendencies()
+            ]
             for c in new_contributions:
                 self.states.assert_may_contribute(c)
             contributions.extend(new_contributions)
             # Publish before the next module in the splitting order receives its
             # inputs: the order is declared, so downstream modules see this
             # step's diagnostics rather than last step's.
-            self.bus.update(module.emit_outputs())
+            self.bus.update(self._filed(s, module.emit_outputs()))
 
         # Every module that ran has published its tendencies before any state is
         # committed: the operator splitting order is declared, not incidental.
@@ -290,12 +352,17 @@ class Coupler:
             module = s.module
             if module.module_id not in ran or not module.status.evolves_state:
                 continue
-            owned = [c for c in contributions if c.state_id in module.contract.owned_state_ids]
+            owned_ids = {qualify(s.region, x) for x in module.contract.owned_state_ids}
+            owned = [
+                replace(c, state_id=c.state_id.split(REGION_SEPARATOR, 1)[-1]) if s.region else c
+                for c in contributions
+                if c.state_id in owned_ids
+            ]
             module.advance_state(self.schedule.module_dt(module.module_id), owned)
             # Republish the committed state so the next step's earlier modules --
             # a radiation solver ahead of the owner in the splitting order -- read
             # the state as of the start of their step rather than one step stale.
-            self.bus.update(module.emit_state())
+            self.bus.update(self._filed(s, module.emit_state()))
 
         for s in self.schedule.ordered():
             module = s.module
@@ -314,7 +381,7 @@ class Coupler:
                 else:
                     existing.merge_later(budget)
             self.uncertainty[module.module_id] = module.report_uncertainty()
-            state_budgets.update(module.state_budgets())
+            state_budgets.update(self._filed(s, module.state_budgets()))
 
         self.time = t0 + dt
         self.step_index += 1
@@ -398,16 +465,23 @@ class Coupler:
                 s.module.finalize()
 
     # --- internals --------------------------------------------------------
-    def _inputs_for(self, module: Module) -> dict[str, Field]:
+    @staticmethod
+    def _filed(s: ModuleSchedule, values: Mapping[str, _V]) -> dict[str, _V]:
+        """A module's published names, filed under its region on the bus."""
+        return {qualify(s.region, k): v for k, v in values.items()}
+
+    def _inputs_for(self, module: Module, region: str | None = None) -> dict[str, Field]:
         """Deliver declared inputs, honouring any disabled dependency edge.
 
         A disabled edge (CAU-007) withholds the field entirely rather than
         substituting zero, so a module that genuinely requires the input fails
         loudly instead of silently running a different experiment (DAT-007).
+        A regional module sees its own region's fields under their plain names.
         """
+        bus = region_view(self.bus, region)
         delivered: dict[str, Field] = {}
         for field_id in module.contract.required_inputs:
-            field = self.bus.get(field_id)
+            field = bus.get(field_id)
             if field is None:
                 continue
             producer = field.provenance.producer
@@ -415,7 +489,7 @@ class Coupler:
                 continue
             delivered[field_id] = field
         # Optional inputs a module can use but does not require.
-        for field_id, field in self.bus.items():
+        for field_id, field in bus.items():
             if field_id not in delivered and field_id not in module.contract.required_inputs:
                 delivered[field_id] = field
         return delivered

@@ -23,9 +23,14 @@ from mfespf.contracts.cost import CostEstimate, ResourceBudget
 from mfespf.core.errors import MFESPFError
 from mfespf.core.versioning import MigrationAdapter
 from mfespf.coupling.conservation import ConservationReport
-from mfespf.coupling.coupler import Coupler, CouplingSchedule, StepReport
+from mfespf.coupling.coupler import Coupler, CouplingSchedule, StepReport, region_view
 from mfespf.coupling.graph import DependencyGraph
-from mfespf.coupling.validity import DomainReport, EvaluatedExtents, check_validity_domains
+from mfespf.coupling.validity import (
+    DomainCheck,
+    DomainReport,
+    EvaluatedExtents,
+    check_validity_domains,
+)
 from mfespf.evaluation.uncertainty import EnsembleMembership
 from mfespf.registries.claims import ClaimRegistry, ExperimentRegistry
 from mfespf.registries.datasets import DatasetRegistry
@@ -326,15 +331,24 @@ class Kernel:
         # closure that ran out of range while spinning up and recovered was
         # still evaluated out of range, and one that is merely idle at the end
         # leaves no footprint on a final state to be judged on at all.
-        extents = EvaluatedExtents()
-        for step in steps:
-            extents.observe(step.outputs)
-        domains = check_validity_domains(
-            registry=self.equations,
-            modules=[s.module for s in self.schedule.ordered()],
-            fields=steps[-1].outputs if steps else {},
-            extents=extents,
-        )
+        # Per region: a regional module's cited relations are judged against its
+        # own region's fields, under the plain names its contract declares.
+        # A single-column run is the one-region case and is unchanged.
+        regions = sorted({s.region for s in self.schedule.ordered()}, key=lambda r: r or "")
+        region_checks: list[DomainCheck] = []
+        for region in regions:
+            extents = EvaluatedExtents()
+            for step in steps:
+                extents.observe(region_view(step.outputs, region))
+            region_checks.extend(
+                check_validity_domains(
+                    registry=self.equations,
+                    modules=[s.module for s in self.schedule.ordered() if s.region == region],
+                    fields=region_view(steps[-1].outputs, region) if steps else {},
+                    extents=extents,
+                ).checks
+            )
+        domains = DomainReport(tuple(region_checks))
         manifest.record_gate("validity_domains", domains.passed)
         manifest.warnings.extend(domains.describe_violations())
 

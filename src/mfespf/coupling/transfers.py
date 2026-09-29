@@ -94,6 +94,19 @@ class Transfer:
     """Distinguishes concurrent transfers of the same quantity between the same
     pair, such as reflected shortwave and emitted longwave leaving a surface for
     space. Without it the two would look like one transaction recorded twice."""
+    sender_area_fraction: float = 1.0
+    receiver_area_fraction: float = 1.0
+    """The share of the globe each side's budget is per unit area of.
+
+    One (the default) is a single-column run, where every budget is per unit of
+    the same area and ``amount`` means the same to both sides. Between regions
+    of different area it does not: a rising column covering 48 per cent of the
+    globe that exports energy to a sinking one covering 52 per cent loses more
+    per square metre of itself than the other gains per square metre of itself.
+    What is conserved is the integral, so between regions ``amount`` is per unit
+    of *global* area -- which is what reconciliation compares -- and each side's
+    budget takes it divided by its own area fraction (SPA-003).
+    """
 
     def __post_init__(self) -> None:
         parse_unit(self.units)
@@ -107,11 +120,30 @@ class Transfer:
                 f"transfer {self.transfer_id!r} names {self.sender_module!r} as both sender and "
                 f"receiver; an internal source or sink is not a transfer (charter 4.24)"
             )
+        for side, fraction in (
+            ("sender", self.sender_area_fraction),
+            ("receiver", self.receiver_area_fraction),
+        ):
+            if not 0.0 < fraction <= 1.0:
+                raise CouplingError(
+                    f"transfer {self.transfer_id!r} gives its {side} an area fraction of "
+                    f"{fraction}; it must lie in (0, 1]"
+                )
         if self.kind is TransferKind.NUMERICAL and not self.source_or_sink_reference:
             raise CouplingError(
                 f"numerical transfer {self.transfer_id!r} must name the operator responsible "
                 f"(CON-008)"
             )
+
+    @property
+    def receiver_amount(self) -> float:
+        """What the receiver's own budget gains, per unit of its own area."""
+        return self.amount / self.receiver_area_fraction
+
+    @property
+    def sender_amount(self) -> float:
+        """What the sender's own budget loses, per unit of its own area."""
+        return self.amount / self.sender_area_fraction
 
     @property
     def interval(self) -> float:

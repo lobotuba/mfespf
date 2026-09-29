@@ -320,21 +320,27 @@ def apply_ledger_to_budgets(
     Numerical transfers land in the numerical source/sink lines so that CON-008
     stays satisfied without the caller having to remember which kind it recorded.
     """
+    # Each budget is per unit of its own module's area; a transfer between
+    # regions is recorded per unit of global area and converted here, once.
     for t in ledger.imports:
         receiver = budgets.get((t.receiver_module, t.quantity))
         if receiver is not None:
             if t.kind is TransferKind.NUMERICAL:
                 receiver.add_source(
-                    t.source_or_sink_reference or t.transfer_id, t.amount, numerical=True
+                    t.source_or_sink_reference or t.transfer_id,
+                    t.receiver_amount,
+                    numerical=True,
                 )
             else:
-                receiver.imports += t.amount
+                receiver.imports += t.receiver_amount
     for t in ledger.exports:
         sender = budgets.get((t.sender_module, t.quantity))
         if sender is not None:
             if t.kind is TransferKind.NUMERICAL:
                 sender.add_source(
-                    t.source_or_sink_reference or t.transfer_id, -t.amount, numerical=True
+                    t.source_or_sink_reference or t.transfer_id,
+                    -t.sender_amount,
+                    numerical=True,
                 )
             else:
-                sender.exports += t.amount
+                sender.exports += t.sender_amount

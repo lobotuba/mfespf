@@ -187,6 +187,10 @@ class DependencyGraph:
         return [self._nodes[k] for k in sorted(self._nodes)]
 
     @property
+    def declared_cycles(self) -> list[Cycle]:
+        return list(self._declared_cycles)
+
+    @property
     def edges(self) -> list[Edge]:
         return [self._edges[k] for k in sorted(self._edges)]
 
