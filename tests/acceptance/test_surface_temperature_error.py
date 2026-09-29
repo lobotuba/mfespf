@@ -18,7 +18,11 @@ import numpy as np
 import pytest
 
 from mfespf.evaluation.bias import OBSERVED_TEMPERATURE_SPREAD_K
-from mfespf.run.column_configurations import column_grid, moist_radiative_convective
+from mfespf.run.column_configurations import (
+    column_grid,
+    moist_radiative_convective,
+    reference_column,
+)
 
 pytestmark = pytest.mark.stage(3)
 
@@ -49,7 +53,7 @@ def equilibrate(report_bias):
 
 
 @pytest.mark.req("KER-012", "VAL-005", "CLM-003")
-def test_the_water_is_the_whole_warm_bias(equilibrate):
+def test_the_water_is_the_whole_warm_bias(equilibrate, report_bias):
     """The headline error, and the sequence that says where it comes from.
 
     Three configurations, differing by one mechanism each:
@@ -57,7 +61,12 @@ def test_the_water_is_the_whole_warm_bias(equilibrate):
     * vapour present but radiatively inert -- a water cycle with no greenhouse
       contribution from its own water;
     * vapour radiatively active -- the absorption switched on, transport still off;
-    * vapour transported -- convection carries moisture upward.
+    * vapour transported -- convection carries moisture upward;
+    * latent heating in convection -- rising air condenses its water and the
+      heat released warms the air aloft, so the column relaxes toward the
+      profile an entraining plume leaves instead of toward the dry adiabat.
+      This is ``reference_column``, the configuration the headline is quoted
+      from.
 
     The dry column is *cold*. Every step toward a complete water cycle warms it,
     which is the thing about this bias that is easy to get backwards: the vapour
@@ -75,7 +84,12 @@ def test_the_water_is_the_whole_warm_bias(equilibrate):
         **BASE,
     )
 
-    for report in (inert, radiative, transported):
+    moist = report_bias(
+        reference_column(**BASE).run(STEPS),
+        label="30 layers: reference column (latent heating in convection)",
+    )
+
+    for report in (inert, radiative, transported, moist):
         assert report.equilibrated, report.describe()
 
     # Each mechanism warms the column, and the ordering is the claim.
@@ -86,26 +100,30 @@ def test_the_water_is_the_whole_warm_bias(equilibrate):
     # land near zero in the middle of that would be passing through, not right.
     assert inert.error_k < 0.0 < transported.error_k
 
-    # The full column at the default 30 layers, which the vapour band is now
-    # calibrated at. Held to a wide band on purpose: this asserts that the bias
-    # has not moved by more than a kelvin without anyone saying so, not that
-    # +9.8 K is correct.
+    # With a dry-adiabatic target the full water cycle is +9.8 K; latent
+    # heating in the convection removes about six of it, by flattening the
+    # lapse rate from 8.5 K/km toward the 6.5 observed. The ordering reverses
+    # at the last step, and that is the claim: it is a mechanism that cools.
     assert transported.error_k == pytest.approx(9.8, abs=1.0)
-    assert transported.distinguishable, "a bias inside the observational spread"
+    assert transported.error_k - moist.error_k > 4.0
+
+    # The headline, held to a wide band on purpose: this asserts that it has
+    # not moved by more than a kelvin without anyone saying so, not that +3.9 K
+    # is correct.
+    assert moist.error_k == pytest.approx(3.9, abs=1.0)
+    assert moist.distinguishable, "a bias inside the observational spread"
 
     # And the process quantities, because a temperature on its own has been
-    # wrong here before while looking right. The excess evaporation is not an
-    # independent error: Clausius-Clapeyron over a surface 9.8 K too warm is a
-    # factor of about 1.9, and 4.5 against an observed 2.7 is 1.66. The Bowen
-    # ratio is *below* the observed 0.26 at this resolution (0.18): it passes
-    # through the observed value near 12 layers and keeps falling, so it is
-    # bounded here, not claimed as an agreement.
-    assert transported.evaporation_mm_day is not None
-    assert transported.bowen_ratio is not None
-    assert 2.5 < transported.evaporation_mm_day < 5.5
-    assert 0.1 < transported.bowen_ratio < 0.3
-    assert transported.precipitable_water_kg_m2 is not None
-    assert 20.0 < transported.precipitable_water_kg_m2 < 35.0
+    # wrong here before while looking right. All three are too large, and for
+    # one measured reason: the atmosphere absorbs no sunlight, so the surface
+    # nets about 184 W m^-2 of radiation against an observed ~104 and must shed
+    # the difference as evaporation and sensible heat.
+    assert moist.evaporation_mm_day is not None
+    assert moist.bowen_ratio is not None
+    assert moist.precipitable_water_kg_m2 is not None
+    assert 3.5 < moist.evaporation_mm_day < 5.0
+    assert 0.3 < moist.bowen_ratio < 0.7
+    assert 30.0 < moist.precipitable_water_kg_m2 < 45.0
 
 
 @pytest.mark.req("VAL-005")

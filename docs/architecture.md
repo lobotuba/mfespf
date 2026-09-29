@@ -3491,3 +3491,53 @@ still has -- onset, where a newly unstable pair first mixes part-way into the
 layer above instead of from zero -- is the next suspect, and gets its own frozen
 test before anything is changed on its account.
 
+## The warm bias was mostly one missing mechanism
+
+After a day spent on the numerics of the convective top, the question was put
+plainly: eleven kelvin is not a resolution problem, so what physics is missing?
+Measuring the column's lapse rate answered most of it. The full water-cycle
+column fell at **8.5 K/km** from 1 to 8 km, against an observed 6.5. It
+condensed its water -- the latent heat was released -- and its convection still
+relaxed toward the dry adiabat, so the heat never shaped the profile. Two extra
+kelvin per kilometre up to an emission level near 5 km is about ten kelvin at
+the surface.
+
+The mechanism was already in the code: the entraining-plume target, which
+relaxes toward the profile a rising, condensing, entraining parcel leaves. The
+headline configuration never used it. Switching only the target, 30 layers:
+
+| convection relaxes toward | lapse rate | error |
+|---|---:|---:|
+| dry adiabat | 8.57 K/km | +8.95 K |
+| entraining plume, a = 0.2 | 5.47 K/km | **+3.94 K** |
+| moist adiabat (a = 0) | 5.17 K/km | +3.05 K |
+
+`reference_column` is that configuration: the full water cycle with latent
+heating in its convection, and the headline is quoted from it. It reads +3.7 to
++4.3 K across 25 to 45 layers and +3.5 to +4.3 K across the declared bulk-plume
+range.
+
+It is not right for the right reasons, and the process quantities say why. Its
+lapse rate is now *shallower* than observed (5.5 against 6.5), because a global
+mean is not all convecting. Its free troposphere is too wet (relative humidity
+0.74 against 0.4 to 0.5), because nothing in one column dries air by making it
+sink. Those two errors partly cancel.
+
+And the surface energy budget found the next missing mechanism. Once the Bowen
+ratio counted the heat convection carries off the surface -- the diagnostic had
+read only the bulk flux, and reported 0.01 where the column had 0.47 -- the
+budget read:
+
+| surface flux (W m^-2) | reference column | observed (Trenberth et al. 2009) |
+|---|---:|---:|
+| net radiation | 183.5 | ~104 |
+| latent heat | 118.9 | 80 |
+| sensible heat | 55.0 | 17 |
+
+The surface nets about 80 W m^-2 more radiation than Earth's, which is almost
+exactly the 78 W m^-2 of sunlight Earth's atmosphere absorbs. This atmosphere
+absorbs none: its vapour bands stop at 4 microns and nothing absorbs the
+ultraviolet. The whole excess of the water cycle -- 1.5 times the observed
+evaporation -- follows, with nothing fitted. That is the next physics to add,
+and `docs/todo.md` holds what it has to predict.
+

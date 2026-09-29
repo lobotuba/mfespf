@@ -251,10 +251,12 @@ saying out loud.
   `report_bias` collects it and the suite prints them together at the end. The
   number the project is judged on used to be recomputed by hand in a scratch
   script, so it moved between commits without anyone noticing. Currently, at the
-  default 30 layers: -33.42 K airless, -3.50 K dry, **+9.8 K** with the full water
-  cycle, against 288.0 K. Across 25 to 60 layers the full column scatters from
-  +9.8 to +10.6 K around **+10.3 K**, with no trend. Quote it as +10.3 +/- 0.4 K,
-  and label any error computed at another resolution with its layer count.
+  default 30 layers: -33.42 K airless, -3.50 K dry, and **+3.9 K** for
+  `reference_column` -- the full water cycle with latent heating in its
+  convection -- against 288.0 K (+3.7 to +4.3 K across 25 to 45 layers; +3.5 to
+  +4.3 K across the declared bulk-plume range). Relaxing to the dry adiabat
+  instead gives +9.8 K. Label any error computed at another resolution or with
+  another convective target accordingly.
 - **The calibration resolution and the run resolution are one constant.**
   `CALIBRATION_N_LAYERS = 30` sits beside the fitted wing decays and is the
   default of every column configuration. The vapour bands were fitted on a
@@ -392,6 +394,15 @@ saying out loud.
   The fractional convective top that followed cut the scatter from 0.84 to
   0.47 K and was not adopted either; do not drop the outlying layer count, or
   move the 0.3 K line, to change that verdict.
+- **Add physics, not corrections.** The warm bias was pursued through numerics
+  -- resolution, relaxation, a fractional top -- for a day, and each moved the
+  answer by less than a missing mechanism does. Measuring the lapse rate found
+  one: the column condensed its water and still relaxed to the dry adiabat, 8.5
+  K/km against 6.5, worth six kelvin. Measuring the surface energy budget found
+  the next: the atmosphere absorbs no sunlight, so the surface nets ~184 W m^-2
+  against an observed ~104 and the water cycle runs 1.5x too fast. When the
+  answer is wrong, look for the process whose absence explains a *second*
+  observable, not the knob that moves the first.
 - **Validity domains are enforced, as a mandatory gate.**
   `coupling/validity.py` judges every module's cited equations against the extent
   each one was evaluated over as the run proceeded, and the driver invalidates a

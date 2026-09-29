@@ -1077,6 +1077,37 @@ def moist_radiative_convective(kappa: float = 1.0e-4, **kwargs: Any) -> Kernel:
     )
 
 
+def reference_column(kappa: float = 1.0e-4, **kwargs: Any) -> Kernel:
+    """The column the headline error is quoted from: every mechanism it has.
+
+    The Stage 3 moist column with its vapour radiatively active and carried by
+    convection, and with the convection relaxing toward the profile an
+    entraining plume leaves rather than toward the dry adiabat. That last
+    choice is physics, not a setting: air rising through a moist column
+    condenses its water, and the latent heat released warms the air aloft. A
+    column that condenses but relaxes to the dry adiabat has the heat and not
+    its effect on the profile -- measured at 8.5 K/km against an observed 6.5,
+    worth about six kelvin of surface temperature.
+
+    Its closure predicts two things that can be checked against observations
+    other than the surface temperature: the lapse rate (5.5 K/km, shallower
+    than the global-mean 6.5, because a global mean is not all convecting) and
+    the free-tropospheric humidity (0.74, wetter than the observed 0.4 to 0.5,
+    because nothing in one column dries air by making it sink).
+    """
+    kwargs.setdefault("run_id", f"REFERENCE-COLUMN-{kappa:g}")
+    kwargs.setdefault(
+        "purpose",
+        "Reference column: full water cycle with moist convection, the "
+        "configuration the headline surface-temperature error is quoted from.",
+    )
+    kwargs.setdefault("radiative_vapour", True)
+    kwargs.setdefault("vapour_transport", True)
+    kwargs.setdefault("surface_based_convection", True)
+    kwargs.setdefault("convective_target", "entraining_plume")
+    return moist_radiative_convective(kappa, **kwargs)
+
+
 def no_cloud_control(kappa: float = 1.0e-4, **kwargs: Any) -> Kernel:
     """KER-012 configuration: the no-cloud control.
 

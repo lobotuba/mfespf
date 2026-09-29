@@ -163,6 +163,13 @@ def surface_temperature_bias(result: Any, *, label: str, tail_fraction: float = 
 
     latent = _series(result, "surface_latent_heat_flux")
     sensible = _series(result, "surface_sensible_heat_flux")
+    # Where convection reaches the surface, the ground also heats the air by
+    # mixing, and that is sensible heat as much as the bulk flux is. Leaving it
+    # out read the moist-convective column's Bowen ratio as 0.01: the bulk flux
+    # is small there because the mixing has already carried the heat up.
+    convective = _series(result, "surface_convective_heat_flux")
+    if sensible is not None and convective is not None:
+        sensible = sensible + convective
     bowen = None
     if latent is not None and sensible is not None:
         ratio = sensible[tail] / np.where(latent[tail] == 0.0, np.nan, latent[tail])

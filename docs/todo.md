@@ -10,6 +10,45 @@ happened. Negative results that closed an item stay in
 
 Ordered by what the evidence says is worth doing first, not by area.
 
+## Missing physics, in the order measured
+
+These are mechanisms, each with an observable other than the surface
+temperature that it has to reproduce. None is a correction.
+
+### The atmosphere absorbs no sunlight (next)
+
+`reference_column` nets 183.5 W m^-2 of radiation at the surface against an
+observed ~104 (Trenberth, Fasullo and Kiehl 2009), and sheds it as 119 W m^-2
+of evaporation (obs 80) and 55 of sensible heat (obs 17). The ~80 W m^-2 excess
+is the solar absorption Earth's atmosphere does and this one does not: the
+vapour bands stop at 4 microns and nothing absorbs in the ultraviolet. Needed:
+near-infrared water-vapour absorption (0.94, 1.14, 1.38, 1.87, 2.7 microns) and
+ozone (Hartley-Huggins, Chappuis) with a prescribed observed profile. The
+shortwave grid has six bands below 4 microns and cannot resolve the vapour
+bands; the correlated-k form (Lacis and Hansen 1974) fits this solver's
+per-band structure. **Blocked on a citable copy of the coefficients** -- they are
+not to be entered from memory. Predictions to freeze first: atmospheric solar
+absorption, surface net radiation, evaporation and Bowen ratio, against the
+budget above, none of which any calibration here has seen.
+
+### Sinking air: a second column
+
+The free troposphere carries 0.74 relative humidity against an observed 0.4 to
+0.5, and subsiding regions observe below 0.25 with a C-shaped profile
+(Couhert, Schneider et al. 2010). A single horizontally uniform column has no
+net vertical motion and cannot dry air by subsidence. A two-column weak-
+temperature-gradient model (Pierrehumbert 1995; Nilsson and Emanuel 1999)
+predicts the subsiding-region humidity profile, the outgoing-longwave contrast
+between the regions and the subsidence rate. It needs region-aware field names
+-- every state and field id is a global constant today -- which is also the
+substance of SPA-001 and the spatial five.
+
+### The global-mean lapse rate is not all convective
+
+The moist-convective closure gives 5.5 K/km; the global mean is 6.5, because
+the extratropics are set by baroclinic eddies rather than convection (Stone and
+Carlson 1979). Needs meridional structure; after the two columns.
+
 ## The number being quoted
 
 ### The plume column does not settle, and warms with every refinement
