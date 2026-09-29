@@ -256,7 +256,15 @@ saying out loud.
   convection -- against 288.0 K (+3.7 to +4.3 K across 25 to 45 layers; +3.5 to
   +4.3 K across the declared bulk-plume range). Relaxing to the dry adiabat
   instead gives +9.8 K. Label any error computed at another resolution or with
-  another convective target accordingly.
+  another convective target accordingly. **That +3.9 K is not a unique
+  prediction**:
+  - It depends on the vapour the initial state puts above the convective top,
+    because nothing carries water there. It is the dry start, with an upper
+    troposphere at exactly zero relative humidity; a saturated start gives
+    +9.3 K.
+  - With vertical eddy diffusion of vapour (`eddy_diffusivity=0.39`), both
+    starts give **+9.93 K** (`docs/protocols/stratospheric-water.md`).
+  - Adopting that as the default is an open decision (`docs/todo.md`).
 - **The calibration resolution and the run resolution are one constant.**
   `CALIBRATION_N_LAYERS = 30` sits beside the fitted wing decays and is the
   default of every column configuration. The vapour bands were fitted on a

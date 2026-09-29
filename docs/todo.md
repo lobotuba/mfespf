@@ -15,6 +15,35 @@ Ordered by what the evidence says is worth doing first, not by area.
 These are mechanisms, each with an observable other than the surface
 temperature that it has to reproduce. None is a correction.
 
+### The headline is not unique without something carrying water aloft
+
+The reference column's equilibrium depended on the vapour its initial state put
+above the convective top: 291.94 K dry, 297.34 K saturated, with no diffusion.
+Vertical eddy diffusion of vapour at Massie and Hunten's tracer minimum
+(`eddy_diffusivity=0.39`, off by default) removes that. Dry and saturated
+starts land 0.001 K apart, at **297.93 K, +9.93 K**
+(`docs/protocols/stratospheric-water.md`). The +3.9 K quoted as the headline is
+the dry-start member of the family, with an upper troposphere at exactly zero
+relative humidity. Whether diffusion becomes the reference column's default is
+a decision still open. Two things weigh on it:
+
+- its stratospheric-water prediction fails, 17.1 ppmv against 4.0 (next item);
+- the uniqueness verdict is fragile: 0.137 K apart at K = 3.9.
+
+### The column has no stratospheric inversion, so its cold point is its top
+
+With vapour diffusing upward, every layer above 130 hPa sits saturated at its
+own temperature, and the temperature falls all the way to 27 hPa (190 K). The
+stratospheric water is then 17.1 ppmv against SWOOSH's 4.0. Observed, the air
+above the tropical cold point (about 190 K near 90 hPa) warms, because ozone
+absorbs sunlight, so it is subsaturated and carries the cold-point value
+upward. The solar absorption record declares "no ozone, oxygen or carbon
+dioxide". Ozone's solar heating is the mechanism. Its own observables:
+
+- the lower-stratospheric temperature profile;
+- the height and temperature of the cold point;
+- the stratospheric water, once more.
+
 ### Clouds reflect from altitude: shortwave right, longwave waits on the air
 
 The observed cloud field (`observed_cloud_field`, ISCCP D-series, Rossow and
@@ -27,17 +56,24 @@ pressures is 13 to 28 K warmer than ISCCP's cloud tops, so the clouds trap littl
 the cause is the over-moist, over-warm free troposphere, which is the next item.
 Both mechanisms stay in the code, off by default, with their tests.
 
-### Sinking air: a second column (next)
+### Sinking air: the two columns need something that tells them apart
 
 The free troposphere carries 0.74 relative humidity against an observed 0.4 to
 0.5, and subsiding regions observe below 0.25 with a C-shaped profile
-(Couhert, Schneider et al. 2010). A single horizontally uniform column has no
-net vertical motion and cannot dry air by subsidence. A two-column weak-
-temperature-gradient model (Pierrehumbert 1995; Nilsson and Emanuel 1999)
-predicts the subsiding-region humidity profile, the outgoing-longwave contrast
-between the regions and the subsidence rate. It needs region-aware field names
--- every state and field id is a global constant today -- which is also the
-substance of SPA-001 and the spatial five.
+(Couhert, Schneider et al. 2010). The framework now holds several columns
+(`run/regions.py`), and `two_column` links two reference columns by a relaxed,
+spectral WTG circulation. It fails its frozen test
+(`docs/protocols/spectral-wtg-circulation.md`). Two identical columns never
+develop a temperature difference, so nothing rises or sinks: omega500 = 0 and
+RH 0.74 at every relaxation distance. The strict balance before it diverged
+near the cold top of convection (`two-column-circulation.md`).
+
+The relaxed-WTG literature always imposes a surface contrast. Sunlight cannot
+supply one globally: on the NCEP omega500 masks, rising regions receive 2.75
+W m^-2 *less* than sinking ones, because the global partition mixes the tropical
+overturning with the midlatitude storm tracks. The next attempt is the tropics
+alone (30S-30N, sigma = 0.446), with whatever sets their sea-surface-temperature
+contrast -- ocean heat transport -- as a measured input or a mechanism.
 
 ### The global-mean lapse rate is not all convective
 
@@ -100,6 +136,22 @@ layers). The plume column runs at 8 because it does not settle above it.
 These are the items where the framework fails to do the thing it exists to do.
 They come before the physics, because the physics is what they are supposed to
 be protecting.
+
+### A configuration refusal is reported as a failed conservation gate
+
+A module raising `ConfigurationError` mid-run -- measured with the vapour eddy
+diffusion refusing an unstable step at K = 11 m^2 s^-1 -- leaves a run with zero
+steps whose manifest says "mandatory gate 'conservation_reconciliation'
+failed". Nothing failed to conserve. The manifest should name the refusal and
+its module, or a reader chasing a conservation bug will find none.
+
+### `initial_relative_humidity` is validated and hashed but never applied
+
+`WaterModule` accepts it, checks it lies in [0, 1] and puts it in
+`parameters()`, and its `initialize` promises to apply it on the first step. No
+code does, so the vapour starts at zero whatever it is set to, and two runs that
+differ only in it hash differently while computing the same numbers. Starts
+that need vapour set it through `initial_state` today, which works.
 
 ### Convection is an all-or-nothing closure and the column limit-cycles
 

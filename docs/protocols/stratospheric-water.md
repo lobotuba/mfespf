@@ -102,3 +102,80 @@ reference column with diffusion, at the verdict K. It is reported, not judged.
 that changes across that range is reported as fragile.
 
 The observed surface temperature decides nothing here; it is reported.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+Reference column, 30 layers, 3600 s, 200000 steps. Last fifth of each run:
+
+| K (m^2/s) | start | surface | net TOA | stratospheric water (first half -> second half) | PW |
+|---:|---|---:|---:|---:|---:|
+| 0.39 | dry | 297.934 K | -0.003 | 17.1 ppmv (17.1 -> 17.1) | 69.3 |
+| 0.39 | saturated | 297.933 K | +0.002 | 17.1 ppmv (17.1 -> 17.1) | 69.2 |
+| 0 (null) | dry | 291.941 K | -0.004 | 0 | 37.4 |
+| 0 (null) | saturated | 297.339 K | -0.008 | 12.7 ppmv | 64.9 |
+| 3.9 | dry | 298.304 K | 0.000 | 17.4 ppmv (17.4 -> 17.4) | 73.1 |
+| 3.9 | saturated | 298.441 K | 0.000 | 17.3 ppmv (17.3 -> 17.3) | 74.0 |
+| 11 | -- | refused | | | |
+
+All runs are equilibrated by the protocol's definition. Energy and water closed
+to about 1e-15.
+
+At K = 11 the module refused the configuration at step 0: layer 1 would
+exchange 1.23 of its mass per 3600 s step. That is the declared refusal, and
+the frozen step was not changed to get around it. Separately, the driver's
+manifest reports this refusal as "mandatory gate 'conservation_reconciliation'
+failed", which it is not; that is recorded in `docs/todo.md`.
+
+### W1: one equilibrium. Passes at the verdict K; fragile across the range
+
+| | surface difference | stratospheric-water difference | verdict |
+|---|---:|---:|---|
+| K = 0.39 | 0.001 K | 0.0 % | **pass** (0.1 K, 10 %) |
+| null, K = 0 | 5.40 K | 0 against 12.7 ppmv | fails, as a null should |
+| K = 3.9 | 0.137 K | 0.6 % | fails on temperature |
+
+Diffusion removes the dependence on the initial state, from 5.4 K to 0.001 K.
+At K = 3.9 the two starts differ by 0.137 K, beyond the frozen 0.1 K, while
+their water agrees to 0.6 percent. Both runs are equilibrated. The
+difference is of the size of this column's limit-cycle means (CLAUDE.md), but
+that is not measured here, so the verdict stands: **fragile**.
+
+### W2: stratospheric water. Fails, by a factor of 4.3
+
+17.1 ppmv against the observed 4.0 (SWOOSH 1991-2020); the band was 2.0 to 8.0.
+This is the declared failure mode, and the profile says why:
+
+| p (hPa) | T (K) | RH | H2O (ppmv) |
+|---:|---:|---:|---:|
+| 160 | 219.6 | 0.95 | 155 |
+| 127 | 208.4 | 1.00 | 44 |
+| 94 | 202.1 | 1.00 | 23 |
+| 60 | 196.7 | 1.00 | 16 |
+| 27 | 190.3 | 0.99 | 12 |
+
+- **No inversion.** Temperature falls all the way to the model top, so the top
+  layer is the cold point. Every layer above 130 hPa sits at saturation at its
+  own temperature, and the water decreases upward instead of staying at the
+  value set at a cold point.
+- **Where observation differs.** The tropical cold point is near 190 K at about
+  90 hPa, and the air above it warms, so it is subsaturated and carries the
+  cold-point value upward. This column's 94 hPa layer is 12 K warmer than that
+  cold point.
+- **Cause.** The column has no stratospheric temperature inversion, and the
+  inversion is made by ozone absorbing sunlight.
+
+That is a missing mechanism, not a transport error.
+
+### W3: the headline, re-stated
+
+The reference column with diffusion at K = 0.39: **+9.93 K** (297.93 K against
+288.0), from either start. The +3.94 K quoted until now was the dry-start
+member of an initial-condition family. With nothing to carry water above the
+convective top, the upper troposphere stayed at exactly zero relative humidity.
+With diffusion it carries 0.85 to 0.95 from 160 to 230 hPa, and the vapour
+greenhouse there warms the column by 6 K.
+
+The null run started saturated lands at 297.34 K without any diffusion. That
+confirms the 291.94 K branch was the artefact, not the physics.

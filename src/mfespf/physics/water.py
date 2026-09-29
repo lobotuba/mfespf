@@ -90,6 +90,7 @@ __all__ = [
     "EntrainingPlumeHumidityModule",
     "PrescribedHumidityModule",
     "WaterModule",
+    "eddy_diffusion_rate",
     "vapour_state_entry",
 ]
 
@@ -111,6 +112,63 @@ WATER_INTERFACE = InterfaceContract(
         "state_owner": "water",
     },
 )
+
+
+def eddy_diffusion_rate(
+    *,
+    vapour: np.ndarray,
+    layer_mass: np.ndarray,
+    temperature: np.ndarray,
+    pressure: np.ndarray,
+    interface_pressure: np.ndarray,
+    diffusivity: float,
+    dt: float,
+) -> np.ndarray:
+    """Vapour tendency from vertical eddy diffusion, kg m^-2 s^-1 per layer.
+
+    The upward flux across the interface between layers ``k-1`` and ``k`` is
+    ``F = -rho K (q_k - q_(k-1)) / dz``: ``rho`` from the interface pressure and
+    the mean of the two layers' temperatures, ``dz`` the hypsometric distance
+    between their centres. Flux form, with nothing crossing the surface or the
+    top, so the column total is unchanged.
+
+    Gravity is read from the grid rather than from a constant: each layer's
+    ``g = dp / m``, so this agrees with whatever gravity field built the
+    layers, a height-dependent one included.
+
+    Explicit in time, which keeps every layer non-negative only while
+    ``dt (D_below + D_above) / m <= 1`` with ``D = rho K / dz``. A step that
+    breaks it is refused, not limited.
+    """
+    w = np.asarray(vapour, dtype=float)
+    m = np.asarray(layer_mass, dtype=float)
+    T = np.asarray(temperature, dtype=float)
+    p = np.asarray(pressure, dtype=float)
+    p_i = np.asarray(interface_pressure, dtype=float)
+    n = w.size
+    if m.size != n or T.size != n or p.size != n or p_i.size != n + 1:
+        raise ConfigurationError("vapour, mass, temperature and pressures must share the layers")
+    if diffusivity < 0.0:
+        raise ConfigurationError(f"eddy diffusivity {diffusivity} cannot be negative")
+    q = w / m
+    gravity = (p_i[:-1] - p_i[1:]) / m
+    conductance = np.zeros(n + 1)
+    for i in range(1, n):
+        t_interface = 0.5 * (T[i - 1] + T[i])
+        g_interface = 0.5 * (gravity[i - 1] + gravity[i])
+        dz = _GAS_CONSTANT_DRY_AIR * t_interface / g_interface * np.log(p[i - 1] / p[i])
+        rho = p_i[i] / (_GAS_CONSTANT_DRY_AIR * t_interface)
+        conductance[i] = rho * diffusivity / dz
+    courant = dt * (conductance[:-1] + conductance[1:]) / m
+    if np.any(courant > 1.0):
+        k = int(np.argmax(courant))
+        raise ConfigurationError(
+            f"eddy diffusion at K = {diffusivity:g} m^2 s^-1 is unstable at dt = {dt:g} s: "
+            f"layer {k} exchanges {courant[k]:.3g} of its mass per step, above 1"
+        )
+    flux = np.zeros(n + 1)
+    flux[1:n] = -conductance[1:n] * (q[1:] - q[:-1])
+    return flux[:-1] - flux[1:]
 
 
 def vapour_state_entry(
@@ -157,8 +215,10 @@ class WaterModule(Module):
         latent_heat: float | None = None,
         evaporation_coefficient_follows: str = "",
         receives_advection: bool = False,
+        eddy_diffusivity: float = 0.0,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
+        diffusing = eddy_diffusivity > 0.0
         contract = ModuleContract(
             module_id=module_id,
             module_name="atmospheric water vapour with saturation adjustment",
@@ -176,6 +236,7 @@ class WaterModule(Module):
                 EQUATION_IDS["surface_evaporation"],
                 EQUATION_IDS["condensation"],
                 EQUATION_IDS["latent_energy"],
+                *((EQUATION_IDS["vapour_eddy_diffusion"],) if diffusing else ()),
             ),
             equation_variables=(
                 (
@@ -209,7 +270,12 @@ class WaterModule(Module):
                 ),
             ),
             assumptions=(
-                "no vertical or horizontal transport of vapour between layers",
+                (
+                    "vertical eddy diffusion of vapour at one declared diffusivity; no "
+                    "other transport of vapour between layers within this module"
+                    if diffusing
+                    else "no vertical or horizontal transport of vapour between layers"
+                ),
                 "the surface is saturated with unlimited water available",
                 "condensate precipitates immediately, so no cloud water is stored",
                 "precipitation carries no sensible heat",
@@ -231,6 +297,9 @@ class WaterModule(Module):
                 # this step: the saturation adjustment must act on the profile
                 # after it, or the two draw on one layer's water independently.
                 *(("vapour_advection_rate",) if receives_advection else ()),
+                # The diffusion's interface densities and distances, and the
+                # gravity the grid was built with (dp / m per layer).
+                *(("atmosphere_interface_pressure",) if diffusing else ()),
             ),
             produced_outputs=(
                 VAPOUR_STATE,
@@ -335,6 +404,8 @@ class WaterModule(Module):
         # set directly and is independently uncertain.
         self.evaporation_coefficient_follows = evaporation_coefficient_follows
         self.receives_advection = receives_advection
+        self.eddy_diffusivity = float(eddy_diffusivity)
+        self._diffusion_rate = np.zeros(n_layers)
         self.initial_relative_humidity = initial_relative_humidity
         self.latent_heat = (
             latent_heat
@@ -369,6 +440,8 @@ class WaterModule(Module):
             raise ConfigurationError(
                 f"evaporation coefficient {self.evaporation_coefficient} cannot be negative"
             )
+        if self.eddy_diffusivity < 0.0:
+            raise ConfigurationError(f"eddy diffusivity {self.eddy_diffusivity} cannot be negative")
         if not 0.0 <= self.initial_relative_humidity <= 1.0:
             raise ConfigurationError("initial relative humidity must lie in [0, 1]")
         if self.latent_heat <= 0.0:
@@ -455,6 +528,24 @@ class WaterModule(Module):
             else np.zeros_like(provisional)
         )
         provisional += advected
+        # Eddy diffusion is this module's own transport, so it is in the
+        # provisional profile the saturation adjustment acts on: whatever
+        # diffuses into a layer colder than the air below it condenses there.
+        # That is the cold trap, and it needs nothing added to do it.
+        if self.eddy_diffusivity > 0.0:
+            self._diffusion_rate = eddy_diffusion_rate(
+                vapour=self.vapour,
+                layer_mass=self._layer_mass,
+                temperature=self._layer_temperature,
+                pressure=np.asarray(pressure, dtype=float),
+                interface_pressure=np.asarray(
+                    self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
+                    dtype=float,
+                ),
+                diffusivity=self.eddy_diffusivity,
+                dt=ctx.dt,
+            )
+            provisional += self._diffusion_rate * ctx.dt
         provisional[0] += self._evaporation * ctx.dt
 
         # Saturation adjustment: everything above saturation condenses and leaves.
@@ -482,12 +573,31 @@ class WaterModule(Module):
 
         self._vapour_rate = (final - self.vapour - advected) / ctx.dt
 
+        diffusion = (
+            [
+                TendencyContribution(
+                    state_id=VAPOUR_STATE,
+                    provider_module_id=self.module_id,
+                    label="vapour_eddy_diffusion",
+                    value=np.array(self._diffusion_rate),
+                    units="kg m^-2",
+                    equation_id=EQUATION_IDS["vapour_eddy_diffusion"],
+                )
+            ]
+            if self.eddy_diffusivity > 0.0
+            else []
+        )
         return [
+            *diffusion,
             TendencyContribution(
                 state_id=VAPOUR_STATE,
                 provider_module_id=self.module_id,
                 label="evaporation_minus_condensation",
-                value=self._vapour_rate,
+                value=(
+                    self._vapour_rate - self._diffusion_rate
+                    if self.eddy_diffusivity > 0.0
+                    else self._vapour_rate
+                ),
                 units="kg m^-2",
                 equation_id=EQUATION_IDS["condensation"],
             ),
@@ -929,7 +1039,19 @@ class WaterModule(Module):
             "latent_heat_J_kg": self.latent_heat,
             "initial_relative_humidity": self.initial_relative_humidity,
             "condensate_fate": "precipitates_immediately",
-            "vapour_transport": "none",
+            # Added only when on, so a run without diffusion hashes as before.
+            **(
+                {
+                    "vapour_transport": "vertical_eddy_diffusion",
+                    "eddy_diffusivity_m2_s": self.eddy_diffusivity,
+                    "eddy_diffusivity_source": (
+                        "Massie and Hunten 1981 tracer-derived minimum, 3.9e3 cm^2 s^-1 at "
+                        "17 km, as tabulated by Hu et al. 2012 Table 3"
+                    ),
+                }
+                if self.eddy_diffusivity > 0.0
+                else {"vapour_transport": "none"}
+            ),
         }
 
     def checkpoint(self) -> dict[str, Any]:

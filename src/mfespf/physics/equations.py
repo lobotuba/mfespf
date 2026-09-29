@@ -49,6 +49,7 @@ EQUATION_IDS = {
     "observed_cloud_field": "EQ-ISCCP-CLOUD-FIELD",
     "wtg_circulation": "EQ-WTG-OVERTURNING-CIRCULATION",
     "area_weighted_mean": "EQ-AREA-WEIGHTED-GLOBAL-MEAN",
+    "vapour_eddy_diffusion": "EQ-VAPOUR-EDDY-DIFFUSION",
     "fractional_top_convective_adjustment": "EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
@@ -1654,6 +1655,79 @@ def build_equation_registry() -> EquationRegistry:
                 "instantaneous adjustment cannot represent precipitation timing",
             ),
             source="Standard saturation adjustment",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["vapour_eddy_diffusion"],
+            version=V1,
+            name="Vertical eddy diffusion of water vapour",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form=(
+                "F_i = -rho_i K (q_k - q_(k-1)) / dz_i upward across the interface between "
+                "layers k-1 and k, rho_i = p_i / (R T_i), dz_i = (R T_i / g_i) "
+                "ln(p_(k-1) / p_k), g = dp / m per layer; dw_k/dt = F_k - F_(k+1), "
+                "F = 0 at the surface and the top"
+            ),
+            physical_basis=(
+                "Mixing too small or slow for convection to represent carries trace "
+                "gases across the tropopause and through the stratosphere; its net "
+                "effect on a horizontal mean is down the mean gradient, and its rate "
+                "is inferred from observed tracer profiles."
+            ),
+            variables=(
+                ("F", "upward vapour flux at an interface", "kg m^-2 s^-1"),
+                ("K", "eddy diffusivity", "m^2 s^-1"),
+                ("q", "specific humidity", "kg kg^-1"),
+            ),
+            parameters=(
+                (
+                    "K",
+                    "measured",
+                    "0.39 m^2 s^-1, the minimum of Massie and Hunten's (1981) "
+                    "tracer-derived profile (3.9e3 cm^2 s^-1 at 17 km, Hu et al. 2012 "
+                    "Table 3); their profile rises to 11 m^2 s^-1 near 86 km",
+                ),
+            ),
+            assumptions=(
+                "unresolved mixing acts down the mean gradient",
+                "one diffusivity at every level",
+                "convective mixing is represented separately and is not in K",
+            ),
+            approximations=(
+                "A horizontal-mean column has no mean ascent, so the stratospheric "
+                "circulation's transport is folded into K along with small-scale mixing.",
+                "The sensible enthalpy carried by the vapour is neglected.",
+            ),
+            validity_domain=ValidityDomain(
+                conditions=(
+                    "explicit steps with dt (D_below + D_above) / m <= 1 in every layer, "
+                    "D = rho K / dz; the diffusion refuses a step that breaks it",
+                ),
+            ),
+            limiting_cases=(
+                "a uniform specific humidity gives no flux",
+                "a linear profile on a uniform grid gives the analytic flux -rho K dq/dz",
+                "the column total is unchanged",
+            ),
+            conserved_quantities=("water",),
+            permitted_discretizations=("explicit flux form",),
+            correctness_tests=(
+                "test_eddy_diffusion_conserves_the_column",
+                "test_a_uniform_humidity_does_not_diffuse",
+                "test_the_flux_is_minus_rho_k_dq_dz",
+                "test_an_unstable_step_is_refused",
+            ),
+            known_failure_modes=(
+                "a global-mean column's tropopause is warmer than the tropical cold "
+                "point that dries the stratosphere, so a 1-D cold trap can over-predict "
+                "stratospheric water by orders of magnitude (Hu et al. 2012)",
+            ),
+            source=(
+                "Massie and Hunten 1981, JGR 86, 9859; Hu, Seager and Bains 2012, "
+                "doi:10.1088/0004-637X/761/2/166"
+            ),
         )
     )
 

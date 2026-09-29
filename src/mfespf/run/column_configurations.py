@@ -674,6 +674,7 @@ def radiating_column(
     solar_vapour_absorption: bool = False,
     observed_cloud_field: bool = False,
     receives_advection: bool = False,
+    eddy_diffusivity: float = 0.0,
     evaporation_coefficient: float | None = None,
     gravity: float | GravityField | None = None,
     initial_water_store: float = 1.0e4,
@@ -847,6 +848,7 @@ def radiating_column(
                         "" if evaporation_coefficient is not None else "sensible_heat_coefficient"
                     ),
                     receives_advection=receives_advection,
+                    eddy_diffusivity=eddy_diffusivity,
                 ),
                 step_multiple=1,
             )
