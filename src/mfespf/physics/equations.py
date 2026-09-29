@@ -44,6 +44,7 @@ EQUATION_IDS = {
     "grey_greenhouse": "EQ-GREY-SINGLE-LAYER-GREENHOUSE",
     "potential_temperature": "EQ-POTENTIAL-TEMPERATURE",
     "convective_adjustment": "EQ-DRY-CONVECTIVE-ADJUSTMENT",
+    "relaxed_convective_adjustment": "EQ-RELAXED-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
     "surface_evaporation": "EQ-BULK-SURFACE-EVAPORATION",
@@ -835,6 +836,78 @@ def build_equation_registry() -> EquationRegistry:
                 "convection or any transient adjustment",
             ),
             source="Manabe and Strickler 1964; Manabe and Wetherald 1967",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["relaxed_convective_adjustment"],
+            version=V1,
+            name="Convective adjustment relaxed over a timescale",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form=(
+                "T_new = T* + (1 - exp(-dt / tau)) (T_adj - T*), where T* is the "
+                "provisional profile and T_adj the instantaneous adjustment of "
+                "EQ-DRY-CONVECTIVE-ADJUSTMENT applied to it; the same factor scales "
+                "the surface's share and the vapour mixed over the same groups"
+            ),
+            physical_basis=(
+                "Convection removes an instability over a finite time rather than "
+                "within one coupling interval. Relaxing toward the neutral profile at "
+                "a rate 1 / tau is the Betts-Miller form; integrated exactly over a "
+                "step it applies the fraction 1 - exp(-dt / tau) of the adjustment, "
+                "so the result does not depend on the step for a steady target."
+            ),
+            variables=(
+                ("T", "layer temperature", "K"),
+                ("tau", "convective relaxation timescale", "s"),
+                ("dt", "coupling timestep", "s"),
+            ),
+            parameters=(
+                (
+                    "convective_relaxation_timescale",
+                    "parameterized",
+                    "declared over 1 h to 16 h, nominal 2 h (Frierson 2007, who "
+                    "found an aquaplanet remarkably insensitive across that range; "
+                    "Betts 1986). Chosen under the frozen rule in "
+                    "docs/protocols/convective-relaxation-timescale.md, never "
+                    "against a temperature record (INF-003)",
+                ),
+            ),
+            assumptions=(
+                "the instantaneous adjustment's target and groups are the right "
+                "destination; only the rate of reaching it changes",
+                "one timescale serves every layer and the surface",
+            ),
+            approximations=(
+                "A single relaxation rate for all depths of convection, where real "
+                "shallow and deep convection adjust on different timescales.",
+                "The unstable groups are still whole layers, so the relaxation smooths "
+                "the mixing in time and does not by itself remove the grid from where "
+                "the top of the mixing lies.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 100.0, 400.0, "K"),),
+                conditions=("hydrostatic columns without resolved vertical motion",),
+            ),
+            limiting_cases=(
+                "tau -> 0 recovers the instantaneous adjustment exactly",
+                "tau -> infinity leaves the provisional profile unchanged",
+                "column enthalpy sum(C_i T_i) is conserved exactly for every tau",
+            ),
+            conserved_quantities=("energy", "water"),
+            permitted_discretizations=("exact exponential integration over the step",),
+            correctness_tests=(
+                "test_a_zero_timescale_is_the_instantaneous_adjustment_exactly",
+                "test_the_relaxed_adjustment_applies_the_exact_exponential_fraction",
+                "test_the_relaxed_adjustment_conserves_energy_and_water_every_step",
+            ),
+            known_failure_modes=(
+                "if the timescale is long against the radiative destabilisation, the "
+                "column carries a standing instability and the lapse rate departs "
+                "from the target it was meant to reach",
+            ),
+            source="Betts 1986; Betts and Miller 1986; Frierson 2007",
         )
     )
 

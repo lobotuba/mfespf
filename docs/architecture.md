@@ -3404,3 +3404,49 @@ chance of where its edges fall. The test asserts the band and the mechanism --
 of 30 and 40 layers, the one that mixes deeper is the warmer -- rather than a
 limit that does not exist.
 
+## A relaxation timescale, chosen by convergence, and not chosen
+
+The layer-edge scatter looked like a consequence of instantaneous mixing, and
+the suggestion was to let convergence choose a relaxation timescale: relax the
+adjustment over `tau`, and take the `tau` at which the answer stops depending on
+the grid. That is a numerical criterion that never consults the observed
+temperature, so it was a legitimate way to set a parameter -- provided the rule
+was fixed before the numbers were seen. It was: the protocol was committed
+first, and the result appended after.
+
+The relaxed adjustment applies `1 - exp(-dt / tau)` of the instantaneous one
+each step (`EQ-RELAXED-CONVECTIVE-ADJUSTMENT`). One scalar per step keeps every
+group's adjustment summing to zero, so energy and water close per step exactly
+as before; `tau -> 0` is the old scheme, checked against it run separately; and
+the applied fraction matches the closed form to 1e-9 at the first mixing step.
+
+The sweep, errors in K:
+
+| tau | 25 | 30 | 32 | 36 | 40 | 45 | S(tau) | span at 30 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 (instantaneous) | +9.89 | +9.81 | +10.53 | +10.23 | +10.64 | +10.16 | 0.84 | 3.55 |
+| 1 h | +12.07 | +12.62 | +12.23 | +11.69 | +11.47 | +12.10 | 1.15 | 4.89 |
+| 2 h | +12.13 | +13.04 | +12.84 | +13.16 | +13.59 | +12.89 | 1.46 | 3.93 |
+| 4 h | +13.73 | +13.76 | +14.62 | +14.33 | +14.10 | +14.85 | 1.12 | 3.52 |
+| 8 h | +14.22 | +14.74 | +14.71 | +15.48 | +16.22 | +16.42 | 2.21 | 1.80 |
+| 16 h | +15.96 | +16.48 | +16.48 | +16.55 | +17.47 | +17.88 | 1.92 | 0.79 |
+
+**Nothing met the rule, so nothing was adopted.** The published 2 h gives a
+scatter of 1.46 K against the 0.3 K threshold, and every `tau` in range is worse
+than the instantaneous scheme's 0.84. The negative result has three parts:
+
+* The scatter is spatial. The unstable groups are whole layers at every `tau`,
+  and smoothing the mixing in time does nothing to where its top lies -- which
+  the equation record said before the sweep, as an approximation.
+* The limit cycle *is* temporal: it falls from 3.55 K to 0.79 K as `tau` grows.
+  The two symptoms of the all-or-nothing closure had looked like one problem,
+  and they are two.
+* The closure choice is worth 2 to 8 K of surface temperature inside the
+  published range, most plausibly because a partly adjusted column carries a standing
+  instability (not yet measured). That is now the largest model-form uncertainty
+  measured here.
+
+Charter 3.5 keeps it in the record: the relaxation stays in the code as a
+declared option at zero, with its tests, and this section and the protocol's
+result section are the evidence for not using it.
+

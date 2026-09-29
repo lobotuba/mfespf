@@ -645,6 +645,7 @@ def radiating_column(
     deep_ocean_exchange: float | None = None,
     initial_deep_temperature: float | None = None,
     sensible_heat_coefficient: float = 10.0,
+    convective_relaxation_timescale: float = 0.0,
     evaporation_coefficient: float | None = None,
     gravity: float | GravityField | None = None,
     initial_water_store: float = 1.0e4,
@@ -798,6 +799,7 @@ def radiating_column(
                     # One switch, because holding the vapour is one physical
                     # intervention even though it now has two consequences.
                     target_responds_to_temperature=humidity_responds_to_temperature,
+                    relaxation_timescale=convective_relaxation_timescale,
                 ),
                 step_multiple=1,
             )

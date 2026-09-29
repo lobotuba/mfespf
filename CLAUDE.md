@@ -383,6 +383,12 @@ saying out loud.
   configuration deriving it, so a member cannot be asked whether its own
   override is allowed. Do not declare a range you have not looked up; the ocean
   exchange coefficient stays UNRESOLVED for that reason.
+- **A parameter chosen by a criterion has the criterion frozen first, and "none"
+  is an allowed outcome.** The convective relaxation timescale was to be chosen
+  by resolution convergence; the rule was committed before the sweep, and the
+  sweep found that no timescale in the published range meets it -- relaxation
+  worsens the layer-edge scatter and warms the column by 2 to 8 K. The option
+  stays at zero, with the result appended to the protocol, not the rule edited.
 - **Validity domains are enforced, as a mandatory gate.**
   `coupling/validity.py` judges every module's cited equations against the extent
   each one was evaluated over as the run proceeded, and the driver invalidates a

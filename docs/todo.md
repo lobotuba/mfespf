@@ -24,21 +24,32 @@ time grows with the grid and whose temperature has not stopped climbing by 60
 layers may be a closure that amplifies grid-scale structure, which the plume's
 mass-flux derivative has done before.
 
-### The convective top snaps to layer edges, and the error follows it
+### The convective top snaps to layer edges, and a timescale does not fix it
 
 Across 25 to 60 layers the full column's error scatters from +9.8 to +10.6 K
-around +10.3, with no trend, and it tracks the time-mean top of the convective
-mixing almost exactly: 462 hPa gives +9.89 K, 391 hPa gives +10.64, at about
-0.015 K per hPa and an outgoing longwave of 240.0 W m^-2 in every case. The
-adjustment mixes whole layers or none, so its top lands on a layer edge, and the
-edges move with the grid.
+around +10.3 and follows the time-mean top of the convective mixing at about
+0.015 K per hPa, because the adjustment's unstable groups are whole layers.
 
-This is a second measured symptom of the all-or-nothing closure, beside the
-limit cycle: the same scheme that makes the column oscillate in time makes its
-answer jitter in resolution. A timescale-based closure would address both, and
-the resolution scatter gives it a measurable target -- the error should stop
-following the grid. That is still a different scheme, and still waits on a
-decision.
+A relaxed adjustment was built and swept under a protocol frozen before the
+sweep (`docs/protocols/convective-relaxation-timescale.md`). Over the published
+1 h to 16 h it made the resolution scatter *worse* (1.1 to 2.2 K against 0.84),
+damped the limit cycle (to 0.8 K at 16 h), and warmed the column by 2 to 8 K.
+No timescale was adopted. The relaxation remains available,
+`convective_relaxation_timescale`, defaulting to zero.
+
+So the scatter is spatial, and the cure has to be too: a closure whose top is
+not a layer edge -- a plume that rises to its level of neutral buoyancy and
+mixes a fraction of the layer it stops in, or a convective top interpolated
+between levels. That is the next candidate, and it has a measurable target
+already: S below 0.3 K across 25 to 45 layers.
+
+### Closure choice is the largest uncertainty measured
+
+Within the published relaxation range the error runs from +10 to +18 K. That is
+model-form uncertainty larger than any parameter range declared so far (the
+sensible heat coefficient's is 1.2 K) and larger than the resolution scatter.
+It belongs in the headline as a statement about the closure, not as a
+parameter to pick.
 
 ### Tests that still pin 8 layers
 

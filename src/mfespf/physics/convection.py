@@ -134,6 +134,28 @@ def sensible_heat_declaration(nominal: float) -> DeclaredRange:
     )
 
 
+#: The declared range of the convective relaxation timescale, in seconds.
+#: Published: Frierson (2007) relaxes over 2 h and tested 1 h to 16 h, finding
+#: an aquaplanet remarkably insensitive across that range; Betts (1986).
+RELAXATION_TIMESCALE_RANGE_S = (3600.0, 16 * 3600.0)
+
+
+def relaxation_declaration(nominal: float) -> DeclaredRange:
+    low, high = RELAXATION_TIMESCALE_RANGE_S
+    return DeclaredRange(
+        parameter="relaxation_timescale_s",
+        keyword="convective_relaxation_timescale",
+        nominal=nominal,
+        low=low,
+        high=high,
+        basis=RangeBasis.PUBLISHED,
+        source=(
+            "Frierson (2007) uses 2 h and tested 1 h to 16 h; Betts (1986). Selected "
+            "under docs/protocols/convective-relaxation-timescale.md"
+        ),
+    )
+
+
 class ConvectiveAdjustmentModule(Module):
     """Restores a dry-stable profile, conserving the column's enthalpy."""
 
@@ -151,8 +173,10 @@ class ConvectiveAdjustmentModule(Module):
         bulk_plume_parameter: float = BULK_PLUME_PARAMETER,
         target_responds_to_temperature: bool = True,
         reference_pressure: float | None = None,
+        relaxation_timescale: float = 0.0,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
+        relaxed = relaxation_timescale > 0.0
         contract = ModuleContract(
             module_id=module_id,
             module_name="surface sensible heat exchange and dry convective adjustment",
@@ -168,12 +192,17 @@ class ConvectiveAdjustmentModule(Module):
             governing_equation_ids=(
                 EQUATION_IDS["potential_temperature"],
                 EQUATION_IDS["convective_adjustment"],
+                *((EQUATION_IDS["relaxed_convective_adjustment"],) if relaxed else ()),
                 EQUATION_IDS["sensible_heat"],
                 *((EQUATION_IDS["entraining_lapse_rate"],) if target == "entraining_plume" else ()),
             ),
             assumptions=(
                 "the surface exchange coefficient absorbs wind speed and stability",
-                "convective mixing is instantaneous on the coupling timestep",
+                (
+                    "convective mixing relaxes toward neutrality over a declared timescale"
+                    if relaxed
+                    else "convective mixing is instantaneous on the coupling timestep"
+                ),
                 "mixing is complete within an unstable group and absent outside it",
                 "dry adiabatic neutrality is the target, with no moist correction"
                 if target == "dry_adiabat"
@@ -253,6 +282,16 @@ class ConvectiveAdjustmentModule(Module):
                 (
                     EQUATION_IDS["convective_adjustment"],
                     (("T", "convectively_mixed_layer_temperature", "K"),),
+                ),
+                *(
+                    (
+                        (
+                            EQUATION_IDS["relaxed_convective_adjustment"],
+                            (("T", "convectively_mixed_layer_temperature", "K"),),
+                        ),
+                    )
+                    if relaxed
+                    else ()
                 ),
                 (
                     EQUATION_IDS["entraining_lapse_rate"],
@@ -352,6 +391,9 @@ class ConvectiveAdjustmentModule(Module):
         self.target = target
         self.bulk_plume_parameter = bulk_plume_parameter
         self.target_responds_to_temperature = target_responds_to_temperature
+        # Zero is the instantaneous closure, exactly; anything positive relaxes
+        # toward the same adjusted profile over that many seconds.
+        self.relaxation_timescale = relaxation_timescale
         self._held_rate: np.ndarray | None = None
         self._mixing_groups: tuple[tuple[int, int], ...] = ()
         self._adjusted = np.zeros(0)
@@ -371,6 +413,11 @@ class ConvectiveAdjustmentModule(Module):
         if self.sensible_heat_coefficient < 0.0:
             raise ConfigurationError(
                 f"sensible heat coefficient {self.sensible_heat_coefficient} cannot be negative"
+            )
+        if self.relaxation_timescale < 0.0:
+            raise ConfigurationError(
+                f"convective relaxation timescale {self.relaxation_timescale} cannot be "
+                "negative; zero is the instantaneous adjustment"
             )
         if self.target not in _TARGETS:
             raise ConfigurationError(
@@ -500,6 +547,17 @@ class ConvectiveAdjustmentModule(Module):
             mixed[span] = total_water * layer_mass[span] / total_mass
         return mixed - w
 
+    def relaxation_fraction(self, dt: float) -> float:
+        """The share of the instantaneous adjustment applied over ``dt``.
+
+        ``1 - exp(-dt / tau)``: the exact solution of relaxing toward a fixed
+        target at rate ``1 / tau``, so a steady target is reached the same way
+        whatever the step. Exactly one at ``tau = 0``.
+        """
+        if self.relaxation_timescale <= 0.0:
+            return 1.0
+        return float(-np.expm1(-dt / self.relaxation_timescale))
+
     def _mixed_mask(self) -> np.ndarray:
         """True on the layers this run's adjustment has mixed.
 
@@ -620,6 +678,14 @@ class ConvectiveAdjustmentModule(Module):
             self._surface_mixed = False
         self._mixing_groups = groups
 
+        # The relaxed closure applies the exactly integrated fraction of the
+        # same adjustment. One scalar across the whole column, so every group
+        # still sums to zero and the enthalpy closes exactly, not on average.
+        fraction = self.relaxation_fraction(ctx.dt)
+        adjusted = provisional + fraction * (np.asarray(adjusted, dtype=float) - provisional)
+        self._surface_adjustment *= fraction
+        self._surface_convective_flux *= fraction
+
         self._tendency = (adjusted - provisional) / ctx.dt
         self._adjusted = np.asarray(adjusted, dtype=float)
         self._adjusted_layers = int(np.count_nonzero(~np.isclose(adjusted, provisional)))
@@ -633,6 +699,10 @@ class ConvectiveAdjustmentModule(Module):
         vapour_change = (
             self._vapour_transport(groups, layer_mass) if self.transport_vapour else None
         )
+        if vapour_change is not None:
+            # A convex combination of the provisional and the mixed vapour, both
+            # non-negative, so this cannot over-draw a layer either.
+            vapour_change = fraction * vapour_change
         if vapour_change is not None:
             # A redistribution, so it sums to zero by construction. Anything
             # else would be convection creating or destroying water.
@@ -855,6 +925,11 @@ class ConvectiveAdjustmentModule(Module):
             declared_ranges=(
                 sensible_heat_declaration(self.sensible_heat_coefficient),
                 *(
+                    (relaxation_declaration(self.relaxation_timescale),)
+                    if self.relaxation_timescale > 0.0
+                    else ()
+                ),
+                *(
                     (bulk_plume_declaration(self.bulk_plume_parameter),)
                     if self.target == "entraining_plume"
                     else ()
@@ -877,5 +952,10 @@ class ConvectiveAdjustmentModule(Module):
             ),
             "sensible_heat_coefficient_W_m2_K": self.sensible_heat_coefficient,
             "reference_pressure_Pa": self.reference_pressure,
-            "mixing": "instantaneous_complete_within_unstable_groups",
+            "relaxation_timescale_s": self.relaxation_timescale,
+            "mixing": (
+                "relaxed_toward_complete_within_unstable_groups"
+                if self.relaxation_timescale > 0.0
+                else "instantaneous_complete_within_unstable_groups"
+            ),
         }
