@@ -55,6 +55,7 @@ EQUATION_IDS = {
     "brewer_dobson_upwelling": "EQ-BREWER-DOBSON-UPWELLING",
     "lateral_heat_export": "EQ-LATERAL-HEAT-EXPORT",
     "band_insolation": "EQ-BAND-MEAN-INSOLATION",
+    "co2_15_micron_band": "EQ-CO2-15-MICRON-K-DISTRIBUTION",
     "fractional_top_convective_adjustment": "EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
@@ -1276,6 +1277,73 @@ def build_equation_registry() -> EquationRegistry:
             conserved_quantities=("energy",),
             correctness_tests=("test_the_band_insolation_is_geometry",),
             source="Standard solar geometry; IAU 2006 obliquity",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id="EQ-CO2-15-MICRON-K-DISTRIBUTION",
+            version=V1,
+            name="The 15-micron CO2 band as a scaled k-distribution",
+            category=EquationCategory.CONSTITUTIVE_RELATION,
+            mathematical_form=(
+                "tau_n = (k_n / mu) / 1.66 * u (p / p_r)^m [1 + alpha (T - 250) + beta "
+                "(T - 250)^2], k_n = k_1 8^(n-1), six terms each for the centre (620-720 "
+                "cm^-1; p_r 30 hPa, m 0.85) and the wings (540-620, 720-800 cm^-1; p_r 300 "
+                "hPa, m 0.5); one sub-band per term, sized to its Planck-weighted fraction "
+                "at 250 K"
+            ),
+            physical_basis=(
+                "CO2's bending-mode band at 15 microns is made of lines whose widths "
+                "shrink with pressure, so the band's absorption per molecule depends on "
+                "the pressure it is at; the scaled amount carries that and the band's "
+                "weak temperature dependence."
+            ),
+            variables=(
+                ("u", "layer CO2 amount", "cm-atm"),
+                ("p", "layer pressure", "Pa"),
+                ("T", "layer temperature", "K"),
+            ),
+            parameters=(
+                (
+                    "k_1, fractions, p_r, m, alpha, beta",
+                    "published",
+                    "Chou, Suarez, Liang and Yan 2001, NASA/TM-2001-104606 vol. 19, "
+                    "Tables 3 and 10, fitted by the authors to line-by-line calculations "
+                    "with HITRAN 1996; not adjusted here",
+                ),
+            ),
+            assumptions=(
+                "the k-distribution's ordering holds at every level, carried by the scaling",
+                "CO2 and the smooth vapour absorption within a sub-band multiply their "
+                "transmittances",
+            ),
+            approximations=(
+                "Chou et al. note the scaled k-distribution underestimates the cooling "
+                "above 10 hPa, where Doppler broadening matters; their accurate method "
+                "there is pre-computed transmission tables.",
+                "Ozone's 9.6-micron band, methane, N2O, CFCs and the minor CO2 bands are "
+                "not represented (about -4.9 W m^-2 of MLS outgoing longwave).",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 170.0, 330.0, "K"),),
+                conditions=("the temperature fit's range, as for Chou's tables",),
+            ),
+            limiting_cases=(
+                "no CO2 transmits every band unchanged",
+                "the centre's fractions sum to the Planck share of 620-720 cm^-1 at 250 K",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("one sub-band per k-term",),
+            correctness_tests=(
+                "test_the_band_terms_carry_the_source_coefficients",
+                "test_the_centre_fractions_are_the_planck_share",
+                "test_thin_air_absorbs_less_per_molecule",
+            ),
+            known_failure_modes=(
+                "above 10 hPa the scaled k-distribution underestimates the cooling",
+            ),
+            source="Chou, Suarez, Liang and Yan 2001, NASA/TM-2001-104606 vol. 19",
         )
     )
 

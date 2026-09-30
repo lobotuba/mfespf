@@ -30,6 +30,7 @@ from mfespf.physics.atmosphere import (
 from mfespf.physics.boundary import SPACE_ENERGY_STATE, SpaceBoundaryModule, space_state_entry
 from mfespf.physics.cloud_field import ISCCP_SURFACE_REFLECTANCE, ObservedCloudFieldModule
 from mfespf.physics.clouds import CloudProfile, PrescribedCloudModule, single_layer_cloud
+from mfespf.physics.co2_band import co2_band_grid
 from mfespf.physics.column_surface import ColumnSurfaceModule
 from mfespf.physics.convection import ConvectiveAdjustmentModule
 from mfespf.physics.equations import EQUATION_IDS, build_equation_registry
@@ -678,6 +679,8 @@ def radiating_column(
     solar_vapour_absorption: bool = False,
     measured_solar_spectrum: bool = False,
     ozone: bool = False,
+    co2_band: bool = False,
+    co2_ppmv: float = 284.7,
     observed_cloud_field: bool = False,
     receives_advection: bool = False,
     eddy_diffusivity: float = 0.0,
@@ -729,6 +732,21 @@ def radiating_column(
             kappa = kappa[..., home]
         if albedo is not None and np.ndim(albedo) >= 1 and np.shape(albedo)[-1] == original.n_bins:
             albedo = np.asarray(albedo, dtype=float)[..., home]
+    co2_band_spec = None
+    if co2_band:
+        # Chou et al.'s CO2 band replaces the window caricature entirely: with a
+        # real band, the caricature's stand-in for it would count CO2 twice
+        # (co2-band.md). The region 12.5-18.5 microns is rebuilt around its
+        # terms, and everything else per band is carried by home band.
+        original = working_grid
+        working_grid, co2_k, co2_kind = co2_band_grid(original)
+        home = carry(original, working_grid)
+        kappa = np.zeros(working_grid.n_bins)
+        if albedo is not None and np.ndim(albedo) >= 1 and np.shape(albedo)[-1] == original.n_bins:
+            albedo = np.asarray(albedo, dtype=float)[..., home]
+        if solar_vapour_k is not None:
+            solar_vapour_k = solar_vapour_k[home]
+        co2_band_spec = (co2_k, co2_kind, float(co2_ppmv))
     if ozone:
         # The same carrying, for ozone's rebuild of the region below 0.4 microns.
         # The vapour's sub-bands above it are kept edge for edge.
@@ -741,6 +759,8 @@ def radiating_column(
             albedo = np.asarray(albedo, dtype=float)[..., home]
         if solar_vapour_k is not None:
             solar_vapour_k = solar_vapour_k[home]
+        if co2_band_spec is not None:
+            co2_band_spec = (co2_band_spec[0][home], co2_band_spec[1][home], co2_band_spec[2])
     # Default to a surface that reflects sunlight and is black in the infrared.
     # A plain float would be grey in every band, which is a different -- and
     # physically distinguishable -- surface; see ``shortwave_albedo``.
@@ -777,6 +797,7 @@ def radiating_column(
         couple_water=radiative_vapour,
         solar_vapour_k=solar_vapour_k,
         ozone_k=ozone_k,
+        co2_band=co2_band_spec,
         couple_cloud_field=observed_cloud_field,
     )
     atmosphere = AtmosphericColumnModule(

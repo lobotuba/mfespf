@@ -110,3 +110,83 @@ Chou says their k-distribution version "greatly underestimates" cooling above
 If C1 and C2 pass, the tropical column of `tropical-column.md` is run under its
 own frozen protocol. Adopting the band as the reference column's default is a
 decision for after that, and it moves the headline.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+**The check before the runs holds.** The share of band 3's Planck flux at 250 K
+that lies in 620-720 cm^-1 is 0.3884, against Chou's centre fractions summing
+to 0.389.
+
+**The vapour refit.** The vapour wing decay, refitted with this CO2 band as its
+background by the unchanged method, holds its target to 0.001 W m^-2:
+
+| grid | vapour wing |
+|---|---:|
+| 30 equal-mass layers to 10 hPa | 4789.08 m^-1 (was 3827) |
+| alpha 0.2 to 1 hPa, 51 layers | 4601.27 m^-1 |
+
+The CO2 band now absorbs less than the fitted one did. So the vapour, which also
+stands in for the cloud longwave effect, carries more of the fitted outgoing
+flux.
+
+**The tests,** on the MLS atmosphere to 0.01 hPa at 350 ppmv, with Chou's
+4e-6 g/g of water above the tropopause and the 16-band grid rebuilt around
+band 3:
+
+| test | model | line-by-line | verdict |
+|---|---:|---:|---|
+| C1: TOA upward flux, 540-800 cm^-1 | 68.31 W m^-2 | 67.90 W m^-2 | **pass** (0.41 off) |
+| C2: maximum longwave cooling above 100 hPa | -10.67 C/day at 1.1 hPa | about -12 C/day, all gases | **pass** |
+
+The cooling profile has the shape of the real one. It rises from -0.8 C/day at
+88 hPa through -3.5 at 11 hPa and -7.1 at 2.8, peaks at the stratopause, and
+falls to -0.6 at 0.045 hPa. The window caricature gave 5.8 C/day there, and
+the pressure-independent band 88 to 277.
+
+**Reported:**
+
+- **MLS total outgoing longwave:** 279.3 W m^-2 against line-by-line's 293.99.
+  The difference is the vapour's all-sky calibration (its stand-in for cloud)
+  and the gases this does not have (Chou's Table 16: 4.9 W m^-2).
+- **Forcing per CO2 doubling, now a prediction:** instantaneous, fixed
+  profile, on the calibration profile.
+
+  | grid | at the top | at 200 hPa |
+  |---|---:|---:|
+  | 30 layers | 3.01 W m^-2 | 4.90 W m^-2 |
+  | 51 layers | 3.03 W m^-2 | 4.94 W m^-2 |
+
+  The old band was fitted to 3.70 at the top. These are unadjusted, with no
+  stratospheric adjustment, and the definitions matter too much to judge
+  them against a single published figure here.
+- **The global column of `model-top.md` with this band.** At 3000 steps from
+  the US Standard Atmosphere it is valid, with 27 hPa at 212.5 K (observed
+  218.0), 10 hPa at 233.4 K (228.8) and 1.5 hPa at 286.9 K (about 270). The
+  200000-step run follows.
+
+**The global column at 200000 steps** (alpha 0.2, 1 hPa top, 51 layers, vapour
+wing 4601.27 m^-1, diffusion, ozone, measured spectrum): complete, with no
+validity-domain violations, an imbalance of 0.001 W m^-2 and a budget residual
+of 9e-16.
+
+| | this band | window caricature (`model-top.md`) | observed |
+|---|---:|---:|---:|
+| 60 hPa | 189.0 K | 203.4 K | 209.0 K |
+| 27 hPa | 203.4 K | 196.7 K | 218.0 K |
+| 10 hPa | 227.6 K | 197.0 K | 228.8 K |
+| 1.5 hPa | 284.4 K | 267.1 K | about 270 K |
+
+- **The coldest layer** is 184.8 K at 103 hPa, against the observed global mean
+  of 205.7 K at 100 hPa.
+- **Stratospheric water** is 1.00 ppmv, against about 4. The cold point is now
+  cold enough to over-dry the stratosphere, where before it left 37.6 ppmv.
+- **The surface** is 278.77 K, 9.23 K below 288.
+- **The upper stratosphere is close.** 10 hPa is 1.2 K off, and the stratopause
+  is 14 K warm.
+- **The lower stratosphere and the tropopause are now too cold.** 60 hPa is 20
+  K off, where it was 5.6 K off.
+
+This is reported, not judged. The cold lower stratosphere and the cold surface
+both bear on adopting the band as the reference column's default.

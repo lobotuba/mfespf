@@ -574,6 +574,7 @@ class SpectralRadiationModule(Module):
         greenhouse_background: float | None = None,
         solar_vapour_k: np.ndarray | None = None,
         ozone_k: np.ndarray | None = None,
+        co2_band: tuple[np.ndarray, np.ndarray, float] | None = None,
         couple_cloud_field: bool = False,
         cloud_field_module_id: str = "cloud_field",
         status: ModuleStatus = ModuleStatus.ACTIVE,
@@ -581,6 +582,7 @@ class SpectralRadiationModule(Module):
         n_bands = grid.n_bins
         solar_vapour = solar_vapour_k is not None
         ozone = ozone_k is not None
+        co2 = co2_band is not None
         contract = ModuleContract(
             module_id=module_id,
             module_name=f"spectral column radiative transfer ({n_bands} bands)",
@@ -600,6 +602,7 @@ class SpectralRadiationModule(Module):
                 EQUATION_IDS["two_stream"],
                 *((EQUATION_IDS["solar_vapour_absorption"],) if solar_vapour else ()),
                 *((EQUATION_IDS["ozone_solar_absorption"],) if ozone else ()),
+                *((EQUATION_IDS["co2_15_micron_band"],) if co2 else ()),
                 *(
                     (EQUATION_IDS["observed_cloud_field"], EQUATION_IDS["cloud_radiative_effect"])
                     if couple_cloud_field
@@ -720,7 +723,7 @@ class SpectralRadiationModule(Module):
                 # pressure is consumed, and declared, only when they are on.
                 *(
                     ("atmosphere_layer_pressure",)
-                    if (solar_vapour and couple_water) or ozone
+                    if (solar_vapour and couple_water) or ozone or co2
                     else ()
                 ),
                 # Ozone is prescribed on pressure, and the column above the
@@ -884,6 +887,15 @@ class SpectralRadiationModule(Module):
                 f"{n_bands}; build both with ozone_bands"
             )
         self.ozone_path: np.ndarray | None = None
+        # Chou et al.'s (2001) 15-micron CO2 band: (vertical k per bin in
+        # (cm-atm)^-1, each bin's kind, CO2 ppmv). None leaves CO2 to whatever
+        # absorption_coefficient carries.
+        self.co2_band = co2_band
+        if co2_band is not None and np.asarray(co2_band[0]).size != n_bands:
+            raise ConfigurationError(
+                f"CO2 band coefficients cover {np.asarray(co2_band[0]).size} bands and the "
+                f"grid has {n_bands}; build both with co2_band_grid"
+            )
         self.water_module_id = water_module_id
         self.vapour_optical_depth: np.ndarray | None = None
         self.volcanic_optics: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
@@ -1012,6 +1024,22 @@ class SpectralRadiationModule(Module):
             # own emission back down and warm it, which is the wrong sign.
             zeros = np.zeros_like(self.vapour_optical_depth)
             contributions.append((self.vapour_optical_depth, zeros, zeros))
+
+        if self.co2_band is not None:
+            from mfespf.physics.co2_band import co2_optical_depth
+
+            # Scaled for each layer's pressure and temperature every step: the
+            # band's emissivity in thin air is what it exists to get right.
+            k_co2, kind_co2, ppmv = self.co2_band
+            co2_tau = co2_optical_depth(
+                k_co2,
+                kind_co2,
+                co2_ppmv=ppmv,
+                layer_mass=mass.values,
+                pressure=self.input_field("atmosphere_layer_pressure").require_units("Pa").values,
+                temperature=temperature.values,
+            )
+            contributions.append((co2_tau, np.zeros_like(co2_tau), np.zeros_like(co2_tau)))
 
         if self.ozone_k is not None:
             from mfespf.physics.solar_absorption import ozone_layer_path, ozone_optical_depth
@@ -1373,6 +1401,16 @@ class SpectralRadiationModule(Module):
                 }
                 if self.solar_vapour_k is not None
                 else "not_represented"
+            ),
+            **(
+                {
+                    "co2_15_micron_band": {
+                        "source": "Chou, Suarez, Liang and Yan 2001, Tables 3 and 10",
+                        "co2_ppmv": float(self.co2_band[2]),
+                    }
+                }
+                if self.co2_band is not None
+                else {}
             ),
             # Only when on, so a column without ozone hashes as before.
             **(
