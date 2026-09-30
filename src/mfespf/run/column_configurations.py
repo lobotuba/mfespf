@@ -682,6 +682,7 @@ def radiating_column(
     receives_advection: bool = False,
     eddy_diffusivity: float = 0.0,
     max_log_step: float | None = None,
+    geometry_factor: float | None = None,
     evaporation_coefficient: float | None = None,
     gravity: float | GravityField | None = None,
     initial_water_store: float = 1.0e4,
@@ -763,7 +764,9 @@ def radiating_column(
             grid=working_grid, total_irradiance=total_irradiance, status=ModuleStatus.PRESCRIBED
         )
     )
-    orbit = OrbitalGeometryModule(eccentricity=eccentricity, receiver_module_id="atmosphere")
+    orbit = OrbitalGeometryModule(
+        eccentricity=eccentricity, receiver_module_id="atmosphere", geometry_factor=geometry_factor
+    )
     radiation = SpectralRadiationModule(
         grid=working_grid,
         absorption_coefficient=kappa,

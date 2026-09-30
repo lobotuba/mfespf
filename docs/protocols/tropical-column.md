@@ -113,3 +113,57 @@ A verdict that changes across the latitude range is reported as fragile.
 
 **Reported, not judged:** the surface temperature (the tropical ocean is about
 300 K) and the cold point's saturation mixing ratio.
+
+---
+
+## Status (appended; nothing above this line changed)
+
+### Not run: the checks before the runs found a blocker, and its cause
+
+**The code.** The mechanism is built: `physics/tropical_exchange.py` and
+`run/tropical_column.py`. Its five unit tests pass, including one that rising
+air cools at g / c_p and a 200-step coupled run whose budgets close through the
+lateral boundary.
+
+**The blocker.** Short checks before the frozen runs found that no run of this
+column can pass T1:
+
+| check | what happened |
+|---|---|
+| 2000 steps from the default isothermal 250 K start | the top layers reach 355 K, past water's measured 350 K ceiling |
+| 5000 steps from the US Standard Atmosphere 1976 | again 355 K; 344 K at 1.6 hPa time-mean |
+
+The second start was declared after the first check, as an implementation
+choice (`standard_atmosphere_temperature`). So it is not a spin-up artefact.
+The tropical band gets more sunlight, and its stratopause heats well past the
+observed 270 K.
+
+**What the same short run already shows** (not a verdict): the coldest layer is
+201.7 K at 126 hPa, and the water between 100 and 68 hPa is **3.83 ppmv**,
+against the band's observed 3.45-3.75. The global column gave 37.6.
+
+**The cause, measured like for like on the AFGL mid-latitude summer
+atmosphere:**
+
+| | model | line-by-line |
+|---|---:|---:|
+| ozone's ultraviolet absorption, sun at 60 degrees | 13.3 W m^-2 | 14.0 W m^-2 (Chou and Suarez 1999, Table 8) |
+| longwave cooling of the stratopause | 5.8 C/day at 1.5 hPa | about 12 C/day stratospheric maximum, all gases (Chou et al. 2001) |
+
+- **The heating is right.** The ultraviolet absorption is within 5 percent.
+- **The cooling is half what it should be.** The reference column has no
+  15-micron CO2 band. Its infrared absorber outside the vapour is
+  `window_absorption(kappa_opaque=1e-4)`, "a deliberately crude caricature":
+  a flat 1e-4 m^2 per kg of air everywhere outside 8-12 microns. That alone
+  gives 3.9 C/day at 1.5 hPa, and vapour adds 1.9.
+- **Ozone's 9.6-micron band** is still absent, as declared.
+- **The calibrated CO2 band cannot simply be switched in.** It exists
+  (`co2_band_absorption`), but it was fitted on a 64-band grid. On this
+  16-band grid, which puts the whole band in three bins, it cools the
+  stratopause at 277 C/day.
+
+**What unblocks stage 1:** an infrared absorber that is physics in the middle
+atmosphere as well as at the tropopause. That is a resolved 15-micron CO2 band,
+benchmarked against line-by-line cooling rates as the solar absorption was, and
+then the refits it forces. It is its own mechanism, with its own protocol,
+before these runs.

@@ -76,6 +76,22 @@ stratosphere with up to 23 layers above 100 hPa.
   dynamical heating, replacing its water (34 to 44 ppmv) with the observed 4
   brings 60, 27 and 10 hPa within 8 K of NCEP. The whole deficit is the water.
 
+**The infrared absorber is a caricature in the middle atmosphere.** Stage 1 of
+the tropical build (`docs/protocols/tropical-column.md`) is written and tested
+but cannot produce a valid run: its stratopause heats to 355 K. Measured on
+the AFGL atmosphere:
+
+- ozone's ultraviolet heating is within 5 percent of line-by-line;
+- the longwave cooling is half: 5.8 against about 12 C/day.
+
+The reference column's only non-vapour infrared absorber is
+`window_absorption(kappa_opaque=1e-4)`, with no 15-micron CO2 band. The
+calibrated band (`co2_band_absorption`) cools at 277 C/day on the 16-band grid
+the configurations use, because that grid puts the band in three bins. A
+resolved CO2 band, benchmarked against line-by-line cooling rates (Chou et al.
+2001), is what stage 1 now waits on. It will move the headline, and every
+refit follows it.
+
 **In the order to look at them:**
 
 1. **Where the stratosphere's water comes from.** A global-mean column is

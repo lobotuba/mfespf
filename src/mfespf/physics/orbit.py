@@ -48,6 +48,7 @@ from mfespf.physics.equations import EQUATION_IDS
 __all__ = [
     "ORBITAL_GEOMETRY_INTERFACE",
     "OrbitalGeometryModule",
+    "band_insolation_factor",
     "orbit_radius",
     "solve_kepler",
     "spherical_mean_factor",
@@ -114,6 +115,38 @@ def spherical_mean_factor() -> float:
     return 0.25
 
 
+#: The Earth's mean obliquity at J2000, 84381.406 arcseconds (IAU 2006
+#: precession, Capitaine et al. 2003), in degrees.
+OBLIQUITY_DEG = 84381.406 / 3600.0
+
+
+def band_insolation_factor(
+    latitude_limit_deg: float, obliquity_deg: float = OBLIQUITY_DEG
+) -> float:
+    """Annual-mean insolation over the band ``|lat| <= latitude_limit_deg``, over S0.
+
+    The daily-mean insolation at each latitude and solar declination,
+    ``(h0 sin(phi) sin(delta) + cos(phi) cos(delta) sin(h0)) / pi`` with ``h0``
+    the sunset hour angle, averaged over a circular orbit (declination from
+    the obliquity) and over the band by area. At 90 degrees it is the
+    spherical mean, one quarter, which is the check on it
+    (``docs/protocols/tropical-column.md``).
+    """
+    if not 0.0 < latitude_limit_deg <= 90.0:
+        raise ConfigurationError("the band's latitude limit must lie in (0, 90] degrees")
+    epsilon = np.deg2rad(obliquity_deg)
+    longitude = np.linspace(0.0, 2.0 * np.pi, 3651)[:-1]
+    declination = np.arcsin(np.sin(epsilon) * np.sin(longitude))
+    latitude = np.deg2rad(np.linspace(-latitude_limit_deg, latitude_limit_deg, 2001))
+    phi, delta = np.meshgrid(latitude, declination, indexing="ij")
+    sunset = np.arccos(np.clip(-np.tan(phi) * np.tan(delta), -1.0, 1.0))
+    daily = (
+        sunset * np.sin(phi) * np.sin(delta) + np.cos(phi) * np.cos(delta) * np.sin(sunset)
+    ) / np.pi
+    weight = np.cos(latitude)
+    return float(np.sum(daily.mean(axis=1) * weight) / np.sum(weight))
+
+
 class OrbitalGeometryModule(Module):
     """Maps solar irradiance onto the planetary surface and owns the TOA boundary."""
 
@@ -126,6 +159,7 @@ class OrbitalGeometryModule(Module):
         semi_major_axis_m: float = _AU,
         period_s: float = _SIDEREAL_YEAR_S,
         perihelion_time_s: float = 0.0,
+        geometry_factor: float | None = None,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         contract = ModuleContract(
@@ -142,7 +176,9 @@ class OrbitalGeometryModule(Module):
                 EQUATION_IDS["kepler"],
                 EQUATION_IDS["kepler_solver"],
                 EQUATION_IDS["inverse_square"],
-                EQUATION_IDS["insolation"],
+                EQUATION_IDS["band_insolation"]
+                if geometry_factor is not None
+                else EQUATION_IDS["insolation"],
             ),
             assumptions=(
                 "spherical planet",
@@ -210,6 +246,11 @@ class OrbitalGeometryModule(Module):
         self.semi_major_axis_m = semi_major_axis_m
         self.period_s = period_s
         self.perihelion_time_s = perihelion_time_s
+        # The share of the irradiance a column receives: one quarter for the
+        # globe, or a band's annual mean from ``band_insolation_factor``.
+        self.geometry_factor = (
+            float(geometry_factor) if geometry_factor is not None else spherical_mean_factor()
+        )
 
         self._distance = semi_major_axis_m
         self._toa_irradiance = 0.0
@@ -222,6 +263,11 @@ class OrbitalGeometryModule(Module):
         super().validate_configuration()
         if self.period_s <= 0:
             raise ConfigurationError(f"orbital period {self.period_s} must be positive")
+        if not 0.0 < self.geometry_factor <= 1.0 / np.pi:
+            raise ConfigurationError(
+                f"geometry factor {self.geometry_factor} must lie in (0, 1/pi], the "
+                "polar-summer maximum of a daily mean"
+            )
         solve_kepler(0.0, self.eccentricity)  # domain check, cheap and eager
 
     def initialize(self, initial_state: dict[str, Any], boundary_state: dict[str, Any]) -> None:
@@ -256,7 +302,7 @@ class OrbitalGeometryModule(Module):
             perihelion_time_s=self.perihelion_time_s,
         )
         distance_factor = (_AU / self._distance) ** 2
-        geometry = spherical_mean_factor()
+        geometry = self.geometry_factor
 
         self._toa_irradiance = total * distance_factor * geometry
         self._toa_spectral = spectral_field.values * distance_factor * geometry
@@ -300,7 +346,7 @@ class OrbitalGeometryModule(Module):
                 field_id="insolation_geometry_factor",
                 physical_name="projected disc over total surface area",
                 symbol="f",
-                values=np.array(spherical_mean_factor()),
+                values=np.array(self.geometry_factor),
                 units="1",
                 **common,  # type: ignore[arg-type]
             ),
@@ -368,7 +414,7 @@ class OrbitalGeometryModule(Module):
             "semi_major_axis_m": self.semi_major_axis_m,
             "orbital_period_s": self.period_s,
             "perihelion_time_s": self.perihelion_time_s,
-            "geometry_factor": spherical_mean_factor(),
+            "geometry_factor": self.geometry_factor,
             "receiver_module_id": self.receiver_module_id,
         }
 

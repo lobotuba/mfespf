@@ -52,6 +52,9 @@ EQUATION_IDS = {
     "vapour_eddy_diffusion": "EQ-VAPOUR-EDDY-DIFFUSION",
     "ozone_solar_absorption": "EQ-OZONE-SOLAR-ABSORPTION",
     "measured_solar_spectrum": "EQ-MEASURED-SOLAR-SPECTRUM",
+    "brewer_dobson_upwelling": "EQ-BREWER-DOBSON-UPWELLING",
+    "lateral_heat_export": "EQ-LATERAL-HEAT-EXPORT",
+    "band_insolation": "EQ-BAND-MEAN-INSOLATION",
     "fractional_top_convective_adjustment": "EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
@@ -1232,6 +1235,145 @@ def build_equation_registry() -> EquationRegistry:
                 "a fixed shape carries no solar-cycle variation in the ultraviolet",
             ),
             source="Coddington et al. 2023, Earth and Space Science 10",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["band_insolation"],
+            version=V1,
+            name="Annual-mean insolation over a latitude band",
+            category=EquationCategory.REDUCED_PHYSICAL_EQUATION,
+            mathematical_form=(
+                "Q / S0 = < (h0 sin(phi) sin(delta) + cos(phi) cos(delta) sin(h0)) / pi >, "
+                "averaged over solar longitude (sin(delta) = sin(epsilon) sin(lambda), "
+                "circular orbit) and over the band by area; cos(h0) = -tan(phi) tan(delta)"
+            ),
+            physical_basis=(
+                "A latitude band receives the daily-mean sunlight its latitudes see as the "
+                "declination moves through the year; near the equator that is more than "
+                "the spherical mean."
+            ),
+            variables=(
+                ("phi", "latitude", "rad"),
+                ("delta", "solar declination", "rad"),
+                ("h0", "sunset hour angle", "rad"),
+            ),
+            parameters=(
+                (
+                    "epsilon",
+                    "measured",
+                    "mean obliquity at J2000, 84381.406 arcseconds (IAU 2006 precession)",
+                ),
+            ),
+            assumptions=("circular orbit", "no atmosphere between the boundary and the band"),
+            approximations=(
+                "The band is treated as one column, so its latitudes' different sunlight is "
+                "averaged before it is absorbed.",
+            ),
+            validity_domain=ValidityDomain(conditions=("annual-mean experiments",)),
+            limiting_cases=("the whole globe (90 degrees) gives exactly one quarter",),
+            conserved_quantities=("energy",),
+            correctness_tests=("test_the_band_insolation_is_geometry",),
+            source="Standard solar geometry; IAU 2006 obliquity",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["brewer_dobson_upwelling"],
+            version=V1,
+            name="Brewer-Dobson upwelling through the tropical tropopause",
+            category=EquationCategory.REDUCED_PHYSICAL_EQUATION,
+            mathematical_form=(
+                "d(phi m)_k/dt = F_k (phi_(k-1) - phi_k), phi in (c_p T + g z, q); F zero "
+                "below 100 hPa, F0 from 100 to 70 hPa, linear in pressure to zero at the "
+                "top; air enters and leaves laterally with the local properties"
+            ),
+            physical_basis=(
+                "Wave drag in the stratosphere drives a mean meridional circulation whose "
+                "tropical branch rises through the tropopause and whose air leaves "
+                "poleward above it; rising air cools adiabatically."
+            ),
+            variables=(
+                ("F", "upward mass flux per unit area of the column", "kg m^-2 s^-1"),
+                ("phi", "dry static energy or specific humidity", "J kg^-1 or kg kg^-1"),
+            ),
+            parameters=(
+                (
+                    "F0",
+                    "measured",
+                    "5.9e9 kg s^-1 at 70 hPa between the turnaround latitudes, ERA-Interim "
+                    "1989-2009 (Seviour et al. 2012), over the band's area",
+                ),
+                ("vertical shape", "parameterized", "declared in tropical-column.md"),
+            ),
+            assumptions=(
+                "the upwelling is prescribed and does not respond to the column",
+                "flux-form upwind transport",
+            ),
+            approximations=(
+                "The vertical shape of the mass flux above 70 hPa is declared, not measured.",
+            ),
+            validity_domain=ValidityDomain(
+                conditions=("a column standing for the band between the turnaround latitudes",),
+            ),
+            limiting_cases=(
+                "no flux changes nothing",
+                "in an isothermal layer rising air cools at g / c_p per metre",
+                "mass is conserved layer by layer",
+            ),
+            conserved_quantities=("energy", "water", "mass"),
+            permitted_discretizations=("flux-form upwind",),
+            correctness_tests=(
+                "test_the_upwelling_conserves_mass_layer_by_layer",
+                "test_rising_air_cools_at_the_dry_adiabatic_rate_in_an_isothermal_layer",
+                "test_no_exchange_leaves_the_column_unchanged",
+            ),
+            known_failure_modes=("a prescribed circulation cannot respond to warming",),
+            source="Seviour, Butchart and Hardiman 2012, QJRMS; Butchart 2014, Rev. Geophys.",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["lateral_heat_export"],
+            version=V1,
+            name="A band's poleward heat export as a lateral boundary flux",
+            category=EquationCategory.EMPIRICAL_RELATION,
+            mathematical_form=(
+                "H_k = -E m_k / sum(m below 100 hPa) for layers below 100 hPa, zero above; "
+                "E the band's observed net TOA surplus"
+            ),
+            physical_basis=(
+                "In equilibrium a band exports the radiation it absorbs in excess of what "
+                "it emits; the atmosphere and ocean carry it poleward."
+            ),
+            variables=(("E", "heat export per unit area of the band", "W m^-2"),),
+            parameters=(
+                (
+                    "E",
+                    "measured",
+                    "NCEP/NCAR R1 1991-2020 band-mean net TOA minus its global mean: 42.51, "
+                    "38.464 and 32.95 W m^-2 for 20, 25 and 30 degrees",
+                ),
+            ),
+            assumptions=(
+                "the export is prescribed and does not respond to the column",
+                "it is taken from the atmosphere below 100 hPa by layer mass",
+            ),
+            approximations=(
+                "Part of the real export is oceanic and leaves from the surface.",
+                "NCEP's global net TOA bias (-12.87 W m^-2) is removed as if uniform.",
+            ),
+            validity_domain=ValidityDomain(conditions=("annual-mean experiments",)),
+            limiting_cases=("the export removed is exactly E, from below 100 hPa only",),
+            conserved_quantities=("energy",),
+            correctness_tests=(
+                "test_no_exchange_leaves_the_column_unchanged",
+                "test_the_exchange_budget_closes_through_the_lateral_boundary",
+            ),
+            source="Kalnay et al. 1996 (NCEP/NCAR R1); Trenberth and Caron 2001 for scale",
         )
     )
 

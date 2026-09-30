@@ -125,6 +125,20 @@ def _observed_clouds_and_solar_vapour(**kwargs: Any) -> Kernel:
     return cc.reference_column(observed_cloud_field=True, solar_vapour_absorption=True, **kwargs)
 
 
+def _tropical_column(**kwargs: Any) -> Kernel:
+    """The column standing for the tropics: lateral exchange and its boundary."""
+    from mfespf.run.tropical_column import tropical_column
+
+    return tropical_column(
+        measured_solar_spectrum=True,
+        ozone=True,
+        eddy_diffusivity=0.39,
+        max_log_step=0.2,
+        top_pressure=100.0,
+        **kwargs,
+    )
+
+
 def _ozone_on_the_measured_spectrum(**kwargs: Any) -> Kernel:
     """Ozone, the measured solar spectrum and vapour diffusion: the ozone test's column."""
     return cc.reference_column(
@@ -153,6 +167,7 @@ BUILDERS = {
     "reference_column": cc.reference_column,
     "observed_clouds_and_solar_vapour": _observed_clouds_and_solar_vapour,
     "ozone_on_the_measured_spectrum": _ozone_on_the_measured_spectrum,
+    "tropical_column": _tropical_column,
     # Two regions, the circulation between them and the global means: the one
     # configuration whose modules are filed under regions.
     "two_column": two_column,

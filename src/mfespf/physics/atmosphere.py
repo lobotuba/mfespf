@@ -83,6 +83,44 @@ ATMOSPHERE_INTERFACE = InterfaceContract(
 )
 
 
+#: US Standard Atmosphere 1976 (NOAA/NASA/USAF): layer bases as (base pressure
+#: Pa, base temperature K, lapse rate K per geopotential metre), to 51 km.
+_US_STANDARD_1976 = (
+    (101325.0, 288.15, -0.0065),
+    (22632.06, 216.65, 0.0),
+    (5474.889, 216.65, 0.001),
+    (868.0187, 228.65, 0.0028),
+    (110.9063, 270.65, 0.0),
+    (66.93887, 270.65, -0.0028),
+)
+
+
+def standard_atmosphere_temperature(pressure: np.ndarray) -> np.ndarray:
+    """The US Standard Atmosphere 1976 temperature at each pressure, K.
+
+    An initial state, not a prediction: a column started from it spins up from
+    a physical profile rather than from an isothermal one, whose stratosphere
+    overshoots its equilibrium while it is still dry
+    (``docs/protocols/tropical-column.md``). Within each of the standard's
+    layers the temperature follows its constant lapse rate hydrostatically:
+    ``T = T_b (p / p_b)^(-R L / g)``, or ``T_b`` where it is isothermal.
+    Above 51 km it holds the 51 km value.
+    """
+    p = np.asarray(pressure, dtype=float)
+    r_over_g = value_of("gas_constant_dry_air") / value_of("earth_standard_gravity")
+    result = np.empty_like(p)
+    for index, value in np.ndenumerate(p):
+        base_p, base_t, lapse = _US_STANDARD_1976[0]
+        for layer in _US_STANDARD_1976:
+            if value <= layer[0]:
+                base_p, base_t, lapse = layer
+        if value < _US_STANDARD_1976[-1][0]:
+            result[index] = _US_STANDARD_1976[-1][1]
+            continue
+        result[index] = base_t * (value / base_p) ** (-r_over_g * lapse) if lapse else base_t
+    return result
+
+
 def layer_interface_pressures(
     *,
     n_layers: int,

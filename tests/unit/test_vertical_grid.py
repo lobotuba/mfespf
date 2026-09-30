@@ -81,3 +81,23 @@ def test_a_cap_that_cannot_be_built_is_refused():
         layer_interface_pressures(
             n_layers=30, surface_pressure=PS, top_pressure=0.0, max_log_step=0.2
         )
+
+
+@pytest.mark.req("ATM-003")
+def test_the_standard_atmosphere_reproduces_its_own_layer_bases():
+    """US Standard Atmosphere 1976: each tabulated base is hit exactly."""
+    from mfespf.physics.atmosphere import standard_atmosphere_temperature
+
+    bases = {
+        101325.0: 288.15,
+        22632.06: 216.65,
+        5474.889: 216.65,
+        868.0187: 228.65,
+        110.9063: 270.65,
+    }
+    computed = standard_atmosphere_temperature(np.array(list(bases)))
+    np.testing.assert_allclose(computed, list(bases.values()), atol=1e-6)
+    # Isothermal from 11 to 20 km, warming above it: the standard's stratosphere.
+    assert standard_atmosphere_temperature(np.array([10000.0]))[0] == pytest.approx(216.65)
+    profile = standard_atmosphere_temperature(np.geomspace(5000.0, 120.0, 20))
+    assert np.all(np.diff(profile) > 0.0)
