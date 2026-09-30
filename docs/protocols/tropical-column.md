@@ -191,3 +191,57 @@ is unchanged:
 no-upwelling run isolates the Brewer-Dobson cooling. The surface-export run is
 still not runnable: the surface module accepts no lateral export, and the
 exchange refuses that configuration.
+
+## Attempt 2, results (appended; nothing above this line changed)
+
+**The verdict at +/-25 degrees: T1 passes; T2's temperature, T3 and three of
+T4's four levels fail.** 200000 steps. Every run is complete with a budget
+residual below 1e-15, and each run's top-of-atmosphere imbalance equals its
+lateral export, which is the equilibrium the export declares.
+
+| test | observed | +/-25, upwelling | verdict |
+|---|---:|---:|---|
+| T1: valid | | valid | **pass** |
+| T2: cold point temperature | 196.4 K | 166.7 K | fail (-29.7) |
+| T2: cold point pressure | 100 hPa | 103 hPa | **pass** |
+| T3: water, 100-68 hPa | 3.45-3.75 ppmv | 1e-15 ppmv | fail |
+| T4: 70 hPa | 199.6 K | 175.3 K | fail (-24.3) |
+| T4: 50 hPa | 206.9 K | 182.7 K | fail (-24.2) |
+| T4: 30 hPa | 215.6 K | 197.3 K | fail (-18.3) |
+| T4: 10 hPa | 230.7 K | 231.3 K | **pass** (+0.6) |
+
+**Why the water is zero rather than the cold point's 0.03 ppmv.** The cold
+layer is below the saturation relation's 170 K floor. The water module leaves
+such a layer dry and unjudged rather than extrapolating, so no vapour crosses
+it. That is the domain doing its job, not a result about the tropopause.
+
+**Sensitivity:**
+
+| run | valid | cold point | water 100-68 | 70 hPa | 50 | 30 | 10 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| +/-20, upwelling | **no**: a vapour-bearing layer reached 164.9 K, below the latent-energy relation's 170 | 161.8 K, 103 hPa | 0 | 170.1 | 177.8 | 193.6 | 229.7 |
+| +/-25, upwelling | yes | 166.7 K, 103 hPa | 0 | 175.3 | 182.7 | 197.3 | 231.3 |
+| +/-30, upwelling | yes | 173.2 K, 103 hPa | 0.13 | 180.1 | 186.4 | 199.5 | 231.8 |
+| +/-25, no upwelling | yes | 174.4 K, 126 hPa | 0.13 | 191.0 | 198.1 | 209.9 | 238.3 |
+
+- **Fragility.** The failures of T2, T3 and T4 below 10 hPa do not change
+  across the latitude range. T1 does: it fails at +/-20.
+- **The Brewer-Dobson cooling, isolated.** The upwelling cools 100 hPa by
+  11 K, 70 hPa by 16 K and 10 hPa by 7 K. That is the direction and order of
+  the observed dynamical cooling.
+- **Without it the column is still 22 K too cold at its cold point.** The
+  upwelling is not the main cause of the cold bias. The lower stratosphere is
+  radiatively too cold before any dynamics act on it. The global column with
+  the same band shows the same thing: 60 hPa is 20 K below NCEP.
+
+**Reported:** surface 282.2 K at +/-25 (the tropical ocean is about 300 K);
+the cold point's saturation mixing ratio is 0.03 ppmv; OLR 248.5 W m^-2.
+
+**What this points to, not yet tested.** In the real lower stratosphere, ozone's
+9.6-micron band and the CO2 band's wings absorb the warm upwelling infrared
+from the troposphere. That absorption is the radiative heating that holds the
+tropical tropopause near 196 K against the upwelling. This column lacks
+ozone's 9.6-micron band (declared absent), and its troposphere, which supplies
+the upwelling infrared, is 18 K colder than the tropical ocean. Which of the
+two carries the deficit is a question for a diagnostic under its own protocol,
+before any new mechanism.
