@@ -240,6 +240,33 @@ complete mixing -- a different scheme, not a tuning of this one. Until then,
 anything read off this column must be a time-mean over at least a full cycle, and
 a single step's numbers mean very little.
 
+### The tropical column's time-mean upper troposphere is supersaturated
+
+In the +/-25 degree tropical column of `tropical-column.md` attempt 2, the time
+mean of the last fifth of 200000 steps puts more vapour above 320 hPa than
+saturation at the time-mean temperature allows:
+
+| pressure | vapour / saturation |
+|---:|---:|
+| 322 hPa | 1.24 |
+| 254 hPa | 4.4 |
+| 187 hPa | 2.2 |
+
+Nothing that holds vapour above saturation is known.
+
+- **Candidate one, the averaging.** The limit cycle above swings the
+  upper-tropospheric temperature, and saturation is convex in temperature, so
+  the mean of the saturation lies above saturation at the mean.
+- **Candidate two, the ordering.** The upwelling's vapour tendency and the
+  water module's condensation may not compose in the order that removes the
+  excess.
+- **What decides between them.** Record the per-step temperature and vapour at
+  those layers and compare the mean of q / q_sat(T) with the ratio of the
+  means.
+
+It bears on every humidity result above 320 hPa, including the H term of
+`tropical-surface-diagnostic.md`.
+
 ### Three modules declare ranges; the rest of the parameters do not
 
 Modules now report through the ensemble machinery (`docs/architecture.md`, "A
