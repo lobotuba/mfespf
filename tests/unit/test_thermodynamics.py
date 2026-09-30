@@ -167,6 +167,25 @@ def test_saturation_vapour_pressure_matches_reference_values():
         assert computed == pytest.approx(reference_pa, rel=0.005)
 
 
+@pytest.mark.req("WAT-001", "VAL-001")
+def test_the_declared_upper_bound_is_where_the_accuracy_runs_out():
+    """The hot end of the domain, measured rather than assumed.
+
+    The record declares better than 1 percent above 220 K and once stopped at
+    340 K, just past the 332 K reach of the reference it was checked against.
+    Against IAPWS SR1-86(1992), eq. 1 -- values from the ``iapws`` package's
+    implementation of it -- the error is -0.71 percent at 340 K, -0.95 at 350,
+    and -1.24 at 360. So 350 K is where the declared accuracy holds and 360 is
+    where it does not: the bound sits at the first, and this pins it there.
+    """
+    iapws_sr1_86 = {340.0: 27189.00, 350.0: 41683.07, 360.0: 62194.66}
+    for temperature in (340.0, 350.0):
+        computed = float(saturation_vapour_pressure(np.array([temperature]))[0])
+        assert computed == pytest.approx(iapws_sr1_86[temperature], rel=0.01)
+    beyond = float(saturation_vapour_pressure(np.array([360.0]))[0])
+    assert abs(beyond / iapws_sr1_86[360.0] - 1.0) > 0.01
+
+
 @pytest.mark.req("WAT-001")
 def test_saturation_specific_humidity_is_monotone_and_bounded():
     pressure = np.full(5, P0)

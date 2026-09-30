@@ -1619,11 +1619,17 @@ def build_equation_registry() -> EquationRegistry:
                 "relative errors are where the absolute amounts are radiatively "
                 "negligible -- 6 percent of 1e-3 Pa -- but they are the reason the "
                 "declared floor is where it is.",
+                "At the hot end, against IAPWS SR1-86(1992) eq. 1, the error is -0.52 "
+                "percent at 330 K, -0.71 at 340, -0.95 at 350 and -1.24 at 360. The "
+                "ceiling was 340 K, just past Murphy and Koop's 332 K reach, and "
+                "unmeasured above it; it is 350 K now, the last temperature at which "
+                "the declared 1 percent holds. The measurement was prompted by a top "
+                "layer reaching 342 K during spin-up (docs/protocols/model-top.md).",
                 "Supercooled liquid is not represented: below the triple point this "
                 "returns the ice value, so a mixed-phase cloud is out of scope.",
             ),
             validity_domain=ValidityDomain(
-                ranges=(("T", 170.0, 340.0, "K"),),
+                ranges=(("T", 170.0, 350.0, "K"),),
                 conditions=(
                     "saturation over the stable phase: ice below the triple point, liquid above",
                     "accuracy better than 7 percent throughout and better than 1 "
@@ -1650,7 +1656,9 @@ def build_equation_registry() -> EquationRegistry:
                 "Clausius-Clapeyron integrated with Kirchhoff's relation; validated "
                 "against Murphy, D. M. and Koop, T. (2005), Review of the vapour "
                 "pressures of ice and supercooled water for atmospheric applications, "
-                "Q. J. R. Meteorol. Soc. 131, 1539-1565"
+                "Q. J. R. Meteorol. Soc. 131, 1539-1565, and above 330 K against IAPWS "
+                "SR1-86(1992), Revised Supplementary Release on Saturation Properties "
+                "of Ordinary Water Substance"
             ),
         )
     )
@@ -1904,13 +1912,18 @@ def build_equation_registry() -> EquationRegistry:
                 "stated condition, and it was inverted: the error below the triple point "
                 "is now the smallest anywhere, 0.3 percent at 230 K, while the hot end it "
                 "admitted is the worst.",
+                "The hot end moved from 340 to 350 K with the saturation relation's, "
+                "whose ceiling it shares: there the error is 7.7 percent against the "
+                "Kirchhoff-varying latent heat (8.0 against IAPWS SR1-86), so the "
+                "declared accuracy below is restated to that rather than left claiming "
+                "6.7 over a wider range.",
             ),
             validity_domain=ValidityDomain(
-                ranges=(("T", 170.0, 340.0, "K"),),
+                ranges=(("T", 170.0, 350.0, "K"),),
                 conditions=(
                     "the latent heat released follows the condensed phase, which is ice "
                     "below the triple point",
-                    "accuracy better than 6.7 percent throughout and better than 2 "
+                    "accuracy better than 7.7 percent throughout and better than 2 "
                     "percent below 294 K, against the Kirchhoff-varying latent heat",
                     "the floor is the saturation relation's, because below it no vapour "
                     "is placed and there is nothing for this relation to act on",

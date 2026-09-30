@@ -209,3 +209,44 @@ model's saturation function gives these mixing ratios:
 **The mechanism it points to is regional:** a tropical column whose cold point
 feeds the global stratosphere. The region framework (`run/regions.py`) exists
 for it.
+
+### Re-evaluated after water's domain was measured (appended later)
+
+**The measurement.** M1 failed only on water's two relations, whose ceiling
+was 340 K. That ceiling had never been measured: it sat just past the 332 K
+reach of the reference the relation was checked against. It has now been
+measured against IAPWS SR1-86(1992) eq. 1:
+
+| T | saturation vapour pressure error |
+|---:|---:|
+| 340 K | -0.71 % |
+| 350 K | -0.95 % |
+| 360 K | -1.24 % |
+
+**The domains now:**
+
+- **Saturation** now declares [170, 350] K, the last temperature at which its
+  declared accuracy of better than 1 percent holds
+  (`test_the_declared_upper_bound_is_where_the_accuracy_runs_out`).
+- **The latent-energy relation** shares that ceiling and now declares
+  [170, 350] K. Its stated accuracy was restated from 6.7 to 7.7 percent to
+  match, rather than left claiming 6.7 over a wider range.
+
+The verdict above was reached under the old domain and stands as the record of
+what the rule said then. Under the measured domain the same runs, which peaked
+at 342.4 K and passed every other relation, are valid. Applied to them, the
+frozen rules give the following, not rerun:
+
+| test | verdict |
+|---|---|
+| M1 | passes |
+| M2 | **adopts alpha = 0.2** (51 layers to 1 hPa): 0.2 against 0.1 is within every limit, and 0.4 against 0.2 is not |
+| M3, T 60 hPa | 203.4 K against 209.0 +/- 8: **pass** |
+| M3, T 27 hPa | 196.7 K against 218.0 +/- 8: fail |
+| M3, T 10 hPa | 197.0 K against 228.8 +/- 8: fail |
+| M3, coldest layer | 17.1 hPa against 60-160: fail |
+| M3, water | 45.9 ppmv against 2-8: fail |
+
+The four failures are the water, as measured above. Adopting alpha 0.2 with
+the 1 hPa top is for stratospheric work: the default grid, and the headline
+quoted from it, are unchanged until a decision says otherwise.
