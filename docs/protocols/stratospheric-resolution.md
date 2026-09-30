@@ -105,3 +105,78 @@ over the upper stratosphere, and may run hot. It is reported, and the 27 hPa
 test is evaluated below it.
 
 The observed surface temperature decides nothing here.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+### The refits
+
+The restated profile reproduces today's constants on today's grid:
+3826.72 m^-1 against 3827, and 1274.925 against 1274.9. Both fits hold their
+targets to 0.001 W m^-2.
+
+| alpha | layers | vapour wing (m^-1) | CO2 wing with vapour (m^-1) |
+|---:|---:|---:|---:|
+| none | 30 | 3826.72 | 1274.925 |
+| 0.4 | 33 | 3810.67 | 1274.220 |
+| 0.2 | 39 | 3808.69 | 1274.101 |
+| 0.1 | 55 | 3807.89 | 1274.055 |
+
+### R1: the numbers converge, but the runs that converge are invalid
+
+200000 steps, last fifth, each grid at its own refit. The "none" row is
+attempt 2 of `ozone-solar-heating.md`, whose configuration and constants are
+identical, so it was not rerun.
+
+| alpha | T 60 hPa | T 27 hPa | coldest layer | strat. water | surface | net TOA | valid |
+|---:|---:|---:|---|---:|---:|---:|---|
+| none | 203.5 | 198.6 | top (27 hPa) | 59.8 ppmv | 299.23 | +0.027 | yes |
+| 0.4 | 200.8 | 195.1 | 19.3 hPa (23.2-15.5) | 35.1 | 298.24 | +0.001 | yes |
+| 0.2 | 200.5 | 195.0 | 21.8 hPa (24.0-19.6) | 30.3 | 298.24 | -0.008 | **no** |
+| 0.1 | 200.2 | 194.9 | 22.0 hPa (23.1-20.9) | 30.5 | 298.26 | +0.002 | **no** |
+
+All runs closed to about 1e-15.
+
+- **By the numbers, 0.2 against 0.1 meets the rule.** The temperatures differ
+  by 0.26, 0.11 and 0.02 K, the cold point by less than a layer, and the water
+  by 0.5 percent.
+- **0.4 against 0.2 does not.** The water differs by 14 percent.
+- **But the 0.2 and 0.1 runs were invalidated by the mandatory validity-domain
+  gate.** Their top layer, which carries the 50 dobson units above the model
+  top, reached 412 K during spin-up (294 and 361 K time-mean).
+- **Five relations were evaluated outside their declared temperature ranges:**
+  - radiative transfer, [100, 400] K;
+  - Clausius-Clapeyron, [170, 340] K;
+  - the latent energy of vapour, [170, 340] K;
+  - potential temperature, [100, 400] K;
+  - the layer energy balance, [100, 400] K.
+
+This protocol declared that the thin top layer might run hot. It ran hot
+enough to take the relations outside their domains, and a run that does that
+cannot support a claim. **So no alpha is adopted**, and R2 is not evaluated at
+an adopted grid. Neither the gate nor the rule is loosened to change that.
+
+### What the resolved runs show, invalid for claims but not uninformative
+
+**The hypothesis that motivated this protocol is refuted.** Resolution is not
+why the inversion is missing:
+
+- **No inversion at any resolution.** With 23 layers above 100 hPa, the
+  temperature still falls to a minimum near 22 hPa (194.6 K) and barely rises
+  above it.
+- **Observed:** the minimum is at 100 hPa (205.7 K), and the air warms to 218 K
+  at 30 hPa.
+- **Refinement makes it colder.** It cools the lower stratosphere by 3 K; the
+  coarse grid's 60 hPa "pass" in `ozone-solar-heating.md` was a resolution
+  error.
+
+The stratosphere, resolved, is about 20 K too cold at 27 hPa and has its cold
+point five times too high. The candidates left, none measured apart:
+
+1. **Its water, 30 ppmv against 4, cooling it in the longwave.** The water
+   excess and the missing inversion feed each other.
+2. **Ozone's 9.6-micron band,** declared absent.
+3. **The top-layer placement of the ozone above 10 hPa.** On a fine grid it
+   heats one thin layer to 300-400 K rather than the upper stratosphere, and it
+   is what invalidated these runs.

@@ -62,6 +62,7 @@ __all__ = [
     "AtmosphericColumnModule",
     "atmosphere_state_entry",
     "hydrostatic_layer_masses",
+    "layer_interface_pressures",
 ]
 
 V1 = Version(1, 0, 0)
@@ -82,28 +83,25 @@ ATMOSPHERE_INTERFACE = InterfaceContract(
 )
 
 
-def hydrostatic_layer_masses(
+def layer_interface_pressures(
     *,
     n_layers: int,
     surface_pressure: float,
     top_pressure: float,
-    gravity: float | GravityField,
-    layer_heights: np.ndarray | None = None,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Layer interface pressures and masses for a hydrostatic column.
+    max_log_step: float | None = None,
+) -> np.ndarray:
+    """Interface pressures from the surface (index 0) to the model top.
 
-    Returns ``(interface_pressures, layer_masses)`` with interface index 0 at the
-    surface and index ``n_layers`` at the model top, so layer ``i`` lies between
-    interfaces ``i`` and ``i+1``.  Layers are equal in pressure; with constant
-    gravity they are therefore equal in mass, and the total is exactly
-    ``(p_s - p_top) / g`` so the column's mass budget is checkable by hand.
-
-    ``gravity`` may be a number -- which is the first rung of charter 9.15's
-    fidelity path, ``ConstantGravity``, and keeps the total exact -- or a
-    ``GravityField``. A field that varies with height needs ``layer_heights`` and
-    **refuses to be evaluated without them** rather than quietly using the
-    surface value, since the point of declaring the approximation is that it
-    cannot be applied by accident.
+    Without ``max_log_step``: ``n_layers`` layers equal in pressure. With it,
+    the step stays ``(p_s - p_top) / n_layers`` wherever that is thinner than
+    ``max_log_step`` in log pressure, and is exactly that depth above --
+    ``dp_i = min(dp_0, p_i (1 - exp(-max_log_step)))``, built upward -- with
+    a remainder under half a step merged into the top layer. So ``n_layers``
+    is then the reference count that fixes the lower troposphere's step, and
+    the layer count is whatever the cap makes it
+    (``docs/protocols/stratospheric-resolution.md``). Below the first capped
+    interface the grid is today's to rounding (it is built by repeated steps,
+    not by ``linspace``).
     """
     if n_layers < 1:
         raise ConfigurationError("an atmospheric column needs at least one layer")
@@ -112,8 +110,61 @@ def hydrostatic_layer_masses(
             f"top pressure {top_pressure} must be non-negative and below the surface "
             f"pressure {surface_pressure}"
         )
+    if max_log_step is None:
+        return np.linspace(surface_pressure, top_pressure, n_layers + 1)
+    if not max_log_step > 0.0:
+        raise ConfigurationError(f"the maximum log-pressure step {max_log_step} must be positive")
+    if top_pressure <= 0.0:
+        raise ConfigurationError("a log-pressure cap needs a model top above zero pressure")
+    uniform = (surface_pressure - top_pressure) / n_layers
+    fraction = 1.0 - np.exp(-max_log_step)
+    interfaces = [float(surface_pressure)]
+    while True:
+        current = interfaces[-1]
+        step = min(uniform, current * fraction)
+        following = current - step
+        # The last layer takes whatever is left, unless that would leave a
+        # sliver under half a step, which joins the layer below it instead.
+        if following - top_pressure < 0.5 * min(uniform, following * fraction):
+            interfaces.append(float(top_pressure))
+            break
+        interfaces.append(following)
+    return np.asarray(interfaces)
+
+
+def hydrostatic_layer_masses(
+    *,
+    n_layers: int,
+    surface_pressure: float,
+    top_pressure: float,
+    gravity: float | GravityField,
+    layer_heights: np.ndarray | None = None,
+    max_log_step: float | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Layer interface pressures and masses for a hydrostatic column.
+
+    Returns ``(interface_pressures, layer_masses)`` with interface index 0 at the
+    surface and the last at the model top, so layer ``i`` lies between
+    interfaces ``i`` and ``i+1``. Layers are equal in pressure unless
+    ``max_log_step`` caps their depth aloft (``layer_interface_pressures``);
+    either way the total is exactly ``(p_s - p_top) / g`` with constant gravity,
+    so the column's mass budget is checkable by hand.
+
+    ``gravity`` may be a number -- which is the first rung of charter 9.15's
+    fidelity path, ``ConstantGravity``, and keeps the total exact -- or a
+    ``GravityField``. A field that varies with height needs ``layer_heights`` and
+    **refuses to be evaluated without them** rather than quietly using the
+    surface value, since the point of declaring the approximation is that it
+    cannot be applied by accident.
+    """
     field = as_gravity_field(gravity)
-    interfaces = np.linspace(surface_pressure, top_pressure, n_layers + 1)
+    interfaces = layer_interface_pressures(
+        n_layers=n_layers,
+        surface_pressure=surface_pressure,
+        top_pressure=top_pressure,
+        max_log_step=max_log_step,
+    )
+    n_layers = interfaces.size - 1
     if field.varies_with_height:
         if layer_heights is None:
             raise ConfigurationError(
@@ -177,8 +228,26 @@ class AtmosphericColumnModule(Module):
         gravity: float | GravityField | None = None,
         couple_water: bool = False,
         water_module_id: str = "water",
+        max_log_step: float | None = None,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
+        # With a log-pressure cap, ``n_layers`` is the reference count that sets
+        # the lower troposphere's step and the column has however many layers
+        # the cap makes; everything below is sized by that count.
+        reference_layers = n_layers
+        n_layers = (
+            layer_interface_pressures(
+                n_layers=n_layers,
+                surface_pressure=(
+                    surface_pressure
+                    if surface_pressure is not None
+                    else value_of("standard_surface_pressure")
+                ),
+                top_pressure=top_pressure,
+                max_log_step=max_log_step,
+            ).size
+            - 1
+        )
         contract = ModuleContract(
             module_id=module_id,
             module_name=f"hydrostatic radiative column ({n_layers} layers)",
@@ -281,6 +350,8 @@ class AtmosphericColumnModule(Module):
         self.space_module_id = space_module_id
         self.source_module_id = source_module_id
         self.n_layers = n_layers
+        self.reference_layers = reference_layers
+        self.max_log_step = max_log_step
         self.surface_pressure = (
             surface_pressure
             if surface_pressure is not None
@@ -293,21 +364,27 @@ class AtmosphericColumnModule(Module):
         self.gravity_field = as_gravity_field(gravity)
         self.initial_temperature = initial_temperature
 
-        # The pressure grid does not depend on gravity -- the layers are equal in
-        # pressure by construction -- so the interfaces come first and the masses
-        # follow, which is what lets a height-dependent field be evaluated at all.
-        interfaces = np.linspace(self.surface_pressure, top_pressure, n_layers + 1)
+        # The pressure grid does not depend on gravity, so the interfaces come
+        # first and the masses follow, which is what lets a height-dependent
+        # field be evaluated at all.
+        interfaces = layer_interface_pressures(
+            n_layers=reference_layers,
+            surface_pressure=self.surface_pressure,
+            top_pressure=top_pressure,
+            max_log_step=max_log_step,
+        )
         # Layer midpoint pressure, the level a layer's bulk properties are
-        # attributed to. Linear in pressure because the layers are equal in
-        # pressure.
+        # attributed to: the arithmetic mean of its interfaces, which is its
+        # mass-weighted mean pressure whatever its depth.
         self.layer_pressure = 0.5 * (interfaces[:-1] + interfaces[1:])
         self.layer_height = self._initial_heights()
         self.interface_pressure, self.layer_mass = hydrostatic_layer_masses(
-            n_layers=n_layers,
+            n_layers=reference_layers,
             surface_pressure=self.surface_pressure,
             top_pressure=top_pressure,
             gravity=self.gravity_field,
             layer_heights=self.layer_height if self.gravity_field.varies_with_height else None,
+            max_log_step=max_log_step,
         )
         self.layer_heat_capacity = self.specific_heat * self.layer_mass
         self.temperature = np.full(n_layers, float(np.mean(np.asarray(initial_temperature))))
@@ -687,6 +764,12 @@ class AtmosphericColumnModule(Module):
             "n_layers": self.n_layers,
             "surface_pressure_Pa": self.surface_pressure,
             "top_pressure_Pa": self.top_pressure,
+            # Only when capped, so today's grid hashes as it always has.
+            **(
+                {"max_log_step": self.max_log_step, "reference_layers": self.reference_layers}
+                if self.max_log_step is not None
+                else {}
+            ),
             "specific_heat_J_kg_K": self.specific_heat,
             **self.gravity_field.parameters(),
             "column_mass_kg_m2": self.column_mass,

@@ -50,17 +50,31 @@ to 9 K. But the temperature still falls to the top, so the frozen test fails:
 - stratospheric water is 60 ppmv
   (`docs/protocols/ozone-solar-heating.md`, attempt 2).
 
+**Resolution is not the reason** (`docs/protocols/stratospheric-resolution.md`).
+A log-pressure cap aloft (`max_log_step`, off by default) resolves the
+stratosphere with up to 23 layers above 100 hPa.
+
+- **The column converges.** Between caps 0.2 and 0.1, the temperatures differ
+  by at most 0.26 K and the water by 0.5 percent. The refits move the wing
+  decays by under 0.5 percent.
+- **Still no inversion.** The minimum sits near 22 hPa at 194.6 K, against an
+  observed 100 hPa at 205.7 K, and 27 hPa is 195 K against 218 K.
+- **Refinement makes it colder, not warmer.**
+- **No cap was adopted.** On the fine grids, the thin top layer carries the
+  ozone above 10 hPa and reached 412 K. The validity gate rightly invalidated
+  those runs.
+
 **In the order to look at them:**
 
-1. **Vertical resolution aloft.** Thirty equal-mass layers leave three above
-   100 hPa, and the top one (43-10 hPa) holds 177 of the 287 dobson units.
-   An inversion spanning 100 to 10 hPa cannot form. A grid spaced in log
-   pressure aloft is what the physics depends on, but it moves every
-   calibration fitted at `CALIBRATION_N_LAYERS`, so the refit is part of it.
-2. **Ozone's 9.6-micron band.** It warms the lower stratosphere by absorbing
+1. **The ozone above the model top.** On a fine grid it must not be dumped into
+   one thin layer. Either raise the model top above the ozone (SWOOSH reaches
+   1 hPa), or remove that ozone's sunlight before it enters, declared as
+   absorbed above the domain. This is what blocks the fine grid.
+2. **The stratosphere's water, 30 ppmv against 4.** It cools the layers ozone
+   heats, and follows from the missing inversion. An offline radiative
+   calculation with 4 ppmv would size its share without a run.
+3. **Ozone's 9.6-micron band.** It warms the lower stratosphere by absorbing
    upwelling longwave, and is declared absent.
-3. **The saturated stratosphere's own emission.** It cools the layers ozone
-   heats, and it follows from the missing inversion.
 
 The first attempt at this test ran with water vapour's solar absorption and
 reached 319 K. That is the surface-reflector confound

@@ -681,6 +681,7 @@ def radiating_column(
     observed_cloud_field: bool = False,
     receives_advection: bool = False,
     eddy_diffusivity: float = 0.0,
+    max_log_step: float | None = None,
     evaporation_coefficient: float | None = None,
     gravity: float | GravityField | None = None,
     initial_water_store: float = 1.0e4,
@@ -782,7 +783,11 @@ def radiating_column(
         initial_temperature=initial_air_temperature,
         couple_water=water,
         gravity=gravity,
+        max_log_step=max_log_step,
     )
+    # With a log-pressure cap the column has more layers than the reference
+    # count that fixed its lower step; every module is sized by the real one.
+    n_layers = atmosphere.n_layers
     surface = ColumnSurfaceModule(
         grid=working_grid,
         areal_heat_capacity=areal_heat_capacity,
