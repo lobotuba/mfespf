@@ -167,3 +167,27 @@ atmosphere as well as at the tropopause. That is a resolved 15-micron CO2 band,
 benchmarked against line-by-line cooling rates as the solar absorption was, and
 then the refits it forces. It is its own mechanism, with its own protocol,
 before these runs.
+
+## Attempt 2, frozen before its runs
+
+**The change.** `co2-band.md` built the 15-micron CO2 band of Chou et al.
+(2001), and it passed both of its like-for-like tests:
+
+- 68.31 against 67.90 W m^-2 in its band at the top;
+- a maximum stratospheric cooling of -10.67 against about -12 C/day.
+
+The column is the one frozen above, with that band in place of the window
+caricature (`co2_band=True`, CO2 284.7 ppmv, the calibration's value). The
+vapour wing decay is at its refit for this grid, 4601.27 m^-1. Everything else
+is unchanged:
+
+- the band's sunlight, export and upwelling;
+- the measured spectrum, ozone and diffusion;
+- alpha 0.2 with the 1 hPa top;
+- the US Standard Atmosphere 1976 start, which attempt 1 declared.
+
+**The tests, the runs and the sensitivities are exactly T1-T4 above**, at the
++/-25 band for the verdict and 20 and 30 degrees for sensitivity. The
+no-upwelling run isolates the Brewer-Dobson cooling. The surface-export run is
+still not runnable: the surface module accepts no lateral export, and the
+exchange refuses that configuration.
