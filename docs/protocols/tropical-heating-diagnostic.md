@@ -126,3 +126,84 @@ the tropopause, and it comes before C.
 | The remainder carries it | Ozone's 9.6-micron band, from a citable, public parameterization, benchmarked like the CO2 band. |
 | D is inconsistent | The CO2 band near the tropopause, before anything else. |
 | M <= 0.1 | The cold bias is not missing heating, so the next place to look is the column's water and convection. |
+
+---
+
+## Results (appended; nothing above this line changed)
+
+**Checks on the data processing, before any diagnostic:**
+
+- SWOOSH, processed as here with global cos weights, reproduces the code's
+  global ozone profile to within 0.003 ppmv at every level checked.
+- NCEP, processed as here, reproduces `tropical-column.md`'s observed values:
+  196.40, 199.56, 206.87, 215.56 and 230.66 K.
+- The observed surface, the band-mean 1000 hPa air temperature, is 298.45 K.
+  The column's is 282.16 K.
+
+**The deciding band is one layer.** Only the layer centred at 84.7 hPa lies
+between 100 and 70 hPa on this grid. The frozen wording decides on it alone.
+The layers either side are reported.
+
+In K/day, with the layers nearest each level:
+
+| | 154 hPa | 103 | **84.7** | 69.3 | 46.5 | 31.2 |
+|---|---:|---:|---:|---:|---:|---:|
+| observed T, K | 209.1 | 197.4 | 197.9 | 199.8 | 208.1 | 214.9 |
+| column T, K | 176.3 | 166.7 | 171.6 | 175.5 | 184.4 | 196.0 |
+| **D0** Q_rad + Q_dyn on the column's own equilibrium | -0.235 | 0.000 | **0.000** | 0.000 | 0.000 | 0.000 |
+| **D1** Q_rad on observed | -1.187 | -0.086 | -0.036 | -0.080 | -0.596 | -0.747 |
+| **D1** Q_dyn on observed | -0.353 | -0.353 | -0.162 | -0.222 | -0.287 | -0.281 |
+| **D1** M, missing heating | 1.540 | 0.438 | **0.199** | 0.302 | 0.883 | 1.028 |
+| **D2** A, observed troposphere and surface | (swapped) | 0.259 | **0.154** | 0.113 | 0.075 | 0.055 |
+| **D3** B, tropical ozone profile | -0.026 | -0.053 | **-0.073** | -0.094 | -0.103 | -0.045 |
+| remainder, M - A - B | | 0.232 | **0.118** | 0.283 | 0.911 | 1.018 |
+| **D4** the CO2 band's heating | 0.104 | **0.319** | 0.109 | 0.034 | -0.584 | -0.969 |
+| **D5** vapour above 150 hPa | 1.288 | -0.480 | -0.266 | -0.306 | -0.442 | -0.574 |
+| **D5** shortwave | 0.037 | 0.076 | 0.121 | 0.193 | 0.432 | 0.798 |
+
+**D0: the tool is right.** Above 100 hPa, Q_rad + Q_dyn on the column's own
+time-mean equilibrium is zero to 8e-7 K/day. At 154 hPa, below 100 hPa, the
+convection and export also act, as expected.
+
+**D1: the heating is missing, not just the temperature.** At 84.7 hPa, M is
+0.199 K/day, which is above the 0.1 threshold. So the model's radiation cannot
+hold the observed profile against its own upwelling.
+
+- **Why a small deficit costs so much temperature.** The column's radiative
+  heating at 84.7 hPa changes by only 0.24 K/day between its own profile and
+  the observed one, 26 K warmer. So a fifth of a kelvin a day holds the layer
+  about 20 K from where it should be.
+- **The deficit grows upward:** 0.9 to 1.0 K/day at 46 to 31 hPa.
+
+**The verdict at 84.7 hPa, M = 0.199:**
+
+| candidate | share | of M | verdict |
+|---|---:|---:|---|
+| A, the troposphere | 0.154 | 77% | **carries the deficit** |
+| B, the tropical ozone profile | -0.073 | -37% | does not: it makes the deficit larger |
+| C, the remainder (ozone's 9.6-micron band, inferred) | 0.118 | 60% | **carries the deficit** |
+| D, the CO2 band | +0.319 at 103 hPa | | **consistent**: slight heating at the tropopause, as Gettelman et al. (2004) find |
+
+**Two candidates carry the deficit, as the protocol allows.**
+
+- **The troposphere dominates at the tropopause** (103 and 85 hPa).
+- **The remainder dominates above 70 hPa.** It is 0.9 to 1.0 K/day at 46 to
+  31 hPa, where the troposphere supplies less than 0.08.
+- **B has the sign the argument got wrong.** Tropical ozone at 85 to 100 hPa
+  is 29 to 38 percent of the global mean, so it takes away solar heating
+  there. It is the right profile for this column and makes the deficit larger.
+
+**Reported, not judged.**
+
+- **The water's cost.** The observed stratospheric water (3.5 to 4.0 ppmv)
+  cools 0.27 to 0.57 K/day at these layers, and the column's own, about 0, does
+  not. So a column that got its water right would need that much more heating.
+  This sits inside M and inside the remainder, which is therefore not ozone
+  alone. It is everything the model lacks that the observed state needs, once A
+  and B are counted.
+- **The next step, by the frozen table.**
+  - A carries it, so: why the tropical surface is 16.3 K cold (298.45 against
+    282.16). This gets its own diagnostic.
+  - The remainder carries it, so: ozone's 9.6-micron band, from a citable,
+    public parameterization, benchmarked like the CO2 band.
+  - The table does not order the two.
