@@ -573,12 +573,14 @@ class SpectralRadiationModule(Module):
         stratospheric_layers: int = 1,
         greenhouse_background: float | None = None,
         solar_vapour_k: np.ndarray | None = None,
+        ozone_k: np.ndarray | None = None,
         couple_cloud_field: bool = False,
         cloud_field_module_id: str = "cloud_field",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         n_bands = grid.n_bins
         solar_vapour = solar_vapour_k is not None
+        ozone = ozone_k is not None
         contract = ModuleContract(
             module_id=module_id,
             module_name=f"spectral column radiative transfer ({n_bands} bands)",
@@ -597,6 +599,7 @@ class SpectralRadiationModule(Module):
                 EQUATION_IDS["diffusivity"],
                 EQUATION_IDS["two_stream"],
                 *((EQUATION_IDS["solar_vapour_absorption"],) if solar_vapour else ()),
+                *((EQUATION_IDS["ozone_solar_absorption"],) if ozone else ()),
                 *(
                     (EQUATION_IDS["observed_cloud_field"], EQUATION_IDS["cloud_radiative_effect"])
                     if couple_cloud_field
@@ -715,7 +718,14 @@ class SpectralRadiationModule(Module):
                 *(("atmosphere_water_vapour",) if couple_water else ()),
                 # The solar k-distributions scale the path by pressure, so the
                 # pressure is consumed, and declared, only when they are on.
-                *(("atmosphere_layer_pressure",) if solar_vapour and couple_water else ()),
+                *(
+                    ("atmosphere_layer_pressure",)
+                    if (solar_vapour and couple_water) or ozone
+                    else ()
+                ),
+                # Ozone is prescribed on pressure, and the column above the
+                # model top is placed in the top layer from its top interface.
+                *(("atmosphere_interface_pressure",) if ozone else ()),
                 *(
                     (
                         "cloud_type_amount",
@@ -864,6 +874,16 @@ class SpectralRadiationModule(Module):
                 f"solar vapour coefficients cover {self.solar_vapour_k.size} bands and the "
                 f"grid has {n_bands}; build both with solar_vapour_bands"
             )
+        # Ozone's effective coefficients for sunlight, (cm-atm)^-1 per band
+        # (Chou and Suarez 1999); None leaves ozone out. Its amount is the
+        # SWOOSH profile placed on this column's layers on the first step.
+        self.ozone_k = np.asarray(ozone_k, dtype=float) if ozone_k is not None else None
+        if self.ozone_k is not None and self.ozone_k.size != n_bands:
+            raise ConfigurationError(
+                f"ozone coefficients cover {self.ozone_k.size} bands and the grid has "
+                f"{n_bands}; build both with ozone_bands"
+            )
+        self.ozone_path: np.ndarray | None = None
         self.water_module_id = water_module_id
         self.vapour_optical_depth: np.ndarray | None = None
         self.volcanic_optics: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
@@ -992,6 +1012,20 @@ class SpectralRadiationModule(Module):
             # own emission back down and warm it, which is the wrong sign.
             zeros = np.zeros_like(self.vapour_optical_depth)
             contributions.append((self.vapour_optical_depth, zeros, zeros))
+
+        if self.ozone_k is not None:
+            from mfespf.physics.solar_absorption import ozone_layer_path, ozone_optical_depth
+
+            # In the clear sky and under cloud alike, like the vapour. The
+            # layers do not move, so the amount is placed once.
+            if self.ozone_path is None:
+                self.ozone_path = ozone_layer_path(
+                    self.input_field("atmosphere_layer_pressure").require_units("Pa").values,
+                    self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
+                    mass.values,
+                )
+            ozone_tau = ozone_optical_depth(self.ozone_k, self.ozone_path)
+            contributions.append((ozone_tau, np.zeros_like(ozone_tau), np.zeros_like(ozone_tau)))
 
         if self.couple_volcanic:
             from mfespf.physics.volcanic import stratospheric_aerosol_optics
@@ -1339,6 +1373,17 @@ class SpectralRadiationModule(Module):
                 }
                 if self.solar_vapour_k is not None
                 else "not_represented"
+            ),
+            # Only when on, so a column without ozone hashes as before.
+            **(
+                {
+                    "ozone_solar_absorption": {
+                        "source": "Chou and Suarez 1999 Table 3; SWOOSH v2.73 1991-2020 profile",
+                        "k_per_cm_atm": self.ozone_k.tolist(),
+                    }
+                }
+                if self.ozone_k is not None
+                else {}
             ),
             **({"stratospheric_layers": self.stratospheric_layers} if self.couple_volcanic else {}),
             **(

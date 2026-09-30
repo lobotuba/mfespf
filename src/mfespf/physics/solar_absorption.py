@@ -47,12 +47,18 @@ from __future__ import annotations
 import numpy as np
 
 from mfespf.contracts.spectral import SpectralCoordinate, SpectralGrid
+from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError
 
 __all__ = [
+    "OZONE_BANDS",
+    "OZONE_PROFILE_HPA_PPMV",
     "SOLAR_VAPOUR_BANDS",
     "SOLAR_VAPOUR_REFERENCE_PRESSURE_PA",
     "SOLAR_VAPOUR_REFERENCE_TEMPERATURE_K",
+    "ozone_bands",
+    "ozone_layer_path",
+    "ozone_optical_depth",
     "scaled_vapour_path",
     "solar_vapour_bands",
     "solar_vapour_optical_depth",
@@ -128,8 +134,19 @@ def _planck_cumulative(
     return wl, cumulative / cumulative[-1]
 
 
+def _measured_cumulative(
+    lower: float, upper: float, n: int = 20001
+) -> tuple[np.ndarray, np.ndarray]:
+    """Wavelength mesh and cumulative measured solar irradiance over [lower, upper]."""
+    from mfespf.physics.solar_spectrum import hsrs_cumulative
+
+    wl = np.geomspace(lower, upper, n)
+    cumulative = hsrs_cumulative(wl) - hsrs_cumulative(np.array([lower]))[0]
+    return wl, cumulative / cumulative[-1]
+
+
 def solar_vapour_bands(
-    grid: SpectralGrid, *, solar_temperature: float = 5772.0
+    grid: SpectralGrid, *, solar_temperature: float = 5772.0, measured_spectrum: bool = False
 ) -> tuple[SpectralGrid, np.ndarray]:
     """Rebuild a grid's solar region around the k-distributions.
 
@@ -141,6 +158,8 @@ def solar_vapour_bands(
     with non-zero weight. Sub-band edges are placed on the cumulative spectrum of
     a black body at ``solar_temperature`` -- the same shape the configured solar
     source uses -- so that each receives its term's share of the band's sunlight.
+    With ``measured_spectrum`` they are placed on the measured spectrum instead,
+    which is then the solar source's shape too.
     """
     if grid.coordinate is not SpectralCoordinate.WAVELENGTH:
         raise ConfigurationError("solar vapour bands are built on a wavelength grid")
@@ -165,7 +184,11 @@ def solar_vapour_bands(
         upper = min(upper, top)
         terms = [(k, h) for k, h in zip(k_terms, weights, strict=True) if h > 0.0]
         total = sum(h for _, h in terms)
-        wl, cumulative = _planck_cumulative(lower, upper, solar_temperature)
+        wl, cumulative = (
+            _measured_cumulative(lower, upper)
+            if measured_spectrum
+            else _planck_cumulative(lower, upper, solar_temperature)
+        )
         shares = np.cumsum([h / total for _, h in terms])[:-1]
         interior = np.interp(shares, cumulative, wl)
         for edge in (*interior, upper):
@@ -216,3 +239,141 @@ def solar_vapour_optical_depth(
 ) -> np.ndarray:
     """Absorption optical depth of the vapour for sunlight, shaped (layers, bands)."""
     return scaled_vapour_path(vapour_path, pressure, temperature)[:, None] * np.asarray(k)[None, :]
+
+
+# --- ozone ----------------------------------------------------------------
+
+#: Chou and Suarez (1999) Table 1 and section 3.5: the bands in which ozone
+#: absorbs sunlight, (lower m, upper m, effective coefficient in (cm-atm)^-1 at
+#: STP). Band 2 is two disjoint ranges sharing one coefficient; band 8's
+#: coefficient already carries ozone's weak near-infrared absorption (their eq.
+#: 3.14). No pressure or temperature scaling, as in the source.
+OZONE_BANDS: tuple[tuple[float, float, float], ...] = (
+    (0.175e-6, 0.225e-6, 30.47),
+    (0.225e-6, 0.245e-6, 187.24),
+    (0.245e-6, 0.260e-6, 301.92),
+    (0.260e-6, 0.280e-6, 187.24),
+    (0.280e-6, 0.295e-6, 42.83),
+    (0.295e-6, 0.310e-6, 7.09),
+    (0.310e-6, 0.320e-6, 1.25),
+    (0.320e-6, 0.400e-6, 0.0345),
+    (0.400e-6, 0.700e-6, 0.0572),
+)
+
+#: Ozone mixing ratio, global area-weighted mean of SWOOSH v2.73 combined,
+#: anomaly-filled, 10-degree zonal means, 1991-2020 (Davis et al. 2016,
+#: doi:10.5194/essd-8-461-2016), computed for
+#: ``docs/protocols/ozone-solar-heating.md``: (pressure hPa, ppmv), 316 to 1 hPa.
+OZONE_PROFILE_HPA_PPMV: tuple[tuple[float, float], ...] = (
+    (316.23, 0.061),
+    (261.02, 0.082),
+    (215.44, 0.119),
+    (177.83, 0.162),
+    (146.78, 0.217),
+    (121.15, 0.305),
+    (100.00, 0.462),
+    (82.54, 0.723),
+    (68.13, 1.124),
+    (56.23, 1.671),
+    (46.42, 2.344),
+    (38.31, 3.118),
+    (31.62, 3.980),
+    (26.10, 4.910),
+    (21.54, 5.822),
+    (17.78, 6.643),
+    (14.68, 7.297),
+    (12.12, 7.721),
+    (10.00, 7.933),
+    (8.25, 7.981),
+    (6.81, 7.923),
+    (5.62, 7.778),
+    (4.64, 7.536),
+    (3.83, 7.159),
+    (3.16, 6.635),
+    (2.61, 6.011),
+    (2.15, 5.338),
+    (1.78, 4.696),
+    (1.47, 4.114),
+    (1.21, 3.612),
+    (1.00, 3.182),
+)
+
+#: STP is 273.15 K by definition; with the standard pressure it fixes the
+#: Loschmidt number that makes a cm-atm a number of molecules.
+_STP_TEMPERATURE_K = 273.15
+
+
+def ozone_bands(grid: SpectralGrid) -> tuple[SpectralGrid, np.ndarray]:
+    """Rebuild a grid below 0.7 microns around ozone's bands.
+
+    Returns the new grid and ozone's coefficient per band in (cm-atm)^-1, zero
+    where it does not absorb. Edges below 0.175 microns are kept, the source's
+    edges from 0.175 to 0.4 replace whatever the grid had there, and edges at
+    0.4 and 0.7 are added if missing; everything above 0.4 microns is kept, so
+    a grid already built by ``solar_vapour_bands`` keeps its sub-bands.
+    """
+    if grid.coordinate is not SpectralCoordinate.WAVELENGTH:
+        raise ConfigurationError("ozone bands are built on a wavelength grid")
+    edges = np.asarray(grid.edges, dtype=float)
+    if edges[0] > 0.175e-6 or edges[-1] < 0.7e-6:
+        raise ConfigurationError("the grid must span 0.175 to 0.7 microns to hold ozone's bands")
+    source = {b[0] for b in OZONE_BANDS} | {b[1] for b in OZONE_BANDS}
+    kept_low = {float(e) for e in edges if e < 0.175e-6}
+    kept_high = {float(e) for e in edges if e > 0.4e-6 and not np.isclose(e, 0.7e-6)}
+    new_edges = np.array(sorted(kept_low | source | kept_high))
+    k = np.zeros(new_edges.size - 1)
+    centres = 0.5 * (new_edges[:-1] + new_edges[1:])
+    for lower, upper, coefficient in OZONE_BANDS:
+        k[(centres > lower) & (centres < upper)] = coefficient
+    new_grid = SpectralGrid(
+        grid_id=f"{grid.grid_id}+ozone",
+        coordinate=grid.coordinate,
+        coordinate_units=grid.coordinate_units,
+        edges=new_edges,
+        integration_convention=grid.integration_convention,
+        density_units=grid.density_units,
+        resolution_identifier=f"{grid.resolution_identifier}+cs99-ozone",
+    )
+    return new_grid, k
+
+
+def _ozone_mixing_ratio(pressure_pa: np.ndarray) -> np.ndarray:
+    """SWOOSH's mixing ratio at each pressure, mol mol^-1, held below 316 hPa."""
+    p = np.array([row[0] for row in OZONE_PROFILE_HPA_PPMV])[::-1] * 100.0
+    v = np.array([row[1] for row in OZONE_PROFILE_HPA_PPMV])[::-1] * 1.0e-6
+    return np.interp(np.log(np.asarray(pressure_pa, dtype=float)), np.log(p), v)
+
+
+def ozone_layer_path(
+    layer_pressure: np.ndarray, interface_pressure: np.ndarray, layer_mass: np.ndarray
+) -> np.ndarray:
+    """Ozone in each layer, cm-atm at STP, from the SWOOSH profile.
+
+    Each layer carries the mixing ratio at its centre times its air. The top
+    layer also carries the column between its top interface and 1 hPa, where
+    SWOOSH ends; what lies above 1 hPa (about a dobson unit) is left out.
+    Molecules per kilogram of dry air are ``R_d / k_B``, and a cm-atm is the
+    Loschmidt number times a centimetre, so no molar mass is assumed.
+    """
+    p = np.asarray(layer_pressure, dtype=float)
+    p_i = np.asarray(interface_pressure, dtype=float)
+    m = np.asarray(layer_mass, dtype=float)
+    if p_i.size != p.size + 1 or m.size != p.size:
+        raise ConfigurationError("pressures and masses must describe the same layers")
+    k_b = value_of("boltzmann")
+    molecules_per_kg = value_of("gas_constant_dry_air") / k_b
+    cm_atm = value_of("standard_surface_pressure") / (k_b * _STP_TEMPERATURE_K) * 0.01
+    path = _ozone_mixing_ratio(p) * m * molecules_per_kg / cm_atm
+    top = float(p_i[-1])
+    if top > 100.0:
+        # Gravity as the grid has it: the top layer's own dp / m.
+        gravity = float((p_i[-2] - p_i[-1]) / m[-1])
+        above = np.geomspace(100.0, top, 400)
+        column = float(np.trapezoid(_ozone_mixing_ratio(above), above)) / gravity
+        path[-1] += column * molecules_per_kg / cm_atm
+    return path
+
+
+def ozone_optical_depth(k: np.ndarray, path: np.ndarray) -> np.ndarray:
+    """Absorption optical depth of ozone for sunlight, shaped (layers, bands)."""
+    return np.asarray(path, dtype=float)[:, None] * np.asarray(k, dtype=float)[None, :]

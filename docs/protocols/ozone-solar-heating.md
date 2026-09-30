@@ -178,3 +178,40 @@ absorption is off. The planetary albedo then stays at the surface value's
 **Tests.** O1, O2 and O3 exactly as above, same thresholds, same observations,
 200000 steps. The same column without ozone is the 297.87 K diagnostic, rerun
 at 200000 steps as the comparison.
+
+### Attempt 2 result: ozone heats the stratosphere, and no inversion forms
+
+200000 steps, last fifth. Both runs are equilibrated (+0.027 and -0.002
+W m^-2) and closed to 1e-15.
+
+| | ozone | no ozone | observed | verdict |
+|---|---:|---:|---:|---|
+| surface | 299.23 K | 297.86 K | | |
+| sunlight absorbed in the atmosphere | 11.0 W m^-2 | 0 | | |
+| reflected sunlight | 96.2 W m^-2 | 100.4 W m^-2 | | |
+| T at 94 hPa | 211.3 K | 202.0 K | | |
+| T at 60 hPa (O1) | 203.5 K | 196.6 K | 209.0 +/- 8 | **pass** |
+| T at 27 hPa (O1) | 198.6 K | 190.2 K | 218.0 +/- 8 | **fail** |
+| coldest layer (O2) | the top, 27 hPa | the top | 60-160 hPa | **fail** |
+| stratospheric water (O3) | 59.8 ppmv | 17.0 ppmv | 2-8 | **fail** |
+
+Ozone warms every stratospheric layer by 7 to 9 K and takes 11 W m^-2 of
+sunlight, but the temperature still falls to the top. What stands out, not
+yet measured apart:
+
+1. **Three layers above 100 hPa.** Thirty equal-mass layers put the top one
+   between 43 and 10 hPa, holding 177 of the column's 287 dobson units. An
+   inversion cannot form inside one layer, and the observed one spans 100 to
+   10 hPa. By this project's own rule, the grid must resolve what the physics
+   depends on.
+2. **A saturated, emitting stratosphere.** With no inversion, the vapour above
+   the cold point stays saturated: 60 ppmv against 4. Its longwave emission
+   cools the layers the ozone heats. The two failures feed each other.
+3. **Ozone's 9.6-micron band is absent, as declared.** It warms the lower
+   stratosphere by absorbing upwelling longwave.
+4. **The top layer is the heating's destination.** The ozone above 10 hPa is
+   placed in it, so it takes the sunlight that on Earth is absorbed higher,
+   and emits from a single temperature.
+
+Ozone's code stays in, off by default (`ozone=True`), as does the measured
+spectrum (`measured_solar_spectrum=True`), with their tests.

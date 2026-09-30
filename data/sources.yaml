@@ -210,6 +210,92 @@ sources:
     inherits those assumptions. It ends in 2012, so any comparison using it covers a shorter period
     than one using the solar and CO2 records alone.'
   sha256: 40b245c8fc871b75da40803c8dffee78fe9707758702297b6b9945e5ed003393
+  retrieved: '2026-09-05T02:41:50+00:00'
+
+# --- reference fields: numbers a protocol computed, not time series ---------
+#
+# No loader: nothing reads these at run time. Each was reduced once, into a
+# constant in the code or a threshold in a frozen protocol, and is declared here
+# so that reduction can be repeated and checked from a clean checkout.
+- dataset_id: TSIS1-HSRS-V2-FULL-SPECTRUM
+  loader: none
+  title: TSIS-1 Hybrid Solar Reference Spectrum v2, full spectrum, 1 nm bins
+  filename: tsis1_hsrs_binned_fs.csv
+  url: https://lasp.colorado.edu/lisird/latis/dap/tsis1_hsrs_binned_fs.csv
+  provider: LASP, University of Colorado (LISIRD)
+  provenance_class: observational
+  variables:
+  - solar_spectral_irradiance
+  units:
+  - W m^-2 nm^-1
+  temporal_coverage: reference spectrum, solar minimum 2019-2020
+  spatial_coverage: 1 au, 115.5 nm to 200 microns
+  uncertainty: per-bin uncertainty column; 0.3 percent 460-2365 nm (Coddington et al. 2021)
+  licence: NASA-funded data product, openly available; cite on use.
+  citation: 'Coddington, O. M. et al. (2023), Version 2 of the TSIS-1 Hybrid Solar Reference
+    Spectrum and Extension to the Full Spectrum, Earth and Space Science 10, doi:10.1029/2022EA002637.'
+  notes: Reduced to src/mfespf/physics/solar_spectrum.py, its cumulative at 0.5 percent logarithmic
+    steps (docs/protocols/ozone-solar-heating.md).
+  sha256: e63693db630363c0263847154a6aec4c3828d94ac13605dab27949de58f19bc1
+- dataset_id: SWOOSH-V2.73-LATPRESS-10DEG
+  loader: none
+  title: SWOOSH v2.73 stratospheric water vapour and ozone, zonal means on pressure levels
+  filename: swoosh-v02.73-198401-202606-latpress-10deg-L31.nc
+  url: https://csl.noaa.gov/groups/csl8/swoosh/data/v02.7/swoosh-v02.73-198401-202606-latpress-10deg-L31.nc
+  provider: NOAA Chemical Sciences Laboratory
+  provenance_class: observational
+  variables:
+  - water_vapour_mixing_ratio
+  - ozone_mixing_ratio
+  units:
+  - ppmv
+  temporal_coverage: 1984-01 to 2026-06, monthly
+  spatial_coverage: 10-degree zonal means, 316 to 1 hPa
+  uncertainty: per-cell standard deviation and measurement-uncertainty fields
+  licence: US Government work; cite on use.
+  citation: 'Davis, S. M. et al. (2016), The Stratospheric Water and Ozone Satellite Homogenized
+    (SWOOSH) database, Earth System Science Data 8, 461-490, doi:10.5194/essd-8-461-2016.'
+  notes: The combined anomaly-filled fields' 1991-2020 global means give the stratospheric-water
+    threshold (stratospheric-water.md) and the ozone profile in physics/solar_absorption.py.
+  sha256: 39d35370f4c3e2090d06287674a7481d8e89ef19ef158fc21e0898f5dccf40ee
+- dataset_id: NCEP-R1-OMEGA-LTM-1991-2020
+  loader: none
+  title: NCEP/NCAR Reanalysis 1 pressure vertical velocity, monthly long-term means 1991-2020
+  filename: omega.mon.ltm.1991-2020.nc
+  url: https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/Monthlies/pressure/omega.mon.ltm.1991-2020.nc
+  provider: NOAA Physical Sciences Laboratory
+  provenance_class: reanalysis
+  variables:
+  - omega
+  units:
+  - Pa s^-1
+  temporal_coverage: 1991-2020 monthly climatology
+  spatial_coverage: global 2.5 degree, 1000 to 100 hPa
+  uncertainty: none published per cell
+  licence: US Government work; cite on use.
+  citation: 'Kalnay, E. et al. (1996), The NCEP/NCAR 40-Year Reanalysis Project, BAMS 77, 437-471.'
+  notes: Gives the rising fraction 0.476 and the relaxation distance 750 km of the circulation
+    (two-column-circulation.md, spectral-wtg-circulation.md).
+  sha256: 589529516315f107b98852f465b693701c4481cc125a09309aa1aa746a01a595
+- dataset_id: NCEP-R1-AIR-LTM-1991-2020
+  loader: none
+  title: NCEP/NCAR Reanalysis 1 air temperature, monthly long-term means 1991-2020
+  filename: air.mon.ltm.1991-2020.nc
+  url: https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/Monthlies/pressure/air.mon.ltm.1991-2020.nc
+  provider: NOAA Physical Sciences Laboratory
+  provenance_class: reanalysis
+  variables:
+  - air_temperature
+  units:
+  - degC
+  temporal_coverage: 1991-2020 monthly climatology
+  spatial_coverage: global 2.5 degree, 1000 to 10 hPa
+  uncertainty: none published per cell
+  licence: US Government work; cite on use.
+  citation: 'Kalnay, E. et al. (1996), The NCEP/NCAR 40-Year Reanalysis Project, BAMS 77, 437-471.'
+  notes: Gives the ascent-minus-descent temperature threshold (spectral-wtg-circulation.md) and the
+    stratospheric temperatures of ozone-solar-heating.md.
+  sha256: 8fe6765d70e72bd99ff97dfb62c78cec69b274d3b0431f2dd8792b6bedd8496d
 
 # --- not fetchable without credentials --------------------------------------
 #
@@ -222,4 +308,3 @@ sources:
 #
 # Absent for the same reason: the CMIP6 solar and volcanic forcing datasets on
 # input4MIPs (ESGF authentication) and HITRAN line parameters (registration).
-  retrieved: '2026-09-05T02:41:50+00:00'

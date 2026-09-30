@@ -50,6 +50,8 @@ EQUATION_IDS = {
     "wtg_circulation": "EQ-WTG-OVERTURNING-CIRCULATION",
     "area_weighted_mean": "EQ-AREA-WEIGHTED-GLOBAL-MEAN",
     "vapour_eddy_diffusion": "EQ-VAPOUR-EDDY-DIFFUSION",
+    "ozone_solar_absorption": "EQ-OZONE-SOLAR-ABSORPTION",
+    "measured_solar_spectrum": "EQ-MEASURED-SOLAR-SPECTRUM",
     "fractional_top_convective_adjustment": "EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
@@ -1106,6 +1108,130 @@ def build_equation_registry() -> EquationRegistry:
                 "absorbing vapour twice, lowering the planetary albedo",
             ),
             source="Chou and Suarez 1999, NASA/TM-1999-104606 vol. 15",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["ozone_solar_absorption"],
+            version=V1,
+            name="Absorption of sunlight by ozone (effective band coefficients)",
+            category=EquationCategory.CONSTITUTIVE_RELATION,
+            mathematical_form=(
+                "tau_band = k_band x per layer, x the layer's ozone in cm-atm at STP; "
+                "k_band from Chou and Suarez (1999) Table 3 in eight bands from 0.175 to "
+                "0.7 microns, band 2 as two disjoint ranges"
+            ),
+            physical_basis=(
+                "Ozone absorbs ultraviolet sunlight in the Hartley and Huggins bands and "
+                "visible sunlight in the Chappuis band. The ultraviolet is taken up "
+                "where the ozone is, in the stratosphere, so the air there is heated "
+                "from above and warms upward."
+            ),
+            variables=(
+                ("x", "ozone amount of a layer", "cm-atm"),
+                ("k_band", "effective ozone absorption coefficient of a band", "cm-atm^-1"),
+            ),
+            parameters=(
+                (
+                    "k_band",
+                    "published",
+                    "Chou and Suarez (1999) Table 3, derived by its authors from WMO "
+                    "(1986) cross sections over 127 sub-bands; band 8 includes the "
+                    "near-infrared absorption by their eq. 3.14; not adjusted here",
+                ),
+                (
+                    "ozone profile",
+                    "measured",
+                    "SWOOSH v2.73 combined, anomaly-filled, 1991-2020 global area-weighted "
+                    "mean, 316 to 1 hPa; held at the 316 hPa value below; the column "
+                    "between the model top and 1 hPa placed in the top layer",
+                ),
+            ),
+            assumptions=(
+                "one coefficient per band, with no temperature or pressure dependence, "
+                "as in the source",
+                "ozone absorbs and does not scatter",
+                "the ozone amount is prescribed and does not respond to the column",
+            ),
+            approximations=(
+                "Ozone's 9.6-micron longwave band is not represented, so its absorption "
+                "of upwelling longwave in the lower stratosphere is absent.",
+                "Heating that really happens above the model top is deposited in the top layer.",
+                "Sunlight is solved as diffuse radiation with the solver's diffusivity "
+                "factor, not as a beam at a mean solar zenith angle.",
+            ),
+            validity_domain=ValidityDomain(
+                conditions=("sunlight between 0.175 and 0.7 microns",),
+            ),
+            limiting_cases=(
+                "no ozone transmits every band unchanged",
+                "the column total is the profile's integral, about 290 dobson units",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("one grid band per source band",),
+            correctness_tests=(
+                "test_the_ozone_bands_carry_the_source_coefficients",
+                "test_the_ozone_column_is_the_profile_integral",
+                "test_ozone_absorbs_the_ultraviolet_and_little_else",
+            ),
+            known_failure_modes=(
+                "without the longwave band the lower stratosphere is biased cold",
+            ),
+            source=(
+                "Chou and Suarez 1999, NASA/TM-1999-104606 vol. 15; Davis et al. 2016, "
+                "doi:10.5194/essd-8-461-2016"
+            ),
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["measured_solar_spectrum"],
+            version=V1,
+            name="Measured solar spectral irradiance (TSIS-1 HSRS v2)",
+            category=EquationCategory.EMPIRICAL_RELATION,
+            mathematical_form=(
+                "S_band = S_total x integral over the band of E(lambda) / integral of "
+                "E(lambda), E the TSIS-1 HSRS v2 full-spectrum irradiance"
+            ),
+            physical_basis=(
+                "The sun is not a black body: its ultraviolet is depleted by "
+                "absorption in its own atmosphere, so a 5772 K black body puts half "
+                "again too much sunlight below 0.4 microns."
+            ),
+            variables=(("E", "measured spectral irradiance at 1 au", "W m^-2 nm^-1"),),
+            parameters=(
+                (
+                    "E",
+                    "measured",
+                    "Coddington et al. 2023, doi:10.1029/2022EA002637, 115.5 nm to 200 "
+                    "microns; committed as its cumulative at 0.5 percent logarithmic "
+                    "steps, within 0.25 percent of the full file on every band tested",
+                ),
+            ),
+            assumptions=("the spectral shape is constant; only the total is configured",),
+            approximations=(
+                "The reduced table interpolates the cumulative linearly between nodes "
+                "0.5 percent apart.",
+            ),
+            validity_domain=ValidityDomain(
+                conditions=("wavelengths from 115.5 nm to 200 microns",),
+            ),
+            limiting_cases=(
+                "the bands of a grid spanning the support sum to the total",
+                "Chou and Suarez's band fractions are reproduced to within a few percent",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("band integrals of the cumulative",),
+            correctness_tests=(
+                "test_the_measured_spectrum_integrates_to_its_total",
+                "test_the_measured_spectrum_reproduces_chou_and_suarez_band_fractions",
+            ),
+            known_failure_modes=(
+                "a fixed shape carries no solar-cycle variation in the ultraviolet",
+            ),
+            source="Coddington et al. 2023, Earth and Space Science 10",
         )
     )
 

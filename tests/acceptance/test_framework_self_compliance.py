@@ -125,6 +125,13 @@ def _observed_clouds_and_solar_vapour(**kwargs: Any) -> Kernel:
     return cc.reference_column(observed_cloud_field=True, solar_vapour_absorption=True, **kwargs)
 
 
+def _ozone_on_the_measured_spectrum(**kwargs: Any) -> Kernel:
+    """Ozone, the measured solar spectrum and vapour diffusion: the ozone test's column."""
+    return cc.reference_column(
+        solar_vapour_absorption=True, ozone=True, eddy_diffusivity=0.39, **kwargs
+    )
+
+
 BUILDERS = {
     "airless_radiating_body": rc.airless_radiating_body,
     "null_control": rc.null_control,
@@ -145,6 +152,7 @@ BUILDERS = {
     "plume_humidity": _plume_humidity_column,
     "reference_column": cc.reference_column,
     "observed_clouds_and_solar_vapour": _observed_clouds_and_solar_vapour,
+    "ozone_on_the_measured_spectrum": _ozone_on_the_measured_spectrum,
     # Two regions, the circulation between them and the global means: the one
     # configuration whose modules are filed under regions.
     "two_column": two_column,

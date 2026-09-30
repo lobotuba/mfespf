@@ -48,6 +48,7 @@ __all__ = [
     "SOLAR_SOURCE_INTERFACE",
     "ConstantSpectrumSolarSource",
     "ForcedSolarSource",
+    "MeasuredSpectrumSolarSource",
     "SolarSource",
     "banded_grid",
     "broadband_grid",
@@ -233,7 +234,9 @@ class SolarSource(Module):
     def emit_outputs(self) -> dict[str, Field]:
         provenance = Provenance(
             producer=self.module_id,
-            derivation=EQUATION_IDS["planck"],
+            # The relation that shaped the spectrum: Planck for a black body,
+            # the measured-spectrum record for a measured one.
+            derivation=self.contract.governing_equation_ids[0],
             notes=self.contract.module_name,
         )
         stub = self.status is ModuleStatus.STUB
@@ -374,6 +377,74 @@ class ConstantSpectrumSolarSource(SolarSource):
             **super().parameters(),
             "total_solar_irradiance_1au": self._total,
             "spectral_shape_effective_temperature": self.effective_temperature,
+        }
+
+
+class MeasuredSpectrumSolarSource(SolarSource):
+    """Constant total irradiance with the measured solar spectrum's shape.
+
+    The shape is TSIS-1 HSRS version 2 integrated over each band of the grid
+    (``physics/solar_spectrum.py``). A black body at 5772 K puts half again
+    too much sunlight below 0.4 microns, where ozone absorbs; this one
+    reproduces Chou and Suarez's (1999) band fractions to within a few percent
+    (``docs/protocols/ozone-solar-heating.md``). The total is still the
+    configured irradiance: the spectrum supplies the distribution, not the
+    amount.
+    """
+
+    def __init__(
+        self,
+        *,
+        grid: SpectralGrid,
+        total_irradiance: float | None = None,
+        module_id: str = "solar",
+        status: ModuleStatus = ModuleStatus.PRESCRIBED,
+    ) -> None:
+        from mfespf.physics.solar_spectrum import HSRS_TOTAL_W_M2, hsrs_band_irradiance
+
+        if grid.coordinate is not SpectralCoordinate.WAVELENGTH:
+            raise ConfigurationError("the measured solar spectrum is tabulated in wavelength")
+        super().__init__(
+            module_id=module_id,
+            grid=grid,
+            fidelity=FidelityLevel.REDUCED if grid.n_bins == 1 else FidelityLevel.STANDARD,
+            implementation_name=(
+                f"constant TSI with the TSIS-1 HSRS v2 measured spectral shape "
+                f"({grid.resolution_identifier})"
+            ),
+            status=status,
+            assumptions=(
+                "total solar irradiance constant over the simulated interval",
+                "spectral shape of the TSIS-1 Hybrid Solar Reference Spectrum, version 2",
+                "no solar-cycle, particle or magnetic output",
+            ),
+            cost_work_units=1.0,
+        )
+        # Not Planck: nothing here evaluates a black body, and citing it would
+        # have the validity gate judge a temperature this source does not have.
+        self.contract = replace(
+            self.contract,
+            governing_equation_ids=(EQUATION_IDS["measured_solar_spectrum"],),
+            equation_variables=(),
+        )
+        self._total = (
+            total_irradiance
+            if total_irradiance is not None
+            else value_of("total_solar_irradiance_reference")
+        )
+        self._weights = hsrs_band_irradiance(np.asarray(grid.edges, dtype=float)) / HSRS_TOTAL_W_M2
+
+    def total_irradiance(self, time: float) -> float:
+        return self._total
+
+    def spectral_shape(self) -> np.ndarray:
+        return self._weights
+
+    def parameters(self) -> dict[str, Any]:
+        return {
+            **super().parameters(),
+            "total_solar_irradiance_1au": self._total,
+            "spectral_shape": "TSIS-1 HSRS v2 full spectrum, Coddington et al. 2023",
         }
 
 

@@ -30,19 +30,42 @@ a decision still open. Two things weigh on it:
 - its stratospheric-water prediction fails, 17.1 ppmv against 4.0 (next item);
 - the uniqueness verdict is fragile: 0.137 K apart at K = 3.9.
 
-### The column has no stratospheric inversion, so its cold point is its top
+### Ozone heats the stratosphere, but three layers cannot hold an inversion
 
-With vapour diffusing upward, every layer above 130 hPa sits saturated at its
-own temperature, and the temperature falls all the way to 27 hPa (190 K). The
-stratospheric water is then 17.1 ppmv against SWOOSH's 4.0. Observed, the air
-above the tropical cold point (about 190 K near 90 hPa) warms, because ozone
-absorbs sunlight, so it is subsaturated and carries the cold-point value
-upward. The solar absorption record declares "no ozone, oxygen or carbon
-dioxide". Ozone's solar heating is the mechanism. Its own observables:
+With vapour diffusing upward, the temperature fell all the way to 27 hPa
+(190 K). So every layer above 130 hPa sat saturated, and the stratospheric
+water was 17.1 ppmv against SWOOSH's 4.0.
 
-- the lower-stratospheric temperature profile;
-- the height and temperature of the cold point;
-- the stratospheric water, once more.
+**What has been added.** Ozone's solar absorption (`ozone=True`: Chou and
+Suarez 1999 coefficients, a SWOOSH profile of 287 DU) on the measured solar
+spectrum (`measured_solar_spectrum=True`: TSIS-1 HSRS v2). Both are off by
+default.
+
+**What it does.** Ozone takes 11 W m^-2 and warms every stratospheric layer by 7
+to 9 K. But the temperature still falls to the top, so the frozen test fails:
+
+- 60 hPa passes (203.5 K against 209.0);
+- 27 hPa fails (198.6 K against 218.0);
+- the cold point is the top, not between 60 and 160 hPa;
+- stratospheric water is 60 ppmv
+  (`docs/protocols/ozone-solar-heating.md`, attempt 2).
+
+**In the order to look at them:**
+
+1. **Vertical resolution aloft.** Thirty equal-mass layers leave three above
+   100 hPa, and the top one (43-10 hPa) holds 177 of the 287 dobson units.
+   An inversion spanning 100 to 10 hPa cannot form. A grid spaced in log
+   pressure aloft is what the physics depends on, but it moves every
+   calibration fitted at `CALIBRATION_N_LAYERS`, so the refit is part of it.
+2. **Ozone's 9.6-micron band.** It warms the lower stratosphere by absorbing
+   upwelling longwave, and is declared absent.
+3. **The saturated stratosphere's own emission.** It cools the layers ozone
+   heats, and it follows from the missing inversion.
+
+The first attempt at this test ran with water vapour's solar absorption and
+reached 319 K. That is the surface-reflector confound
+`solar-vapour-absorption.md` had already measured, and it says nothing about
+ozone.
 
 ### Clouds reflect from altitude: shortwave right, longwave waits on the air
 

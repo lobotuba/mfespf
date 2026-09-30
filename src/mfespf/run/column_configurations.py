@@ -50,8 +50,12 @@ from mfespf.physics.radiative_transfer import (
     grey_absorption,
     window_absorption,
 )
-from mfespf.physics.solar import ConstantSpectrumSolarSource, banded_grid
-from mfespf.physics.solar_absorption import solar_vapour_bands
+from mfespf.physics.solar import (
+    ConstantSpectrumSolarSource,
+    MeasuredSpectrumSolarSource,
+    banded_grid,
+)
+from mfespf.physics.solar_absorption import ozone_bands, solar_vapour_bands
 from mfespf.physics.surface import (
     SURFACE_TEMPERATURE_STATE,
     SURFACE_WATER_STATE,
@@ -672,6 +676,8 @@ def radiating_column(
     convective_relaxation_timescale: float = 0.0,
     convective_fractional_top: bool = False,
     solar_vapour_absorption: bool = False,
+    measured_solar_spectrum: bool = False,
+    ozone: bool = False,
     observed_cloud_field: bool = False,
     receives_advection: bool = False,
     eddy_diffusivity: float = 0.0,
@@ -689,6 +695,21 @@ def radiating_column(
     working_grid = grid if grid is not None else column_grid()
     kappa = np.asarray(absorption_coefficient, dtype=float)
     solar_vapour_k = None
+    ozone_k = None
+    # Ozone absorbs where a black-body sun is half again too bright, so it is
+    # only ever run on the measured spectrum (ozone-solar-heating.md).
+    measured = measured_solar_spectrum or ozone
+
+    def carry(original: SpectralGrid, rebuilt: SpectralGrid) -> np.ndarray:
+        """Each rebuilt band's home band on the original grid."""
+        return np.asarray(
+            np.clip(
+                np.searchsorted(original.edges, rebuilt.centers, side="right") - 1,
+                0,
+                original.n_bins - 1,
+            )
+        )
+
     if solar_vapour_absorption:
         # Water vapour absorbs sunlight (Chou and Suarez 1999). The solar region
         # of the grid is rebuilt around the source's bands; everything given per
@@ -696,7 +717,7 @@ def radiating_column(
         # that contains each new band, which is exact for the thermal bands
         # (kept edge for edge) and for anything flat inside a solar band.
         original = working_grid
-        working_grid, solar_vapour_k = solar_vapour_bands(original)
+        working_grid, solar_vapour_k = solar_vapour_bands(original, measured_spectrum=measured)
         home = np.clip(
             np.searchsorted(original.edges, working_grid.centers, side="right") - 1,
             0,
@@ -706,6 +727,18 @@ def radiating_column(
             kappa = kappa[..., home]
         if albedo is not None and np.ndim(albedo) >= 1 and np.shape(albedo)[-1] == original.n_bins:
             albedo = np.asarray(albedo, dtype=float)[..., home]
+    if ozone:
+        # The same carrying, for ozone's rebuild of the region below 0.4 microns.
+        # The vapour's sub-bands above it are kept edge for edge.
+        original = working_grid
+        working_grid, ozone_k = ozone_bands(original)
+        home = carry(original, working_grid)
+        if kappa.ndim >= 1 and kappa.shape[-1] == original.n_bins:
+            kappa = kappa[..., home]
+        if albedo is not None and np.ndim(albedo) >= 1 and np.shape(albedo)[-1] == original.n_bins:
+            albedo = np.asarray(albedo, dtype=float)[..., home]
+        if solar_vapour_k is not None:
+            solar_vapour_k = solar_vapour_k[home]
     # Default to a surface that reflects sunlight and is black in the infrared.
     # A plain float would be grey in every band, which is a different -- and
     # physically distinguishable -- surface; see ``shortwave_albedo``.
@@ -720,8 +753,14 @@ def radiating_column(
     else:
         surface_reflectance = albedo
 
-    solar = solar_source or ConstantSpectrumSolarSource(
-        grid=working_grid, total_irradiance=total_irradiance, status=ModuleStatus.PRESCRIBED
+    solar = solar_source or (
+        MeasuredSpectrumSolarSource(
+            grid=working_grid, total_irradiance=total_irradiance, status=ModuleStatus.PRESCRIBED
+        )
+        if measured
+        else ConstantSpectrumSolarSource(
+            grid=working_grid, total_irradiance=total_irradiance, status=ModuleStatus.PRESCRIBED
+        )
     )
     orbit = OrbitalGeometryModule(eccentricity=eccentricity, receiver_module_id="atmosphere")
     radiation = SpectralRadiationModule(
@@ -733,6 +772,7 @@ def radiating_column(
         couple_volcanic=volcanic is not None,
         couple_water=radiative_vapour,
         solar_vapour_k=solar_vapour_k,
+        ozone_k=ozone_k,
         couple_cloud_field=observed_cloud_field,
     )
     atmosphere = AtmosphericColumnModule(
