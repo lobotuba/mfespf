@@ -161,3 +161,51 @@ calibration profile now carries an isothermal 220 K layer up to 1 hPa.
   cooling is now the leading candidate for the deficit, and it can be
   measured directly: the radiative heating of the converged state, with the
   stratospheric water set to the observed amount.
+
+### Diagnostic after the verdict: the deficit is the water, and so is the cause
+
+**How it was measured.** The alpha = 0.2 run was repeated (200000 steps,
+invalid for claims as above) and its last-fifth mean state kept. The model's
+own radiation module was evaluated on that state twice: as it is, and with the
+water above 100 hPa set to the observed 4 ppmv. The stratosphere was then
+adjusted under fixed dynamical heating (Fels et al. 1980; Forster and Shine
+1997): every non-radiative term is held at its equilibrium value, and each
+layer's temperature relaxes until its radiative heating is what it was. The
+adjustment converged to 1e-4 K/day in 323 iterations.
+
+| pressure | model | with 4 ppmv, adjusted | observed (NCEP R1) |
+|---:|---:|---:|---:|
+| 60 hPa | 203.4 K | 214.8 K | 209.0 K |
+| 27 hPa | 196.7 K | 220.8 K | 218.0 K |
+| 10 hPa | 197.0 K | 236.3 K | 228.8 K |
+| 1.5 hPa | 267.1 K | 322.7 K | about 270 K |
+
+**The middle stratosphere's whole deficit is its water.**
+
+- **With the observed amount, all three NCEP levels are within 8 K,** the
+  thresholds of M3.
+- **The coldest layer moves** from 17 hPa to about 69 hPa, inside the 60 to 160
+  hPa band.
+- **The upper stratosphere then runs about 50 K hot.** The excess water was
+  hiding too little cooling near the stratopause, which is the next thing
+  behind this one.
+
+**Why the column is that wet.** It is saturated at its own cold point. The
+model's saturation function gives these mixing ratios:
+
+| cold point | saturation mixing ratio |
+|---|---:|
+| global mean at 100 hPa, 205.7 K (NCEP R1) | 37.6 ppmv |
+| tropical mean at 100 hPa, 195.1 K | 7.3 ppmv |
+| 190 K at 90 hPa, illustrative of the seasonal tropical minimum | 3.5 ppmv |
+
+- **The column carries 34 to 44 ppmv**, which is the global-mean value.
+- **What makes the observed 4.** Air enters the stratosphere through the coldest
+  tropical tropopause, and a horizontally uniform column has no such place.
+- **A single global-mean column cannot produce a 4 ppmv stratosphere,** however
+  good its radiation. That is the failure mode Hu et al. (2012) declared, now
+  measured in this model.
+
+**The mechanism it points to is regional:** a tropical column whose cold point
+feeds the global stratosphere. The region framework (`run/regions.py`) exists
+for it.

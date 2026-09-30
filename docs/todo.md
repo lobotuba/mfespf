@@ -64,17 +64,32 @@ stratosphere with up to 23 layers above 100 hPa.
   ozone above 10 hPa and reached 412 K. The validity gate rightly invalidated
   those runs.
 
+**The model top is now above the ozone, and the deficit is the water**
+(`docs/protocols/model-top.md`).
+
+- **What the new top did.** At 1 hPa (`top_pressure=100.0`, with the cap), the
+  ozone's heating lands where it happens and makes a stratopause of 268-270 K
+  against about 270 observed.
+- **Why nothing was adopted.** Those runs are invalid: the top layers overshoot
+  to 342 K during spin-up, past water's declared 340 K.
+- **What is left.** The middle stratosphere is 21 to 32 K too cold. Under fixed
+  dynamical heating, replacing its water (34 to 44 ppmv) with the observed 4
+  brings 60, 27 and 10 hPa within 8 K of NCEP. The whole deficit is the water.
+
 **In the order to look at them:**
 
-1. **The ozone above the model top.** On a fine grid it must not be dumped into
-   one thin layer. Either raise the model top above the ozone (SWOOSH reaches
-   1 hPa), or remove that ozone's sunlight before it enters, declared as
-   absorbed above the domain. This is what blocks the fine grid.
-2. **The stratosphere's water, 30 ppmv against 4.** It cools the layers ozone
-   heats, and follows from the missing inversion. An offline radiative
-   calculation with 4 ppmv would size its share without a run.
-3. **Ozone's 9.6-micron band.** It warms the lower stratosphere by absorbing
-   upwelling longwave, and is declared absent.
+1. **Where the stratosphere's water comes from.** A global-mean column is
+   saturated at its own cold point: 205.7 K at 100 hPa gives 37.6 ppmv, and
+   the observed 4 needs the tropical cold point (195 K gives 7.3, and 190 K
+   gives 3.5). This is regional: a tropical column whose tropopause sets the
+   water entering a global stratosphere. The region framework is built.
+2. **The upper stratosphere's cooling.** With realistic water it runs about 50 K
+   hot at 1.5 hPa, so its CO2 cooling is too weak or its ozone heating too
+   strong. The CO2 band core was never calibrated for this.
+3. **Water's saturation relation above 340 K**, measured against an independent
+   reference before its domain is moved, or a realistic initial profile. Both
+   stop spin-up overshoots invalidating runs.
+4. **Ozone's 9.6-micron band,** still declared absent.
 
 The first attempt at this test ran with water vapour's solar absorption and
 reached 319 K. That is the surface-reflector confound
