@@ -110,3 +110,71 @@ Reported, not judged:
   spectrum's effect and ozone's are separated.
 
 The observed surface temperature decides nothing here.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+### Attempt 1: fails on every criterion, and cannot judge ozone
+
+200000 steps, last fifth. Both runs are equilibrated and closed to 1e-15.
+
+| | ozone (verdict) | measured spectrum, no ozone |
+|---|---:|---:|
+| surface | 319.08 K (+31.1 K) | 313.45 K (+25.4 K) |
+| net TOA | +0.025 | -0.001 |
+| precipitable water | 342 kg m^-2 | 248 kg m^-2 |
+| sunlight absorbed in the atmosphere | 106.3 W m^-2 | 88.4 W m^-2 |
+| reflected sunlight | 63.1 W m^-2 | 69.9 W m^-2 |
+| temperature at 60 hPa (O1: 209.0 +/- 8) | 256.7 K, **fail** | 239.7 K |
+| temperature at 27 hPa (O1: 218.0 +/- 8) | 237.5 K, **fail** | 209.1 K |
+| coldest layer (O2: 60-160 hPa) | the top, 27 hPa, **fail** | the top |
+| stratospheric water (O3: 2-8 ppmv) | 16930 ppmv, **fail** | 4094 ppmv |
+
+The whole column ran away to a hot, wet state: 290 K and 5 percent water by
+volume at 328 hPa. Diagnostic runs after the verdict isolated why (100000 steps
+each):
+
+| configuration | surface | reflected | absorbed in atmosphere |
+|---|---:|---:|---:|
+| measured spectrum + diffusion, no solar vapour | 297.87 K | 100.4 | 0 |
+| solar vapour, black body, no diffusion | 304.31 K | 76.0 | 71.2 |
+| solar vapour, measured spectrum, no diffusion | 304.82 K | 74.7 | 75.2 |
+| solar vapour + diffusion, black body | 311.56 K | 72.0 | 82.1 |
+
+- **The measured spectrum changes almost nothing.** 297.87 K against 297.93 K
+  with the black body, and 304.82 K against 304.31 K.
+- **Water vapour's solar absorption is the driver.** It is the confound
+  `solar-vapour-absorption.md` measured and declared: with the 0.30 albedo at
+  the surface, reflected sunlight crosses the absorbing vapour twice. The
+  planetary albedo falls by 25 W m^-2 worth (reflected 100 -> 72-76), and a
+  column at 0.75-0.95 relative humidity amplifies that into +13 to +31 K.
+- **That protocol's conclusion was explicit:** keep the vapour's solar
+  absorption off until the reflection is where Earth's is.
+
+**This protocol was frozen on that configuration anyway. That is an error in
+the freeze, not a property of ozone**, and the verdict above therefore says
+nothing about ozone. What the pair of runs does show is ozone's own
+difference on a common base:
+
+- +17.9 W m^-2 of sunlight absorbed in the atmosphere;
+- +28 K at 27 hPa and +17 K at 60 hPa;
+- +5.6 K at the surface.
+
+The test is repeated below without the confound. That is a second freeze with
+its own record, not an edit of the first.
+
+## Attempt 2, frozen before its run
+
+**Configuration.** Identical to attempt 1 except that water vapour's solar
+absorption is off. The planetary albedo then stays at the surface value's
+0.295 (as in the 297.87 K diagnostic above).
+
+- **Ozone's heating is still tested:** ozone absorbs mostly above 100 hPa, in
+  the ultraviolet the stratosphere takes before any reflection.
+- **What it gives up:** the troposphere absorbs no sunlight, a known deficit
+  that belongs to the clouds-at-altitude item and not to this test.
+
+**Tests.** O1, O2 and O3 exactly as above, same thresholds, same observations,
+200000 steps. The same column without ozone is the 297.87 K diagnostic, rerun
+at 200000 steps as the comparison.
