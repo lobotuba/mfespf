@@ -94,3 +94,70 @@ Reported, not judged:
 - the refitted wing decays.
 
 The observed surface temperature decides nothing here.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+**Refits.** Both targets held to 0.001 W m^-2.
+
+| alpha | layers | vapour wing (m^-1) | CO2 wing with vapour (m^-1) |
+|---:|---:|---:|---:|
+| 0.4 | 39 | 3655.66 | 1270.201 |
+| 0.2 | 51 | 3652.99 | 1270.192 |
+| 0.1 | 78 | 3652.14 | 1270.183 |
+
+The vapour wing is 4.5 percent narrower than at the 10 hPa top, because the
+calibration profile now carries an isothermal 220 K layer up to 1 hPa.
+
+**Runs.** 200000 steps, last fifth. All are equilibrated (net TOA +0.013 to
++0.016) and closed to 1e-15.
+
+| alpha | T 60 | T 27 | T 10 | T 1.5 | coldest layer | water 100-10 hPa | valid |
+|---:|---:|---:|---:|---:|---|---:|---|
+| 0.4 | 203.86 | 196.71 | 197.00 | 266.7 | 17.2 hPa (20.6-13.8) | 52.86 | no |
+| 0.2 | 203.43 | 196.66 | 196.96 | 268.4 | 17.1 hPa (18.8-15.4) | 45.85 | no |
+| 0.1 | 203.24 | 196.59 | 196.99 | 269.0 | 16.0 hPa (16.8-15.2) | 48.73 | no |
+
+### M1: fails. Every run is invalid, narrowly
+
+- **What failed.** In each run, the validity gate found water's two relations
+  (Clausius-Clapeyron, and the latent energy of vapour, both declared for 170
+  to 340 K) evaluated up to 341.6-342.4 K.
+- **Where and when.** It is the top layers, during spin-up from the 250 K
+  isothermal start. Their time-mean is 270-276 K.
+- **Not changed.** A run that leaves a declared domain supports no claim. The
+  bound is not moved here: moving it needs the relation measured against an
+  independent reference above 340 K first, and that is its own piece of work.
+
+### M2: the numbers converge at 0.2, but nothing is adopted
+
+- **0.2 against 0.1:**
+  - the temperatures differ by 0.19, 0.07 and 0.03 K;
+  - the coldest layer at 0.1 (16.0 hPa) lies inside the 0.2 one (18.8-15.4);
+  - the water differs by 6.3 percent.
+
+  All within the rule.
+- **0.4 against 0.2:** the water differs by 15 percent, outside it.
+- **Result.** By the numbers the rule selects 0.2. With M1 failed, no alpha is
+  adopted, and M3 is not a verdict.
+
+### What the converged, invalid runs show
+
+- **Ozone placed where it is makes the stratopause.** The temperature rises from
+  197 K at 10 hPa to 268-270 K at 1.5 hPa, against the US Standard
+  Atmosphere's stratopause of about 270 K. Nothing was fitted to it.
+- **What is left is the middle stratosphere.** Against NCEP R1:
+
+  | pressure | model | observed | difference |
+  |---:|---:|---:|---:|
+  | 60 hPa | 203.4 K | 209.0 K | -5.6 K |
+  | 27 hPa | 196.7 K | 218.0 K | -21 K |
+  | 10 hPa | 197.0 K | 228.8 K | -32 K |
+
+  The cold point sits at 17 hPa, not 100.
+- **That is where the water sits.** The layers are saturated, and the
+  stratosphere holds 46 to 49 ppmv of water against 4. The water's longwave
+  cooling is now the leading candidate for the deficit, and it can be
+  measured directly: the radiative heating of the converged state, with the
+  stratospheric water set to the observed amount.
