@@ -132,13 +132,15 @@ built (`3a5903a`).
 | T at 70 / 50 / 30 / 10 hPa | 175.3 / 182.7 / 197.3 / 231.3 | 173.1 / 181.1 / 196.4 / 231.0 | 174.2 / 181.9 / 196.8 / 231.1 K |
 | water, 100-68 hPa | about 0 | about 0 | about 0 |
 
-- **No layer now ends a step supersaturated** in any of the three columns.
-  The vapour the thermodynamics forbids is gone.
+- **No layer ends a step supersaturated in the two columns where it was
+  measured,** the 30-layer column and the tropical one. The 51-layer global
+  run did not record r.
 - **The columns are wetter and warmer than with the first option alone.** The
   condensate's own latent heat raises the saturation it condenses to, and the
   end-of-step temperature replaces the start-of-step one. The 30-layer column
   holds 42.5 kg m^-2 against 35.1 and warms 1.5 K. Precipitable water is
-  observed at about 25 (`CLAUDE.md`), so this is further from it.
+  observed at about 25 (`observed-cloud-field.md`), so this is further from
+  it.
 - **The tropical column's verdicts do not change.** Its lower stratosphere is
   still 25 to 30 K too cold, and its cold point still lies below the
   saturation relation's 170 K floor.
