@@ -49,3 +49,40 @@ at each layer:
 
 **Reported:** the temperature span (5th to 95th percentile) at each layer, and
 the fraction of steps on which each layer is saturated, r > 0.99.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+The run is complete and reproduces attempt 2: coldest layer 166.70 K, surface
+282.16 K. The last fifth is 40000 steps.
+
+| layer | steps r > 1.01 | steps r > 0.99 | max r | mean of r | ratio of means | T 5th-95th percentile |
+|---:|---:|---:|---:|---:|---:|---|
+| 321.5 hPa | 15.7% | 15.7% | 12.3 | 1.26 | 1.24 | 216.4-217.4 K |
+| 287.8 hPa | **94.5%** | 94.8% | 27.4 | 2.81 | 2.76 | 209.7-210.7 K |
+| 254.1 hPa | 29.8% | 100% | 69.7 | 4.51 | 4.42 | 202.4-203.3 K |
+| 220.3 hPa | 4.4% | 88.7% | 14.7 | 1.29 | 1.31 | 194.7-195.2 K |
+| 186.6 hPa | 4.9% | 15.7% | 57.7 | 2.21 | 2.24 | 185.9-186.2 K |
+| 154.3 hPa | 8.7% | 100% | 303 | 9.06 | 9.19 | 176.2-176.4 K |
+
+**S1: every layer is supersaturated in fact.** Each layer ends more than
+1 percent of its steps above 1.01, and the layer at 288 hPa ends 94 percent of
+them there.
+
+**S2: averaging is excluded.** The mean of r is above 1.01 everywhere, and
+equal to the ratio of the means within 3 percent. Over these steps the
+temperature at each layer varies by only about 1 K, so there is no cycle for
+the convexity to act on.
+
+**Verdict: ordering.** Steps end with vapour above saturation, up to 300
+times saturation. By the frozen table, the composition that leaves it there is
+found under its own protocol, before the cloud field.
+
+Two more observations:
+
+- Layers at 254 and 154 hPa never end a step below 0.99. They are held at or
+  above saturation every step, with excursions far above it.
+- So the humidity above 320 hPa in every tropical result so far, including the
+  H term of `tropical-surface-diagnostic.md`, carries vapour that the
+  thermodynamics forbids.
