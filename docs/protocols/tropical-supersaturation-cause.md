@@ -62,3 +62,34 @@ Pool every layer-step, over the judged layers, that ends with r > 1.01.
 - X1 per layer;
 - whether any layer-step with r > 1.01 has no mixing on that step or the one
   before it.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+The run is complete and reproduces attempt 2: coldest layer 166.70 K. In the
+last fifth, 63166 layer-steps end with r > 1.01 at the judged layers.
+
+**X1 = 1.000.** Every one of them is a layer convection mixed on that same
+step, at every judged layer. None has no mixing on that step or the one
+before.
+
+| layer | X1 | steps mixed |
+|---:|---:|---:|
+| 321.5 hPa | 1.000 | 100% |
+| 287.8 hPa | 1.000 | 99.7% |
+| 254.1 hPa | 1.000 | 29.8% |
+| 220.3 hPa | 1.000 | 4.9% |
+| 186.6 hPa | 1.000 | 8.7% |
+| 154.3 hPa | 1.000 | 8.7% |
+
+**The converse:** 62.7 percent of mixed layer-steps end supersaturated.
+
+**Verdict.** The supersaturation is convection's vapour mixing after the
+saturation adjustment. Convection mixes the group to a uniform specific
+humidity, the top of the group ends far above its own saturation, and nothing
+condenses it until the next step. The upwelling, diffusion and evaporation
+leave none.
+
+Convection reaches 154 hPa on 8.7 percent of steps: deep convection to the
+tropical tropopause. The fix is designed under its own protocol.
