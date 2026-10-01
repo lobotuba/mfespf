@@ -89,3 +89,59 @@ exceeds q_s(T*), by Newton iteration to 1e-12 relative. Nothing else changes:
 `convective-condensation-order.md` reported, with both options on.
 
 **Adoption** of either option as the default is a decision for after.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+**M1: the hypothesis holds.** The O2 run was repeated exactly: 11369
+layer-steps above 1.01, as before.
+
+- Every one of them is saturated at its start-of-step temperature. The
+  largest r_start is 1 + 9e-16, so none exceeds 1 + 1e-9.
+- These layers cooled within the step by 0.37, 0.10 and 0.07 K at the 5th,
+  50th and 95th percentiles.
+
+So the excess is entirely the within-step temperature change, and Part 2 was
+built (`3a5903a`).
+
+| test | result | verdict |
+|---|---|---|
+| **E1**, unit | Every condensing layer ends saturated at its end-of-step temperature, latent heating included, to 1e-10. Water closes to 1e-12, and the latent energy is L_eff times the condensate to 1e-12. | **pass** |
+| **E2**, tropical column, both options | 0 of 240000 judged layer-steps end above r = 1.01, and the maximum r is 1.000. The run is valid, and its budgets close to 1e-15. | **pass** |
+| **E3**, defaults unchanged | The full suite passes, and the headline is +3.944 K. | **pass** |
+
+**Reported.** All columns at 200000 steps except the 30-layer headline, at
+24000:
+
+| | default | condensing after convection | + end-of-step saturation |
+|---|---:|---:|---:|
+| **30-layer headline column** | | | |
+| surface error | +3.944 K | +3.538 K | **+5.078 K** |
+| layer-steps r > 1.01 (whole column) | 4.8% | 1.4% | 0.0% |
+| max r | 20.3 | 1.089 | 1 + 1.3e-12 |
+| precipitable water | 37.3 | 35.1 | 42.5 kg m^-2 |
+| **51-layer CO2-band global column** | | | |
+| surface error | -9.23 K | -10.25 K | **-8.74 K** |
+| T at 60 / 27 / 10 / 1.5 hPa | 189.0 / 203.4 / 227.6 / 284.4 | 189.1 / 203.5 / 227.7 / 284.5 | 189.0 / 203.3 / 227.5 / 284.4 K |
+| coldest layer | 184.8 K, 103 hPa | 184.7 K, 126 hPa | 185.0 K, 103 hPa |
+| stratospheric water | 1.00 | 0.97 | 1.05 ppmv |
+| **+/-25 tropical column** | | | |
+| surface | 282.16 K | 279.75 K | 280.91 K |
+| cold point | 166.7 K | 163.3 K | 165.0 K |
+| T at 70 / 50 / 30 / 10 hPa | 175.3 / 182.7 / 197.3 / 231.3 | 173.1 / 181.1 / 196.4 / 231.0 | 174.2 / 181.9 / 196.8 / 231.1 K |
+| water, 100-68 hPa | about 0 | about 0 | about 0 |
+
+- **No layer now ends a step supersaturated** in any of the three columns.
+  The vapour the thermodynamics forbids is gone.
+- **The columns are wetter and warmer than with the first option alone.** The
+  condensate's own latent heat raises the saturation it condenses to, and the
+  end-of-step temperature replaces the start-of-step one. The 30-layer column
+  holds 42.5 kg m^-2 against 35.1 and warms 1.5 K. Precipitable water is
+  observed at about 25 (`CLAUDE.md`), so this is further from it.
+- **The tropical column's verdicts do not change.** Its lower stratosphere is
+  still 25 to 30 K too cold, and its cold point still lies below the
+  saturation relation's 170 K floor.
+
+**Not adopted.** Adopting either option moves every recorded result, so it is
+a decision for after.
