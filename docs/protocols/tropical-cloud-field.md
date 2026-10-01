@@ -95,3 +95,80 @@ If K1 to K4 pass, the tropical column takes the cloud field, the solar vapour
 absorption and the refit as its configuration for the stage-1 retest under
 `tropical-column.md`, which follows as attempt 3. If any fails, the finding is
 recorded and nothing is taken.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+**The refit.** With the global ISCCP cloud field in the calibration, the vapour
+wing decay is 3411.86 m^-1 (it was 4601.27 without), holding OLR at
+238.175 W m^-2. Reported on the calibration profile:
+
+- the cloud longwave effect is 38.9 W m^-2, against CERES's global 27.9. The
+  calibration profile is cold aloft, so its cloud tops are cold.
+- the forcing per CO2 doubling is 2.38 W m^-2 at the top and 4.27 at 200 hPa
+  (3.03 and 4.94 without clouds), because the clouds mask part of the band.
+
+**The runs.** +/-30 degrees, both saturation options, 200000 steps. Both are
+complete and valid, with budgets closing to 1e-15.
+
+| test | observed | control | clouds | verdict |
+|---|---:|---:|---:|---|
+| K1: planetary albedo | 0.265 | (0.282, surface albedo 0.30) | **0.251** | **pass** (0.014) |
+| K2: shortwave cloud effect | -55.6 W m^-2 | | **-51.2** | **pass** (4.4) |
+| K3: longwave cloud effect | +30.6 W m^-2 | | **+24.2** | **pass** (6.4) |
+| K4: surface | 297.8 K | 283.75 K | **299.09 K** | **pass**: needs at least 290.78, and it closes 109% of the deficit |
+
+**Reported.**
+
+| | observed | control | clouds |
+|---|---:|---:|---:|
+| absorbed sunlight | 293.1 | 286.5 | 299.0 W m^-2 |
+| outgoing longwave | 259.3 | 251.1 | 264.1 W m^-2 |
+| clear-sky outgoing longwave | 289.9 | | 288.3 W m^-2 |
+| precipitable water | | 13.4 | 78.4 kg m^-2 |
+| cold point | 197.5 K at 100 hPa | 172.2 K at 103 hPa | **187.6 K at 57 hPa** |
+| T at 100 hPa | 197.5 | 172.9 | 191.5 K |
+| T at 70 hPa | 200.4 | 179.6 | 187.9 K |
+| T at 50 hPa | 207.4 | 186.0 | 188.3 K |
+| T at 30 hPa | 215.8 | 199.4 | 196.1 K |
+| T at 10 hPa | 230.6 | 231.8 | 225.1 K |
+| water, 100-68 hPa | 3.45-3.75 ppmv (+/-25) | 0.10 | **3.20 ppmv** |
+
+Cloud-top temperatures in the clouds run:
+
+- high, 267 hPa: 242.1 K;
+- deep convective, 326 hPa: 254.8 K;
+- middle, 557 hPa: 278.3 K;
+- low, 826 hPa: 292.3 K.
+
+**The tropical surface is fixed by its clouds.** The cold tropical column of
+`tropical-surface-diagnostic.md` was missing its cloud longwave effect and
+over-reflecting. With the observed tropical cloud field, and the vapour no
+longer standing in for cloud, each failure is resolved:
+
+- the surface moves 15.3 K to within 1.3 K of the observed;
+- both cloud effects are within tolerance;
+- the clear-sky outgoing longwave is 1.6 W m^-2 from the observed.
+
+**The tropopause follows the troposphere, as `tropical-heating-diagnostic.md`
+found it would.**
+
+- **The cold point warms 15 K**, to 187.6 K, against the observed 197.5.
+- **The stratospheric water is 3.20 ppmv**, against the band's observed 3.45
+  to 3.75. That is the first run of this column in which the cold point dries
+  the entering air to near the observed amount by the physics of the column
+  itself.
+- **The coldest layer has moved up to 57 hPa**, where the observed is
+  100 hPa.
+- **Above 70 hPa the column is 12 to 20 K too cold.** That is the remainder
+  the heating diagnostic left: ozone's 9.6-micron band.
+
+**Wetter than observed?** The precipitable water is 78 kg m^-2. No tropical
+observation was declared here, so it is not judged. It is large, and it is
+flagged for the next step.
+
+**Adoption, as frozen.** K1 to K4 pass, so the tropical column takes the
+tropical cloud field, the solar vapour absorption and the refit, 3411.86
+m^-1, for the stage-1 retest. That is `tropical-column.md` attempt 3, frozen
+before it runs. The reference column is not changed.
