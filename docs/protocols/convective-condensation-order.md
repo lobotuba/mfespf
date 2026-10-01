@@ -106,9 +106,10 @@ recorded result.
 
 - **The excess that is left is small.** It is at most 5.6 percent above
   saturation, where the default order left up to 300 times.
-- **It is the declared approximation.** The saturation is taken at the
-  start-of-step temperature, and these layers cool within the step: radiation
-  and the upwelling's adiabatic cooling.
+- **Most likely, it is the declared approximation. This is not measured.**
+  The saturation is taken at the start-of-step temperature, and a layer that
+  cools within the step ends it above saturation at its new temperature. A
+  5.6 percent excess is about 0.5 K of cooling at these temperatures.
 - **It sits where convection mixes most often.** The 321 hPa layer, mixed on
   89 percent of steps, carries 20.7 percent of its steps above 1.01; 288 hPa
   6.4 percent, 254 hPa 1.3 percent, and those above 220 hPa none.
