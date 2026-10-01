@@ -156,13 +156,14 @@ found it would.**
 
 - **The cold point warms 15 K**, to 187.6 K, against the observed 197.5.
 - **The stratospheric water is 3.20 ppmv**, against the band's observed 3.45
-  to 3.75. That is the first run of this column in which the cold point dries
-  the entering air to near the observed amount by the physics of the column
-  itself.
+  to 3.75. That is the first valid, equilibrated run of this column to dry
+  the entering air to near the observed amount. Attempt 1's 5000-step check
+  reached 3.83, but it was neither.
 - **The coldest layer has moved up to 57 hPa**, where the observed is
   100 hPa.
-- **Above 70 hPa the column is 12 to 20 K too cold.** That is the remainder
-  the heating diagnostic left: ozone's 9.6-micron band.
+- **Above 70 hPa the column is 12 to 20 K too cold.** The heating diagnostic
+  attributed the deficit there to its remainder, which it inferred, not
+  measured, as most likely ozone's 9.6-micron band.
 
 **Wetter than observed?** The precipitable water is 78 kg m^-2. No tropical
 observation was declared here, so it is not judged. It is large, and it is
