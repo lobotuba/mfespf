@@ -197,3 +197,88 @@ def test_the_tropical_column_keeps_the_order_the_column_chose():
     off = [s.module_id for s in tropical_column().schedule.ordered()]
     assert on.index("tropical_exchange") < on.index("convection") < on.index("water")
     assert off.index("tropical_exchange") < off.index("water") < off.index("convection")
+
+
+@pytest.mark.req("CON-001", "WAT-002", "SYS-006")
+def test_condensing_layers_end_the_step_exactly_saturated_at_its_end_temperature():
+    """E1, docs/protocols/end-of-step-saturation.md.
+
+    The classical moist saturation adjustment: what condenses leaves the layer
+    saturated at the temperature the step ends at, which includes every other
+    module's heating and the condensate's own latent heat. Taking the
+    saturation at the start-of-step temperature instead left a layer that
+    cooled within the step supersaturated.
+    """
+    from mfespf.physics.thermodynamics import saturation_specific_humidity
+
+    temperature, vapour = _unstable_moist_column()
+    convection = _convect(temperature, vapour)
+    published = convection.emit_outputs()
+    # A prescribed radiative cooling of 1e-4 K/s, about 0.36 K over the step.
+    cooling = -1.0e-4 * C
+    water = WaterModule(
+        n_layers=N,
+        evaporation_coefficient=0.0,
+        receives_convective_transport=True,
+        end_of_step_saturation=True,
+    )
+    water.initialize({VAPOUR_STATE: vapour}, {"master_start_time": 0.0})
+    water.begin_step(StepContext(time=0.0, dt=DT, step_index=0))
+    water.receive_inputs(
+        {
+            ATMOSPHERE_TEMPERATURE_STATE: _field(ATMOSPHERE_TEMPERATURE_STATE, temperature, "K"),
+            "atmosphere_layer_mass": _field("atmosphere_layer_mass", MASS, "kg m^-2"),
+            "atmosphere_layer_pressure": _field("atmosphere_layer_pressure", PRESSURE, "Pa"),
+            "atmosphere_layer_heat_capacity": _field(
+                "atmosphere_layer_heat_capacity", C, "J m^-2 K^-1"
+            ),
+            SURFACE_TEMPERATURE_STATE: _field(
+                SURFACE_TEMPERATURE_STATE, float(temperature[0]), "K", layer=False
+            ),
+            "convective_vapour_transport_rate": published["convective_vapour_transport_rate"],
+            "layer_radiative_heating": _field("layer_radiative_heating", cooling, "W m^-2"),
+            "convective_temperature_tendency": published["convective_temperature_tendency"],
+            "surface_sensible_heat_flux": published["surface_sensible_heat_flux"],
+        }
+    )
+    contributions = water.compute_tendencies()
+
+    moved = np.asarray(published["convective_vapour_transport_rate"].values) * DT
+    own = sum(c.as_array() for c in contributions if c.state_id == VAPOUR_STATE)
+    committed = vapour + moved + np.asarray(own) * DT
+    condensed = water._condensation
+    condensing = condensed > 0.0
+    assert np.any(condensing[1:])  # the lifted layers condense
+
+    # The temperature the step ends at: everything else, then the latent heat.
+    t_star = (
+        temperature
+        + cooling / C * DT
+        + np.asarray(published["convective_temperature_tendency"].values) * DT
+    )
+    latent_coefficient = water.latent_heat + deposition_latent_heat_excess(temperature)
+    t_end = t_star + latent_coefficient * condensed / C
+    held = saturation_specific_humidity(t_end, PRESSURE) * MASS
+    np.testing.assert_allclose(committed[condensing], held[condensing], rtol=1e-10)
+    assert np.all(committed[~condensing] <= held[~condensing] * (1 + 1e-12))
+
+    # Water closes, and the latent energy is L_eff times the condensate.
+    assert float(np.sum(vapour) - np.sum(committed)) == pytest.approx(
+        float(np.sum(condensed)), rel=1e-12
+    )
+    np.testing.assert_allclose(
+        water._latent_heating * DT, latent_coefficient * condensed, rtol=1e-12, atol=1e-12
+    )
+
+    # And it is not the start-of-step adjustment: the cooling lowers the
+    # saturation it condenses to and the latent heat raises it, so the two
+    # condense different amounts.
+    start, _ = saturation_humidity_within_domain(temperature, PRESSURE)
+    naive = np.maximum(0.0, vapour + moved - start * MASS)
+    assert not np.allclose(condensed, naive)
+
+
+@pytest.mark.req("CON-001", "WAT-002")
+def test_end_of_step_saturation_needs_the_water_module_after_convection():
+    with pytest.raises(ConfigurationError):
+        WaterModule(n_layers=N, end_of_step_saturation=True)

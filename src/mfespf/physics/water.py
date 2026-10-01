@@ -217,9 +217,15 @@ class WaterModule(Module):
         receives_advection: bool = False,
         eddy_diffusivity: float = 0.0,
         receives_convective_transport: bool = False,
+        end_of_step_saturation: bool = False,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         diffusing = eddy_diffusivity > 0.0
+        if end_of_step_saturation and not receives_convective_transport:
+            raise ConfigurationError(
+                "the end-of-step temperature is only formed after every other heating "
+                "is known, which needs this module to run after convection"
+            )
         contract = ModuleContract(
             module_id=module_id,
             module_name="atmospheric water vapour with saturation adjustment",
@@ -302,6 +308,18 @@ class WaterModule(Module):
                 # (docs/protocols/convective-condensation-order.md): what it lifts
                 # above saturation condenses here, in the same step.
                 *(("convective_vapour_transport_rate",) if receives_convective_transport else ()),
+                # Every other heating of the layers this step, to form the
+                # temperature the step ends at (docs/protocols/end-of-step-saturation.md).
+                *(
+                    (
+                        "layer_radiative_heating",
+                        "convective_temperature_tendency",
+                        "surface_sensible_heat_flux",
+                        *(("advective_heating_rate",) if receives_advection else ()),
+                    )
+                    if end_of_step_saturation
+                    else ()
+                ),
                 # The diffusion's interface densities and distances, and the
                 # gravity the grid was built with (dp / m per layer).
                 *(("atmosphere_interface_pressure",) if diffusing else ()),
@@ -410,6 +428,7 @@ class WaterModule(Module):
         self.evaporation_coefficient_follows = evaporation_coefficient_follows
         self.receives_advection = receives_advection
         self.receives_convective_transport = receives_convective_transport
+        self.end_of_step_saturation = end_of_step_saturation
         self.eddy_diffusivity = float(eddy_diffusivity)
         self._diffusion_rate = np.zeros(n_layers)
         self.initial_relative_humidity = initial_relative_humidity
@@ -429,6 +448,7 @@ class WaterModule(Module):
         # on the one it started from. See ``vapour_phase_change_rate``.
         self._vapour_rate = np.zeros(n_layers)
         self._saturation_evaluated = np.ones(n_layers, dtype=bool)
+        self._saturation_temperature = np.zeros(n_layers)
         self._frozen_condensation = np.zeros(n_layers)
         self._fusion_heating = np.zeros(n_layers)
         self._specific_humidity = np.zeros(n_layers)
@@ -510,6 +530,7 @@ class WaterModule(Module):
         saturation, self._saturation_evaluated = saturation_humidity_within_domain(
             np.asarray(temperature, dtype=float), np.asarray(pressure, dtype=float)
         )
+        self._saturation_temperature = self._layer_temperature
         specific_humidity = self.vapour / self._layer_mass
 
         # Evaporation into the lowest layer only: with no vertical transport there
@@ -569,6 +590,10 @@ class WaterModule(Module):
         # Saturation adjustment: everything above saturation condenses and leaves.
         capacity = saturation * self._layer_mass
         self._condensation = np.maximum(0.0, provisional - capacity)
+        if self.end_of_step_saturation:
+            saturation, self._condensation = self._end_of_step_adjustment(
+                provisional, np.asarray(pressure, dtype=float), np.asarray(heat_capacity), ctx.dt
+            )
         self._precipitation = float(np.sum(self._condensation)) / ctx.dt
         # Where the layer is below the triple point the vapour deposits as ice
         # rather than condensing as liquid, so it releases the latent heat of
@@ -631,6 +656,74 @@ class WaterModule(Module):
                 equation_id=EQUATION_IDS["condensation"],
             ),
         ]
+
+    def _end_of_step_adjustment(
+        self, provisional: np.ndarray, pressure: np.ndarray, heat_capacity: np.ndarray, dt: float
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Condense to saturation at the temperature the step ends at.
+
+        The classical moist saturation adjustment: the condensate ``c`` leaves
+        the layer exactly saturated after its own latent heating,
+        ``(w - c) / m = q_s(T* + L_eff c / C, p)``, where ``T*`` is the
+        temperature every other module's heating this step would leave. Taking
+        the saturation at the start of the step instead leaves a layer that
+        cools within it supersaturated, and ignoring the latent heating
+        condenses slightly too much (docs/protocols/end-of-step-saturation.md).
+
+        The root is bracketed: with no condensation the layer is above
+        saturation at ``T*``, and condensing the whole excess at ``T*`` leaves
+        it below saturation once the latent heat has warmed it. Newton with a
+        bisection safeguard, to 1e-12 relative. Below the relation's floor
+        nothing is held, as before.
+        """
+
+        def rate(name: str, units: str) -> np.ndarray:
+            return np.asarray(self.input_field(name).require_units(units).values, dtype=float)
+
+        heating = rate("layer_radiative_heating", "W m^-2")
+        if self.receives_advection:
+            heating = heating + rate("advective_heating_rate", "W m^-2")
+        heating = np.array(heating)
+        heating[0] += float(
+            self.input_field("surface_sensible_heat_flux").require_units("W m^-2").scalar()
+        )
+        t_star = (
+            self._layer_temperature
+            + heating / heat_capacity * dt
+            + rate("convective_temperature_tendency", "K s^-1") * dt
+        )
+        saturation, evaluated = saturation_humidity_within_domain(t_star, pressure)
+        self._saturation_evaluated = evaluated
+        m = self._layer_mass
+        latent = self.latent_heat + deposition_latent_heat_excess(self._layer_temperature)
+        condensation = np.where(evaluated, 0.0, provisional)
+        for i in (int(j) for j in np.flatnonzero(evaluated & (provisional > saturation * m))):
+
+            def excess(c: float, i: int = i) -> float:
+                warmed = np.array([t_star[i] + latent[i] * c / heat_capacity[i]])
+                held, _ = saturation_humidity_within_domain(warmed, pressure[i : i + 1])
+                return float((provisional[i] - c) / m[i] - held[0])
+
+            low, high = 0.0, float(provisional[i] - saturation[i] * m[i])
+            c = high
+            for _ in range(200):
+                f = excess(c)
+                if f > 0.0:
+                    low = c
+                else:
+                    high = c
+                step = 1.0e-6 * max(c, 1.0e-30)
+                slope = (excess(c + step) - f) / step
+                newton = c - f / slope if slope < 0.0 else 0.5 * (low + high)
+                c = newton if low < newton < high else 0.5 * (low + high)
+                if high - low <= 1.0e-12 * high:
+                    break
+            condensation[i] = c
+        warmed = t_star + latent * condensation / heat_capacity
+        final_saturation, _ = saturation_humidity_within_domain(warmed, pressure)
+        # The temperatures the relation was evaluated at, for the domain check.
+        self._saturation_temperature = np.where(condensation > 0.0, warmed, t_star)
+        return final_saturation, condensation
 
     def advance_state(self, dt: float, contributions: list[TendencyContribution]) -> None:
         """Commit the vapour, and refuse to invent any.
@@ -738,7 +831,7 @@ class WaterModule(Module):
                 symbol="T_sat",
                 values=np.where(
                     self._saturation_evaluated,
-                    np.asarray(self._layer_temperature, dtype=float),
+                    np.asarray(self._saturation_temperature, dtype=float),
                     np.nan,
                 ),
                 units="K",
@@ -1059,7 +1152,14 @@ class WaterModule(Module):
             "condensate_fate": "precipitates_immediately",
             # Only when on, so a run without it hashes as before.
             **(
-                {"condenses_after": "convective_vapour_transport"}
+                {
+                    "condenses_after": "convective_vapour_transport",
+                    "saturation_at": (
+                        "end_of_step_temperature_with_latent_heating"
+                        if self.end_of_step_saturation
+                        else "start_of_step_temperature"
+                    ),
+                }
                 if self.receives_convective_transport
                 else {}
             ),

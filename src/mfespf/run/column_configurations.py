@@ -685,6 +685,7 @@ def radiating_column(
     receives_advection: bool = False,
     eddy_diffusivity: float = 0.0,
     condense_after_convection: bool = False,
+    end_of_step_saturation: bool = False,
     max_log_step: float | None = None,
     geometry_factor: float | None = None,
     evaporation_coefficient: float | None = None,
@@ -931,6 +932,7 @@ def radiating_column(
                     receives_advection=receives_advection,
                     eddy_diffusivity=eddy_diffusivity,
                     receives_convective_transport=condense_after_convection,
+                    end_of_step_saturation=end_of_step_saturation,
                 ),
                 step_multiple=1,
             )
