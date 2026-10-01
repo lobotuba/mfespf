@@ -77,3 +77,73 @@ The saturation is still taken at the start-of-step temperature, as now.
 
 **Adoption** as the default is a decision for after, because it moves every
 recorded result.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+**Built** in `9fe754c`:
+
+- `ConvectiveAdjustmentModule(condensation_follows=True)` mixes the committed
+  vapour and the advection, and publishes `convective_vapour_transport_rate`.
+- `WaterModule(receives_convective_transport=True)` composes that rate before
+  its saturation adjustment.
+- `reference_column(condense_after_convection=True)` runs convection before the
+  water module and refuses a configuration without the water module, convection
+  and vapour transport.
+- **A defect found on the way.** `tropical_column` spliced its exchange in by
+  the order its schedules had been *appended* in, not by the column's
+  splitting order, so it silently restored water-before-convection. It now
+  uses the splitting order. The default order is unchanged, which is tested.
+
+| test | result | verdict |
+|---|---|---|
+| **O1**, unit | The lifted layer ends at its saturation to 1e-12, the condensation equals the excess exactly, the latent heat is in the condensing layers only, and water closes to 1e-12. A 24-step coupled run with the option closes its budgets. | **pass** |
+| **O2**, tropical column | 11369 of 240000 judged layer-steps (4.74%) end above r = 1.01, against the 1% threshold. Max r is 1.056; it was 303 in the default order. | **fail** |
+| **O3**, defaults unchanged | The full suite passes with the headline at +3.944 K, as recorded. | **pass** |
+
+**Why O2 fails.**
+
+- **The excess that is left is small.** It is at most 5.6 percent above
+  saturation, where the default order left up to 300 times.
+- **It is the declared approximation.** The saturation is taken at the
+  start-of-step temperature, and these layers cool within the step: radiation
+  and the upwelling's adiabatic cooling.
+- **It sits where convection mixes most often.** The 321 hPa layer, mixed on
+  89 percent of steps, carries 20.7 percent of its steps above 1.01; 288 hPa
+  6.4 percent, 254 hPa 1.3 percent, and those above 220 hPa none.
+- **The threshold stands, and the test fails as frozen.** Closing the rest
+  needs a saturation taken at the end-of-step temperature, which is a further
+  composition, not a tolerance.
+
+**Reported.**
+
+| | default order | condensing after convection |
+|---|---:|---:|
+| **30-layer headline column** (`reference_column`, 24000 steps) | | |
+| surface error | +3.944 K | **+3.538 K** |
+| layer-steps with r > 1.01 (whole column, last fifth) | 4.8% | 1.4% |
+| max r | 20.3 | 1.089 |
+| precipitable water | 37.3 kg m^-2 | 35.1 kg m^-2 |
+| **51-layer CO2-band global column** (`co2-band.md`, 200000 steps) | | |
+| surface error | -9.23 K | -10.25 K |
+| T at 60 / 27 / 10 / 1.5 hPa | 189.0 / 203.4 / 227.6 / 284.4 K | 189.1 / 203.5 / 227.7 / 284.5 K |
+| coldest layer | 184.8 K, 103 hPa | 184.7 K, 126 hPa |
+| stratospheric water | 1.00 ppmv | 0.97 ppmv |
+| **+/-25 tropical column** (O2's run) | | |
+| surface | 282.16 K | 279.75 K |
+| cold point | 166.7 K, 103 hPa | 163.3 K, 103 hPa |
+| T at 70 / 50 / 30 / 10 hPa | 175.3 / 182.7 / 197.3 / 231.3 K | 173.1 / 181.1 / 196.4 / 231.0 K |
+| water, 100-68 hPa | about 0 | about 0 |
+
+- **The upper troposphere is now nearly saturated, not supersaturated.**
+  Removing the forbidden vapour removes some greenhouse effect, and every
+  column cools: by 0.4 K (30-layer), 1.0 K (51-layer global) and 2.4 K
+  (tropical).
+- **The tropical results do not change their verdicts.** The tropical
+  column's failures of `tropical-column.md` are unchanged in kind, and its
+  cold point is 3.4 K further from the observed.
+- **The tropical surface diagnostic's H term overstated the column's humidity
+  above 320 hPa.** Its direction stands below 320 hPa.
+
+**Not adopted.** O2 failed. Adoption was in any case a decision for after.
