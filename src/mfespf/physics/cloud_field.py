@@ -54,7 +54,13 @@ from mfespf.core.quantities import (
 from mfespf.core.versioning import InterfaceContract, Version
 from mfespf.physics.equations import EQUATION_IDS
 
-__all__ = ["ISCCP_CLOUD_TYPES", "CloudType", "ObservedCloudFieldModule", "cloud_type_layers"]
+__all__ = [
+    "ISCCP_CLOUD_TYPES",
+    "ISCCP_TROPICAL_CLOUD_TYPES",
+    "CloudType",
+    "ObservedCloudFieldModule",
+    "cloud_type_layers",
+]
 
 V1 = Version(1, 0, 0)
 
@@ -102,6 +108,20 @@ ISCCP_CLOUD_TYPES: tuple[CloudType, ...] = (
     CloudType("deep_convective", 0.026, 32600.0, 35.6, 1.0),
     CloudType("middle", 0.190, 55700.0, 4.8, 9.9 / 19.2),
     CloudType("low", 0.275, 82600.0, 4.7, 2.3 / 26.5),
+)
+
+#: The tropics (+/-30 degrees), from Table 5's daytime cloud-type amounts, ice
+#: (liquid): high is cirrus 15.6 + cirrostratus 5.5; deep convective 2.7; middle
+#: is altocumulus 0.9 (6.1) + altostratus 0.1 (4.7) + nimbostratus 0.0 (1.0);
+#: low is cumulus 0.0 (12.3) + stratocumulus 0.0 (10.7) + stratus 0.0 (0.8). Table
+#: 5 gives no tropical top pressures or optical thicknesses, so each level keeps
+#: the global Table 4 values above -- declared, since tropical high cloud is
+#: observed higher than the global mean (docs/protocols/tropical-cloud-field.md).
+ISCCP_TROPICAL_CLOUD_TYPES: tuple[CloudType, ...] = (
+    CloudType("cirrus_and_cirrostratus", 0.211, 26700.0, 2.2, 1.0),
+    CloudType("deep_convective", 0.027, 32600.0, 35.6, 1.0),
+    CloudType("middle", 0.128, 55700.0, 4.8, 1.0 / 12.8),
+    CloudType("low", 0.238, 82600.0, 4.7, 0.0),
 )
 
 CLOUD_FIELD_INTERFACE = InterfaceContract(

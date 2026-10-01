@@ -81,3 +81,30 @@ def test_an_empty_field_is_the_clear_column():
     assert float(outputs["reflected_shortwave_radiation"].values) == pytest.approx(
         float(outputs["clear_sky_reflected_shortwave_radiation"].values), rel=1e-14
     )
+
+
+@pytest.mark.req("CLD-002", "EQR-002")
+def test_the_tropical_types_are_table_5s_amounts_summed_by_level():
+    """Rossow and Schiffer (1999) Table 5, tropics (+/-30), ice (liquid).
+
+    Summed by ISCCP level and phase, with the global Table 4 top pressures and
+    optical thicknesses each level already uses (tropical-cloud-field.md).
+    """
+    from mfespf.physics.cloud_field import ISCCP_CLOUD_TYPES, ISCCP_TROPICAL_CLOUD_TYPES
+
+    table5 = {
+        "cirrus_and_cirrostratus": (15.6 + 5.5, 0.0),
+        "deep_convective": (2.7, 0.0),
+        "middle": (0.9 + 0.1 + 0.0, 6.1 + 4.7 + 1.0),
+        "low": (0.0 + 0.0 + 0.0, 12.3 + 10.7 + 0.8),
+    }
+    by_name = {t.name: t for t in ISCCP_TROPICAL_CLOUD_TYPES}
+    for name, (ice, liquid) in table5.items():
+        t = by_name[name]
+        assert t.amount == pytest.approx((ice + liquid) / 100.0, abs=1e-12)
+        assert t.ice_fraction == pytest.approx(ice / (ice + liquid), abs=1e-12)
+    for tropical, global_ in zip(ISCCP_TROPICAL_CLOUD_TYPES, ISCCP_CLOUD_TYPES, strict=True):
+        assert tropical.top_pressure_pa == global_.top_pressure_pa
+        assert tropical.visible_optical_thickness == global_.visible_optical_thickness
+    # Disjoint sub-columns: 0.604 of the sky is cloud, the rest clear.
+    assert sum(t.amount for t in ISCCP_TROPICAL_CLOUD_TYPES) == pytest.approx(0.604)

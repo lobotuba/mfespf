@@ -28,7 +28,11 @@ from mfespf.physics.atmosphere import (
     atmosphere_state_entry,
 )
 from mfespf.physics.boundary import SPACE_ENERGY_STATE, SpaceBoundaryModule, space_state_entry
-from mfespf.physics.cloud_field import ISCCP_SURFACE_REFLECTANCE, ObservedCloudFieldModule
+from mfespf.physics.cloud_field import (
+    ISCCP_SURFACE_REFLECTANCE,
+    CloudType,
+    ObservedCloudFieldModule,
+)
 from mfespf.physics.clouds import CloudProfile, PrescribedCloudModule, single_layer_cloud
 from mfespf.physics.co2_band import co2_band_grid
 from mfespf.physics.column_surface import ColumnSurfaceModule
@@ -682,6 +686,7 @@ def radiating_column(
     co2_band: bool = False,
     co2_ppmv: float = 284.7,
     observed_cloud_field: bool = False,
+    cloud_types: tuple[CloudType, ...] | None = None,
     receives_advection: bool = False,
     eddy_diffusivity: float = 0.0,
     condense_after_convection: bool = False,
@@ -847,7 +852,14 @@ def radiating_column(
                 "a column takes the observed cloud field or a prescribed cloud, not both: "
                 "each would count the other's reflection"
             )
-        schedules.append(ModuleSchedule(ObservedCloudFieldModule(), step_multiple=1))
+        schedules.append(
+            ModuleSchedule(
+                ObservedCloudFieldModule(cloud_types=cloud_types)
+                if cloud_types is not None
+                else ObservedCloudFieldModule(),
+                step_multiple=1,
+            )
+        )
         order_head.append("cloud_field")
     if cloud is not None:
         # The cloud is published before radiation reads it: a prescribed state is
