@@ -684,6 +684,7 @@ def radiating_column(
     observed_cloud_field: bool = False,
     receives_advection: bool = False,
     eddy_diffusivity: float = 0.0,
+    condense_after_convection: bool = False,
     max_log_step: float | None = None,
     geometry_factor: float | None = None,
     evaporation_coefficient: float | None = None,
@@ -864,6 +865,17 @@ def radiating_column(
     # has already produced, rather than one it is about to destabilise.
     order = order_head
     humidity_sources = sum((bool(water), prescribed_humidity is not None, bool(plume_humidity)))
+    if condense_after_convection and not (
+        water
+        and convection
+        and vapour_transport
+        and prescribed_humidity is None
+        and not plume_humidity
+    ):
+        raise ConfigurationError(
+            "condensing after convection needs the water module, convection and "
+            "convection's vapour transport: it composes the one with the other"
+        )
     if humidity_sources > 1:
         raise ConfigurationError(
             "a column runs the water module, a prescribed humidity profile or the "
@@ -918,6 +930,7 @@ def radiating_column(
                     ),
                     receives_advection=receives_advection,
                     eddy_diffusivity=eddy_diffusivity,
+                    receives_convective_transport=condense_after_convection,
                 ),
                 step_multiple=1,
             )
@@ -939,11 +952,19 @@ def radiating_column(
                     relaxation_timescale=convective_relaxation_timescale,
                     fractional_top=convective_fractional_top,
                     receives_advection=receives_advection,
+                    condensation_follows=condense_after_convection,
                 ),
                 step_multiple=1,
             )
         )
-        order.append("convection")
+        if condense_after_convection:
+            # The opposite of the default order, and for the opposite reason:
+            # the vapour convection lifts is what condenses, so the saturation
+            # adjustment follows the lifting
+            # (docs/protocols/convective-condensation-order.md).
+            order.insert(order.index("water"), "convection")
+        else:
+            order.append("convection")
     if deep_ocean:
         # Ahead of the surface, like every other module the surface reads from:
         # the exchange is computed from the temperature committed at the end of

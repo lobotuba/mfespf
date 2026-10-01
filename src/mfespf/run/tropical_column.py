@@ -83,7 +83,10 @@ def tropical_column(
     # After the radiation, so this step's profile is the one exchanged, and
     # before the water and convection, which compose with it; the boundary last,
     # reading what the exchange published.
-    schedules = list(kernel.schedule.schedules)
+    # In the column's splitting order, not the order its schedules were
+    # appended in: the two differ when a configuration reorders modules
+    # (condense_after_convection runs convection before the water).
+    schedules = list(kernel.schedule.ordered())
     ids = [s.module_id for s in schedules]
     if "radiation" not in ids:
         raise ConfigurationError("the tropical exchange needs a radiation module to follow")

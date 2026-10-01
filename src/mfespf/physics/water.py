@@ -216,6 +216,7 @@ class WaterModule(Module):
         evaporation_coefficient_follows: str = "",
         receives_advection: bool = False,
         eddy_diffusivity: float = 0.0,
+        receives_convective_transport: bool = False,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         diffusing = eddy_diffusivity > 0.0
@@ -297,6 +298,10 @@ class WaterModule(Module):
                 # this step: the saturation adjustment must act on the profile
                 # after it, or the two draw on one layer's water independently.
                 *(("vapour_advection_rate",) if receives_advection else ()),
+                # Convection's mixing this step, when convection runs first
+                # (docs/protocols/convective-condensation-order.md): what it lifts
+                # above saturation condenses here, in the same step.
+                *(("convective_vapour_transport_rate",) if receives_convective_transport else ()),
                 # The diffusion's interface densities and distances, and the
                 # gravity the grid was built with (dp / m per layer).
                 *(("atmosphere_interface_pressure",) if diffusing else ()),
@@ -404,6 +409,7 @@ class WaterModule(Module):
         # set directly and is independently uncertain.
         self.evaporation_coefficient_follows = evaporation_coefficient_follows
         self.receives_advection = receives_advection
+        self.receives_convective_transport = receives_convective_transport
         self.eddy_diffusivity = float(eddy_diffusivity)
         self._diffusion_rate = np.zeros(n_layers)
         self.initial_relative_humidity = initial_relative_humidity
@@ -528,6 +534,18 @@ class WaterModule(Module):
             else np.zeros_like(provisional)
         )
         provisional += advected
+        # Convection's mixing, composed the same way when convection runs first:
+        # it commits its own redistribution, and this module condenses whatever
+        # that left above saturation in the same step, with its latent heat in
+        # the layer where it condenses. Excluded from this module's tendency.
+        if self.receives_convective_transport:
+            convective = self.input_field("convective_vapour_transport_rate").require_units(
+                "kg m^-2 s^-1"
+            )
+            advected = advected + np.asarray(convective.values, dtype=float) * float(
+                convective.time_interval or ctx.dt
+            )
+            provisional = np.array(self.vapour) + advected
         # Eddy diffusion is this module's own transport, so it is in the
         # provisional profile the saturation adjustment acts on: whatever
         # diffuses into a layer colder than the air below it condenses there.
@@ -1039,6 +1057,12 @@ class WaterModule(Module):
             "latent_heat_J_kg": self.latent_heat,
             "initial_relative_humidity": self.initial_relative_humidity,
             "condensate_fate": "precipitates_immediately",
+            # Only when on, so a run without it hashes as before.
+            **(
+                {"condenses_after": "convective_vapour_transport"}
+                if self.receives_convective_transport
+                else {}
+            ),
             # Added only when on, so a run without diffusion hashes as before.
             **(
                 {

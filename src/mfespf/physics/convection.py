@@ -176,9 +176,15 @@ class ConvectiveAdjustmentModule(Module):
         relaxation_timescale: float = 0.0,
         fractional_top: bool = False,
         receives_advection: bool = False,
+        condensation_follows: bool = False,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         relaxed = relaxation_timescale > 0.0
+        if condensation_follows and not transport_vapour:
+            raise ConfigurationError(
+                "condensation can only follow convection's vapour transport when "
+                "convection transports vapour"
+            )
         contract = ModuleContract(
             module_id=module_id,
             module_name="surface sensible heat exchange and dry convective adjustment",
@@ -244,8 +250,14 @@ class ConvectiveAdjustmentModule(Module):
                 # not optional once vapour transport is switched on, and a module
                 # that reads a field it declares nowhere is a contract defect
                 # whatever its ``.get`` says.
+                # When the water module runs after convection it has formed
+                # neither yet, so convection mixes the committed vapour and the
+                # water module condenses what the mixing lifts
+                # (docs/protocols/convective-condensation-order.md).
                 *(
-                    (VAPOUR_STATE, "vapour_phase_change_rate", "latent_heating_rate")
+                    (VAPOUR_STATE,)
+                    if condensation_follows
+                    else (VAPOUR_STATE, "vapour_phase_change_rate", "latent_heating_rate")
                     if transport_vapour
                     else ()
                 ),
@@ -265,6 +277,7 @@ class ConvectiveAdjustmentModule(Module):
                 "atmosphere_potential_temperature",
                 "surface_sensible_heat_flux",
                 *(("surface_convective_heat_flux",) if surface_based else ()),
+                *(("convective_vapour_transport_rate",) if condensation_follows else ()),
             ),
             conserved_quantities=("energy",),
             internal_sources_and_sinks=(),
@@ -424,6 +437,8 @@ class ConvectiveAdjustmentModule(Module):
         # follows where the grid puts those edges.
         self.fractional_top = fractional_top
         self.receives_advection = receives_advection
+        self.condensation_follows = condensation_follows
+        self._vapour_change: np.ndarray | None = None
         self._partial_tops: dict[int, float] = {}
         self._held_rate: np.ndarray | None = None
         self._mixing_groups: tuple[tuple[int, int], ...] = ()
@@ -551,7 +566,7 @@ class ConvectiveAdjustmentModule(Module):
             return None
         w = np.array(vapour.require_units("kg m^-2").values, dtype=float)
         self._vapour_dt = self.context.dt
-        phase = self._inputs.get("vapour_phase_change_rate")
+        phase = None if self.condensation_follows else self._inputs.get("vapour_phase_change_rate")
         if phase is not None:
             # Over the interval the *water* module published the rate for, and
             # the contribution below is divided by the same interval, because
@@ -653,7 +668,7 @@ class ConvectiveAdjustmentModule(Module):
         # would stabilise a column that condensation is about to destabilise. The
         # field is optional because a dry configuration has no water module, and
         # its absence is a configuration fact rather than a missing input.
-        latent = self._inputs.get("latent_heating_rate")
+        latent = None if self.condensation_follows else self._inputs.get("latent_heating_rate")
         if latent is not None:
             heating = heating + latent.require_units("W m^-2").values
         advective = self._inputs.get("advective_heating_rate")
@@ -763,6 +778,7 @@ class ConvectiveAdjustmentModule(Module):
             # A redistribution, so it sums to zero by construction. Anything
             # else would be convection creating or destroying water.
             self._vapour_moved = float(np.sum(np.abs(vapour_change)) / 2.0)
+        self._vapour_change = vapour_change
 
         # The sensible flux is submitted separately from the mixing so the two
         # appear as distinct lines in the layer budget: one moves energy across a
@@ -934,6 +950,32 @@ class ConvectiveAdjustmentModule(Module):
                 if self.surface_based
                 else {}
             ),
+            # The mixing as a rate, for the water module to condense what it
+            # lifts in the same step. Over the interval the vapour was formed
+            # for, so the water module's composition reproduces it exactly.
+            **(
+                {
+                    "convective_vapour_transport_rate": Field(
+                        field_id="convective_vapour_transport_rate",
+                        physical_name="vapour redistribution by the convective mixing",
+                        values=np.array(
+                            self._vapour_change / self._vapour_dt
+                            if self._vapour_change is not None and self._vapour_dt > 0.0
+                            else np.zeros(np.asarray(self._adjusted).size)
+                        ),
+                        units="kg m^-2 s^-1",
+                        quantity_kind=QuantityKind.TENDENCY,
+                        time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                        time_interval=self._vapour_dt or ctx.dt,
+                        timestamp=ctx.time,
+                        spatial_support=SpatialSupport.LAYER_AVERAGE,
+                        dimensions=("layer",),
+                        provenance=provenance,
+                    )
+                }
+                if self.condensation_follows
+                else {}
+            ),
             "convective_layer_count": Field(
                 field_id="convective_layer_count",
                 physical_name="layers the adjustment altered this step",
@@ -1003,6 +1045,7 @@ class ConvectiveAdjustmentModule(Module):
             "target_responds_to_temperature": self.target_responds_to_temperature,
             "surface_based": self.surface_based,
             "transport_vapour": self.transport_vapour,
+            **({"condensation_follows": True} if self.condensation_follows else {}),
             "surface_pressure_Pa": (
                 self._reference_surface_pressure() if self.surface_based else None
             ),
