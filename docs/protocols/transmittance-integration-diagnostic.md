@@ -1,0 +1,64 @@
+# Protocol: is the remaining longwave gap the way transmittance is integrated?
+
+**Frozen before the calculation.** Results are appended below a line at the
+end; nothing above it changes afterwards. This is a diagnostic. It changes no
+module.
+
+## Why
+
+`water-vapour-longwave.md` attempt 2 fitted Chou's band 1, 2 and 8 water tables
+to 0.0013-0.0017 in transmittance. Even so, it moved the MLS outgoing longwave
+further from line-by-line, from 287.80 to 286.48 against 293.99.
+
+**The hypothesis left there, unmeasured, is the integration.**
+
+- **Chou's way.** He integrates band-mean transmittances between pairs of
+  levels, each path at its Curtis-Godson effective pressure and temperature
+  (eq. 4.13-4.14).
+- **This model's way.** The solver treats each bin layer by layer, at each
+  layer's own pressure. That assumes the k-terms keep their order from layer
+  to layer.
+
+## The calculation
+
+The three bands where water is the only absorber and Chou's tables exist:
+
+- band 1, 0-340 cm^-1;
+- band 2, 340-540 cm^-1;
+- band 8, 1380-1900 cm^-1.
+
+The atmosphere is MLS as in V1: 1 km layers to 1 hPa, and Chou's 4e-6 g/g of
+water above the tropopause. For each band the TOA upward flux is computed
+three ways.
+
+- **A, this model's solver.** Per bin, layer by layer, with the fitted
+  pressure-tabulated k-distribution of attempt 2.
+- **B, Chou's integration, the same coefficients.**
+  - **The flux:** F_top = B(T_s) T(top, sfc) + sum over layers of B(T_l)
+    [T(top, upper edge of l) - T(top, lower edge of l)].
+  - **The transmittance:** T = sum_n g_n exp(-1.66 k_n(p_eff) w h(theta_eff))
+    over the path from each interface to the top.
+  - **The path:** amount w, with p_eff and theta_eff its amount-weighted means.
+  - **The Planck flux:** B is the band's Planck flux at each temperature.
+- **C, Chou's integration with his tables.** As B, but the transmittance is
+  taken from the tables directly, a + b dtheta + c dtheta^2, interpolated
+  bilinearly in log10 w and log10 p_eff.
+
+**Reported for every band:** A, B, C, line-by-line, and the same at 4x layer
+refinement.
+
+## The verdict
+
+- **X = B - A,** summed over the three bands, at 1 km: the integration method
+  alone, with identical coefficients.
+- **Y = C - line-by-line,** summed: whether Chou's method, as implemented here,
+  reproduces his own result.
+
+| finding | means |
+|---|---|
+| \|Y\| <= 1.5 and \|X\| >= 1.5, X closing the gap | the integration carries the gap. The fix is coefficients that hold their order across layers (k-distributions derived from line-by-line spectra, such as RRTMG's), not a different fit to Chou's tables |
+| \|Y\| <= 1.5 and \|X\| < 1.5 | not the integration. The gap is elsewhere, and this is reported |
+| \|Y\| > 1.5 | the reference implementation of Chou's method is itself off, and nothing is concluded about A |
+
+The sum of the three bands' line-by-line values is 34.56 + 61.01 + 7.56 =
+103.13 W m^-2.
