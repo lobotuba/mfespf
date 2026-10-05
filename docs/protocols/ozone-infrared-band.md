@@ -172,3 +172,36 @@ error is largest where this band is wanted: around the tropical tropopause.
 
 As frozen, nothing else is run, the form is not changed after the fact, and
 the band is not used.
+
+## Attempt 2, frozen before its fit
+
+**The change, and why it is not a looser test.** Attempt 1's single power law
+in pressure is the scaling Chou et al. reject for this band. Attempt 2 tabulates
+the absorption coefficients in pressure, which is the correlated-k form used by
+table-driven schemes. Everything else is unchanged: the source, the fit region,
+the temperatures and every test with its threshold.
+
+**The form.**
+
+- **The weights.** Six terms with weights g_n, non-negative and summing to 1,
+  shared by every pressure, because they set the spectral sub-bands.
+- **The coefficients.** At each of the 21 table pressures from 0.1 to
+  1000 hPa, six coefficients k_n(p) are fitted independently.
+- **The temperature.** Scaling h(theta) = 1 + alpha (theta - 250) + beta
+  (theta - 250)^2, shared.
+- **Per layer,** log k_n is interpolated linearly in log p between table
+  pressures.
+- **Parameters:** 5 + 126 + 2 = 133, for 2205 table values.
+
+**The tests.**
+
+- **Z0**, unchanged and applied to this form: RMS <= 0.01 and maximum <= 0.03
+  at 250 K, and RMS <= 0.02 across the five temperatures.
+- **Z0b, new, the interpolation.** The same form is fitted to the even-indexed
+  table pressures only. Then the k_n are interpolated to the odd-indexed ones,
+  which were held out. Their RMS error at 250 K must be <= 0.01 and the
+  maximum <= 0.03. This tests what a model layer between table pressures
+  relies on. The band used in the model is the fit to all 21 pressures.
+
+Z1, Z2 and Z3, the refits and what follows are exactly as frozen above. If Z0
+or Z0b fails, nothing else is run.
