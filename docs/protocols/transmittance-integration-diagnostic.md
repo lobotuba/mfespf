@@ -67,10 +67,11 @@ The sum of the three bands' line-by-line values is 34.56 + 61.01 + 7.56 =
 
 ## Results (appended; nothing above this line changed)
 
-**A unit error, found and fixed before the result was read.** The first run
-passed B's effective pressure, already in Pa, multiplied by 100 again. That
-gave B = 78.77 against C = 100.22. The corrected run is the one reported. C,
-which converts correctly, was unaffected.
+**A unit error, found by reading the first output.** The first run passed B's
+effective pressure, already in Pa, multiplied by 100 again. It gave B = 78.77
+against C = 100.22, which with identical coefficients could only be a defect.
+The first run's X was -19.78 and Y was -2.91; Y does not involve B and is
+unchanged. The corrected run is the one reported.
 
 MLS, W m^-2:
 
