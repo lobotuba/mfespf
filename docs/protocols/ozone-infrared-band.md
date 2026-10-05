@@ -125,3 +125,50 @@ runs, with:
 - the refit that includes both.
 
 If any test fails, the finding is recorded and the band is not used.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+**The tables are extracted and checked.**
+
+- **Source.** WRF `phys/module_ra_goddard.F` at commit
+  `7042598715a710930163485deae7742ab586af05`, SHA-256
+  `0917531726cbed5a128e05c45e70ee292c209dbcd1ae2bad17db6e46b8d3a5ad`.
+- **Checks.** There are 26 by 21 by 3 values. a is 0.999994 to 0.999997 at the
+  smallest amount and never increases with u (the largest step is -6e-6).
+- **Scale.** At 1 cm-atm, a is 0.84 at 0.01 hPa, 0.41 at 100 hPa and 0.33 at
+  1000 hPa.
+
+**Z0 fails.** The best of 60 least-squares starts gives:
+
+| | limit | fit |
+|---|---:|---:|
+| RMS at 250 K | 0.010 | **0.0119** |
+| maximum at 250 K | 0.03 | **0.047** |
+| RMS across 190-310 K | 0.02 | 0.013 |
+
+The fitted values are:
+
+- k_1 = 0.0105 (cm-atm)^-1 and r = 10.16;
+- g = 0.181, 0.311, 0.402, 0.081, 0.020 and 0.0045;
+- m = 0.419;
+- alpha = 0.00463 and beta = 4.2e-6.
+
+**Where it fails.** By pressure, the RMS error at 250 K is:
+
+| pressure | RMS | maximum |
+|---|---:|---:|
+| 0.1 hPa | 0.012 | |
+| 1.6 to 2.5 hPa | 0.011 | |
+| 10 to 16 hPa | 0.006-0.007 (lowest) | |
+| 63 to 158 hPa | 0.014-0.015 | 0.039 |
+| 1000 hPa | 0.024 | 0.048 |
+
+A single power law in pressure cannot follow the band from Doppler-broadened
+lines at the top to pressure-broadened ones below. Chou et al. (2001, section
+4.2) give exactly this as their reason for treating the band by tables. The
+error is largest where this band is wanted: around the tropical tropopause.
+
+As frozen, nothing else is run, the form is not changed after the fact, and
+the band is not used.
