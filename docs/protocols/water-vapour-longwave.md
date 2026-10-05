@@ -230,3 +230,56 @@ option his Table 14 and 15 benchmarks used.
 - **Reported:** the same under 4x layer refinement.
 
 **What follows:** as frozen above.
+
+## Attempt 2, results (appended; nothing above this line changed)
+
+**The tables are extracted.** h11-h13, h21-h23 and h81-h83 are 26 by 31 each.
+Two blemishes in the source values are recorded:
+
+- band 1's a rises by at most 4.5e-5 with amount;
+- band 2's a reaches -0.00019 at saturation.
+
+**W0 passes for all three bands:**
+
+| band | RMS, 250 K | max, 250 K | RMS, 190-310 K | held-out RMS | held-out max |
+|---|---:|---:|---:|---:|---:|
+| 1 | 0.0014 | 0.0048 | 0.0034 | 0.0021 | 0.025 |
+| 2 | 0.0013 | 0.0053 | 0.0015 | 0.0016 | 0.012 |
+| 8 | 0.0017 | 0.0053 | 0.0026 | 0.0025 | 0.023 |
+
+**V1 fails again, and further off.** All values in W m^-2:
+
+| | attempt 1 | attempt 2 | line-by-line |
+|---|---:|---:|---:|
+| MLS OLR | 287.80 | **286.48** (-7.51) | 293.99 |
+| MLS band 1, up | -0.93 | -1.12 | |
+| MLS band 2, up | -1.91 | -2.68 | |
+| MLS band 8, up | -0.42 | -0.78 | |
+| MLS surface down | 341.95 | 342.33 | 339.59 |
+| SAW OLR | 202.62 | 201.87 | 204.37 |
+| SAW surface down | 161.59 | 162.88 | 162.01 |
+
+V2-V5 still pass on both atmospheres. The MLS maximum cooling is
+-11.60 C/day. **As frozen, the option is not used.**
+
+**What this says, reported.**
+
+- **The tables are not the gap.** Fitted to Chou's own line-by-line
+  transmittances to 0.0013, they move the MLS fluxes further from his
+  line-by-line fluxes. So the remaining shortfall is not the k-distribution
+  against his tables.
+- **The candidate that remains is how the transmittances are integrated.**
+  - Chou computes band-mean transmittance between every pair of levels, at a
+    Curtis-Godson effective pressure and temperature for the path, eq. 4.13
+    and 4.14.
+  - This model's solver treats each bin as monochromatic, layer by layer. It
+    takes each layer's own pressure, so the k-terms are assumed correlated
+    from layer to layer.
+  - For strong lines along strongly inhomogeneous paths the two differ, and a
+    fit made independently at each pressure need not keep the terms' ordering
+    across pressures.
+  - This is not measured.
+
+**Code.** The tabulated bands are kept as an opt-in, `chou_longwave_grid(...,
+tabulated=("1", "2", "8"))`. The default stays attempt 1, which reproduces
+287.80 and 202.62.

@@ -49,6 +49,11 @@ from mfespf.contracts.spectral import SpectralCoordinate, SpectralGrid
 from mfespf.core.errors import ConfigurationError
 from mfespf.physics.co2_band import CO2_CENTRE, CO2_WINGS
 from mfespf.physics.ozone_infrared import O3_IR_WEIGHTS
+from mfespf.physics.water_vapour_tables import (
+    WATER_TABLE_LOG10_P_HPA,
+    WATER_TABLES,
+    TabulatedWater,
+)
 
 __all__ = [
     "CHOU_WATER_BANDS",
@@ -217,9 +222,15 @@ class ChouLongwave:
     scaling; ``continuum_k`` is the vertical continuum coefficient. ``co2_k`` and
     ``co2_kind`` are in the form ``co2_band.co2_optical_depth`` takes, and
     ``ozone_term`` in the form ``ozone_infrared.ozone_infrared_optical_depth`` takes.
+    ``water_term`` is the bin's term within its band, which the tabulated bands
+    (1, 2 and 8) need to look up their pressure-dependent coefficient.
     """
 
     water_band: np.ndarray
+    water_term: np.ndarray
+    #: Bands whose lines come from Chou's tables rather than Table 4
+    #: (water-vapour-longwave.md attempt 2); empty is attempt 1.
+    tabulated: tuple[str, ...]
     water_k: np.ndarray
     continuum_k: np.ndarray
     co2_k: np.ndarray
@@ -240,8 +251,15 @@ def _planck_split(low_cm: float, high_cm: float, weights: np.ndarray) -> np.ndar
     return np.concatenate(([low_cm], np.interp(shares, cumulative, nu), [high_cm]))
 
 
-def _water_terms(band: WaterBand) -> tuple[np.ndarray, np.ndarray]:
-    """The band's non-zero terms: vertical coefficients (g^-1 cm^2) and fractions."""
+def _water_terms(band: WaterBand, tabulated: tuple[str, ...] = ()) -> tuple[np.ndarray, np.ndarray]:
+    """The band's non-zero terms: vertical coefficients (g^-1 cm^2) and fractions.
+
+    For a tabulated band the coefficient depends on pressure, so it is returned
+    as NaN here and looked up per layer by term.
+    """
+    if band.name in tabulated:
+        weights = np.asarray(WATER_TABLES[band.name].weights, dtype=float)
+        return np.full(weights.size, np.nan), weights
     g = np.asarray(band.delta_g, dtype=float)
     k = band.k1_over_mu * band.eta ** np.arange(g.size) / _CHOU_DIFFUSIVITY
     keep = g > 0.0
@@ -249,7 +267,7 @@ def _water_terms(band: WaterBand) -> tuple[np.ndarray, np.ndarray]:
 
 
 def chou_longwave_grid(
-    grid: SpectralGrid, *, ozone: bool = False
+    grid: SpectralGrid, *, ozone: bool = False, tabulated: tuple[str, ...] = ()
 ) -> tuple[SpectralGrid, ChouLongwave]:
     """Rebuild a wavelength grid's longwave on Chou's bands, with CO2 (and ozone).
 
@@ -262,13 +280,13 @@ def chou_longwave_grid(
     lo_cm, hi_cm = _LONGWAVE_CM
     if edges[0] > 1.0e-2 / hi_cm or edges[-1] < 1.0e-2 / lo_cm:
         raise ConfigurationError("the grid must span 4 microns to 1 mm to hold the longwave")
-    pieces: list[tuple[float, float, int, float, float, int, int]] = []
+    pieces: list[tuple[float, float, int, float, float, int, int, int]] = []
 
     def add(index: int, low: float, high: float, co2: tuple[float, int], o3: int) -> None:
-        k, g = _water_terms(CHOU_WATER_BANDS[index])
+        k, g = _water_terms(CHOU_WATER_BANDS[index], tabulated)
         bounds = _planck_split(low, high, g)
         for n in range(k.size):
-            pieces.append((bounds[n], bounds[n + 1], index, float(k[n]), co2[0], co2[1], o3))
+            pieces.append((bounds[n], bounds[n + 1], index, float(k[n]), co2[0], co2[1], o3, n))
 
     for index, band in enumerate(CHOU_WATER_BANDS):
         low, high = max(band.range_cm[0], lo_cm), min(band.range_cm[1], hi_cm)
@@ -316,12 +334,33 @@ def chou_longwave_grid(
     )
     return new_grid, ChouLongwave(
         water_band=band_index,
+        water_term=column(7, -1).astype(int),
+        tabulated=tuple(tabulated),
         water_k=column(3, 0.0),
         continuum_k=continuum,
         co2_k=column(4, 0.0),
         co2_kind=column(5, 0).astype(int),
         ozone_term=column(6, -1).astype(int),
     )
+
+
+def _tabulated_coefficients(table: TabulatedWater, pressure: np.ndarray) -> np.ndarray:
+    """A tabulated band's coefficients at each pressure (Pa), shaped (layers, terms).
+
+    log k is interpolated in log p; held above 0.1 hPa (the Doppler limit) and
+    extrapolated log-linearly below 1000 hPa, as ozone's band 5 is.
+    """
+    logp = np.log10(np.asarray(pressure, dtype=float) / 100.0)
+    table_p = np.asarray(WATER_TABLE_LOG10_P_HPA)
+    logk = np.log(np.array(table.k_per_g_cm2, dtype=np.float64))
+    clipped = np.maximum(logp, table_p[0])
+    out = np.empty((logp.size, logk.shape[1]))
+    for n in range(logk.shape[1]):
+        inside = np.interp(clipped, table_p, logk[:, n])
+        slope = (logk[-1, n] - logk[-2, n]) / (table_p[-1] - table_p[-2])
+        beyond = logk[-1, n] + slope * (clipped - table_p[-1])
+        out[:, n] = np.exp(np.where(clipped > table_p[-1], beyond, inside))
+    return out
 
 
 def water_vapour_optical_depth(
@@ -348,6 +387,12 @@ def water_vapour_optical_depth(
     for index, band in enumerate(CHOU_WATER_BANDS):
         bins = spec.water_band == index
         if not np.any(bins):
+            continue
+        if band.name in spec.tabulated:
+            table = WATER_TABLES[band.name]
+            k = _tabulated_coefficients(table, p)  # (layers, terms)
+            h = 1.0 + table.alpha * dt + table.beta * dt**2
+            tau[:, bins] = (path * h)[:, None] * k[:, spec.water_term[bins]]
             continue
         scaled = (
             path
