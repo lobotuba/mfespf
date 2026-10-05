@@ -15,3 +15,14 @@ altitude `z` (km), pressure `p` (mb), temperature `t` (K), number density `n`
 Used as the atmosphere of the Chou and Suarez (1999) Table 8 benchmark in
 `tests/unit/test_solar_vapour.py`: it is the profile their line-by-line
 comparison was run on, so the comparison is like for like.
+
+## `afgl1986_subarctic_winter.csv`
+
+Table 1e (Subarctic Winter) of the same report, from the same transcription
+(`tables/1e.csv`, commit 9d170bb3e52b, SHA-256
+686a317f549f48cffadea61ea21057d4505c4d4b207cdd52cd73f8833d2ca400). Same columns.
+
+Used as the second atmosphere of the Chou et al. (2001) longwave benchmark
+(their Table 15). It is cold and dry where mid-latitude summer is warm and moist,
+so a water-vapour scheme that is right on one only by compensation shows it on
+the other.
