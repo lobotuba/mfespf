@@ -188,3 +188,45 @@ MLS band by band:
 - **Band 9 above 2500 cm^-1.** It needs the longwave to extend past the
   model's 4-micron boundary.
 - **Each needs its own protocol.**
+
+## Attempt 2, frozen before the tables are extracted or fitted
+
+**The change.** In bands 1 (0-340 cm^-1), 2 (340-540) and 8 (1380-1900), the
+water vapour's line absorption comes from Chou's "HIGH" option. That is the
+option his Table 14 and 15 benchmarks used.
+
+- **Source.** His pre-computed line-by-line transmission tables, h11-h13,
+  h21-h23 and h81-h83. They are in WRF's `phys/module_ra_goddard.F` at the
+  commit `ozone-infrared-band.md` recorded.
+- **Grid (Table 8):**
+  - log10 w from -8 in 31 steps of 0.3, with w in g cm^-2;
+  - log10 p from -2 in 26 steps of 0.2;
+  - a quadratic in theta - 250.
+- **Fitted as `ozone-infrared-band.md` attempt 2 fitted the ozone table:**
+  - six terms, with weights shared across pressures;
+  - six coefficients at each of the 21 pressures from 0.1 to 1000 hPa;
+  - a shared quadratic temperature scaling;
+  - log k interpolated in log p, held above 0.1 hPa, and extrapolated
+    log-linearly below 1000 hPa;
+  - Chou's tables take the raw amount at an effective pressure and
+    temperature, so no further pressure scaling enters.
+- **The rest of the scheme is unchanged:**
+  - bands 3-7 and 9 as attempt 1;
+  - the continuum;
+  - the overlap;
+  - band 9's cut at 2500 cm^-1.
+
+**The tests.**
+
+- **W0, per band,** before anything else. The same criteria as the ozone
+  band's Z0 and Z0b, at 250 K over the table's whole amount range:
+  - RMS <= 0.01 and maximum <= 0.03;
+  - RMS <= 0.02 across 190-310 K;
+  - held-out odd pressures, interpolated, RMS <= 0.01 and maximum <= 0.03.
+  
+  A band that fails W0 keeps attempt 1's k-distribution, and that is
+  recorded.
+- **V1-V5 unchanged**, on MLS and SAW at the frozen 1 km layering.
+- **Reported:** the same under 4x layer refinement.
+
+**What follows:** as frozen above.
