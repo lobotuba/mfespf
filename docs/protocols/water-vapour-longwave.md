@@ -122,3 +122,69 @@ tropopause, ozone's 9.6-micron band on the AFGL ozone, and no clouds.
   longwave calibration. After it, the tropical column's attempt 3.
 - **If any fails:** the failing bands are recorded, and the option is not
   used.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+**Built:** `physics/water_vapour_longwave.py`, with Tables 1, 3, 4, 9 and 10 as
+published.
+
+- **The transcription is checked.** Each band's Delta-g sums to one, band 3's
+  three sub-bands sum to one together, and the bands tile 0-3000 cm^-1.
+- **The grid.** 168 bins, 161 of them longwave; the present grid has 42.
+- **Not yet wired.** It is not connected to the radiation module.
+
+All values in W m^-2:
+
+| atmosphere | V1: OLR | line-by-line | V2: surface down | line-by-line | V3: worst band, up | V4: worst band, down | V5: max cooling |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| MLS | **287.80** | 293.99 | 341.95 | 339.59 | -1.91 (340-540) | +2.74 (540-800) | -11.23 C/day |
+| SAW | 202.62 | 204.37 | 161.59 | 162.01 | -0.85 (340-540) | -1.11 (540-800) | (-7.12) |
+| verdict | **MLS fails** (-6.19, limit 3); SAW passes | | both pass | | both pass | both pass | passes |
+
+MLS band by band:
+
+| band, cm^-1 | up minus line-by-line | down minus line-by-line |
+|---|---:|---:|
+| 0-340 | -0.93 | -0.53 |
+| 340-540 | -1.91 | -0.43 |
+| 540-800 | -1.54 | +2.74 |
+| 800-980 | -0.28 | +1.39 |
+| 980-1100 | +0.23 | +0.32 |
+| 1100-1215 | +0.28 | +0.20 |
+| 1215-1380 | -0.71 | +0.15 |
+| 1380-1900 | -0.42 | -1.44 |
+| 1900-3000 | -0.92 | -0.03 |
+
+**Verdict as frozen: V1 fails on MLS, so the option is not used.**
+
+**What the failure is, reported.**
+
+- **The improvement.** The largest MLS band error falls from -11.35 to -1.91
+  W m^-2, and the total from -29.70 to -6.19. The sub-arctic winter passes
+  everything. Every single band is within 3 W m^-2 up and 4 down. The total
+  fails only because nearly every band is slightly low.
+- **It is not the layering.** Refining MLS's 1 km layers 2, 4 and 8 times
+  moves the OLR to 288.06, 288.13 and 288.15: converged, and still -5.8.
+- **Refining moves V2 the wrong way.** It raises the MLS surface downward flux
+  to 345.81, 347.54 and 348.29, which would fail V2 (+8.7) at a resolution
+  where the frozen 1 km layering passes. Recorded.
+- **Where the OLR deficit is:**
+  - bands 1, 2 and 8, -3.26. There Chou's own benchmark used his
+    table-driven "HIGH" option and this uses his k-distribution, the declared
+    "LOW" approximation;
+  - band 9, cut at 2500 cm^-1, -0.92;
+  - 540-800 cm^-1, -1.54.
+  
+  Chou's own parameterization gives 293.03.
+
+**What would close it, not built here.**
+
+- **Tables for bands 1, 2 and 8.** Chou's HIGH-option water tables for these
+  bands are in the same WRF source as the ozone tables (h11-h13, h21-h23 and
+  h81-h83). They would be fitted as pressure-tabulated k-distributions, as the
+  ozone band was.
+- **Band 9 above 2500 cm^-1.** It needs the longwave to extend past the
+  model's 4-micron boundary.
+- **Each needs its own protocol.**
