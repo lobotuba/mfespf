@@ -62,3 +62,52 @@ refinement.
 
 The sum of the three bands' line-by-line values is 34.56 + 61.01 + 7.56 =
 103.13 W m^-2.
+
+---
+
+## Results (appended; nothing above this line changed)
+
+**A unit error, found and fixed before the result was read.** The first run
+passed B's effective pressure, already in Pa, multiplied by 100 again. That
+gave B = 78.77 against C = 100.22. The corrected run is the one reported. C,
+which converts correctly, was unaffected.
+
+MLS, W m^-2:
+
+| band | A: solver | B: Chou's integration, same k | C: Chou's integration, his tables | line-by-line |
+|---|---:|---:|---:|---:|
+| 1 | 33.44 | 33.79 | 33.79 | 34.56 |
+| 2 | 58.33 | 59.39 | 59.40 | 61.01 |
+| 8 | 6.78 | 7.01 | 7.03 | 7.56 |
+| **sum, 1 km layers** | **98.55** | **100.19** | **100.22** | **103.13** |
+| sum, 4x refined | 98.65 | 100.30 | 100.33 | |
+
+- **X = B - A = +1.64.** The solver's layer-by-layer treatment loses 1.6
+  W m^-2 across these bands relative to Chou's path integration, with
+  identical coefficients. Refinement does not change it.
+- **Y = C - line-by-line = -2.91** (-2.80 refined).
+
+**Verdict as frozen: |Y| > 1.5.** The reference implementation of Chou's method
+is itself 2.9 W m^-2 short of his line-by-line. It is also 2.3 short of his own
+HIGH-option result, 34.40 + 60.54 + 7.61 = 102.55. So nothing is concluded
+about A.
+
+**Reported.**
+
+- **B and C agree to 0.03.** The fitted coefficients reproduce Chou's tables
+  along real, inhomogeneous paths, not only on the homogeneous ones they were
+  fitted to.
+- **The benchmark is not quite like for like.** Chou's section 10 says his
+  line-by-line used the McClatchey et al. (1972) mid-latitude summer, in 75
+  layers (25 hPa below 100 hPa). This uses AFGL 1986, Table 1b. His water
+  above the tropopause, 4e-6 g/g, matches AFGL's 3-8 ppmv between 179 and
+  100 hPa, so that is not the difference.
+- **A shortfall shared by all three.** A, B and C share the atmosphere, and all
+  three fall short of line-by-line together. So a common part of the gap is
+  plausibly the atmosphere or the remaining details of Chou's integration,
+  such as his separate treatment of adjacent layers. That is not measured.
+- **How much is attributable,** for these three bands of the -6.2 W m^-2 total
+  (attempt 1 MLS):
+  - 1.6 to the solver's integration;
+  - up to about 2.3 to things common to any implementation run on this
+    atmosphere.
