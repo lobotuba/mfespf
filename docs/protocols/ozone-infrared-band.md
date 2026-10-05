@@ -276,3 +276,46 @@ layer by +0.237 K/day. Against `tropical-heating-diagnostic.md`'s remainder:
 **As frozen, Z1 failed, so the band is not used.** The finding is that the
 model's vapour closes the infrared window, and that is now the first thing to
 measure. The band waits on that measurement.
+
+## Erratum to Z1 (appended after the results; nothing above changed)
+
+**The reference value frozen for Z1 was misread from the source.** Z1 names the
+TOA upward flux in 980-1100 cm^-1 in Chou et al. (2001) Table 14. The frozen
+text gives that as 58.62 W m^-2, but 58.62 is the row for **800-980 cm^-1**.
+
+- **How the table is laid out.** Its rows run 0-340, 340-540, 540-800,
+  800-980, 980-1100, 1100-1215, 1215-1380, 1380-1900 and 1900-3000 cm^-1.
+- **The check on the reading.** Read that way, their upward fluxes at the top
+  sum to the table's total, 293.99. The 540-800 row is C1's 67.90, as
+  `co2-band.md` used it.
+- **The row Z1 names.** For 980-1100 cm^-1 the line-by-line value is
+  **22.36** W m^-2, with Chou's parameterization at 21.41.
+
+The threshold and the band are unchanged; only the quoted value was wrong.
+Because this is found after the result, both readings are recorded:
+
+| Z1 | reference | model, with ozone | difference | verdict |
+|---|---:|---:|---:|---|
+| as written (the 800-980 row's value) | 58.62 | 21.14 | 37.5 | fail |
+| as named: Table 14, 980-1100 cm^-1 | **22.36** | 21.14 | **1.22** | **pass** (within 3) |
+
+**Two earlier statements in these results are wrong and are withdrawn:**
+
+- that the model's vapour makes the 980-1100 cm^-1 window "far too opaque";
+- that "the vapour's window absorption has not yet been examined" explains a
+  failure.
+
+Without ozone the model's band flux is 27.88 W m^-2. That is 5.5 above the
+line-by-line value *with* ozone, consistent with a band effect of the size
+measured, 6.7.
+
+**On the corrected reading, Z0, Z0b, Z1, Z2 and Z3 all pass.**
+
+- **What that would mean.** By the frozen rule, a full pass makes the band
+  eligible for the refits and for `tropical-column.md` attempt 3.
+- **Why it is not adopted here.** Whether it is, given that the pass rests on
+  a correction made after the result, is a decision for the person directing
+  this work, and is not taken here.
+
+**What remains open.** The MLS total OLR is 264.4 W m^-2 against 293.99. The
+deficit is in other bands, and finding which is the next measurement.
