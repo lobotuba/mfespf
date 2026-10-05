@@ -205,3 +205,74 @@ the temperatures and every test with its threshold.
 
 Z1, Z2 and Z3, the refits and what follows are exactly as frozen above. If Z0
 or Z0b fails, nothing else is run.
+
+## Attempt 2, results (appended; nothing above this line changed)
+
+**Z0 and Z0b pass.** One least-squares fit from attempt 1's solution, over the
+same 2205 table values:
+
+| test | limit | result |
+|---|---:|---:|
+| Z0: RMS at 250 K | 0.010 | **0.0015** |
+| Z0: maximum at 250 K | 0.03 | **0.0103** |
+| Z0: RMS across 190-310 K | 0.02 | **0.0058** |
+| Z0b: held-out pressures, RMS at 250 K | 0.010 | **0.0018** |
+| Z0b: held-out pressures, maximum at 250 K | 0.03 | **0.0091** |
+
+**The fitted band.**
+
+- **Error by pressure.** The RMS error is 0.0005 at 10-16 hPa and 0.0028 at
+  1000 hPa.
+- **Weights:** 4e-6, 0.549, 0.202, 0.172, 0.058 and 0.019. The fit found five
+  terms enough, and the sixth stays rather than the form changing.
+- **Temperature scaling:** alpha 0.00462 and beta 4.1e-6.
+- **Thin air, measured in the fit, not assumed.** Going from 500 to 0.1 hPa,
+  the four terms holding 98% of the weight absorb 4 to 8 times less per
+  molecule, as the wings narrow. The strongest term absorbs 3.6 times more, as
+  the line peaks sharpen.
+- **Built in** `physics/ozone_infrared.py`, off by default as
+  `ozone_infrared`.
+
+**Z1 fails, and not because of ozone.** On the MLS atmosphere, at the vapour
+wing C1 used (4789.08 m^-1):
+
+| | model | line-by-line |
+|---|---:|---:|
+| TOA upward flux, 980-1100 cm^-1, with ozone | **21.14** W m^-2 | 58.62 |
+| the same, without ozone | 27.88 W m^-2 | |
+| C1, 540-800 cm^-1 (unchanged, a check) | 68.31 | 67.90 |
+| total OLR, with ozone | 264.4 W m^-2 | 293.99 |
+
+- **The band's own effect** is -6.7 W m^-2 at the top in its band.
+- **The failure is not the band's.** Without any ozone the model's window
+  already lets out 27.9 W m^-2 where line-by-line lets out 58.6 *with* ozone.
+  The model's water vapour makes the 980-1100 cm^-1 window far too opaque.
+- **It is not the wing decay either.** With the cloud-calibrated wing
+  (3411.86), the band flux is unchanged at 21.2 with ozone and 28.0 without,
+  while the total OLR rises to 295.1. So what closes the window is not the
+  wing, and the vapour's window absorption has not yet been examined.
+
+**Z2 passes.** The maximum stratospheric cooling with CO2 and ozone is
+-13.22 C/day at 1.1 hPa, against about -12 line-by-line, inside -7 to -14.
+With CO2 alone it was -10.69.
+
+**Z3 passes.** On the observed +/-25 profile, the band heats the 84.7 hPa
+layer by +0.237 K/day. Against `tropical-heating-diagnostic.md`'s remainder:
+
+| layer | band heating | remainder |
+|---:|---:|---:|
+| 154 hPa | +0.097 | |
+| 103 hPa | +0.178 | 0.232 |
+| 85 hPa | +0.237 | 0.118 |
+| 69 hPa | +0.306 | 0.283 |
+| 46 hPa | +0.374 | 0.911 |
+| 31 hPa | +0.341 | 1.018 |
+
+- **Near the tropopause** it accounts for about all of the remainder.
+- **At 31-46 hPa** it accounts for 35 to 40 percent.
+- **Probably an underestimate.** It is computed through the same over-opaque
+  window, which starves ozone of the upwelling infrared it absorbs.
+
+**As frozen, Z1 failed, so the band is not used.** The finding is that the
+model's vapour closes the infrared window, and that is now the first thing to
+measure. The band waits on that measurement.

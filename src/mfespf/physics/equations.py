@@ -56,6 +56,7 @@ EQUATION_IDS = {
     "lateral_heat_export": "EQ-LATERAL-HEAT-EXPORT",
     "band_insolation": "EQ-BAND-MEAN-INSOLATION",
     "co2_15_micron_band": "EQ-CO2-15-MICRON-K-DISTRIBUTION",
+    "ozone_9_6_micron_band": "EQ-O3-9.6-MICRON-K-DISTRIBUTION",
     "fractional_top_convective_adjustment": "EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
@@ -1277,6 +1278,74 @@ def build_equation_registry() -> EquationRegistry:
             conserved_quantities=("energy",),
             correctness_tests=("test_the_band_insolation_is_geometry",),
             source="Standard solar geometry; IAU 2006 obliquity",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id="EQ-O3-9.6-MICRON-K-DISTRIBUTION",
+            version=V1,
+            name="Ozone's 9.6-micron band as a pressure-tabulated k-distribution",
+            category=EquationCategory.CONSTITUTIVE_RELATION,
+            mathematical_form=(
+                "tau_n = k_n(p) u [1 + alpha (T - 250) + beta (T - 250)^2], six terms in "
+                "980-1100 cm^-1 with weights g_n shared by every pressure; log k_n "
+                "interpolated in log p between 0.1 and 1000 hPa, held above 0.1 hPa and "
+                "extrapolated log-linearly below 1000 hPa; one sub-band per term, sized to "
+                "its weight of the Planck flux at 250 K"
+            ),
+            physical_basis=(
+                "Ozone's asymmetric-stretch band absorbs the infrared in the atmospheric "
+                "window. Its lines narrow with pressure until Doppler broadening takes "
+                "over, so its absorption per molecule depends on the pressure it is at."
+            ),
+            variables=(
+                ("u", "layer ozone amount", "cm-atm"),
+                ("p", "layer pressure", "Pa"),
+                ("T", "layer temperature", "K"),
+            ),
+            parameters=(
+                (
+                    "g_n, k_n(p), alpha, beta",
+                    "derived",
+                    "least-squares exponential sum fitted to Chou, Suarez, Liang and Yan "
+                    "2001 band-5 line-by-line transmission tables (section 4.2, Table 8), "
+                    "as carried by WRF module_ra_goddard.F; RMS 0.0015 at 250 K, 0.0018 at "
+                    "held-out pressures (ozone-infrared-band.md attempt 2)",
+                ),
+            ),
+            assumptions=(
+                "the k-distribution's ordering holds at every level",
+                "ozone and the smooth vapour absorption within a sub-band multiply "
+                "their transmittances",
+            ),
+            approximations=(
+                "Chou's tables are band means; splitting the band by weight at 250 K is "
+                "the k-distribution assumption.",
+                "Fitted on homogeneous paths at the effective pressure and temperature "
+                "of Chou's scaling.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 170.0, 330.0, "K"),),
+                conditions=("the temperature fit's range, as for Chou's tables",),
+            ),
+            limiting_cases=(
+                "no ozone transmits every band unchanged",
+                "above 0.1 hPa the absorption per molecule stops depending on pressure "
+                "(the Doppler limit)",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("one sub-band per k-term",),
+            correctness_tests=(
+                "test_the_band_reproduces_chou_s_tabulated_transmittance",
+                "test_the_terms_fill_the_band_by_their_planck_weights",
+                "test_no_ozone_absorbs_nothing_and_thin_air_holds_the_doppler_limit",
+            ),
+            known_failure_modes=(
+                "a single power-law pressure scaling of the same band fails Chou's tables "
+                "(attempt 1); the pressure table is what makes it fit",
+            ),
+            source="Chou, Suarez, Liang and Yan 2001, NASA/TM-2001-104606 vol. 19",
         )
     )
 

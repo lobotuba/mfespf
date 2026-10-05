@@ -297,6 +297,27 @@ sources:
     stratospheric temperatures of ozone-solar-heating.md.
   sha256: 8fe6765d70e72bd99ff97dfb62c78cec69b274d3b0431f2dd8792b6bedd8496d
 
+- dataset_id: CHOU2001-O3-BAND5-TABLES-WRF
+  loader: none
+  title: Chou et al. 2001 ozone 9.6-micron (band 5) transmission tables, as carried by WRF Goddard longwave
+  filename: module_ra_goddard.F
+  url: https://raw.githubusercontent.com/wrf-model/WRF/7042598715a710930163485deae7742ab586af05/phys/module_ra_goddard.F
+  provider: NCAR WRF repository (code by M.-D. Chou, NASA/GSFC)
+  provenance_class: model_output
+  variables:
+  - o3_band5_transmittance_a_b_c
+  units:
+  - '1'
+  temporal_coverage: not applicable
+  spatial_coverage: log10 u -6 to 0 (cm-atm), log10 p -2 to 3 (hPa)
+  uncertainty: Chou et al. 2001 quote about 1 percent in absorptance for the temperature fit
+  licence: WRF is public domain; Chou's code is a US Government work.
+  citation: 'Chou, M.-D., Suarez, M. J., Liang, X.-Z. and Yan, M. M.-H. (2001), A Thermal Infrared
+    Radiation Parameterization for Atmospheric Studies, NASA/TM-2001-104606 vol. 19, section 4.2.'
+  notes: Tables o1, o2, o3 fitted as a pressure-tabulated k-distribution in
+    src/mfespf/physics/ozone_infrared.py (ozone-infrared-band.md attempt 2).
+  sha256: 0917531726cbed5a128e05c45e70ee292c209dbcd1ae2bad17db6e46b8d3a5ad
+
 # --- not fetchable without credentials --------------------------------------
 #
 # CERES EBAF is the single most valuable dataset for this framework: it reports

@@ -575,6 +575,7 @@ class SpectralRadiationModule(Module):
         solar_vapour_k: np.ndarray | None = None,
         ozone_k: np.ndarray | None = None,
         co2_band: tuple[np.ndarray, np.ndarray, float] | None = None,
+        ozone_infrared: np.ndarray | None = None,
         couple_cloud_field: bool = False,
         cloud_field_module_id: str = "cloud_field",
         status: ModuleStatus = ModuleStatus.ACTIVE,
@@ -583,6 +584,7 @@ class SpectralRadiationModule(Module):
         solar_vapour = solar_vapour_k is not None
         ozone = ozone_k is not None
         co2 = co2_band is not None
+        ozone_ir = ozone_infrared is not None
         contract = ModuleContract(
             module_id=module_id,
             module_name=f"spectral column radiative transfer ({n_bands} bands)",
@@ -603,6 +605,7 @@ class SpectralRadiationModule(Module):
                 *((EQUATION_IDS["solar_vapour_absorption"],) if solar_vapour else ()),
                 *((EQUATION_IDS["ozone_solar_absorption"],) if ozone else ()),
                 *((EQUATION_IDS["co2_15_micron_band"],) if co2 else ()),
+                *((EQUATION_IDS["ozone_9_6_micron_band"],) if ozone_ir else ()),
                 *(
                     (EQUATION_IDS["observed_cloud_field"], EQUATION_IDS["cloud_radiative_effect"])
                     if couple_cloud_field
@@ -723,12 +726,12 @@ class SpectralRadiationModule(Module):
                 # pressure is consumed, and declared, only when they are on.
                 *(
                     ("atmosphere_layer_pressure",)
-                    if (solar_vapour and couple_water) or ozone or co2
+                    if (solar_vapour and couple_water) or ozone or co2 or ozone_ir
                     else ()
                 ),
                 # Ozone is prescribed on pressure, and the column above the
                 # model top is placed in the top layer from its top interface.
-                *(("atmosphere_interface_pressure",) if ozone else ()),
+                *(("atmosphere_interface_pressure",) if ozone or ozone_ir else ()),
                 *(
                     (
                         "cloud_type_amount",
@@ -896,6 +899,17 @@ class SpectralRadiationModule(Module):
                 f"CO2 band coefficients cover {np.asarray(co2_band[0]).size} bands and the "
                 f"grid has {n_bands}; build both with co2_band_grid"
             )
+        # Ozone's 9.6-micron band (ozone-infrared-band.md): each bin's term
+        # index, -1 outside the band. Its amount is the same SWOOSH placement
+        # the solar ozone uses.
+        self.ozone_infrared = (
+            np.asarray(ozone_infrared, dtype=int) if ozone_infrared is not None else None
+        )
+        if self.ozone_infrared is not None and self.ozone_infrared.size != n_bands:
+            raise ConfigurationError(
+                f"ozone band terms cover {self.ozone_infrared.size} bands and the grid has "
+                f"{n_bands}; build both with ozone_infrared_grid"
+            )
         self.water_module_id = water_module_id
         self.vapour_optical_depth: np.ndarray | None = None
         self.volcanic_optics: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
@@ -1040,6 +1054,26 @@ class SpectralRadiationModule(Module):
                 temperature=temperature.values,
             )
             contributions.append((co2_tau, np.zeros_like(co2_tau), np.zeros_like(co2_tau)))
+
+        if self.ozone_infrared is not None:
+            from mfespf.physics.ozone_infrared import ozone_infrared_optical_depth
+            from mfespf.physics.solar_absorption import ozone_layer_path
+
+            if self.ozone_path is None:
+                self.ozone_path = ozone_layer_path(
+                    self.input_field("atmosphere_layer_pressure").require_units("Pa").values,
+                    self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
+                    mass.values,
+                )
+            # Tabulated in pressure and scaled in temperature, so evaluated
+            # per layer every step.
+            o3_tau = ozone_infrared_optical_depth(
+                self.ozone_infrared,
+                ozone_path=self.ozone_path,
+                pressure=self.input_field("atmosphere_layer_pressure").require_units("Pa").values,
+                temperature=temperature.values,
+            )
+            contributions.append((o3_tau, np.zeros_like(o3_tau), np.zeros_like(o3_tau)))
 
         if self.ozone_k is not None:
             from mfespf.physics.solar_absorption import ozone_layer_path, ozone_optical_depth
@@ -1410,6 +1444,19 @@ class SpectralRadiationModule(Module):
                     }
                 }
                 if self.co2_band is not None
+                else {}
+            ),
+            **(
+                {
+                    "ozone_9_6_micron_band": {
+                        "source": (
+                            "Chou, Suarez, Liang and Yan 2001 band-5 transmission tables "
+                            "(WRF module_ra_goddard.F, commit 7042598715a7), fitted as a "
+                            "pressure-tabulated k-distribution (ozone-infrared-band.md)"
+                        ),
+                    }
+                }
+                if self.ozone_infrared is not None
                 else {}
             ),
             # Only when on, so a column without ozone hashes as before.

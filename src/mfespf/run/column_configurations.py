@@ -46,6 +46,7 @@ from mfespf.physics.ocean import (
     ocean_deep_state_entry,
 )
 from mfespf.physics.orbit import OrbitalGeometryModule
+from mfespf.physics.ozone_infrared import ozone_infrared_grid
 from mfespf.physics.plume import (
     BULK_PLUME_PARAMETER,
     EVAPORATING_CONDENSATE_FRACTION,
@@ -685,6 +686,7 @@ def radiating_column(
     ozone: bool = False,
     co2_band: bool = False,
     co2_ppmv: float = 284.7,
+    ozone_infrared: bool = False,
     observed_cloud_field: bool = False,
     cloud_types: tuple[CloudType, ...] | None = None,
     receives_advection: bool = False,
@@ -754,6 +756,25 @@ def radiating_column(
         if solar_vapour_k is not None:
             solar_vapour_k = solar_vapour_k[home]
         co2_band_spec = (co2_k, co2_kind, float(co2_ppmv))
+    ozone_ir_terms = None
+    if ozone_infrared:
+        # Ozone's 9.6-micron band (ozone-infrared-band.md), on the SWOOSH
+        # profile the solar ozone already places, so it needs ozone on.
+        if not ozone:
+            raise ConfigurationError(
+                "ozone's infrared band uses the ozone profile; switch ozone on with it"
+            )
+        original = working_grid
+        working_grid, ozone_ir_terms = ozone_infrared_grid(original)
+        home = carry(original, working_grid)
+        if kappa.ndim >= 1 and kappa.shape[-1] == original.n_bins:
+            kappa = kappa[..., home]
+        if albedo is not None and np.ndim(albedo) >= 1 and np.shape(albedo)[-1] == original.n_bins:
+            albedo = np.asarray(albedo, dtype=float)[..., home]
+        if solar_vapour_k is not None:
+            solar_vapour_k = solar_vapour_k[home]
+        if co2_band_spec is not None:
+            co2_band_spec = (co2_band_spec[0][home], co2_band_spec[1][home], co2_band_spec[2])
     if ozone:
         # The same carrying, for ozone's rebuild of the region below 0.4 microns.
         # The vapour's sub-bands above it are kept edge for edge.
@@ -768,6 +789,8 @@ def radiating_column(
             solar_vapour_k = solar_vapour_k[home]
         if co2_band_spec is not None:
             co2_band_spec = (co2_band_spec[0][home], co2_band_spec[1][home], co2_band_spec[2])
+        if ozone_ir_terms is not None:
+            ozone_ir_terms = ozone_ir_terms[home]
     # Default to a surface that reflects sunlight and is black in the infrared.
     # A plain float would be grey in every band, which is a different -- and
     # physically distinguishable -- surface; see ``shortwave_albedo``.
@@ -805,6 +828,7 @@ def radiating_column(
         solar_vapour_k=solar_vapour_k,
         ozone_k=ozone_k,
         co2_band=co2_band_spec,
+        ozone_infrared=ozone_ir_terms,
         couple_cloud_field=observed_cloud_field,
     )
     atmosphere = AtmosphericColumnModule(
