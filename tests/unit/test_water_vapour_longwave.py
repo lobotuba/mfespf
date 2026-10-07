@@ -73,3 +73,124 @@ def test_the_continuum_is_self_broadened_and_stronger_in_the_cold():
     assert tau[2] / tau[0] == pytest.approx(np.exp(1800.0 * (1 / 260.0 - 1 / 296.0)), rel=1e-12)
     no_vapour = continuum(np.zeros(3), np.full(3, 296.0))
     assert np.all(no_vapour == 0.0)
+
+
+def _chou_column(**overrides):
+    from mfespf.run.column_configurations import reference_column
+
+    options = dict(
+        grid=column_grid(16),
+        n_layers=10,
+        master_dt=3600.0,
+        measured_solar_spectrum=True,
+        ozone=True,
+        ozone_infrared=True,
+        solar_vapour_absorption=True,
+        co2_band=True,
+        chou_water_vapour=True,
+    )
+    options.update(overrides)
+    return reference_column(**options)
+
+
+def _radiation(kernel):
+    return next(s.module for s in kernel.schedule.ordered() if s.module_id == "radiation")
+
+
+@pytest.mark.req("SPC-001", "EQR-002")
+def test_the_radiation_module_solves_with_chou_s_vapour_co2_and_ozone():
+    """C1 of global-column-chou-longwave.md: the module's thermal flux is a direct solve's."""
+    from mfespf.physics.co2_band import co2_optical_depth
+    from mfespf.physics.ozone_infrared import ozone_infrared_optical_depth
+    from mfespf.physics.radiative_transfer import solve_column_radiation
+
+    kernel = _chou_column()
+    kernel.run(1)
+    rad = _radiation(kernel)
+
+    def value(name, units):
+        return np.asarray(rad.input_field(name).require_units(units).values, dtype=float)
+
+    temperature = value("atmosphere_layer_temperature", "K")
+    mass = value("atmosphere_layer_mass", "kg m^-2")
+    pressure = value("atmosphere_layer_pressure", "Pa")
+    vapour = value("atmosphere_water_vapour", "kg m^-2")
+    spec = rad.water_longwave
+    k_co2, kind, ppmv = rad.co2_band
+    tau = (
+        water_vapour_optical_depth(
+            spec, vapour=vapour, layer_mass=mass, pressure=pressure, temperature=temperature
+        )
+        + co2_optical_depth(
+            k_co2, kind, co2_ppmv=ppmv, layer_mass=mass, pressure=pressure, temperature=temperature
+        )
+        + ozone_infrared_optical_depth(
+            rad.ozone_infrared,
+            ozone_path=rad.ozone_path,
+            pressure=pressure,
+            temperature=temperature,
+        )
+    )
+    direct = solve_column_radiation(
+        grid=rad.grid,
+        incident_spectral_irradiance=value("toa_spectral_irradiance", "W m^-2 m^-1"),
+        layer_temperature=temperature,
+        layer_mass=mass,
+        absorption_coefficient=rad.absorption_coefficient,
+        surface_temperature=float(value("surface_temperature", "K")),
+        surface_albedo=value("surface_spectral_albedo", "1"),
+        diffusivity_factor=rad.diffusivity_factor,
+        absorption_optical_depth=tau,
+    )
+    thermal = rad.grid.centers >= 4.0e-6
+    np.testing.assert_allclose(
+        np.asarray(rad.clear_sky.upward[-1])[thermal],
+        np.asarray(direct.upward[-1])[thermal],
+        rtol=1e-9,
+    )
+    # And the vapour is Chou's in every thermal bin, not the envelope.
+    np.testing.assert_array_equal(
+        rad.vapour_optical_depth[:, thermal],
+        water_vapour_optical_depth(
+            spec, vapour=vapour, layer_mass=mass, pressure=pressure, temperature=temperature
+        )[:, thermal],
+    )
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_no_vapour_adds_no_optical_depth_in_any_bin():
+    """C2: the dry limit, lines and continuum together."""
+    _, spec = chou_longwave_grid(column_grid(16), ozone=True)
+    tau = water_vapour_optical_depth(
+        spec,
+        vapour=np.zeros(4),
+        layer_mass=np.full(4, 2500.0),
+        pressure=np.array([9.0e4, 5.0e4, 1.0e4, 1.0e2]),
+        temperature=np.array([290.0, 260.0, 220.0, 260.0]),
+    )
+    assert np.all(tau == 0.0)
+
+
+@pytest.mark.req("SPC-001", "EQR-002")
+def test_chou_s_vapour_refuses_a_column_without_the_co2_band_or_radiative_vapour():
+    """C3: band 3 is shared with CO2, and the vapour must be the radiating one."""
+    from mfespf.core.errors import ConfigurationError
+
+    with pytest.raises(ConfigurationError, match="co2_band"):
+        _chou_column(co2_band=False)
+    with pytest.raises(ConfigurationError, match="radiative_vapour"):
+        _chou_column(radiative_vapour=False)
+
+
+@pytest.mark.req("SPC-001", "EQR-002")
+def test_chou_s_vapour_replaces_the_fitted_envelope(monkeypatch):
+    """C4: with the option on, the envelope is never evaluated."""
+    from mfespf.physics import greenhouse
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("the fitted vapour envelope was evaluated")
+
+    monkeypatch.setattr(greenhouse, "vapour_absorption_optical_depth", refuse)
+    kernel = _chou_column()
+    kernel.run(2)
+    assert _radiation(kernel).water_longwave is not None

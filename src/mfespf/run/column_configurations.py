@@ -76,6 +76,7 @@ from mfespf.physics.water import (
     WaterModule,
     vapour_state_entry,
 )
+from mfespf.physics.water_vapour_longwave import ChouLongwave, chou_longwave_grid
 from mfespf.registries.datasets import DatasetRegistry
 from mfespf.registries.states import StateRegistry
 from mfespf.run.driver import Kernel
@@ -687,6 +688,7 @@ def radiating_column(
     co2_band: bool = False,
     co2_ppmv: float = 284.7,
     ozone_infrared: bool = False,
+    chou_water_vapour: bool = False,
     observed_cloud_field: bool = False,
     cloud_types: tuple[CloudType, ...] | None = None,
     receives_advection: bool = False,
@@ -741,8 +743,35 @@ def radiating_column(
             kappa = kappa[..., home]
         if albedo is not None and np.ndim(albedo) >= 1 and np.shape(albedo)[-1] == original.n_bins:
             albedo = np.asarray(albedo, dtype=float)[..., home]
+    if chou_water_vapour and not (co2_band and radiative_vapour):
+        raise ConfigurationError(
+            "Chou's water vapour shares band 3 with the CO2 band and absorbs only "
+            "radiative vapour; switch on co2_band and radiative_vapour with it"
+        )
+    if ozone_infrared and not ozone:
+        raise ConfigurationError(
+            "ozone's infrared band uses the ozone profile; switch ozone on with it"
+        )
     co2_band_spec = None
-    if co2_band:
+    chou_spec: ChouLongwave | None = None
+    ozone_ir_terms = None
+    if chou_water_vapour:
+        # Chou et al.'s water vapour (global-column-chou-longwave.md): the whole
+        # longwave is rebuilt on its bands, with the CO2 terms (and ozone's, if
+        # on) split by the water terms they share a band with. It replaces both
+        # co2_band_grid and ozone_infrared_grid, and the fitted envelope.
+        original = working_grid
+        working_grid, chou_spec = chou_longwave_grid(original, ozone=ozone_infrared)
+        home = carry(original, working_grid)
+        kappa = np.zeros(working_grid.n_bins)
+        if albedo is not None and np.ndim(albedo) >= 1 and np.shape(albedo)[-1] == original.n_bins:
+            albedo = np.asarray(albedo, dtype=float)[..., home]
+        if solar_vapour_k is not None:
+            solar_vapour_k = solar_vapour_k[home]
+        co2_band_spec = (chou_spec.co2_k, chou_spec.co2_kind, float(co2_ppmv))
+        if ozone_infrared:
+            ozone_ir_terms = chou_spec.ozone_term
+    elif co2_band:
         # Chou et al.'s CO2 band replaces the window caricature entirely: with a
         # real band, the caricature's stand-in for it would count CO2 twice
         # (co2-band.md). The region 12.5-18.5 microns is rebuilt around its
@@ -756,14 +785,9 @@ def radiating_column(
         if solar_vapour_k is not None:
             solar_vapour_k = solar_vapour_k[home]
         co2_band_spec = (co2_k, co2_kind, float(co2_ppmv))
-    ozone_ir_terms = None
-    if ozone_infrared:
+    if ozone_infrared and chou_spec is None:
         # Ozone's 9.6-micron band (ozone-infrared-band.md), on the SWOOSH
         # profile the solar ozone already places, so it needs ozone on.
-        if not ozone:
-            raise ConfigurationError(
-                "ozone's infrared band uses the ozone profile; switch ozone on with it"
-            )
         original = working_grid
         working_grid, ozone_ir_terms = ozone_infrared_grid(original)
         home = carry(original, working_grid)
@@ -791,6 +815,8 @@ def radiating_column(
             co2_band_spec = (co2_band_spec[0][home], co2_band_spec[1][home], co2_band_spec[2])
         if ozone_ir_terms is not None:
             ozone_ir_terms = ozone_ir_terms[home]
+        if chou_spec is not None:
+            chou_spec = chou_spec.carried(home)
     # Default to a surface that reflects sunlight and is black in the infrared.
     # A plain float would be grey in every band, which is a different -- and
     # physically distinguishable -- surface; see ``shortwave_albedo``.
@@ -829,6 +855,7 @@ def radiating_column(
         ozone_k=ozone_k,
         co2_band=co2_band_spec,
         ozone_infrared=ozone_ir_terms,
+        water_longwave=chou_spec,
         couple_cloud_field=observed_cloud_field,
     )
     atmosphere = AtmosphericColumnModule(

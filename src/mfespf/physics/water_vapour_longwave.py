@@ -237,6 +237,19 @@ class ChouLongwave:
     co2_kind: np.ndarray
     ozone_term: np.ndarray
 
+    def carried(self, home: np.ndarray) -> ChouLongwave:
+        """The same spec on a grid rebuilt elsewhere: each new bin takes its home bin's."""
+        return ChouLongwave(
+            water_band=self.water_band[home],
+            water_term=self.water_term[home],
+            tabulated=self.tabulated,
+            water_k=self.water_k[home],
+            continuum_k=self.continuum_k[home],
+            co2_k=self.co2_k[home],
+            co2_kind=self.co2_kind[home],
+            ozone_term=self.ozone_term[home],
+        )
+
 
 def _planck_split(low_cm: float, high_cm: float, weights: np.ndarray) -> np.ndarray:
     """Boundaries splitting [low, high] cm^-1 into pieces holding these Planck shares."""
@@ -380,6 +393,8 @@ def water_vapour_optical_depth(
     m = np.asarray(layer_mass, dtype=float)
     p = np.asarray(pressure, dtype=float)
     theta = np.asarray(temperature, dtype=float)
+    if np.any(w < 0.0):
+        raise ConfigurationError("a vapour path cannot be negative")
     path = w * _KG_M2_TO_G_CM2  # g cm^-2
     q = np.divide(w, m, out=np.zeros_like(w), where=m > 0.0)
     tau = np.zeros((w.size, spec.water_band.size))

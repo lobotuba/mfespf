@@ -28,7 +28,7 @@ bookkeeping inside the solver.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -66,6 +66,9 @@ from mfespf.physics.radiation import (
     band_exitance_profile,
 )
 from mfespf.registries.states import TendencyContribution
+
+if TYPE_CHECKING:
+    from mfespf.physics.water_vapour_longwave import ChouLongwave
 
 __all__ = [
     "RADIATION_INTERFACE",
@@ -576,6 +579,7 @@ class SpectralRadiationModule(Module):
         ozone_k: np.ndarray | None = None,
         co2_band: tuple[np.ndarray, np.ndarray, float] | None = None,
         ozone_infrared: np.ndarray | None = None,
+        water_longwave: ChouLongwave | None = None,
         couple_cloud_field: bool = False,
         cloud_field_module_id: str = "cloud_field",
         status: ModuleStatus = ModuleStatus.ACTIVE,
@@ -585,6 +589,7 @@ class SpectralRadiationModule(Module):
         ozone = ozone_k is not None
         co2 = co2_band is not None
         ozone_ir = ozone_infrared is not None
+        chou_vapour = water_longwave is not None and couple_water
         contract = ModuleContract(
             module_id=module_id,
             module_name=f"spectral column radiative transfer ({n_bands} bands)",
@@ -606,6 +611,7 @@ class SpectralRadiationModule(Module):
                 *((EQUATION_IDS["ozone_solar_absorption"],) if ozone else ()),
                 *((EQUATION_IDS["co2_15_micron_band"],) if co2 else ()),
                 *((EQUATION_IDS["ozone_9_6_micron_band"],) if ozone_ir else ()),
+                *((EQUATION_IDS["water_vapour_longwave"],) if chou_vapour else ()),
                 *(
                     (EQUATION_IDS["observed_cloud_field"], EQUATION_IDS["cloud_radiative_effect"])
                     if couple_cloud_field
@@ -726,7 +732,7 @@ class SpectralRadiationModule(Module):
                 # pressure is consumed, and declared, only when they are on.
                 *(
                     ("atmosphere_layer_pressure",)
-                    if (solar_vapour and couple_water) or ozone or co2 or ozone_ir
+                    if (solar_vapour and couple_water) or ozone or co2 or ozone_ir or chou_vapour
                     else ()
                 ),
                 # Ozone is prescribed on pressure, and the column above the
@@ -910,6 +916,14 @@ class SpectralRadiationModule(Module):
                 f"ozone band terms cover {self.ozone_infrared.size} bands and the grid has "
                 f"{n_bands}; build both with ozone_infrared_grid"
             )
+        # Chou et al.'s (2001) water vapour k-distributions on this grid
+        # (global-column-chou-longwave.md); None keeps the fitted envelope.
+        self.water_longwave = water_longwave
+        if water_longwave is not None and water_longwave.water_band.size != n_bands:
+            raise ConfigurationError(
+                f"water vapour terms cover {water_longwave.water_band.size} bands and the "
+                f"grid has {n_bands}; build both with chou_longwave_grid"
+            )
         self.water_module_id = water_module_id
         self.vapour_optical_depth: np.ndarray | None = None
         self.volcanic_optics: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
@@ -1018,10 +1032,25 @@ class SpectralRadiationModule(Module):
         contributions: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
 
         if self.couple_water:
-            from mfespf.physics.greenhouse import vapour_absorption_optical_depth
-
             vapour = self.input_field("atmosphere_water_vapour").require_units("kg m^-2").values
-            self.vapour_optical_depth = vapour_absorption_optical_depth(self.grid, vapour)
+            if self.water_longwave is not None:
+                from mfespf.physics.water_vapour_longwave import water_vapour_optical_depth
+
+                # Lines and continuum, scaled for each layer's pressure and
+                # temperature every step; zero in every band below 4 microns.
+                self.vapour_optical_depth = water_vapour_optical_depth(
+                    self.water_longwave,
+                    vapour=vapour,
+                    layer_mass=mass.values,
+                    pressure=self.input_field("atmosphere_layer_pressure")
+                    .require_units("Pa")
+                    .values,
+                    temperature=temperature.values,
+                )
+            else:
+                from mfespf.physics.greenhouse import vapour_absorption_optical_depth
+
+                self.vapour_optical_depth = vapour_absorption_optical_depth(self.grid, vapour)
             if self.solar_vapour_k is not None:
                 from mfespf.physics.solar_absorption import solar_vapour_optical_depth
 
@@ -1444,6 +1473,19 @@ class SpectralRadiationModule(Module):
                     }
                 }
                 if self.co2_band is not None
+                else {}
+            ),
+            **(
+                {
+                    "water_vapour_longwave": {
+                        "source": (
+                            "Chou, Suarez, Liang and Yan 2001, Tables 1, 3, 4, 9 and 10 "
+                            "(global-column-chou-longwave.md)"
+                        ),
+                        "tabulated_bands": list(self.water_longwave.tabulated),
+                    }
+                }
+                if self.water_longwave is not None and self.couple_water
                 else {}
             ),
             **(

@@ -57,6 +57,7 @@ EQUATION_IDS = {
     "band_insolation": "EQ-BAND-MEAN-INSOLATION",
     "co2_15_micron_band": "EQ-CO2-15-MICRON-K-DISTRIBUTION",
     "ozone_9_6_micron_band": "EQ-O3-9.6-MICRON-K-DISTRIBUTION",
+    "water_vapour_longwave": "EQ-H2O-LONGWAVE-K-DISTRIBUTION",
     "fractional_top_convective_adjustment": "EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
@@ -1344,6 +1345,81 @@ def build_equation_registry() -> EquationRegistry:
             known_failure_modes=(
                 "a single power-law pressure scaling of the same band fails Chou's tables "
                 "(attempt 1); the pressure table is what makes it fit",
+            ),
+            source="Chou, Suarez, Liang and Yan 2001, NASA/TM-2001-104606 vol. 19",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["water_vapour_longwave"],
+            version=V1,
+            name="Water vapour's longwave absorption as scaled k-distributions with a continuum",
+            category=EquationCategory.CONSTITUTIVE_RELATION,
+            mathematical_form=(
+                "tau_n = (k_n / mu) / 1.66 * w (p / 500 hPa)^m [1 + alpha (T - 250) + beta "
+                "(T - 250)^2], k_n = k_1 eta^(n-1), in each of Chou's bands 1-9 (0-3000 "
+                "cm^-1, cut here at 10 and 2500); plus the self-broadened continuum "
+                "tau_c = (k_c / mu) / 1.66 * w (q p / 0.622 / 1013 hPa) exp[1800 (1/T - "
+                "1/296)] in bands 3-7; one sub-band per term, sized to its Planck-weighted "
+                "fraction at 250 K, and split again by the CO2 or ozone terms sharing the "
+                "band so that overlapping transmittances multiply"
+            ),
+            physical_basis=(
+                "Water vapour's rotation band and 6.3-micron vibration-rotation band are "
+                "made of lines whose widths shrink with pressure, so the absorption per "
+                "molecule depends on the pressure it is at; between them its continuum, "
+                "dominated by self-broadening, is quadratic in the vapour and stronger "
+                "in the cold."
+            ),
+            variables=(
+                ("w", "layer vapour amount", "kg m^-2"),
+                ("q", "layer specific humidity", "1"),
+                ("p", "layer pressure", "Pa"),
+                ("T", "layer temperature", "K"),
+            ),
+            parameters=(
+                (
+                    "k_1, eta, Delta-g, m, alpha, beta, k_c",
+                    "published",
+                    "Chou, Suarez, Liang and Yan 2001, NASA/TM-2001-104606 vol. 19, "
+                    "Tables 1, 3, 4, 9 and 10, fitted by the authors to line-by-line "
+                    "calculations; not adjusted here",
+                ),
+            ),
+            assumptions=(
+                "the k-distribution's ordering holds at every level, carried by the scaling",
+                "water and CO2 or ozone within a band are randomly overlapped, so their "
+                "transmittances multiply",
+            ),
+            approximations=(
+                "Bands 1, 2 and 8 use Chou's k-distribution (his LOW option), not his "
+                "tables; he reports it underestimates the cooling above 10 hPa.",
+                "0-10 cm^-1 is left out and band 9 is cut at 2500 cm^-1 (line-by-line MLS "
+                "OLR in all of 1900-3000 cm^-1 is 5.13 W m^-2).",
+                "On AFGL mid-latitude summer the outgoing longwave is 6.19 W m^-2 below "
+                "line-by-line (water-vapour-longwave.md V1, failed; accepted by the "
+                "user's decision, global-column-chou-longwave.md).",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 170.0, 330.0, "K"),),
+                conditions=("the temperature fit's range, as for Chou's tables",),
+            ),
+            limiting_cases=(
+                "no vapour transmits every band unchanged",
+                "the continuum vanishes quadratically as the vapour does",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("one sub-band per k-term",),
+            correctness_tests=(
+                "test_the_transcribed_fractions_are_self_consistent",
+                "test_every_longwave_bin_carries_one_water_term_and_the_overlaps_their_products",
+                "test_the_continuum_is_self_broadened_and_stronger_in_the_cold",
+            ),
+            known_failure_modes=(
+                "nearly every band is slightly low on mid-latitude summer, summing to "
+                "-6.19 W m^-2 of OLR; 1.6 of it is attributable to integrating layer by "
+                "layer (transmittance-integration-diagnostic.md)",
             ),
             source="Chou, Suarez, Liang and Yan 2001, NASA/TM-2001-104606 vol. 19",
         )
