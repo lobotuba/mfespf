@@ -177,3 +177,19 @@ decision, made on these results.
   if adopted, frozen before it runs;
 - the open decisions on the saturation options and the ozone band, which
   this protocol uses but does not decide.
+
+---
+
+## The user's decision, recorded before R1 finished (nothing above this line changed)
+
+Recorded on 2026-10-07. R0 had finished; R1 and R2 were still running, and no
+R1 output had been read.
+
+- **If R1 fails any of G0-G4**, Chou's vapour is not adopted. The next step
+  is RRTMG's longwave gas optics (Mlawer et al. 1997; Iacono et al. 2008),
+  under its own protocol, frozen before any code.
+- **If R1 passes G0-G4,** adoption goes back to the user as frozen above.
+  RRTMG stays a candidate refinement.
+- **The user's reasoning.** Line-by-line-derived k-distributions are likely
+  part of the path in any case, and the thermal infrared is a large lever on
+  the surface temperature.
