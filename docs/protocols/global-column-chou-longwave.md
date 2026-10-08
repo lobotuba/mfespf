@@ -275,3 +275,36 @@ troposphere. The stratosphere holds 26.8 ppmv.
 - **Not measured here:** how much of R1's warmth comes from the scheme's
   extra opacity (V1's -6.2 W m^-2 on mid-latitude summer), amplified by the
   vapour feedback, and how much from the humidity closure alone.
+
+## Results, R2 (appended; nothing above this line changed)
+
+**R2 is complete and valid.** It has 176 bins and took 28416 s. The residual
+is 8.0e-16, the imbalance 0.003 W m^-2, and there are no domain violations.
+G0 passes.
+
+| | observed | R0 | R2 (Chou, no ozone band) | R1 (Chou + ozone band) |
+|---|---:|---:|---:|---:|
+| surface error | 0 | +1.59 K | **+7.18 K** | +9.91 K |
+| planetary albedo | 0.291 | 0.284 | 0.281 | 0.277 |
+| shortwave cloud effect | -45.8 | -52.5 | -51.6 | -50.9 W m^-2 |
+| longwave cloud effect | +27.9 | +40.0 | +29.3 | +23.5 W m^-2 |
+| outgoing longwave | 240.1 | 243.6 | 244.8 | 246.2 W m^-2 |
+| clear-sky outgoing longwave | 268.1 | 283.6 | 274.0 | 269.6 W m^-2 |
+| precipitable water | ~25 | 32.4 | 54.8 | 70.6 kg m^-2 |
+| relative humidity, 300-700 hPa | 0.4-0.5 | 0.79 | 0.86 | 0.89 |
+| cold point | | 187.8 K, 85 hPa | 194.7 K, 69 hPa | 202.8 K, 69 hPa |
+| stratospheric water | | 2.3 | 8.5 | 26.8 ppmv |
+| CO2 doubling, top / 203 hPa | | | 1.60 / 3.78 | 2.01 / 3.87 W m^-2 |
+
+R2's cloud-top temperatures are 231.4, 245.1, 272.4 and 287.7 K.
+
+**The separation the protocol asked for:**
+
+- **The vapour scheme (R2 - R0): +5.6 K.**
+- **Ozone's 9.6-micron band (R1 - R2): +2.7 K.** Ozone's band warms the
+  tropopause by 8 K and triples the water entering the stratosphere. The
+  surface follows the moister column.
+
+**Each step adds vapour.** In every run the surface warms with the column's
+water, 32 to 55 to 71 kg m^-2. This is consistent with R1's finding that the
+humidity, not the top-of-atmosphere flux, is what is wrong.
