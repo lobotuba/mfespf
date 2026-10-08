@@ -29,6 +29,10 @@ mfespf = "mfespf.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# RRTMG-LW reduced tables and their licence (rrtmg-longwave.md).
+mfespf = ["physics/data/*.npz", "physics/data/*.LICENSE"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --strict-markers"

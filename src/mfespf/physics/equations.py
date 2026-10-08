@@ -58,6 +58,7 @@ EQUATION_IDS = {
     "co2_15_micron_band": "EQ-CO2-15-MICRON-K-DISTRIBUTION",
     "ozone_9_6_micron_band": "EQ-O3-9.6-MICRON-K-DISTRIBUTION",
     "water_vapour_longwave": "EQ-H2O-LONGWAVE-K-DISTRIBUTION",
+    "rrtmg_longwave": "EQ-RRTMG-LW-GAS-OPTICS",
     "fractional_top_convective_adjustment": "EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
@@ -1347,6 +1348,70 @@ def build_equation_registry() -> EquationRegistry:
                 "(attempt 1); the pressure table is what makes it fit",
             ),
             source="Chou, Suarez, Liang and Yan 2001, NASA/TM-2001-104606 vol. 19",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["rrtmg_longwave"],
+            version=V1,
+            name="RRTMG's longwave gas optics: correlated-k from LBLRTM, 140 g-points",
+            category=EquationCategory.CONSTITUTIVE_RELATION,
+            mathematical_form=(
+                "tau_g = sum over key species of col x k(p, T, eta) interpolated in ln p, T and "
+                "the binary species parameter eta, plus the water self- and foreign-continuum, "
+                "minor gases and cross-sections, per AER's taugb1-16; one bin per g-point, a "
+                "sub-interval of its band sized to its fixed Planck fraction at 250 K"
+            ),
+            physical_basis=(
+                "Absorption by H2O, CO2, O3, CH4, N2O, O2, N2 and the CFCs in 16 bands from 10 "
+                "to 3250 cm^-1, sorted by absorption strength (correlated-k), with "
+                "coefficients derived from line-by-line spectra and the MT_CKD continuum."
+            ),
+            variables=(
+                ("w", "layer vapour amount", "kg m^-2"),
+                ("p", "layer pressure", "Pa"),
+                ("T", "layer temperature", "K"),
+            ),
+            parameters=(
+                (
+                    "k tables, Planck fractions",
+                    "published",
+                    "AER-RC/RRTMG_LW commit 958edb1a, data/rrtmg_lw.nc, reduced to 140 g-points "
+                    "as cmbgb does; not adjusted. The port reproduces AER's own clear-sky "
+                    "output to 5e-5 W m^-2 on four standard atmospheres (rrtmg-longwave.md P0)",
+                ),
+            ),
+            assumptions=(
+                "the k-distribution's g-ordering holds at every level (correlated-k)",
+                "CH4 808.2 ppb, N2O 273.0 ppb and O2 0.209 are well mixed; CFCs and CO absent",
+            ),
+            approximations=(
+                "Each g-point emits the Planck flux of a fixed wavelength sub-interval rather "
+                "than its fraction of the band's: -0.9 to -2.4 W m^-2 of OLR on AER's "
+                "atmospheres (rrtmg-longwave.md P1, (p)).",
+                "Band 15 is cut at 2500 cm^-1 and band 16 left out, the model's 4-micron "
+                "shortwave boundary.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 160.0, 340.0, "K"),),
+                conditions=("the integrated Planck tables' range, 160 to 340 K",),
+            ),
+            limiting_cases=(
+                "more water vapour raises every g-point's optical depth in the pure-water bands",
+                "the port reproduces RRTMG's own fluxes on its standard atmospheres",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("one sub-band per g-point",),
+            correctness_tests=(
+                "test_the_port_reproduces_aer_s_published_fluxes",
+                "test_more_water_absorbs_more_in_the_water_bands",
+            ),
+            known_failure_modes=(
+                "through this model's solver, OLR falls 1-3 W m^-2 below RRTMG's own transfer "
+                "(rrtmg-longwave.md P1)",
+            ),
+            source="Mlawer et al. 1997, JGR 102, 16663; Iacono et al. 2008, JGR 113, D13103",
         )
     )
 

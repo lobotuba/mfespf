@@ -113,3 +113,24 @@ pressure:
 
 **Whatever the finding,** RRTMG proceeds as the user decided. This tells
 the user what it can be expected to do.
+
+---
+
+## S0 result (appended; nothing above this line changed)
+
+**The restart.** R1's configuration ran 20000 steps from R1's recorded
+profile and surface temperature, and took 2308 s.
+
+| check | limit | restart | verdict |
+|---|---|---:|---|
+| validity | complete and valid | complete, valid, no domain violations | pass |
+| imbalance | \|imbalance\| <= 0.1 W m^-2 | 0.40 | **fail** |
+| surface | within 0.5 K of 297.91 | 297.33 K (-0.58) | **fail** |
+| water | within 3 of 70.6 kg m^-2 | 66.9 (-3.7) | **fail** |
+
+**S0 fails.** 20000 steps from a dry start do not return the column to R1's
+state. The relative humidity at 300-700 hPa is 0.88 and the clear-sky
+outgoing longwave is 269.8.
+
+**As frozen,** R1 is rerun in full, 200000 steps, saving its tail-mean
+state. The calculation uses that state.

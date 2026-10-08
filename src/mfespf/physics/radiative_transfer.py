@@ -68,6 +68,7 @@ from mfespf.physics.radiation import (
 from mfespf.registries.states import TendencyContribution
 
 if TYPE_CHECKING:
+    from mfespf.physics.rrtmg_longwave import RRTMGLongwave
     from mfespf.physics.water_vapour_longwave import ChouLongwave
 
 __all__ = [
@@ -580,6 +581,7 @@ class SpectralRadiationModule(Module):
         co2_band: tuple[np.ndarray, np.ndarray, float] | None = None,
         ozone_infrared: np.ndarray | None = None,
         water_longwave: ChouLongwave | None = None,
+        rrtmg: RRTMGLongwave | None = None,
         couple_cloud_field: bool = False,
         cloud_field_module_id: str = "cloud_field",
         status: ModuleStatus = ModuleStatus.ACTIVE,
@@ -590,6 +592,7 @@ class SpectralRadiationModule(Module):
         co2 = co2_band is not None
         ozone_ir = ozone_infrared is not None
         chou_vapour = water_longwave is not None and couple_water
+        use_rrtmg = rrtmg is not None
         contract = ModuleContract(
             module_id=module_id,
             module_name=f"spectral column radiative transfer ({n_bands} bands)",
@@ -612,6 +615,7 @@ class SpectralRadiationModule(Module):
                 *((EQUATION_IDS["co2_15_micron_band"],) if co2 else ()),
                 *((EQUATION_IDS["ozone_9_6_micron_band"],) if ozone_ir else ()),
                 *((EQUATION_IDS["water_vapour_longwave"],) if chou_vapour else ()),
+                *((EQUATION_IDS["rrtmg_longwave"],) if use_rrtmg else ()),
                 *(
                     (EQUATION_IDS["observed_cloud_field"], EQUATION_IDS["cloud_radiative_effect"])
                     if couple_cloud_field
@@ -732,12 +736,17 @@ class SpectralRadiationModule(Module):
                 # pressure is consumed, and declared, only when they are on.
                 *(
                     ("atmosphere_layer_pressure",)
-                    if (solar_vapour and couple_water) or ozone or co2 or ozone_ir or chou_vapour
+                    if (solar_vapour and couple_water)
+                    or ozone
+                    or co2
+                    or ozone_ir
+                    or chou_vapour
+                    or use_rrtmg
                     else ()
                 ),
                 # Ozone is prescribed on pressure, and the column above the
                 # model top is placed in the top layer from its top interface.
-                *(("atmosphere_interface_pressure",) if ozone or ozone_ir else ()),
+                *(("atmosphere_interface_pressure",) if ozone or ozone_ir or use_rrtmg else ()),
                 *(
                     (
                         "cloud_type_amount",
@@ -924,6 +933,16 @@ class SpectralRadiationModule(Module):
                 f"water vapour terms cover {water_longwave.water_band.size} bands and the "
                 f"grid has {n_bands}; build both with chou_longwave_grid"
             )
+        # RRTMG's gas optics (rrtmg-longwave.md): every longwave gas at once.
+        self.rrtmg = rrtmg
+        if rrtmg is not None:
+            if rrtmg.gpoint.size != n_bands:
+                raise ConfigurationError(
+                    f"RRTMG g-points cover {rrtmg.gpoint.size} bands and the grid has "
+                    f"{n_bands}; build both with rrtmg_longwave_grid"
+                )
+            if not couple_water:
+                raise ConfigurationError("RRTMG's longwave needs the radiative vapour")
         self.water_module_id = water_module_id
         self.vapour_optical_depth: np.ndarray | None = None
         self.volcanic_optics: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
@@ -1033,7 +1052,11 @@ class SpectralRadiationModule(Module):
 
         if self.couple_water:
             vapour = self.input_field("atmosphere_water_vapour").require_units("kg m^-2").values
-            if self.water_longwave is not None:
+            if self.rrtmg is not None:
+                # RRTMG carries the vapour's longwave with every other gas, below;
+                # here only the solar part, which is disjoint by band.
+                self.vapour_optical_depth = np.zeros((np.asarray(vapour).size, self.grid.n_bins))
+            elif self.water_longwave is not None:
                 from mfespf.physics.water_vapour_longwave import water_vapour_optical_depth
 
                 # Lines and continuum, scaled for each layer's pressure and
@@ -1067,6 +1090,27 @@ class SpectralRadiationModule(Module):
             # own emission back down and warm it, which is the wrong sign.
             zeros = np.zeros_like(self.vapour_optical_depth)
             contributions.append((self.vapour_optical_depth, zeros, zeros))
+
+        if self.rrtmg is not None:
+            from mfespf.physics.rrtmg_longwave import rrtmg_optical_depth
+            from mfespf.physics.solar_absorption import ozone_layer_path
+
+            pressure = self.input_field("atmosphere_layer_pressure").require_units("Pa").values
+            if self.ozone_path is None:
+                self.ozone_path = ozone_layer_path(
+                    pressure,
+                    self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
+                    mass.values,
+                )
+            gas_tau = rrtmg_optical_depth(
+                self.rrtmg,
+                vapour=self.input_field("atmosphere_water_vapour").require_units("kg m^-2").values,
+                layer_mass=mass.values,
+                pressure=pressure,
+                temperature=temperature.values,
+                ozone_path=self.ozone_path,
+            )
+            contributions.append((gas_tau, np.zeros_like(gas_tau), np.zeros_like(gas_tau)))
 
         if self.co2_band is not None:
             from mfespf.physics.co2_band import co2_optical_depth
@@ -1473,6 +1517,19 @@ class SpectralRadiationModule(Module):
                     }
                 }
                 if self.co2_band is not None
+                else {}
+            ),
+            **(
+                {
+                    "rrtmg_longwave": {
+                        "source": "AER-RC/RRTMG_LW 958edb1a (rrtmg-longwave.md)",
+                        "co2_ppmv": self.rrtmg.co2_ppmv,
+                        "ch4_ppb": self.rrtmg.ch4_ppb,
+                        "n2o_ppb": self.rrtmg.n2o_ppb,
+                        "o2_fraction": self.rrtmg.o2_fraction,
+                    }
+                }
+                if self.rrtmg is not None
                 else {}
             ),
             **(

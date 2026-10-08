@@ -56,6 +56,7 @@ from mfespf.physics.radiative_transfer import (
     grey_absorption,
     window_absorption,
 )
+from mfespf.physics.rrtmg_longwave import RRTMGLongwave, rrtmg_longwave_grid
 from mfespf.physics.solar import (
     ConstantSpectrumSolarSource,
     MeasuredSpectrumSolarSource,
@@ -689,6 +690,7 @@ def radiating_column(
     co2_ppmv: float = 284.7,
     ozone_infrared: bool = False,
     chou_water_vapour: bool = False,
+    rrtmg_longwave: bool = False,
     observed_cloud_field: bool = False,
     cloud_types: tuple[CloudType, ...] | None = None,
     receives_advection: bool = False,
@@ -752,6 +754,29 @@ def radiating_column(
         raise ConfigurationError(
             "ozone's infrared band uses the ozone profile; switch ozone on with it"
         )
+    if rrtmg_longwave and (chou_water_vapour or co2_band or ozone_infrared):
+        raise ConfigurationError(
+            "RRTMG's longwave carries the vapour, CO2 and ozone itself; it replaces "
+            "chou_water_vapour, co2_band and ozone_infrared rather than joining them"
+        )
+    if rrtmg_longwave and not (radiative_vapour and ozone):
+        raise ConfigurationError(
+            "RRTMG's longwave needs the radiative vapour and the ozone profile; switch on "
+            "radiative_vapour and ozone with it"
+        )
+    rrtmg_spec: RRTMGLongwave | None = None
+    if rrtmg_longwave:
+        # RRTMG's gas optics (rrtmg-longwave.md): the longwave rebuilt on its
+        # g-points; everything per band below 4 microns is carried by home band.
+        original = working_grid
+        working_grid, gpoint = rrtmg_longwave_grid(original)
+        home = carry(original, working_grid)
+        kappa = np.zeros(working_grid.n_bins)
+        if albedo is not None and np.ndim(albedo) >= 1 and np.shape(albedo)[-1] == original.n_bins:
+            albedo = np.asarray(albedo, dtype=float)[..., home]
+        if solar_vapour_k is not None:
+            solar_vapour_k = solar_vapour_k[home]
+        rrtmg_spec = RRTMGLongwave(gpoint=gpoint, co2_ppmv=float(co2_ppmv))
     co2_band_spec = None
     chou_spec: ChouLongwave | None = None
     ozone_ir_terms = None
@@ -817,6 +842,8 @@ def radiating_column(
             ozone_ir_terms = ozone_ir_terms[home]
         if chou_spec is not None:
             chou_spec = chou_spec.carried(home)
+        if rrtmg_spec is not None:
+            rrtmg_spec = rrtmg_spec.carried(home)
     # Default to a surface that reflects sunlight and is black in the infrared.
     # A plain float would be grey in every band, which is a different -- and
     # physically distinguishable -- surface; see ``shortwave_albedo``.
@@ -856,6 +883,7 @@ def radiating_column(
         co2_band=co2_band_spec,
         ozone_infrared=ozone_ir_terms,
         water_longwave=chou_spec,
+        rrtmg=rrtmg_spec,
         couple_cloud_field=observed_cloud_field,
     )
     atmosphere = AtmosphericColumnModule(

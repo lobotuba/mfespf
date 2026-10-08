@@ -318,6 +318,181 @@ sources:
     src/mfespf/physics/ozone_infrared.py (ozone-infrared-band.md attempt 2).
   sha256: 0917531726cbed5a128e05c45e70ee292c209dbcd1ae2bad17db6e46b8d3a5ad
 
+- dataset_id: RRTMG-LW-AER-K-TABLES
+  loader: none
+  title: RRTMG-LW absorption coefficient tables (256 g-points), AER
+  filename: rrtmg_lw.nc
+  url: https://raw.githubusercontent.com/AER-RC/RRTMG_LW/958edb1ad1618d76d0fcc5a9dc2e3c2f791a54dd/data/rrtmg_lw.nc
+  provider: Atmospheric and Environmental Research (AER), AER-RC/RRTMG_LW on GitHub
+  provenance_class: model_output
+  variables:
+  - key_species_and_minor_gas_absorption_coefficients
+  - planck_fractions
+  units:
+  - cm2 molecule-1
+  - '1'
+  temporal_coverage: not applicable
+  spatial_coverage: 59 reference pressures, 1053.63 to 0.00966 hPa
+  uncertainty: Iacono et al. 2008 quote RRTMG-LW within 1.5 W m-2 of LBLRTM in net flux
+  licence: BSD 3-Clause (AER-RC/RRTMG_LW LICENSE.md); redistribution requires the notice, reproduced in src/mfespf/physics/data/rrtmg_lw_reduced.LICENSE.
+  citation: 'Mlawer, E. J. et al. (1997), J. Geophys. Res. 102, 16663-16682; Iacono, M. J. et al. (2008), J. Geophys. Res. 113, D13103.'
+  notes: Reduced to 140 g-points (cmbgb) into src/mfespf/physics/data/rrtmg_lw_reduced.npz
+    by the generator recorded in rrtmg-longwave.md; the port is checked against the
+    RRTMG-LW-AER-RUN-* reference outputs (P0).
+  sha256: 5ea5b5d4129d31952404985dc52059573f5d674cd8ee20bf5038f5e929f514a1
+
+- dataset_id: RRTMG-LW-AER-RUN-MLS-INPUT
+  loader: none
+  title: RRTMG-LW standard-atmosphere example, mid-latitude summer clear sky, input
+  filename: input_rrtm_MLS-clr
+  url: https://raw.githubusercontent.com/AER-RC/RRTMG_LW/958edb1ad1618d76d0fcc5a9dc2e3c2f791a54dd/run_examples_std_atm/input_rrtm_MLS-clr
+  provider: Atmospheric and Environmental Research (AER), AER-RC/RRTMG_LW on GitHub
+  provenance_class: model_output
+  variables:
+  - layer_profile_and_molecular_amounts
+  units:
+  - hPa, K, molecules cm-2
+  temporal_coverage: not applicable
+  spatial_coverage: one standard-atmosphere column
+  uncertainty: none stated; reference output of RRTMG-LW itself, printed to 1e-4 W m-2
+  licence: BSD 3-Clause (AER-RC/RRTMG_LW LICENSE.md); redistribution requires the notice, reproduced in src/mfespf/physics/data/rrtmg_lw_reduced.LICENSE.
+  citation: 'Mlawer, E. J. et al. (1997), J. Geophys. Res. 102, 16663-16682; Iacono, M. J. et al. (2008), J. Geophys. Res. 113, D13103.'
+  notes: Copied to tests/data/aer_rrtmg_lw/ for the P0 port check (rrtmg-longwave.md).
+  sha256: 89813f4666e3e0fbb8f024b7a811d60f5117cdc80060ccad0a11e969a84def0e
+
+- dataset_id: RRTMG-LW-AER-RUN-MLS-OUTPUT
+  loader: none
+  title: RRTMG-LW standard-atmosphere example, mid-latitude summer clear sky, output
+  filename: output_rrtm_MLS-clr
+  url: https://raw.githubusercontent.com/AER-RC/RRTMG_LW/958edb1ad1618d76d0fcc5a9dc2e3c2f791a54dd/run_examples_std_atm/output_rrtm_MLS-clr
+  provider: Atmospheric and Environmental Research (AER), AER-RC/RRTMG_LW on GitHub
+  provenance_class: model_output
+  variables:
+  - level_fluxes_and_heating_rates
+  units:
+  - W m-2, K day-1
+  temporal_coverage: not applicable
+  spatial_coverage: one standard-atmosphere column
+  uncertainty: none stated; reference output of RRTMG-LW itself, printed to 1e-4 W m-2
+  licence: BSD 3-Clause (AER-RC/RRTMG_LW LICENSE.md); redistribution requires the notice, reproduced in src/mfespf/physics/data/rrtmg_lw_reduced.LICENSE.
+  citation: 'Mlawer, E. J. et al. (1997), J. Geophys. Res. 102, 16663-16682; Iacono, M. J. et al. (2008), J. Geophys. Res. 113, D13103.'
+  notes: Copied to tests/data/aer_rrtmg_lw/ for the P0 port check (rrtmg-longwave.md).
+  sha256: 3db6425f0ecaa6ca6ff1e07b60ee3834e518781286cf500197d45a54f90c05c7
+
+- dataset_id: RRTMG-LW-AER-RUN-SAW-INPUT
+  loader: none
+  title: RRTMG-LW standard-atmosphere example, sub-arctic winter clear sky, input
+  filename: input_rrtm_SAW-clr
+  url: https://raw.githubusercontent.com/AER-RC/RRTMG_LW/958edb1ad1618d76d0fcc5a9dc2e3c2f791a54dd/run_examples_std_atm/input_rrtm_SAW-clr
+  provider: Atmospheric and Environmental Research (AER), AER-RC/RRTMG_LW on GitHub
+  provenance_class: model_output
+  variables:
+  - layer_profile_and_molecular_amounts
+  units:
+  - hPa, K, molecules cm-2
+  temporal_coverage: not applicable
+  spatial_coverage: one standard-atmosphere column
+  uncertainty: none stated; reference output of RRTMG-LW itself, printed to 1e-4 W m-2
+  licence: BSD 3-Clause (AER-RC/RRTMG_LW LICENSE.md); redistribution requires the notice, reproduced in src/mfespf/physics/data/rrtmg_lw_reduced.LICENSE.
+  citation: 'Mlawer, E. J. et al. (1997), J. Geophys. Res. 102, 16663-16682; Iacono, M. J. et al. (2008), J. Geophys. Res. 113, D13103.'
+  notes: Copied to tests/data/aer_rrtmg_lw/ for the P0 port check (rrtmg-longwave.md).
+  sha256: 234fff61c543e949c0bb1aa9319ea3a19819b7aa8284e3be5d56ce92e5cef2a1
+
+- dataset_id: RRTMG-LW-AER-RUN-SAW-OUTPUT
+  loader: none
+  title: RRTMG-LW standard-atmosphere example, sub-arctic winter clear sky, output
+  filename: output_rrtm_SAW-clr
+  url: https://raw.githubusercontent.com/AER-RC/RRTMG_LW/958edb1ad1618d76d0fcc5a9dc2e3c2f791a54dd/run_examples_std_atm/output_rrtm_SAW-clr
+  provider: Atmospheric and Environmental Research (AER), AER-RC/RRTMG_LW on GitHub
+  provenance_class: model_output
+  variables:
+  - level_fluxes_and_heating_rates
+  units:
+  - W m-2, K day-1
+  temporal_coverage: not applicable
+  spatial_coverage: one standard-atmosphere column
+  uncertainty: none stated; reference output of RRTMG-LW itself, printed to 1e-4 W m-2
+  licence: BSD 3-Clause (AER-RC/RRTMG_LW LICENSE.md); redistribution requires the notice, reproduced in src/mfespf/physics/data/rrtmg_lw_reduced.LICENSE.
+  citation: 'Mlawer, E. J. et al. (1997), J. Geophys. Res. 102, 16663-16682; Iacono, M. J. et al. (2008), J. Geophys. Res. 113, D13103.'
+  notes: Copied to tests/data/aer_rrtmg_lw/ for the P0 port check (rrtmg-longwave.md).
+  sha256: daed07cf0fdc054d9401cc8df2707df9470d2478b53c473db0d2e16835c3aede
+
+- dataset_id: RRTMG-LW-AER-RUN-TROP-INPUT
+  loader: none
+  title: RRTMG-LW standard-atmosphere example, tropical clear sky, input
+  filename: input_rrtm_TROP-clr
+  url: https://raw.githubusercontent.com/AER-RC/RRTMG_LW/958edb1ad1618d76d0fcc5a9dc2e3c2f791a54dd/run_examples_std_atm/input_rrtm_TROP-clr
+  provider: Atmospheric and Environmental Research (AER), AER-RC/RRTMG_LW on GitHub
+  provenance_class: model_output
+  variables:
+  - layer_profile_and_molecular_amounts
+  units:
+  - hPa, K, molecules cm-2
+  temporal_coverage: not applicable
+  spatial_coverage: one standard-atmosphere column
+  uncertainty: none stated; reference output of RRTMG-LW itself, printed to 1e-4 W m-2
+  licence: BSD 3-Clause (AER-RC/RRTMG_LW LICENSE.md); redistribution requires the notice, reproduced in src/mfespf/physics/data/rrtmg_lw_reduced.LICENSE.
+  citation: 'Mlawer, E. J. et al. (1997), J. Geophys. Res. 102, 16663-16682; Iacono, M. J. et al. (2008), J. Geophys. Res. 113, D13103.'
+  notes: Copied to tests/data/aer_rrtmg_lw/ for the P0 port check (rrtmg-longwave.md).
+  sha256: 0ea0431815132a451febe913ffc01bc6e08ce38e3ed9d04956b1d2e480cd9d85
+
+- dataset_id: RRTMG-LW-AER-RUN-TROP-OUTPUT
+  loader: none
+  title: RRTMG-LW standard-atmosphere example, tropical clear sky, output
+  filename: output_rrtm_TROP-clr
+  url: https://raw.githubusercontent.com/AER-RC/RRTMG_LW/958edb1ad1618d76d0fcc5a9dc2e3c2f791a54dd/run_examples_std_atm/output_rrtm_TROP-clr
+  provider: Atmospheric and Environmental Research (AER), AER-RC/RRTMG_LW on GitHub
+  provenance_class: model_output
+  variables:
+  - level_fluxes_and_heating_rates
+  units:
+  - W m-2, K day-1
+  temporal_coverage: not applicable
+  spatial_coverage: one standard-atmosphere column
+  uncertainty: none stated; reference output of RRTMG-LW itself, printed to 1e-4 W m-2
+  licence: BSD 3-Clause (AER-RC/RRTMG_LW LICENSE.md); redistribution requires the notice, reproduced in src/mfespf/physics/data/rrtmg_lw_reduced.LICENSE.
+  citation: 'Mlawer, E. J. et al. (1997), J. Geophys. Res. 102, 16663-16682; Iacono, M. J. et al. (2008), J. Geophys. Res. 113, D13103.'
+  notes: Copied to tests/data/aer_rrtmg_lw/ for the P0 port check (rrtmg-longwave.md).
+  sha256: cc0cd73cfbe5aa07645a7e529837441b9e465ffb8adea89af6e1b6d20b09e5e0
+
+- dataset_id: RRTMG-LW-AER-RUN-MLW-INPUT
+  loader: none
+  title: RRTMG-LW standard-atmosphere example, mid-latitude winter clear sky, input
+  filename: input_rrtm_MLW-clr
+  url: https://raw.githubusercontent.com/AER-RC/RRTMG_LW/958edb1ad1618d76d0fcc5a9dc2e3c2f791a54dd/run_examples_std_atm/input_rrtm_MLW-clr
+  provider: Atmospheric and Environmental Research (AER), AER-RC/RRTMG_LW on GitHub
+  provenance_class: model_output
+  variables:
+  - layer_profile_and_molecular_amounts
+  units:
+  - hPa, K, molecules cm-2
+  temporal_coverage: not applicable
+  spatial_coverage: one standard-atmosphere column
+  uncertainty: none stated; reference output of RRTMG-LW itself, printed to 1e-4 W m-2
+  licence: BSD 3-Clause (AER-RC/RRTMG_LW LICENSE.md); redistribution requires the notice, reproduced in src/mfespf/physics/data/rrtmg_lw_reduced.LICENSE.
+  citation: 'Mlawer, E. J. et al. (1997), J. Geophys. Res. 102, 16663-16682; Iacono, M. J. et al. (2008), J. Geophys. Res. 113, D13103.'
+  notes: Copied to tests/data/aer_rrtmg_lw/ for the P0 port check (rrtmg-longwave.md).
+  sha256: ab9bb499e46fd5c7a48271b12c619617610649fac208f10b6c5a9fa3c18daa17
+
+- dataset_id: RRTMG-LW-AER-RUN-MLW-OUTPUT
+  loader: none
+  title: RRTMG-LW standard-atmosphere example, mid-latitude winter clear sky, output
+  filename: output_rrtm_MLW-clr
+  url: https://raw.githubusercontent.com/AER-RC/RRTMG_LW/958edb1ad1618d76d0fcc5a9dc2e3c2f791a54dd/run_examples_std_atm/output_rrtm_MLW-clr
+  provider: Atmospheric and Environmental Research (AER), AER-RC/RRTMG_LW on GitHub
+  provenance_class: model_output
+  variables:
+  - level_fluxes_and_heating_rates
+  units:
+  - W m-2, K day-1
+  temporal_coverage: not applicable
+  spatial_coverage: one standard-atmosphere column
+  uncertainty: none stated; reference output of RRTMG-LW itself, printed to 1e-4 W m-2
+  licence: BSD 3-Clause (AER-RC/RRTMG_LW LICENSE.md); redistribution requires the notice, reproduced in src/mfespf/physics/data/rrtmg_lw_reduced.LICENSE.
+  citation: 'Mlawer, E. J. et al. (1997), J. Geophys. Res. 102, 16663-16682; Iacono, M. J. et al. (2008), J. Geophys. Res. 113, D13103.'
+  notes: Copied to tests/data/aer_rrtmg_lw/ for the P0 port check (rrtmg-longwave.md).
+  sha256: c13779d69ce9993ad590e6d8e28e986f42e1dd274eacaf21f5902a4de7a0c7d3
+
 # --- not fetchable without credentials --------------------------------------
 #
 # CERES EBAF is the single most valuable dataset for this framework: it reports
