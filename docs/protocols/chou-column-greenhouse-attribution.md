@@ -134,3 +134,56 @@ outgoing longwave is 269.8.
 
 **As frozen,** R1 is rerun in full, 200000 steps, saving its tail-mean
 state. The calculation uses that state.
+
+## The state from R1's full rerun, and the result (appended; nothing above this line changed)
+
+**The full rerun reproduces R1 to every printed digit.**
+
+- **The run:** 200000 steps, 297.90841231119094 K, the same as R1, with
+  precipitable water 70.60 and imbalance 0.006. The run is deterministic.
+- **The saved state:** `gcl_r1_200000_state.npz`, which is R1's.
+- **S0 passes on it:** valid, imbalance 0.006, surface error 0.00 K, water
+  error 0.00.
+
+**The calculation.** Case A's clear-sky outgoing longwave, 269.65,
+reproduces R1's 269.62: the same state, solved by the same module.
+
+All values in W m^-2:
+
+| case | optics | vapour (kg m^-2) | OLR | clear-sky OLR | G, clear sky | surface down | surface down, clear |
+|---|---|---:|---:|---:|---:|---:|---:|
+| A | R1's | 70.6 | 246.17 | 269.65 | **176.97** | 422.41 | 412.18 |
+| B | R0's | 70.6 | 261.10 | 287.65 | **158.97** | 416.99 | 408.22 |
+| C | R1's | 26.2, observed | 273.57 | 309.35 | **137.28** | 392.38 | 357.79 |
+| D | R0's | 26.2, observed | 295.86 | 340.51 | **106.11** | 382.65 | 347.16 |
+
+- **ΔG_vap = G(A) - G(C) = 39.69 W m^-2.**
+- **ΔG_opt = G(A) - G(B) = 18.00 W m^-2.**
+
+**Verdict as frozen: ΔG_vap > 12.4, so the vapour amount dominates.** R1's
+excess water carries 39.7 W m^-2 of clear-sky greenhouse effect. That is
+6.4 times the largest gas-optics error measured for Chou's scheme (6.19 on
+MLS). RRTMG alone cannot close G4; the free-tropospheric humidity is the
+larger mechanism to add.
+
+**Reported.**
+
+- **The observed vapour** gives 26.2 kg m^-2 on R1's layers, against the
+  observed global ~25. NCEP and SWOOSH are placed as frozen.
+- **ΔG_opt = 18.0.**
+  - It is large because the fitted envelope is transparent, not because
+    Chou's scheme is opaque: R0's clear-sky OLR was 15.5 W m^-2 above CERES.
+  - The envelope was fitted to all-sky OLR with clouds that were themselves
+    missing their cloud tops' cold. So it compensated, and on a wet column
+    it lets out what the real vapour would not.
+  - On the observed vapour the two optics differ by 31.2 (D against C).
+- **Case C** (R1's temperatures, observed vapour) has a clear-sky
+  greenhouse effect of 137.3 W m^-2, against the observed 130.
+  - The temperatures are R1's warm ones, so this is not a prediction.
+  - Its order of magnitude shows that with the observed water the clear-sky
+    greenhouse effect falls back near the observed one under Chou's optics.
+- **What follows is the user's decision.** As frozen, RRTMG proceeds (R3
+  running). The measured lever is the humidity. A mechanism that dries the
+  free troposphere (0.89 relative humidity at 300-700 hPa against an
+  observed 0.4-0.5) is the next physics. It is named in
+  `observed-cloud-field.md` as subsiding air, and left unmeasured until now.
