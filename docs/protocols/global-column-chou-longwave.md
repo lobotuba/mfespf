@@ -193,3 +193,85 @@ R1 output had been read.
 - **The user's reasoning.** Line-by-line-derived k-distributions are likely
   part of the path in any case, and the thermal infrared is a large lever on
   the surface temperature.
+
+## Results, R0 and R1 (appended; nothing above this line changed)
+
+**Both runs are complete and valid,** at 200000 steps:
+
+| run | residual | imbalance, W m^-2 | domain violations |
+|---|---:|---:|---|
+| R0 | 9.8e-16 | 0.004 | none |
+| R1 | 8.7e-16 | 0.006 | none |
+
+**G0 passes for both.** R2 was stopped at about three hours to keep memory
+for R0 and R1, and was restarted from scratch when R0 finished. Its result
+is appended when it completes.
+
+**The verdict on R1,** against CERES EBAF Ed4.0 (Loeb et al. 2018, Table 5):
+
+| test | observed | R0 (control) | R1 (Chou) | verdict on R1 |
+|---|---:|---:|---:|---|
+| G1: planetary albedo | 0.291 | 0.284 | **0.277** | **pass** (0.014) |
+| G2: shortwave cloud effect | -45.8 | -52.5 | **-50.9** | **pass** (5.1) |
+| G3: longwave cloud effect | +27.9 | +40.0 | **+23.5** | **pass** (4.4) |
+| G4: the surface, against 288.0 K | | 289.59 K (+1.59) | **297.91 K (+9.91)** | **fails**: \|9.91\| > \|1.59\| |
+
+**Verdict as frozen: R1 fails G4.** Under the user's decision recorded
+above, Chou's vapour is not adopted, and the next step is RRTMG's longwave
+gas optics under its own protocol.
+
+**Reported:**
+
+| | observed | R0 | R1 |
+|---|---:|---:|---:|
+| outgoing longwave | 240.1 | 243.6 | 246.2 W m^-2 |
+| clear-sky outgoing longwave | 268.1 | 283.6 | **269.6** W m^-2 |
+| reflected sunlight | 99.1 | 96.7 | 94.1 W m^-2 |
+| clear-sky reflected | 53.3 | 44.2 | 43.2 W m^-2 |
+| sunlight absorbed in the atmosphere | | 58.2 | 69.5 W m^-2 |
+| precipitable water | ~25 | 32.4 | **70.6** kg m^-2 |
+| relative humidity, 300-700 hPa | 0.4-0.5 | 0.79 | **0.89** |
+| latent heat flux | | 82.9 | 114.1 W m^-2 |
+| sensible heat flux | | 3.8 | 1.7 W m^-2 |
+| cold point | | 187.8 K at 85 hPa | 202.8 K at 69 hPa |
+| T at 60, 27, 10, 1.5 hPa | | 189.1, 201.5, 225.2, 282.8 K | 203.1, 209.2, 222.8, 269.4 K |
+| stratospheric water, 100-10 hPa | | 2.3 ppmv | **26.8 ppmv** |
+
+**The cloud tops,** against ISCCP's 227.5, 234.8, 262.8 and 281.1 K:
+
+- R0: 222.3, 232.7, 263.7 and 281.3 K;
+- R1: 238.3, 251.6, 276.3 and 290.9 K.
+
+**CO2 doubling, R1.** Instantaneous, thermal, on the tail-mean state with its
+clouds:
+
+- 2.01 W m^-2 at the top;
+- 3.87 W m^-2 at 203 hPa.
+
+**The 3.16-4.0-micron bin, R1.** It carries 2.89 W m^-2 of sunlight at the
+top and 2.46 at the surface, unabsorbed by water.
+
+**The cost.** R0 has 67 bins and took 11505 s. R1 has 201 bins and took
+26542 s; it ran alongside the other runs throughout.
+
+**What the failure is, measured.** At the top of the atmosphere R1 is close
+to observed throughout:
+
+- the clear-sky outgoing longwave is 1.5 W m^-2 from CERES, where the fitted
+  control is 15.5 off;
+- both cloud effects pass.
+
+**Where it goes wrong is the atmosphere's water.** It holds 2.8 times the
+observed precipitable water and 0.89 relative humidity in the free
+troposphere. The stratosphere holds 26.8 ppmv.
+
+- **The clear-sky greenhouse effect,** σT_s^4 minus the clear-sky outgoing
+  longwave, is about 175 W m^-2 against an observed 130.
+- **So the surface is warm under a correct top-of-atmosphere flux** because
+  the column is too opaque for its surface temperature. That is the
+  signature of too much vapour.
+- **The mechanism suspected but not measured,** carried from
+  `observed-cloud-field.md`: subsiding air that dries the free troposphere.
+- **Not measured here:** how much of R1's warmth comes from the scheme's
+  extra opacity (V1's -6.2 W m^-2 on mid-latitude summer), amplified by the
+  vapour feedback, and how much from the humidity closure alone.
