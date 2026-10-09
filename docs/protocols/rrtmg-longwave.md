@@ -376,3 +376,65 @@ exactly these columns, nothing of this model's solver:
   R3 runs.
 
 **As frozen, R3 follows:** the wiring, its checks and the global run.
+
+## R3 result (appended; nothing above this line changed)
+
+**R3** is `global-column-chou-longwave.md`'s configuration with
+`rrtmg_longwave`.
+
+- **The run:** 178 bins, 200000 steps and 18624 s.
+- **Its first attempt** was stopped at about three hours for memory, while
+  R1's full rerun ran, and restarted from scratch.
+- **G0 passes.** The run is complete and valid, with residual 7.9e-16,
+  imbalance 0.007 W m^-2 and no domain violations.
+
+Against CERES EBAF Ed4.0, global:
+
+| test | observed | R0 | R1 (Chou + O3 band) | **R3 (RRTMG)** | verdict on R3 |
+|---|---:|---:|---:|---:|---|
+| G1: planetary albedo | 0.291 | 0.284 | 0.277 | **0.268** | pass (0.023) |
+| G2: shortwave cloud effect | -45.8 | -52.5 | -50.9 | **-49.5** | pass (3.7) |
+| G3: longwave cloud effect | +27.9 | +40.0 | +23.5 | **+14.5** | **fail** (13.4) |
+| G4: surface, against 288 K | | +1.59 K | +9.91 K | **+14.65 K** | **fail** |
+
+**R3 fails G3 and G4.**
+
+**Reported:**
+
+| | observed | R0 | R1 | R3 |
+|---|---:|---:|---:|---:|
+| outgoing longwave | 240.1 | 243.6 | 246.2 | 248.9 W m^-2 |
+| clear-sky outgoing longwave | 268.1 | 283.6 | 269.6 | **263.4** W m^-2 |
+| precipitable water | ~25 | 32.4 | 70.6 | **109.6** kg m^-2 |
+| relative humidity, 300-700 hPa | 0.4-0.5 | 0.79 | 0.89 | 0.91 |
+| latent heat flux | | 82.9 | 114.1 | 128.8 W m^-2 |
+| sunlight absorbed in the atmosphere | | 58.2 | 69.5 | 76.9 W m^-2 |
+| cold point | | 187.8 K | 202.8 K | 203.6 K at 57 hPa |
+| stratospheric water | | 2.3 | 26.8 | 44.4 ppmv |
+
+**The cloud tops** are 252.1, 262.8, 283.3 and 296.3 K, against ISCCP's
+227.5, 234.8, 262.8 and 281.1 K.
+
+**CO2 doubling.** Instantaneous and thermal, on the tail-mean state with its
+clouds: 2.57 W m^-2 at the top, 4.07 at 203 hPa.
+
+**The 3.16-4.0-micron bin** carries 2.89 W m^-2 of sunlight at the top and
+2.50 at the surface.
+
+**What it says.** The warming was predicted in the V-test record, before R3
+ran, and this is it.
+
+- **RRTMG is more opaque on the same water,** and the humidity closure
+  answers with more water: 109.6 kg m^-2, 4.4 times the observed.
+- **The cloud effect falls.** The surface warms 4.7 K beyond R1, and the
+  cloud tops warm with the atmosphere. The longwave cloud effect falls to
+  14.5, because a warm cloud top traps little, as `observed-cloud-field.md`
+  found.
+- **The gas optics are the best-validated in the model.** They are exact to
+  AER (P0). The failure is not theirs.
+  `chou-column-greenhouse-attribution.md` measured where it is: the column's
+  water, which carries 39.7 W m^-2 of excess clear-sky greenhouse effect on
+  R1's state.
+
+**Adoption is the user's decision.** As frozen, nothing changes the
+reference column.
