@@ -59,6 +59,8 @@ EQUATION_IDS = {
     "ozone_9_6_micron_band": "EQ-O3-9.6-MICRON-K-DISTRIBUTION",
     "water_vapour_longwave": "EQ-H2O-LONGWAVE-K-DISTRIBUTION",
     "rrtmg_longwave": "EQ-RRTMG-LW-GAS-OPTICS",
+    "correlated_k_emission": "EQ-CORRELATED-K-EMISSION",
+    "linear_in_tau_source": "EQ-LINEAR-IN-TAU-SOURCE",
     "fractional_top_convective_adjustment": "EQ-FRACTIONAL-TOP-CONVECTIVE-ADJUSTMENT",
     "clausius_clapeyron": "EQ-CLAUSIUS-CLAPEYRON-SATURATION",
     "specific_humidity": "EQ-SATURATION-SPECIFIC-HUMIDITY",
@@ -1348,6 +1350,112 @@ def build_equation_registry() -> EquationRegistry:
                 "(attempt 1); the pressure table is what makes it fit",
             ),
             source="Chou, Suarez, Liang and Yan 2001, NASA/TM-2001-104606 vol. 19",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["correlated_k_emission"],
+            version=V1,
+            name="Correlated-k emission: a g-point emits its Planck fraction of its band",
+            category=EquationCategory.CONSTITUTIVE_RELATION,
+            mathematical_form=(
+                "S_g(T) = F_g B_b(T), with B_b the band's Planck flux and F_g the g-point's "
+                "Planck fraction for the layer; the surface uses the lowest layer's F"
+            ),
+            physical_basis=(
+                "A g-point is the set of wavenumbers across its band whose absorption falls "
+                "in one range, not a wavelength interval, so its share of the band's emission "
+                "is the Planck-weighted measure of that set (Lacis & Oinas 1991; Mlawer et al. "
+                "1997), not the Planck flux of a sub-interval."
+            ),
+            variables=(
+                ("T", "layer temperature", "K"),
+                ("F_g", "Planck fraction of g-point g", "1"),
+            ),
+            parameters=(
+                (
+                    "Planck fractions",
+                    "published",
+                    "RRTMG's per-layer fractions from taumol (AER-RC/RRTMG_LW 958edb1a); the "
+                    "surface's divided by their band sum, which the tables miss by <= 1.72e-5 "
+                    "(longwave-source-function.md erratum)",
+                ),
+            ),
+            assumptions=("the g-ordering of absorption and of emission coincide within a band",),
+            approximations=(
+                "the fractions depend on the layer's gas mix but not on its temperature, as "
+                "in RRTMG",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 160.0, 340.0, "K"),),
+                conditions=("the bins hold RRTMG g-points",),
+            ),
+            limiting_cases=(
+                "with layer-independent fractions an isothermal column over a black surface "
+                "at the same temperature emits each band's Planck flux to space",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("one bin per g-point",),
+            correctness_tests=(
+                "test_fixed_fractions_close_an_isothermal_column",
+                "test_the_solver_reproduces_rrtmg_s_transfer",
+            ),
+            source="Lacis & Oinas 1991, JGR 96, 9027; Mlawer et al. 1997, JGR 102, 16663",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["linear_in_tau_source"],
+            version=V1,
+            name="Linear-in-tau source: a layer's Planck function varies across its depth",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form=(
+                "S_edge = e [B_lay + f(x)(B_edge - B_lay)], x = D tau_a, "
+                "f(x) = 1 - 2 (1/x - e^-x/(1 - e^-x)) (x > 0.06), x/6 below"
+            ),
+            physical_basis=(
+                "A thick layer emits from near the edge it is seen from, at that edge's "
+                "temperature, and a thin one from its whole depth at its mean; the Planck "
+                "function is taken linear in optical depth between the interface temperatures "
+                "(Clough, Iacono & Moncet 1992; RRTMG rtrnmr)."
+            ),
+            variables=(
+                ("tau", "layer absorption optical depth", "1"),
+                ("T", "interface temperature", "K"),
+            ),
+            parameters=(
+                (
+                    "interface temperatures",
+                    "convention",
+                    "CAM's RRTMG driver (rrtmg_state.F90): interior linear in ln p, top the "
+                    "top layer's, bottom the surface temperature",
+                ),
+            ),
+            assumptions=("the Planck function is linear in optical depth within a layer",),
+            approximations=(
+                "in a scattering layer the weighting is applied to the two-stream emissivity "
+                "e = 1 - r - t, with x the absorption depth; exact only without scattering",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("tau", 0.0, float("inf"), "1"),),
+                conditions=("exact for non-scattering layers; approximate for clouds",),
+            ),
+            limiting_cases=(
+                "f -> 0 as x -> 0: a transparent layer emits at its mean temperature",
+                "f -> 1 as x -> infinity: an opaque layer emits at its edge's temperature",
+                "an isothermal layer emits what the isothermal source gives",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("per layer and bin",),
+            correctness_tests=(
+                "test_the_linear_weight_has_its_limits",
+                "test_an_opaque_layer_emits_at_its_edges",
+                "test_an_isothermal_column_is_unchanged_by_the_linear_source",
+                "test_the_solver_reproduces_rrtmg_s_transfer",
+            ),
+            source="Clough, Iacono & Moncet 1992, JGR 97, 15761; AER RRTMG_LW rtrnmr",
         )
     )
 

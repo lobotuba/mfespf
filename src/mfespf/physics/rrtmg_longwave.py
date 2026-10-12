@@ -41,11 +41,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from mfespf.contracts.spectral import SpectralCoordinate, SpectralGrid
 from mfespf.core.errors import ConfigurationError
+
+if TYPE_CHECKING:
+    from mfespf.physics.radiative_transfer import PlanckFractions
 
 __all__ = [
     "BAND_WAVENUMBER_CM",
@@ -57,6 +61,7 @@ __all__ = [
     "rrtmg_gas_optics",
     "rrtmg_longwave_grid",
     "rrtmg_optical_depth",
+    "rrtmg_planck_fractions",
     "rrtmg_tables",
 ]
 
@@ -786,8 +791,11 @@ def rrtmg_optical_depth(
     pressure: np.ndarray,
     temperature: np.ndarray,
     ozone_path: np.ndarray,
-) -> np.ndarray:
+    with_fractions: bool = False,
+) -> Any:
     """Vertical gaseous optical depth on the grid, shaped (layers, bins).
+
+    With ``with_fractions``, also RRTMG's Planck fraction per layer and bin.
 
     ``vapour`` and ``layer_mass`` in kg m^-2 (the layer mass includes the
     vapour), ``pressure`` in Pa, ``temperature`` in K, ``ozone_path`` in cm-atm.
@@ -815,8 +823,32 @@ def rrtmg_optical_depth(
             "o2": spec.o2_fraction,
         },
     )
-    taug, _, _ = rrtmg_gas_optics(col)
-    tau = np.zeros((m.size, spec.gpoint.size))
+    taug, fracs, _ = rrtmg_gas_optics(col)
     lw = spec.gpoint >= 0
+    tau = np.zeros((m.size, spec.gpoint.size))
     tau[:, lw] = taug[:, spec.gpoint[lw]]
-    return tau
+    if not with_fractions:
+        return tau
+    fractions = np.zeros_like(tau)
+    fractions[:, lw] = fracs[:, spec.gpoint[lw]]
+    return tau, fractions
+
+
+def rrtmg_planck_fractions(spec: RRTMGLongwave, layer_fractions: np.ndarray) -> PlanckFractions:
+    """RRTMG's per-layer Planck fractions as the solver's correlated-k emission.
+
+    The surface takes the lowest layer's fractions, as ``rtrnmr`` does, divided
+    by their band sum: the published tables miss one by up to 1.72e-5, and the
+    surface's emission must carry the band's whole Planck flux
+    (longwave-source-function.md, erratum).
+    """
+    from mfespf.physics.radiative_transfer import PlanckFractions
+
+    lw = spec.gpoint >= 0
+    band = np.full(spec.gpoint.size, -1)
+    band[lw] = np.searchsorted(_NGS, spec.gpoint[lw], side="right") - 1
+    layer = np.asarray(layer_fractions, dtype=float)
+    sums = np.bincount(band[lw], weights=layer[0, lw])
+    surface = np.zeros(spec.gpoint.size)
+    surface[lw] = layer[0, lw] / sums[band[lw]]
+    return PlanckFractions(band=band, layer=layer, surface=surface)

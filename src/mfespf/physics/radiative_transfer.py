@@ -221,6 +221,79 @@ def two_stream_layer(
     return reflectance, transmittance, emissivity
 
 
+@dataclass(frozen=True)
+class PlanckFractions:
+    """Correlated-k emission (longwave-source-function.md (p)).
+
+    A g-point is the set of wavenumbers across its band whose absorption falls
+    in one range, not a wavelength interval, so it emits its Planck fraction of
+    the band's Planck flux (Lacis & Oinas 1991; Mlawer et al. 1997). ``band``
+    names each bin's band, -1 for a bin that emits its own Planck flux;
+    ``layer`` is each layer's fraction per bin and ``surface`` the surface's.
+    """
+
+    band: np.ndarray  # (n_bins,)
+    layer: np.ndarray  # (n_layers, n_bins)
+    surface: np.ndarray  # (n_bins,)
+
+    def weighted(self, own: np.ndarray, fractions: np.ndarray) -> np.ndarray:
+        """Each g-point bin's fraction of its band's total; other bins unchanged.
+
+        ``own`` is the Planck flux per bin, shaped (rows, bins), and
+        ``fractions`` the fractions for the same rows.
+        """
+        own = np.atleast_2d(own)
+        grouped = self.band >= 0
+        if not np.any(grouped):
+            return own
+        member = self.band[None, :] == np.arange(int(self.band.max()) + 1)[:, None]
+        totals = own @ member.T.astype(float)
+        out = own.copy()
+        out[:, grouped] = np.atleast_2d(fractions)[:, grouped] * totals[:, self.band[grouped]]
+        return out
+
+
+def linear_in_tau_weight(x: np.ndarray) -> np.ndarray:
+    """RRTMG's linear-in-tau weight f(x) (Clough et al. 1992; ``rrtmg_lw_init``).
+
+    A layer of emitting depth ``x`` emits ``B_lay + f(x) (B_edge - B_lay)`` toward
+    that edge: f -> 0 when transparent, so it emits at its mean temperature, and
+    f -> 1 when opaque, so it emits at the edge's.
+    """
+    x = np.asarray(x, dtype=float)
+    out = x / 6.0
+    thick = x > 0.06
+    xt = x[thick]
+    out[thick] = 1.0 - 2.0 * (1.0 / xt - np.exp(-xt) / -np.expm1(-xt))
+    return out
+
+
+def interface_temperatures(
+    layer_temperature: np.ndarray,
+    layer_pressure: np.ndarray,
+    interface_pressure: np.ndarray,
+    surface_temperature: float,
+) -> np.ndarray:
+    """Interface temperatures by CAM's RRTMG convention (``rrtmg_state.F90``).
+
+    Interior interfaces lie linearly in ln p between the adjacent layer
+    temperatures; the top interface takes the top layer's temperature; the
+    bottom is CAM's (LW_up / sigma)^(1/4), the surface temperature for a black
+    surface. Indexed from the surface (0) to the model top.
+    """
+    t = np.asarray(layer_temperature, dtype=float)
+    lnp = np.log(np.asarray(layer_pressure, dtype=float))
+    lnpi = np.log(np.asarray(interface_pressure, dtype=float))
+    if lnpi.size != t.size + 1 or lnp.size != t.size:
+        raise ConfigurationError("interface temperatures need n layers and n + 1 interfaces")
+    out = np.empty(t.size + 1)
+    out[0] = float(surface_temperature)
+    out[-1] = t[-1]
+    dy = (lnpi[1:-1] - lnp[:-1]) / (lnp[1:] - lnp[:-1])
+    out[1:-1] = t[:-1] + dy * (t[1:] - t[:-1])
+    return out
+
+
 @dataclass
 class ColumnRadiationSolution:
     """Interface fluxes, layer heating and the diagnostics RAD-002 requires.
@@ -354,6 +427,8 @@ def solve_column_radiation(
     asymmetry: np.ndarray | None = None,
     diffusivity_factor: float | None = None,
     shortwave_cutoff_m: float = _DEFAULT_SW_LW_CUTOFF_M,
+    planck_fractions: PlanckFractions | None = None,
+    interface_temperature: np.ndarray | None = None,
 ) -> ColumnRadiationSolution:
     """Solve absorption, scattering, emission and surface reflection in the column.
 
@@ -370,6 +445,12 @@ def solve_column_radiation(
     scatter in the same layers and their contributions add, so the caller
     combines them with ``combine_scatterers`` before calling here -- the solver
     has no business knowing which scatterer is which.
+
+    Two source-function options (longwave-source-function.md), both off by
+    default: ``planck_fractions`` makes g-point bins emit their fraction of the
+    band's Planck flux, and ``interface_temperature`` (n_layers + 1, from the
+    surface) lets each layer's source vary linearly in optical depth toward the
+    edge it emits from.
     """
     n_layers = int(np.asarray(layer_mass).size)
     n_bands = grid.n_bins
@@ -433,27 +514,69 @@ def solve_column_radiation(
         total_optical_depth, single_scattering_albedo, asymmetry, D
     )
     layer_emission = band_exitance_profile(grid, temperature)
+    surface_emission = band_exitance(grid, float(surface_temperature))
+    if planck_fractions is not None:
+        fractions = planck_fractions
+        if (
+            fractions.band.shape != (n_bands,)
+            or fractions.layer.shape != shape
+            or fractions.surface.shape != (n_bands,)
+        ):
+            raise ConfigurationError("Planck fractions must match the layers and the grid")
+        grouped = fractions.band >= 0
+        closure = np.bincount(
+            fractions.band[grouped], weights=fractions.surface[grouped], minlength=1
+        )
+        present = np.bincount(fractions.band[grouped], minlength=1) > 0
+        if np.any(np.abs(closure[present] - 1.0) > 1.0e-6):
+            # The surface module emits its own greybody total; the radiation's
+            # surface emission carries the same total only if the fractions close.
+            raise ConfigurationError("each band's surface Planck fractions must sum to one")
+        layer_emission = fractions.weighted(layer_emission, fractions.layer)
+        surface_emission = fractions.weighted(surface_emission, fractions.surface)[0]
+
+    if interface_temperature is None:
+        source_up = emissivity * layer_emission
+        source_down = source_up
+    else:
+        edges = np.asarray(interface_temperature, dtype=float)
+        if edges.shape != (n_layers + 1,):
+            raise ConfigurationError(
+                f"interface_temperature has {edges.size} entries for {n_layers + 1} interfaces"
+            )
+        edge_emission = band_exitance_profile(grid, edges)
+        top, bottom = edge_emission[1:], edge_emission[:-1]
+        if planck_fractions is not None:
+            # Each layer weights both its edges by its own fractions, as rtrnmr does.
+            top = planck_fractions.weighted(top, planck_fractions.layer)
+            bottom = planck_fractions.weighted(bottom, planck_fractions.layer)
+        # Emission comes from absorption, so the emitting depth is the
+        # absorption optical depth along the diffuse path, not the extinction.
+        weight = linear_in_tau_weight(D * (gas_absorption + cloud_absorption))
+        source_up = emissivity * (layer_emission + weight * (top - layer_emission))
+        source_down = emissivity * (layer_emission + weight * (bottom - layer_emission))
 
     # Upward pass: reflectance and emitted source of everything below interface i.
     below_reflectance = np.zeros((n_layers + 1, n_bands))
     below_source = np.zeros((n_layers + 1, n_bands))
     surface_emissivity = 1.0 - albedo
     below_reflectance[0] = albedo
-    below_source[0] = surface_emissivity * band_exitance(grid, float(surface_temperature))
+    below_source[0] = surface_emissivity * surface_emission
 
     for i in range(n_layers):
         coupling = 1.0 - reflectance[i] * below_reflectance[i]
-        source = emissivity[i] * layer_emission[i]
         below_reflectance[i + 1] = (
             reflectance[i] + (transmittance[i] ** 2 * below_reflectance[i]) / coupling
         )
+        # What leaves the layer's bottom is reflected back up from below; what
+        # leaves its top goes straight up.
         below_source[i + 1] = (
             transmittance[i]
             * below_reflectance[i]
-            * (reflectance[i] * below_source[i] + source)
+            * (reflectance[i] * below_source[i] + source_down[i])
             / coupling
             + transmittance[i] * below_source[i]
-            + source
+            + source_up[i]
         )
 
     # Downward pass with the incident field, then the upward field follows.
@@ -461,9 +584,8 @@ def solve_column_radiation(
     downward[n_layers] = np.asarray(incident_spectral_irradiance, dtype=float) * grid.widths
     for i in range(n_layers - 1, -1, -1):
         coupling = 1.0 - reflectance[i] * below_reflectance[i]
-        source = emissivity[i] * layer_emission[i]
         downward[i] = (
-            transmittance[i] * downward[i + 1] + reflectance[i] * below_source[i] + source
+            transmittance[i] * downward[i + 1] + reflectance[i] * below_source[i] + source_down[i]
         ) / coupling
 
     upward = below_reflectance * downward + below_source
@@ -483,9 +605,7 @@ def solve_column_radiation(
         downward=downward,
         layer_heating=layer_heating,
         surface_absorbed=float(np.sum(surface_emissivity * downward[0])),
-        surface_emitted=float(
-            np.sum(surface_emissivity * band_exitance(grid, float(surface_temperature)))
-        ),
+        surface_emitted=float(np.sum(surface_emissivity * surface_emission)),
         grid=grid,
         shortwave_mask=shortwave_mask,
         optical_depth=total_optical_depth,
@@ -582,6 +702,8 @@ class SpectralRadiationModule(Module):
         ozone_infrared: np.ndarray | None = None,
         water_longwave: ChouLongwave | None = None,
         rrtmg: RRTMGLongwave | None = None,
+        k_distribution_source: bool = False,
+        linear_in_tau_source: bool = False,
         couple_cloud_field: bool = False,
         cloud_field_module_id: str = "cloud_field",
         status: ModuleStatus = ModuleStatus.ACTIVE,
@@ -616,6 +738,8 @@ class SpectralRadiationModule(Module):
                 *((EQUATION_IDS["ozone_9_6_micron_band"],) if ozone_ir else ()),
                 *((EQUATION_IDS["water_vapour_longwave"],) if chou_vapour else ()),
                 *((EQUATION_IDS["rrtmg_longwave"],) if use_rrtmg else ()),
+                *((EQUATION_IDS["correlated_k_emission"],) if k_distribution_source else ()),
+                *((EQUATION_IDS["linear_in_tau_source"],) if linear_in_tau_source else ()),
                 *(
                     (EQUATION_IDS["observed_cloud_field"], EQUATION_IDS["cloud_radiative_effect"])
                     if couple_cloud_field
@@ -742,11 +866,17 @@ class SpectralRadiationModule(Module):
                     or ozone_ir
                     or chou_vapour
                     or use_rrtmg
+                    or linear_in_tau_source
                     else ()
                 ),
                 # Ozone is prescribed on pressure, and the column above the
                 # model top is placed in the top layer from its top interface.
-                *(("atmosphere_interface_pressure",) if ozone or ozone_ir or use_rrtmg else ()),
+                # The linear source's interface temperatures lie in ln p between the layers.
+                *(
+                    ("atmosphere_interface_pressure",)
+                    if ozone or ozone_ir or use_rrtmg or linear_in_tau_source
+                    else ()
+                ),
                 *(
                     (
                         "cloud_type_amount",
@@ -943,6 +1073,15 @@ class SpectralRadiationModule(Module):
                 )
             if not couple_water:
                 raise ConfigurationError("RRTMG's longwave needs the radiative vapour")
+        # The longwave source function (longwave-source-function.md): (p) each
+        # g-point emits its Planck fraction of its band, (s) each layer's source
+        # varies linearly in optical depth toward the edge it emits from.
+        if k_distribution_source and rrtmg is None:
+            raise ConfigurationError(
+                "correlated-k emission needs g-points; it applies to RRTMG's longwave"
+            )
+        self.k_distribution_source = k_distribution_source
+        self.linear_in_tau_source = linear_in_tau_source
         self.water_module_id = water_module_id
         self.vapour_optical_depth: np.ndarray | None = None
         self.volcanic_optics: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
@@ -1044,6 +1183,14 @@ class SpectralRadiationModule(Module):
             shortwave_cutoff_m=self.shortwave_cutoff_m,
         )
 
+        if self.linear_in_tau_source:
+            common["interface_temperature"] = interface_temperatures(
+                temperature.values,
+                self.input_field("atmosphere_layer_pressure").require_units("Pa").values,
+                self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
+                surface_temperature,
+            )
+
         # Water vapour and volcanic aerosol are both in the clear sky as well as
         # under the cloud, so they go into the base optical properties rather
         # than into the cloudy solve. A clear-sky diagnostic that excluded them
@@ -1102,14 +1249,19 @@ class SpectralRadiationModule(Module):
                     self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
                     mass.values,
                 )
-            gas_tau = rrtmg_optical_depth(
+            gas_tau, fractions = rrtmg_optical_depth(
                 self.rrtmg,
                 vapour=self.input_field("atmosphere_water_vapour").require_units("kg m^-2").values,
                 layer_mass=mass.values,
                 pressure=pressure,
                 temperature=temperature.values,
                 ozone_path=self.ozone_path,
+                with_fractions=True,
             )
+            if self.k_distribution_source:
+                from mfespf.physics.rrtmg_longwave import rrtmg_planck_fractions
+
+                common["planck_fractions"] = rrtmg_planck_fractions(self.rrtmg, fractions)
             contributions.append((gas_tau, np.zeros_like(gas_tau), np.zeros_like(gas_tau)))
 
         if self.co2_band is not None:
@@ -1494,6 +1646,8 @@ class SpectralRadiationModule(Module):
             "diffusivity_factor": self.diffusivity_factor,
             "shortwave_longwave_cutoff_m": self.shortwave_cutoff_m,
             "gas_scattering": "not_represented",
+            "k_distribution_source": self.k_distribution_source,
+            "linear_in_tau_source": self.linear_in_tau_source,
             "cloud_scattering": "two_stream_with_delta_scaling"
             if self.couple_clouds
             else "no_clouds_active",

@@ -237,3 +237,68 @@ the difference between the normalised and published surface emission.
      edge's Planck flux, B(280) and B(300), to 1e-6 relative.
 
    Both are exact consequences of the formula. Neither loosens a tolerance.
+
+## Unit tests, P2 and V result (appended; nothing above this line changed)
+
+**The unit tests pass,** under both errata:
+
+- T1-T7;
+- CAM's interface convention against a hand calculation;
+- P2 as a permanent test, `test_the_solver_reproduces_rrtmg_s_transfer`.
+
+**The equation records** are `EQ-CORRELATED-K-EMISSION` and
+`EQ-LINEAR-IN-TAU-SOURCE`. The switches are `k_distribution_source` and
+`linear_in_tau_source` on the radiation module and `reference_column`. Both
+are off by default.
+
+**P2 passes on all four atmospheres, and the residual is the predicted one.**
+All values in W m^-2, OLR / surface down, against AER's bands 1-15:
+
+| atmosphere | P1, neither | **P2, both** | predicted, (d) alone | P2 |
+|---|---:|---:|---:|---|
+| MLS | -2.27 / -6.00 | **-0.60 / +0.24** | -0.60 / +0.24 | pass |
+| SAW | -1.06 / +0.75 | **-0.16 / +0.49** | -0.16 / +0.49 | pass |
+| TROP | -3.27 / +0.47 | **-0.97 / +1.12** | -0.97 / +1.12 | pass |
+| MLW | -1.62 / +0.13 | **-0.23 / +0.07** | -0.23 / +0.07 | pass |
+
+Every residual is within 0.01 W m^-2 of the prediction made from P1's
+decomposition before the code. What remains is RRTMG's band-dependent
+diffusivity, which is not built.
+
+**Reported as frozen:**
+
+| atmosphere | (p) only | (s) only | both, CAM's interfaces in place of AER's `tz` | both, fixed fractions in place of per-layer |
+|---|---:|---:|---:|---:|
+| MLS | -0.07 / -6.91 | -2.80 / +1.29 | -0.61 / +0.24 | +0.04 / +0.20 |
+| SAW | -0.12 / +0.63 | -1.10 / +0.61 | -0.16 / +0.49 | +0.10 / +0.45 |
+| TROP | -0.85 / -0.48 | -3.38 / +2.11 | -0.97 / +1.12 | -0.19 / +1.05 |
+| MLW | -0.18 / -0.39 | -1.68 / +0.60 | -0.23 / +0.07 | +0.11 / +0.03 |
+
+- **(p) carries the OLR and (s) the MLS surface,** as P1 found. Each alone
+  leaves the other's error in place.
+- **CAM's interface convention costs at most 0.01.** AER's surface level
+  temperature equals its `tbound` on all four atmospheres, so that is
+  expected.
+- **The erratum's normalisation** changes the surface emission by -0.0004 to
+  -0.0009 W m^-2.
+
+**V1, V2 and V5, re-judged with both options.** The interface temperatures
+are the AFGL levels. All values in W m^-2:
+
+| atmosphere | V1: OLR - Chou line-by-line | V2: surface down - Chou line-by-line | V5 |
+|---|---:|---:|---|
+| MLS | 283.33 - 293.99 = **-10.66**, fail | 348.14 - 339.59 = **+8.55**, fail | -12.43 C/day at 1.1 hPa, pass |
+| SAW | 200.60 - 204.37 = **-3.77**, fail | 171.01 - 162.01 = **+9.00**, fail | (-27.7) |
+
+**MLS's V2 passed before (+2.93) and fails now.** The earlier pass was a
+cancellation:
+
+- the solver's own -6.0 on the surface flux, which P2 removes;
+- against RRTMG's +8.5 disagreement with Chou's line-by-line, which
+  `rrtmg-longwave.md` measured through AER's own transfer (348.09 on this
+  column).
+
+The model's solver now gives 348.14 there. What the V tests measure now is
+the disagreement between the two references, as recorded.
+
+**As frozen, R4 follows (P2 passed).**

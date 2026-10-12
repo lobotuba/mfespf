@@ -691,6 +691,8 @@ def radiating_column(
     ozone_infrared: bool = False,
     chou_water_vapour: bool = False,
     rrtmg_longwave: bool = False,
+    k_distribution_source: bool = False,
+    linear_in_tau_source: bool = False,
     observed_cloud_field: bool = False,
     cloud_types: tuple[CloudType, ...] | None = None,
     receives_advection: bool = False,
@@ -884,6 +886,8 @@ def radiating_column(
         ozone_infrared=ozone_ir_terms,
         water_longwave=chou_spec,
         rrtmg=rrtmg_spec,
+        k_distribution_source=k_distribution_source,
+        linear_in_tau_source=linear_in_tau_source,
         couple_cloud_field=observed_cloud_field,
     )
     atmosphere = AtmosphericColumnModule(
