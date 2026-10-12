@@ -209,3 +209,31 @@ the solver refuses RRTMG's own fractions, and (p) cannot run at all.
 
 **What is recorded with P2:** the size in W m^-2 of the normalisation, as
 the difference between the normalised and published surface emission.
+
+## Second erratum, T4, before any result is recorded (nothing above this line changed)
+
+**T4 contradicts the formula frozen with it.**
+
+- **What T4 says:** a layer at D tau = 50 emits upward B(280) and downward
+  B(300) to 1e-6.
+- **What the frozen formula gives:**
+  - f(x) = 1 - 2 (1/x - e^-x / (1 - e^-x)), so f(50) = 0.96, not 1;
+  - the upward emission is B_lay + 0.96 (B_top - B_lay);
+  - the emission approaches the edge's only as 1/x.
+
+  That is the physics: an opaque layer emits from about one optical depth
+  inside its edge, so the departure is (B_top - B_bottom)/x.
+- **The first run:** the code gives the formula's value. T4 as written fails
+  by 0.6 percent at the spectral peak.
+
+**The two readings:**
+
+1. **Keep T4 as frozen.** It fails, and it judges the code against a value
+   the frozen physics does not predict.
+2. **Test the frozen formula where it says it holds,** taken:
+   - at D tau = 50, upward and downward equal
+     B_lay + f(50)(B_edge - B_lay) per bin, to 1e-6 relative;
+   - at D tau = 1e9, the limit, the total upward and downward equal the
+     edge's Planck flux, B(280) and B(300), to 1e-6 relative.
+
+   Both are exact consequences of the formula. Neither loosens a tolerance.
