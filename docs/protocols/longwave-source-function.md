@@ -181,3 +181,31 @@ disagreement between RRTMG and Chou's line-by-line as much as this model.
   starts from R4's configuration whatever R4's result.
 
 ---
+
+## Erratum, before any result (nothing above this line changed)
+
+**The closure tolerance was set from a check printed to four decimals.** The
+protocol says each band's surface fractions must sum to one within 1e-6.
+
+**Measured on AER's four atmospheres:** RRTMG's own lower-atmosphere
+fractions miss one by 1.5e-6 to 1.72e-5, depending on the band. That is the
+rounding of the published tables, the same on every atmosphere. As frozen,
+the solver refuses RRTMG's own fractions, and (p) cannot run at all.
+
+**The two readings:**
+
+1. **Loosen the tolerance to admit the rounding.** This weakens a check, so
+   it is not taken.
+2. **Keep the check at 1e-6 and divide the surface fractions by their band
+   sum,** taken.
+   - This restores the defining property of a g-point's fractions, which sum
+     to one over the band, where the tables lose it to rounding.
+   - `rrtmg_fixed_fractions` already does the same per band
+     (`tools/gen_rrtmg_fractions.py`).
+   - It changes the surface's emission by at most 1.72e-5 of each band's
+     flux.
+   - The layer fractions are used as published. Heating is flux divergence,
+     so the column's energy closes identically whatever they sum to.
+
+**What is recorded with P2:** the size in W m^-2 of the normalisation, as
+the difference between the normalised and published surface emission.
