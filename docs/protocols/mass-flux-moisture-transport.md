@@ -256,3 +256,86 @@ needs. P1 makes it falsifiable against its own theory.
 **Adoption is the user's decision.**
 
 ---
+
+## Erratum, before any code (nothing above this line changed)
+
+Mapping the frozen design onto the code found three places where the text
+cannot be implemented as written, or is ambiguous. Each is recorded with both
+readings. No outcome has been computed.
+
+### 1. Γ_M at unit mass flux for a whole step
+
+**What was frozen:** "apply the operator at M_b = 1 kg m^-2 s^-1 for one
+step dt". At dt = 3600 s that moves 3600 kg m^-2: more than the whole column
+above 500 hPa. The CAPE change it gives is that of a column turned over many
+times, not a rate.
+
+**The readings:**
+
+1. **As frozen,** which is not a rate, so it is not taken.
+2. **Γ_M as the derivative it names,** taken. It is the rate at which unit
+   cloud-base mass flux removes CAPE_d.
+   - The operator's tendencies are linear in M_b. They are formed at
+     M_b = 1, as rates.
+   - CAPE_d is re-evaluated on the state advanced along them by
+     M_b Δt = 1 kg m^-2: a small displacement, under 1 percent of any
+     tropospheric layer's mass.
+   - Γ_M = -ΔCAPE_d / (1 kg m^-2 / (1 kg m^-2 s^-1)) is the finite
+     difference of that derivative. The trigger, the closure form, τ_c and
+     C_residual are unchanged.
+
+### 2. Who heats the air with the plume's condensation
+
+**The ownership.** The water module owns vapour and latent energy, and it is
+where every phase change's latent heat enters (CLAUDE.md, "a process that
+moves matter must move its energy in the same interval").
+
+**The operator's net vapour change** in layer k splits exactly into:
+
+- a conservative transport t_k (column sum zero);
+- the net convective condensation c_k = P_f,k - e_k (column sum
+  P_surface).
+
+**The readings:**
+
+1. **Convection applies the latent heating itself.** That moves a phase
+   change's energy out of the module that owns it.
+2. **Convection publishes t_k and c_k,** taken.
+   - The water module commits the vapour change t_k - c_k.
+   - It adds c_k to its condensation: precipitation, latent heating L c_k,
+     and the fusion excess where c_k is deposition. That is the same route
+     its own condensation takes.
+   - It includes L c_k / C_k in the end-of-step temperature its saturation
+     adjustment uses.
+   - Convection's own temperature tendency then excludes L c_k. It
+     redistributes the column's enthalpy and sums to zero, as the adjustment
+     it replaces did.
+
+### 3. The dry adjustment's vapour mixing
+
+**The ambiguity.** The frozen text replaces "the moist, entraining-plume
+lapse-rate adjustment and its vapour mixing" and keeps "the dry adjustment
+of dry-unstable layers". It does not say whether the dry groups still mix
+vapour.
+
+**The readings:**
+
+1. **They do not,** which leaves the boundary layer's turbulence moving heat
+   and not water.
+2. **They do,** taken. Mixing within a dry-unstable group is turbulence, and
+   it carries water as it carries heat.
+   - With the dry-adiabat target, dry-unstable groups sit near the surface.
+     The free troposphere's water then comes only through the plume and its
+     subsidence.
+   - That vapour mixing is reported separately, so its share stays visible.
+
+### Numerics, made precise
+
+The subcycling criterion counts every outflow from a layer in a substep, not
+only M:
+
+- the subsiding environmental flux out through its base;
+- entrainment into the plume.
+
+Each substep keeps their sum, times the substep, at no more than half the
+layer's mass. M_b is still never limited.
