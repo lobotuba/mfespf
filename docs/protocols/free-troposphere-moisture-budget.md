@@ -130,3 +130,71 @@ protocol would come next, as the user decides.
      it.
 
 B0 and Da are unaffected and already complete.
+
+## Result (appended; nothing above this line changed)
+
+**S passes.** B0's last 5000 steps are R4's state: surface 301.49 K, RH
+300-700 0.893, precipitable water 98.5 kg m^-2. Restoring the vapour did what
+the earlier restart, which lacked it, could not.
+
+**M1 passes.** The largest per-layer residual over all 10000 steps is
+6.7e-16 kg m^-2.
+
+**M2, the budget over the twelve layers centred between 692.7 and
+321.5 hPa,** time-means in kg m^-2 day^-1, summed over those layers:
+
+| label | sum | share of moistening | share of drying |
+|---|---:|---:|---:|
+| `convective_vapour_transport` | **+2.497** | **96.1%** | 0 |
+| `vapour_eddy_diffusion` | +0.058 | 3.9% | 1.6% |
+| `evaporation_minus_condensation` | **-2.546** | 0 | **98.4%** |
+
+Convective mixing moistens every one of these layers, and condensation dries
+every one. Diffusion is a net +0.058 that moves water upward between them:
+it is negative in four layers, by at most 0.027.
+
+**MH fails as frozen,** on two counts, both measured:
+
+1. **Eddy diffusion is negative on average in four of the twelve layers.**
+   That is redistribution: water passing upward from one layer to the next,
+   1.6 percent of the drying.
+2. **`evaporation_minus_condensation` is positive in 4344 of 12000
+   layer-steps of a 1000-step probe.** Every one is at most 4.4e-16 kg m^-2
+   per step, median 1.0e-16. That is the round-off of forming the label as a
+   difference (the vapour rate less diffusion), not evaporation aloft.
+
+The frozen criterion was per layer and exact, so both count. As written, H
+fails.
+
+**What H claimed, read on the integrated budget, does hold.** The free
+troposphere gains water only by transport from below: 96 percent convective
+mixing. It loses it only by condensation: 98 percent, with the remaining 1.6
+percent diffusion moving it up. No process in the column descends and dries.
+
+**M3, denial,** RH 300-700 over the last 2500 steps:
+
+| run | change | RH 300-700 | precipitable water | surface |
+|---|---|---:|---:|---:|
+| B0 | none | 0.893 | 98.5 | 301.49 K |
+| Da | eddy diffusion off | 0.886 | 98.0 | 301.53 K |
+| Db | no convective vapour transport, and (erratum) no end-of-step saturation | **0.985** | **118.6** | 303.63 K |
+
+**Verdict as frozen: neither denial brings the free troposphere below 0.75,
+so no single process sets it.**
+
+**Db is the informative one.** With the source supplying 96 percent of the
+moistening switched off, the free troposphere got *wetter*.
+
+- Nothing in the column removes the water already aloft except
+  condensation, so the water stays at saturation.
+- The upper free troposphere reaches 1.0005: the supersaturation that
+  `end-of-step-saturation.md` removed returns when that option is off.
+- The humidity is therefore not set by how much water convection supplies.
+  It is set by the absence of anything that dries.
+
+**What follows, as frozen ("If H holds"):** the integrated reading supports
+H, though the per-layer criterion fails. The missing process is drying
+inside a convecting column. The established form is the compensating
+subsidence of mass-flux convection with detrainment (Arakawa & Schubert
+1974). Its own entrainment and detrainment would predict the free
+troposphere's RH (Romps 2014). That protocol is the user's decision.
