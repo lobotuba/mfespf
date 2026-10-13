@@ -668,6 +668,7 @@ def radiating_column(
     plume_entrainment_rate: float | None = None,
     convective_adjustment_time: float | None = None,
     detrained_state: str = "plume",
+    precipitation_evaporation: str = "cascade",
     prescribed_humidity: float | None = None,
     plume_humidity: bool = False,
     plume_vertical_structure: bool = False,
@@ -1068,6 +1069,7 @@ def radiating_column(
                         else CONVECTIVE_ADJUSTMENT_TIME_S
                     ),
                     detrained_state=detrained_state,
+                    precipitation_evaporation=precipitation_evaporation,
                 ),
                 step_multiple=1,
             )

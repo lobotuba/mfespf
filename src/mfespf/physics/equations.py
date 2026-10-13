@@ -1006,6 +1006,13 @@ def build_equation_registry() -> EquationRegistry:
                 "substep; 'environment_saturation' caps the detrained vapour at "
                 "q_s(T_e, p) and keeps the excess's latent heat in s. Detrained "
                 "condensate joins the plume's and follows the alpha pathway.",
+                "Where the evaporating fraction evaporates is declared "
+                "(convective-reevaporation-placement.md): 'cascade' where formed, to "
+                "the deficit before its own cooling, the rest passed down; "
+                "'wet_bulb_cascade' to the wet-bulb capacity; 'falling_rate_law' "
+                "e = ke (1 - q/q_s) sqrt(F) on the flux from above, ke = 1e-6 "
+                "(CAM5 zm_conv_evap); 'below_cloud_base' only below the lowest "
+                "condensing layer. alpha is the most that may evaporate.",
             ),
             validity_domain=ValidityDomain(
                 ranges=(("T", 170.0, 340.0, "K"),),
@@ -1030,6 +1037,9 @@ def build_equation_registry() -> EquationRegistry:
                 "test_the_advective_split_is_the_operator",
                 "test_mixed_equilibrium_leaves_no_receiving_layer_supersaturated",
                 "test_environment_saturation_detrains_no_vapour_above_the_layers_saturation",
+                "test_wet_bulb_capacity_leaves_no_layer_above_saturation",
+                "test_the_falling_rate_law_follows_its_closed_form",
+                "test_below_cloud_base_evaporates_nothing_at_or_above_cloud_base",
             ),
             known_failure_modes=(
                 "a single plume cannot represent a spectrum of cloud depths",

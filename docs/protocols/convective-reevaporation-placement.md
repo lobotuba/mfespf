@@ -239,3 +239,188 @@ reported. Anything else is reported as found, without classification.
     closed form in an unlimited layer;
   - E3 evaporates nothing at or above cloud base;
   - realised α ≤ α in every mode.
+
+---
+
+## Result (appended; nothing above this line changed)
+
+**Erratum, corrected while running, both readings kept.**
+
+- **What happened:** E1 and E2 first stopped at step 35. Convection raised
+  "temperatures must be positive".
+- **The defect, mine:** the wet-bulb bisection bracketed on
+  [0, q_s(T) − q]. Near 1 hPa, in a warm layer, q_s(T) exceeds anything the
+  layer could cool to take, and the trial temperature T − L·δ/c_p went below
+  zero.
+- **The correction:** the bracket's top is now
+  min(q_s(T) − q, c_p·T/(2L)). The excess is checked to be non-negative
+  there, and the step refuses if it is not.
+- **The test:** `test_the_wet_bulb_capacity_is_bracketed_near_the_model_top`.
+- **What it touched:** E0 and E3 never call this function. Their runs, already
+  complete, stand.
+- **What was read:** E0 and E3 had been read before the fix. E1 and E2 had
+  produced no result.
+
+**Setup reproduced.**
+
+- **E0 is D0:** RH 0.93720 and every water amount identical.
+- **E0's code is bit-for-bit the code before this change.** The digest of
+  `convect` on three soundings and six coupled steps matched the committed
+  D-state code.
+- **The radiation was identical** at every step (checksum -2646.2636).
+- **All four runs closed to 4.9-6.3e-16.**
+- **Validity:** all four are invalid on the validity-domain gate only, as
+  D0-D2 and T0-T3 were. The conservation gate passed.
+- **α_potential reads back 0.67 in all four,** and ke reads back 1e-6 in E2.
+
+### Days 10-20
+
+| | E0 cascade | E1 wet-bulb | E2 falling, rate law | E3 below cloud base |
+|---|---:|---:|---:|---:|
+| **RH 300-700** | 0.9372 | 0.9699 | **0.7114** | **0.7034** |
+| re-evaporation's d ln RH | +5.66 | +5.80 | +0.15 | 0 |
+| of which vapour / cooling | +2.98 / +2.68 | +2.87 / +2.93 | +0.09 / +0.06 | 0 / 0 |
+| realised α (evaporated / formed) | 0.670 | 0.670 | **0.062** | 0.670 |
+| 1 − surface precipitation / formed | 0.64 | 0.67 | 0.02 | 0.28 |
+| evaporation's mean pressure, hPa | 550 | 556 | 677 | 996 |
+| fraction of it in 300-700 | 0.70 | 0.71 | 0.49 | 0 |
+| large-scale condensation, 300-700, kg m^-2 | 3.03 | 0.31 | 0.13 | 0.17 |
+| subsidence's d ln RH | -7.03 | -7.27 | -3.88 | -3.72 |
+| net detrainment's d ln RH | +0.74 | +0.34 | +2.98 | +3.03 |
+| budget sum / actual | 0.037 / 0.038 | 0.052 / 0.053 | 0.49 / -0.05 | 0.54 / -0.07 |
+| duty cycle | 0.91 | 0.93 | 0.40 | 0.39 |
+| mass transport, kg m^-2 | 7207 | 7359 | 4086 | 3953 |
+| mean CAPE_d, J/kg | 382 | 441 | 118 | 114 |
+| surface precipitation, kg m^-2 | 43.3 | 42.9 | 41.2 | 29.4 |
+| surface temperature, K | 311.1 | 311.0 | 313.8 | 313.7 |
+
+**The budget does not reconstruct in E2 and E3.** It is reported as measured
+and not leaned on.
+
+- **The vapour terms leave a residual against the labels:** -0.97 in E2 and
+  -1.19 in E3. That residual is the dry convective adjustment's own vapour
+  mixing:
+  - it shares convection's vapour label;
+  - it was zero inside 300-700 hPa in E0, E1 and D0-D2;
+  - with convection off 60 percent of the time, it reaches into the band.
+- **Even with it included,** the linearised sum misses the actual change by
+  about 0.6. With intermittent convection the per-step changes are too large
+  for Σ Δw/w to stand in for Δ ln w.
+
+### Verdicts, as frozen
+
+**E2: placement supported, by all six conditions as computed.**
+
+1. RH falls 0.226.
+2. The re-evaporation contribution falls 97 percent.
+3. Residual 6.3e-16, and the conservation gate passed.
+4. α_potential is 0.67.
+5. Evaporation's mean pressure rises 127 hPa, and realised α falls to 0.062.
+6. Subsidence's d ln RH is 3.88, at least half of E0's 7.03. **This is read
+   from a budget that does not reconstruct.**
+
+**E3: placement supported, by all six conditions as computed.**
+
+1. RH falls 0.234.
+2. The re-evaporation contribution falls 100 percent.
+3. Residual 5.3e-16.
+4. α_potential is 0.67.
+5. Evaporation's mean pressure rises 446 hPa.
+6. Subsidence's d ln RH is 3.72, at least 3.51. **The same caveat applies,
+   and the margin is 6 percent.**
+
+**E1: not classified.**
+
+- RH rose 0.033, so it is not supported.
+- Its distribution moved by 0.014 and 6 hPa, so it is not rejected.
+
+**Bulk α: not implicated by the frozen rule.** E1 realises 0.67 and is
+wetter; the rule needs both E1 and E2 at or below 0.50 and drier.
+
+### What the result says, and what it does not
+
+**1. Where the evaporation goes sets this column's humidity.**
+
+- E2 and E3 both take the evaporation out of the free troposphere, and RH
+  falls from 0.94 to 0.70-0.71.
+- This is the largest response any protocol in this branch has produced.
+  The trigger moved RH by 0.002, and D2 by 0.039.
+
+**2. Neither E2 nor E3 isolates placement from amount.**
+
+- **E2 evaporates far less.** Realised α is 0.06 against 0.67. CAM's rate law
+  at its own constant cannot realise the measured precipitation efficiency,
+  as estimated before the run.
+- **E3 nominally evaporates 0.67,** all into the lowest layer. But that layer
+  cannot hold it at the deficit before cooling, and the water module
+  re-condenses much of it:
+  - surface precipitation is 29.4 against 13.5 for the convective net alone;
+  - so the net fraction kept out of the surface is 0.28.
+- **Each case therefore changes both where and how much.**
+
+**3. The convective regime changes with them.**
+
+- Under the common radiation, removing the free troposphere's evaporative
+  cooling cuts:
+  - the duty cycle from 0.91 to 0.40;
+  - mass transport by 44 percent;
+  - CAPE from 382 to about 115.
+- The surface warms by 2.6 K.
+- **The drier free troposphere comes with less convection and less
+  subsidence, not more.**
+- The column is bounded by a prescribed radiative cooling that does not
+  respond, and an interactive column could settle elsewhere. That was not
+  run.
+
+**4. E1 found what the large-scale condensation was.**
+
+- E0's 3.03 kg m^-2 in 300-700 hPa was almost all the α pathway's overshoot,
+  evaporation past saturation then condensed and rained out. The wet-bulb
+  limit leaves 0.31.
+- **Removing it makes the column wetter by 0.033.** The overshoot was a hidden
+  path that rained out water the cascade had just evaporated.
+
+**5. Re-evaporation's effect is both vapour and cooling, in about equal parts.**
+
+- E0: +2.98 vapour, +2.68 cooling.
+- E1: +2.87 vapour, +2.93 cooling.
+
+**Not concluded:**
+
+- no production conclusion, no default change, no α or ke changed;
+- **why α and the rate law disagree** by a factor of ten in realised
+  evaporation is not established here. The candidates are:
+  - the measurement's α counts cloud-condensate evaporation near where it
+    forms, which a rain-only law omits;
+  - or ke = 1e-6 is a tuning value that does not carry that meaning;
+- that question belongs to the separate α protocol this one's rules name,
+  and the user decides whether to open it.
+
+### Addendum: the user's reading of the E result (2026-10-13)
+
+The frozen verdicts stand. Their interpretation is qualified as the user
+worded it:
+
+> E2 and E3 support the proposition that the evaporation treatment
+> materially controls free-tropospheric humidity. They do not independently
+> establish that vertical placement is the cause, because neither case
+> preserved the evaporated condensate amount or the convective state.
+
+**The jump from about 0.94 to 0.71 is not yet a placement effect.**
+
+**E1, as the user records it:**
+
+> E0's large-scale condensation was primarily recycling evaporation that
+> had been forced beyond the receiving air's capacity, not condensation
+> independently generated by resolved cooling or ascent.
+
+**The candidates:**
+
+| candidate | standing |
+|---|---|
+| E0 | rejected as a production candidate: it forces an evaporation-recondensation cycle |
+| E1 | a diagnostic only |
+| E2 | the rain-evaporation component |
+| E3 | a limiting placement diagnostic |
+
+**What follows:** `convective-condensate-ledger.md`.

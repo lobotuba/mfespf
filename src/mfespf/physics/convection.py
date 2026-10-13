@@ -80,6 +80,8 @@ from mfespf.physics.mass_flux import (
     CONVECTIVE_ADJUSTMENT_TIME_S,
     DETRAINED_STATES,
     PLUME_ENTRAINMENT_PER_M,
+    PRECIPITATION_EVAPORATION_EFFICIENCY,
+    PRECIPITATION_EVAPORATIONS,
     convect,
 )
 from mfespf.physics.plume import (
@@ -208,6 +210,16 @@ MASS_FLUX_DECOMPOSITION: dict[str, tuple[str, str, str]] = {
         "convective condensate evaporated in each layer",
         "kg m^-2 s^-1",
     ),
+    "convective_precipitation_entering_rate": (
+        "precipitation_entering",
+        "convective condensate falling into each layer from above",
+        "kg m^-2 s^-1",
+    ),
+    "convective_evaporation_limit": (
+        "evaporation_limit_time",
+        "the most each layer could evaporate, step-mean of each substep's limit",
+        "kg m^-2",
+    ),
 }
 
 
@@ -238,6 +250,7 @@ class ConvectiveAdjustmentModule(Module):
         cape_trigger: float = CAPE_TRIGGER_J_KG,
         evaporating_fraction: float = EVAPORATING_CONDENSATE_FRACTION,
         detrained_state: str = "plume",
+        precipitation_evaporation: str = "cascade",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         relaxed = relaxation_timescale > 0.0
@@ -247,6 +260,15 @@ class ConvectiveAdjustmentModule(Module):
             )
         if detrained_state != "plume" and not mass_flux:
             raise ConfigurationError("detrained_state applies only to mass-flux convection")
+        if precipitation_evaporation not in PRECIPITATION_EVAPORATIONS:
+            raise ConfigurationError(
+                f"precipitation_evaporation {precipitation_evaporation!r} is not one of "
+                f"{PRECIPITATION_EVAPORATIONS}"
+            )
+        if precipitation_evaporation != "cascade" and not mass_flux:
+            raise ConfigurationError(
+                "precipitation_evaporation applies only to mass-flux convection"
+            )
         # Mass-flux convection (mass-flux-moisture-transport.md) replaces the moist
         # adjustment, so it composes only with the dry one, and only where the
         # water module condenses after it, because the plume's condensation is
@@ -555,6 +577,7 @@ class ConvectiveAdjustmentModule(Module):
         self.cape_trigger = cape_trigger
         self.evaporating_fraction = evaporating_fraction
         self.detrained_state = detrained_state
+        self.precipitation_evaporation = precipitation_evaporation
         self._mass_flux_parts: dict[str, np.ndarray] = {}
         self._mass_flux_tendency: np.ndarray | None = None
         self._convective_condensation: np.ndarray | None = None
@@ -1040,6 +1063,7 @@ class ConvectiveAdjustmentModule(Module):
             adjustment_time=self.convective_adjustment_time,
             trigger=self.cape_trigger,
             detrained_state=self.detrained_state,
+            precipitation_evaporation=self.precipitation_evaporation,
             **common,
         )
         step = result.step
@@ -1412,6 +1436,16 @@ class ConvectiveAdjustmentModule(Module):
                     "cape_trigger_J_kg": self.cape_trigger,
                     "evaporating_fraction": self.evaporating_fraction,
                     "detrained_state": self.detrained_state,
+                    "precipitation_evaporation": self.precipitation_evaporation,
+                    **(
+                        {
+                            "precipitation_evaporation_efficiency": (
+                                PRECIPITATION_EVAPORATION_EFFICIENCY
+                            )
+                        }
+                        if self.precipitation_evaporation == "falling_rate_law"
+                        else {}
+                    ),
                 }
                 if self.mass_flux
                 else {}

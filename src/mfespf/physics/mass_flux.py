@@ -50,6 +50,8 @@ __all__ = [
     "DETRAINED_STATES",
     "MAX_SUBSTEPS",
     "PLUME_ENTRAINMENT_PER_M",
+    "PRECIPITATION_EVAPORATIONS",
+    "PRECIPITATION_EVAPORATION_EFFICIENCY",
     "SOURCE_LAYER_FLOOR_PA",
     "Convection",
     "MassFluxStep",
@@ -59,6 +61,8 @@ __all__ = [
     "convect",
     "deposit_evaporation",
     "entraining_plume",
+    "evaporation_capacity",
+    "fall_and_evaporate",
     "unit_rates",
 ]
 
@@ -92,6 +96,31 @@ SOURCE_LAYER_FLOOR_PA = 85000.0
 #: In D1 and D2 the detrained condensate joins the plume's condensate in that
 #: layer and follows the same evaporating-fraction pathway.
 DETRAINED_STATES = ("plume", "mixed_equilibrium", "environment_saturation")
+
+#: Where the evaporating fraction of convective condensate evaporates
+#: (``docs/protocols/convective-reevaporation-placement.md``):
+#:
+#: - ``"cascade"``: where it formed, up to the layer's deficit before the
+#:   evaporation's own cooling, the rest passed down (E0, the original);
+#: - ``"wet_bulb_cascade"``: the same, limited by the wet-bulb capacity (E1);
+#: - ``"falling_rate_law"``: precipitation falls interface by interface and
+#:   evaporates under CAM5 Zhang-McFarlane's rate law (E2);
+#: - ``"below_cloud_base"``: E0's rule, only below cloud base (E3, a
+#:   diagnostic limit).
+#:
+#: In every one, the evaporating fraction is the most that may evaporate.
+PRECIPITATION_EVAPORATIONS = (
+    "cascade",
+    "wet_bulb_cascade",
+    "falling_rate_law",
+    "below_cloud_base",
+)
+
+#: ke in e = ke (1 - q/q_s) sqrt(F), (kg m^-2 s^-1)^-1/2 s^-1: the evaporation
+#: of convective precipitation in CAM5's Zhang-McFarlane scheme
+#: (``zm_conv.F90``, ``zm_conv_evap``, "a Sundqvist type algorithm"), at the
+#: value the WRF port of that scheme sets; CAM reads it from ``zmconv_ke``.
+PRECIPITATION_EVAPORATION_EFFICIENCY = 1.0e-6
 
 
 @dataclass(frozen=True)
@@ -317,6 +346,80 @@ def deposit_evaporation(amounts: np.ndarray, deficits: np.ndarray) -> tuple[np.n
     return evaporated, falling
 
 
+def evaporation_capacity(
+    temperature: np.ndarray,
+    specific_humidity: np.ndarray,
+    pressure: np.ndarray,
+    cp: np.ndarray,
+    latent_heat: float,
+) -> np.ndarray:
+    """The most water each layer can take by evaporation, per unit mass: the
+    largest d with q + d <= q_s(T - L d / c_p, p), the wet-bulb limit. Bisection
+    to 2^-60 of the bracket [0, min(max(q_s(T) - q, 0), c_p T / (2 L))]: the
+    excess is negative at 0 and not negative at the top.
+
+    The second bound keeps every trial temperature at T/2 or above. Near the
+    model top q_s(T) can exceed the layer's whole capacity to cool (e_s
+    approaches p), and a bracket of q_s(T) - q alone drove the trial
+    temperature below zero (convective-reevaporation-placement.md, erratum).
+    At T/2, q_s is negligible against q + c_p T / (2 L); that is checked, and
+    refused if it fails, rather than assumed."""
+    T = np.asarray(temperature, dtype=float)
+    q = np.asarray(specific_humidity, dtype=float)
+    p = np.asarray(pressure, dtype=float)
+    low = np.zeros_like(T)
+    high = np.minimum(
+        np.maximum(saturation_specific_humidity(T, p) - q, 0.0), cp * T / (2.0 * latent_heat)
+    )
+    unbracketed = (high > 0.0) & (
+        q + high - saturation_specific_humidity(T - latent_heat * high / cp, p) < 0.0
+    )
+    if np.any(unbracketed):
+        raise ConfigurationError(
+            "the wet-bulb capacity is not bracketed in layers "
+            f"{np.flatnonzero(unbracketed).tolist()}"
+        )
+    for _ in range(60):
+        mid = 0.5 * (low + high)
+        over = q + mid - saturation_specific_humidity(T - latent_heat * mid / cp, p) > 0.0
+        high = np.where(over, mid, high)
+        low = np.where(over, low, mid)
+    return low
+
+
+def fall_and_evaporate(
+    formed: np.ndarray,
+    *,
+    potential: float,
+    capacity: np.ndarray,
+    specific_humidity: np.ndarray,
+    saturation: np.ndarray,
+    layer_mass: np.ndarray,
+    dt: float,
+    efficiency: float = PRECIPITATION_EVAPORATION_EFFICIENCY,
+) -> tuple[np.ndarray, float]:
+    """E2: condensate falls interface by interface over ``dt``. In each layer the
+    flux from above, F, evaporates at ke (1 - q/q_s) sqrt(F) per unit mass,
+    limited by the layer's capacity (kg m^-2), by what falls into it, and by
+    what the evaporating fraction ``potential`` still allows of the condensate
+    formed above. Rain formed in a layer is not evaporated there. Returns the
+    evaporation per layer and what reaches the surface."""
+    evaporated = np.zeros_like(np.asarray(formed, dtype=float))
+    falling = 0.0
+    allowed = 0.0
+    for k in range(evaporated.size - 1, -1, -1):
+        if falling > 0.0:
+            dryness = max(0.0, 1.0 - float(specific_humidity[k]) / float(saturation[k]))
+            rate = efficiency * dryness * np.sqrt(falling / dt) * float(layer_mass[k]) * dt
+            take = min(rate, max(float(capacity[k]), 0.0), falling, max(allowed, 0.0))
+            evaporated[k] = take
+            falling -= take
+            allowed -= take
+        falling += float(formed[k])
+        allowed += potential * float(formed[k])
+    return evaporated, falling
+
+
 def _operator(
     plume: Plume,
     s: np.ndarray,
@@ -393,9 +496,15 @@ class MassFluxStep:
     detrained_vapour: np.ndarray
     detrained_condensate: np.ndarray
     post_detrainment_excess: np.ndarray
+    precipitation_entering: np.ndarray
+    evaporation_limit_time: np.ndarray
 
 
-#: The decomposition fields, summed over substeps.
+#: The decomposition fields, summed over substeps. ``precipitation_entering``
+#: is the convective condensate falling into each layer from above (kg m^-2);
+#: ``evaporation_limit_time`` is each layer's evaporation limit times the
+#: substep's length (kg m^-2 s), so that its sum over a step divided by the step
+#: is the step-mean limit.
 _PARTS = (
     "subsidence_vapour",
     "detrainment_vapour",
@@ -404,6 +513,8 @@ _PARTS = (
     "detrained_vapour",
     "detrained_condensate",
     "post_detrainment_excess",
+    "precipitation_entering",
+    "evaporation_limit_time",
 )
 
 
@@ -423,17 +534,24 @@ def apply_mass_flux(
     gas_constant: float,
     evaporating_fraction: float,
     detrained_state: str = "plume",
+    precipitation_evaporation: str = "cascade",
 ) -> MassFluxStep:
     """One exact, conservative step of the plume's transport at a fixed mass flux,
     then the measured fraction of its condensate evaporated where it formed and
     below. Refused if any layer would lose more than half its mass: the
     integrator (``convect``) chooses the step so that it never does.
 
-    ``detrained_state`` is one of ``DETRAINED_STATES``.
+    ``detrained_state`` is one of ``DETRAINED_STATES``, and
+    ``precipitation_evaporation`` one of ``PRECIPITATION_EVAPORATIONS``.
     """
     if detrained_state not in DETRAINED_STATES:
         raise ConfigurationError(
             f"detrained_state {detrained_state!r} is not one of {DETRAINED_STATES}"
+        )
+    if precipitation_evaporation not in PRECIPITATION_EVAPORATIONS:
+        raise ConfigurationError(
+            f"precipitation_evaporation {precipitation_evaporation!r} is not one of "
+            f"{PRECIPITATION_EVAPORATIONS}"
         )
     n = np.asarray(layer_mass).size
     zero = np.zeros(n)
@@ -501,8 +619,32 @@ def apply_mass_flux(
         held = post.copy()
     formed = scale * plume.condensate + held
     t_after = (s - gravity * z) / cp
-    deficits = saturation_specific_humidity(t_after, p) * m - q * m
-    evaporated, _ = deposit_evaporation(evaporating_fraction * formed, deficits)
+    saturation = saturation_specific_humidity(t_after, p)
+    deficits = saturation * m - q * m
+    if precipitation_evaporation == "cascade":
+        limit = deficits
+        evaporated, _ = deposit_evaporation(evaporating_fraction * formed, limit)
+    elif precipitation_evaporation == "below_cloud_base":
+        condensing = np.flatnonzero(plume.condensate > 0.0)
+        base = int(condensing[0]) if condensing.size else n
+        limit = np.where(np.arange(n) < base, deficits, 0.0)
+        evaporated, _ = deposit_evaporation(evaporating_fraction * formed, limit)
+    else:
+        limit = evaporation_capacity(t_after, q, p, cp, latent_heat) * m
+        if precipitation_evaporation == "wet_bulb_cascade":
+            evaporated, _ = deposit_evaporation(evaporating_fraction * formed, limit)
+        else:
+            evaporated, _ = fall_and_evaporate(
+                formed,
+                potential=evaporating_fraction,
+                capacity=limit,
+                specific_humidity=q,
+                saturation=saturation,
+                layer_mass=m,
+                dt=dt,
+            )
+    net = formed - evaporated
+    entering = np.concatenate((np.cumsum(net[::-1])[::-1][1:], [0.0]))
     condensation = formed - evaporated
     vapour_change = (q - q0) * m + evaporated
     energy_change = (s - s0) * m - latent_heat * evaporated
@@ -521,6 +663,8 @@ def apply_mass_flux(
         detrained_vapour=scale * D * q_det,
         detrained_condensate=held,
         post_detrainment_excess=post,
+        precipitation_entering=entering,
+        evaporation_limit_time=np.maximum(limit, 0.0) * dt,
     )
 
 
@@ -542,6 +686,7 @@ def cloud_base_mass_flux(
     trigger: float = CAPE_TRIGGER_J_KG,
     residual: float = 0.0,
     detrained_state: str = "plume",
+    precipitation_evaporation: str = "cascade",
 ) -> tuple[float, float]:
     """M_b = max[0, (CAPE_d - C_residual) / (τ_c Γ_M)], and Γ_M.
 
@@ -569,6 +714,7 @@ def cloud_base_mass_flux(
         gas_constant=gas_constant,
         evaporating_fraction=evaporating_fraction,
         detrained_state=detrained_state,
+        precipitation_evaporation=precipitation_evaporation,
     )
     C = np.asarray(heat_capacity, dtype=float)
     # The full change the environment sees: the redistribution and the latent
@@ -628,6 +774,7 @@ def convect(
     adjustment_time: float = CONVECTIVE_ADJUSTMENT_TIME_S,
     trigger: float = CAPE_TRIGGER_J_KG,
     detrained_state: str = "plume",
+    precipitation_evaporation: str = "cascade",
 ) -> Convection:
     """Integrate the closure over ``dt`` as the rate law it is (third erratum).
 
@@ -667,6 +814,7 @@ def convect(
             adjustment_time=adjustment_time,
             trigger=trigger,
             detrained_state=detrained_state,
+            precipitation_evaporation=precipitation_evaporation,
             **fixed,
         )
         if first is None:
@@ -685,6 +833,7 @@ def convect(
             vapour=w,
             evaporating_fraction=evaporating_fraction,
             detrained_state=detrained_state,
+            precipitation_evaporation=precipitation_evaporation,
             **fixed,
         )
         T = T + (step.energy + latent_heat * step.condensation) / C

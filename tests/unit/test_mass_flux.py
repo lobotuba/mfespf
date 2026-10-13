@@ -18,11 +18,15 @@ from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError
 from mfespf.physics.mass_flux import (
     DETRAINED_STATES,
+    PRECIPITATION_EVAPORATION_EFFICIENCY,
+    PRECIPITATION_EVAPORATIONS,
     apply_mass_flux,
     cloud_base_mass_flux,
     convect,
     deposit_evaporation,
     entraining_plume,
+    evaporation_capacity,
+    fall_and_evaporate,
 )
 from mfespf.physics.thermodynamics import saturation_specific_humidity
 from mfespf.run.column_configurations import column_grid, reference_column
@@ -86,17 +90,25 @@ def test_the_plume_conserves_mass_water_and_moist_static_energy():
 
 @pytest.mark.req("CON-001", "CON-004", "EQR-002")
 @pytest.mark.parametrize("alpha", [0.0, 0.67])
-@pytest.mark.parametrize("state", DETRAINED_STATES)
-def test_the_operator_redistributes_energy_and_removes_only_precipitation(alpha, state):
-    """A2 and A3 in the operator, for every detrained state: the temperature part
-    sums to zero, the transport sums to zero, the net condensation sums to the
-    surface precipitation, and the column's water falls by exactly that."""
+@pytest.mark.parametrize(
+    ("state", "evaporation"),
+    [(state, "cascade") for state in DETRAINED_STATES]
+    + [("plume", evaporation) for evaporation in PRECIPITATION_EVAPORATIONS[1:]],
+)
+def test_the_operator_redistributes_energy_and_removes_only_precipitation(
+    alpha, state, evaporation
+):
+    """A2 and A3 in the operator, for every detrained state and evaporation
+    placement: the temperature part sums to zero, the transport sums to zero, the
+    net condensation sums to the surface precipitation, the column's water falls
+    by exactly that, and no more than the evaporating fraction evaporates."""
     c = _column()
     result = convect(
         dt=3600.0,
         entrainment_rate=1.0e-3,
         evaporating_fraction=alpha,
         detrained_state=state,
+        precipitation_evaporation=evaporation,
         **c,
     )
     assert result.mean_cloud_base_flux > 0.0 and result.step.substeps >= 1
@@ -112,8 +124,12 @@ def test_the_operator_redistributes_energy_and_removes_only_precipitation(alpha,
 
 
 @pytest.mark.req("CON-004", "EQR-002", "VAL-001")
-@pytest.mark.parametrize("state", DETRAINED_STATES)
-def test_subsidence_dries_and_warms_a_column_without_destroying_water(state):
+@pytest.mark.parametrize(
+    ("state", "evaporation"),
+    [(state, "cascade") for state in DETRAINED_STATES]
+    + [("plume", evaporation) for evaporation in PRECIPITATION_EVAPORATIONS[1:]],
+)
+def test_subsidence_dries_and_warms_a_column_without_destroying_water(state, evaporation):
     """A4: one hour of the closure's mass flux on a moist, conditionally unstable
     column with no surface fluxes. The environment between the level of free
     convection and the detrainment layer warms and its relative humidity falls,
@@ -124,6 +140,7 @@ def test_subsidence_dries_and_warms_a_column_without_destroying_water(state):
         entrainment_rate=1.0e-3,
         evaporating_fraction=0.67,
         detrained_state=state,
+        precipitation_evaporation=evaporation,
         **c,
     )
     plume, step = result.plume, result.step
@@ -149,13 +166,16 @@ def test_no_cape_means_no_convection():
     plume = entraining_plume(entrainment_rate=1.0e-3, **c)
     flux, _ = cloud_base_mass_flux(plume, entrainment_rate=1.0e-3, evaporating_fraction=0.67, **c)
     assert flux == 0.0
-    for state in DETRAINED_STATES:
+    for state, evaporation in [(state, "cascade") for state in DETRAINED_STATES] + [
+        ("plume", evaporation) for evaporation in PRECIPITATION_EVAPORATIONS
+    ]:
         step = apply_mass_flux(
             plume,
             cloud_base_flux=flux,
             dt=3600.0,
             evaporating_fraction=0.67,
             detrained_state=state,
+            precipitation_evaporation=evaporation,
             **c,
         )
         assert not np.any(step.energy) and not np.any(step.transport)
@@ -165,7 +185,7 @@ def test_no_cape_means_no_convection():
     assert reaching == pytest.approx(0.5)
 
 
-def _one_step(state, rh=0.95, flux=0.05, dt=600.0, alpha=0.67):
+def _one_step(state, rh=0.95, flux=0.05, dt=600.0, alpha=0.67, evaporation="cascade"):
     """One operator step of ``state`` on the unstable sounding, and the state it leaves."""
     c = _column(rh=rh)
     plume = entraining_plume(entrainment_rate=1.0e-3, **c)
@@ -175,6 +195,7 @@ def _one_step(state, rh=0.95, flux=0.05, dt=600.0, alpha=0.67):
         dt=dt,
         evaporating_fraction=alpha,
         detrained_state=state,
+        precipitation_evaporation=evaporation,
         **c,
     )
     T_new = c["temperature"] + (step.energy + LATENT * step.condensation) / c["heat_capacity"]
@@ -244,6 +265,67 @@ def test_environment_saturation_detrains_no_vapour_above_the_layers_saturation()
     assert float(np.sum(step.detrained_condensate)) > 0.0
     _, _, plume_step, _, _ = _one_step("plume")
     assert float(np.sum(step.detrained_vapour)) < float(np.sum(plume_step.detrained_vapour))
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_wet_bulb_capacity_leaves_no_layer_above_saturation():
+    """E1: limited by the deficit before its own cooling, the cascade leaves a
+    layer it evaporates into above saturation; limited by the wet-bulb capacity
+    it leaves none, and still evaporates."""
+    c, _, _, T_old, w_old = _one_step("plume", rh=0.9, evaporation="cascade")
+    q_s = saturation_specific_humidity(T_old, c["pressure"])
+    assert np.any(w_old / c["layer_mass"] > q_s * (1.0 + 1e-6))
+    c, _, step, T_new, w_new = _one_step("plume", rh=0.9, evaporation="wet_bulb_cascade")
+    q_s = saturation_specific_humidity(T_new, c["pressure"])
+    assert np.all(w_new / c["layer_mass"] <= q_s * (1.0 + 1e-9))
+    assert float(np.sum(step.evaporation)) > 0.0
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_the_wet_bulb_capacity_is_bracketed_near_the_model_top():
+    """Near 1 hPa a warm layer's q_s(T) exceeds what it could ever take: the
+    capacity still lands on the wet-bulb condition, with no trial temperature
+    below zero (the protocol's erratum)."""
+    T = np.array([300.0, 270.0, 230.0])
+    p = np.array([1.0e5, 107.0, 107.0])
+    q = np.array([0.01, 1.0e-6, 1.0e-6])
+    cp = np.full(3, CP)
+    d = evaporation_capacity(T, q, p, cp, LATENT)
+    assert np.all(d > 0.0)
+    cooled = T - LATENT * d / cp
+    assert np.all(cooled > 0.0)
+    np.testing.assert_allclose(q + d, saturation_specific_humidity(cooled, p), rtol=1e-9)
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_the_falling_rate_law_follows_its_closed_form():
+    """E2: rain formed in a layer is not evaporated there; the layer below, with
+    every other limit slack, evaporates ke (1 - q/q_s) sqrt(F) m dt; and the
+    evaporating fraction caps the total."""
+    m, dt = np.full(3, 1000.0), 600.0
+    common = dict(
+        capacity=np.full(3, 1.0e3),
+        specific_humidity=np.full(3, 0.005),
+        saturation=np.full(3, 0.010),
+        layer_mass=m,
+        dt=dt,
+    )
+    evaporated, reaching = fall_and_evaporate(np.array([0.0, 0.0, 1.0]), potential=1.0, **common)
+    expected = PRECIPITATION_EVAPORATION_EFFICIENCY * 0.5 * np.sqrt(1.0 / dt) * m[1] * dt
+    assert evaporated[2] == 0.0
+    assert evaporated[1] == pytest.approx(expected, rel=1e-12)
+    assert float(np.sum(evaporated)) + reaching == pytest.approx(1.0, rel=1e-12)
+    capped, _ = fall_and_evaporate(np.array([0.0, 0.0, 1.0]), potential=1.0e-6, **common)
+    assert float(np.sum(capped)) == pytest.approx(1.0e-6, rel=1e-12)
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_below_cloud_base_evaporates_nothing_at_or_above_cloud_base():
+    """E3: below the lowest condensing layer only."""
+    _, plume, step, _, _ = _one_step("plume", rh=0.8, evaporation="below_cloud_base")
+    base = int(np.flatnonzero(plume.condensate > 0.0)[0])
+    assert not np.any(step.evaporation[base:])
+    assert float(np.sum(step.formed)) > 0.0
 
 
 def _warm_moist_column(**overrides):
