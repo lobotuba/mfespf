@@ -1038,6 +1038,7 @@ class Convection:
     provenance: np.ndarray | None = None
     milestones: Milestones | None = None
     cape_after: float = float("nan")
+    cape_time_mean: float = float("nan")
 
 
 def convect(
@@ -1087,6 +1088,9 @@ def convect(
         gas_constant=gas_constant,
     )
     elapsed, substeps, moved = 0.0, 0, 0.0
+    # The step's time-mean CAPE (convective-cape-sampling.md, C0): each
+    # substep's starting CAPE times its length, a diagnostic never fed back.
+    cape_time = 0.0
     first: tuple[Plume, float, float] | None = None
     # A common convective step (convective-temporal-convergence.md, T1): the
     # host step is integrated in windows of ``substep``, every substep ending at
@@ -1142,6 +1146,7 @@ def convect(
         h = min(dt - elapsed, limit)
         if substep is not None:
             h = min(h, window_end - elapsed)
+        cape_time += plume.cape * h
         step = apply_mass_flux(
             plume,
             cloud_base_flux=flux,
@@ -1177,6 +1182,14 @@ def convect(
     if first is None:
         raise ConfigurationError("mass-flux convection was asked to integrate no time")
     plume0, removal0, flux0 = first
+    cape_after = entraining_plume(
+        temperature=T,
+        vapour=w,
+        entrainment_rate=entrainment_rate,
+        condensate_pathway=condensate_pathway,
+        conversion_rate=conversion_rate,
+        **fixed,
+    ).cape
     result = MassFluxStep(
         energy=totals["energy"],
         transport=totals["transport"],
@@ -1196,12 +1209,7 @@ def convect(
         mean_cloud_base_flux=moved / dt,
         provenance=classes,
         milestones=milestones,
-        cape_after=entraining_plume(
-            temperature=T,
-            vapour=w,
-            entrainment_rate=entrainment_rate,
-            condensate_pathway=condensate_pathway,
-            conversion_rate=conversion_rate,
-            **fixed,
-        ).cape,
+        cape_after=cape_after,
+        # The idle remainder of the step holds the CAPE convection left.
+        cape_time_mean=(cape_time + max(dt - elapsed, 0.0) * cape_after) / dt,
     )

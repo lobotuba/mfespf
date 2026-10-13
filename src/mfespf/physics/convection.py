@@ -458,6 +458,7 @@ class ConvectiveAdjustmentModule(Module):
                         "plume_top_pressure",
                         "mass_flux_substeps",
                         "dilute_cape_after_convection",
+                        "dilute_cape_time_mean",
                         "requested_cloud_base_mass_flux",
                         "plume_top_pressure_continuous",
                         *MASS_FLUX_DECOMPOSITION,
@@ -651,6 +652,7 @@ class ConvectiveAdjustmentModule(Module):
         self.track_water_provenance = track_water_provenance
         self.convective_substep = convective_substep
         self._cape_after = 0.0
+        self._cape_time_mean = 0.0
         self._requested_flux = 0.0
         self._top_continuous = float("nan")
         self._provenance_change: np.ndarray | None = None
@@ -1185,6 +1187,7 @@ class ConvectiveAdjustmentModule(Module):
         self._surface_precipitation = step.surface_precipitation / ctx.dt
         self._mass_flux_substeps = step.substeps
         self._cape_after = result.cape_after
+        self._cape_time_mean = result.cape_time_mean
         self._requested_flux = result.first_cloud_base_flux
         self._top_continuous = (
             result.plume.top_pressure_continuous if result.plume.active else float("nan")
@@ -1322,6 +1325,12 @@ class ConvectiveAdjustmentModule(Module):
                 "dilute_cape_after_convection",
                 "the plume's CAPE on the state convection leaves",
                 self._cape_after,
+                "J kg^-1",
+            ),
+            "dilute_cape_time_mean": scalar(
+                "dilute_cape_time_mean",
+                "the plume's CAPE averaged over the step, convection's idle remainder included",
+                self._cape_time_mean,
                 "J kg^-1",
             ),
             "requested_cloud_base_mass_flux": scalar(

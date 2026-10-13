@@ -492,6 +492,26 @@ def test_a_common_convective_substep_reevaluates_the_closure_in_every_window():
 
 
 @pytest.mark.req("EQR-002", "VAL-001")
+def test_the_time_mean_cape_lies_between_the_sampled_and_the_remaining_cape():
+    """convective-cape-sampling.md, C0: a step that convects averages CAPE from
+    its sampled start down to what convection leaves; a step that does not
+    convect holds its CAPE throughout, so its mean is that CAPE exactly."""
+    c = _column()
+    options = dict(
+        entrainment_rate=1.0e-3,
+        evaporating_fraction=0.67,
+        condensate_pathway="carried",
+        precipitation_evaporation="rate_law_only",
+        **c,
+    )
+    active = convect(dt=900.0, substep=300.0, **options)
+    assert active.cape_after < active.cape_time_mean < active.cape
+    idle = convect(dt=900.0, substep=300.0, trigger=1.0e9, **options)
+    assert idle.mean_cloud_base_flux == 0.0
+    assert idle.cape_time_mean == idle.cape == idle.cape_after
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
 def test_the_continuous_plume_top_lies_between_its_bracketing_layers():
     """T0: the buoyancy work's zero crossing, interpolated between the last layer
     it was positive in and the terminal layer, lies between their pressures."""

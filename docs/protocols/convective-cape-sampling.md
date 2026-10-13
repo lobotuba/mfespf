@@ -184,3 +184,154 @@ continuous plume top, and FE/SE/PE by the pressure of first condensation.
   process-coupling time-step convergence in CAM5 was of order 0.4, not 1.
 
 ---
+
+## Result (appended; nothing above this line changed)
+
+**All six runs completed** the planned 20 days. Their conservation residuals
+are ≤ 7.5e-16. They are invalid on the validity-domain gate only, as F0's and
+T1's were, under the frozen radiation.
+
+### K2: identity, passes
+
+C0's three runs reproduce T1's to every digit: all 701 shared printed values
+are identical at 3600, 1800 and 900 s. The only additions are `cape_after`
+and `cape_mean`.
+
+### K1: conservation, passes
+
+| host step | residual | F6a worst / tolerance | F6b worst / tolerance | ledger |
+|---:|---:|---:|---:|---:|
+| 3600 s | 5.4e-16 | 0.010 | 0.0013 | 2.1e-16 |
+| 1800 s | 7.5e-16 | 0.042 | 0.00085 | 5.7e-16 |
+| 900 s | 6.6e-16 | 0.0059 | 0.00058 | 3.1e-16 |
+| 1200 s | 6.6e-16 | 0.033 | 0.00062 | 1.4e-15 |
+| 600 s | 5.9e-16 | 0.011 | 0.00046 | 1.1e-15 |
+| 300 s | 6.2e-16 | 0.0072 | 0.00018 | 5.5e-16 |
+
+**F6c holds in all six:**
+
+- no failing cells or steps;
+- no ordering violations;
+- |PE − FE·SE| ≤ 1.1e-16;
+- the inventories close to ≤ 1.3e-15 of throughput;
+- no negative class;
+- R_recycle ≤ 4.9e-7.
+
+### K3: the prediction, passes at every host step
+
+| host step | predicted | measured | measured − predicted | tolerance, 2·√(SE²+SE²) | verdict |
+|---:|---:|---:|---:|---:|---|
+| 1200 s | 83.2 ± 3.2 | 82.1 ± 3.4 | −1.1 | 9.4 | pass |
+| 600 s | 64.6 ± 4.5 | 62.6 ± 2.9 | −2.0 | 10.7 | pass |
+| 300 s | 55.3 ± 6.1 | 52.0 ± 4.9 | −3.3 | 15.7 | pass |
+
+**HS is supported.**
+
+**What the test could discriminate.** If CAPE had stopped falling below
+900 s, it would have stayed at T1's 73.8 J/kg. That lies 21.8 J/kg from the
+300 s measurement against a 2-SE width of 11.9, so the test could have
+failed and did not.
+
+**A fit to all six points,** reported, not gated:
+
+- a = 43.1 ± 4.0 J/kg;
+- g = 0.0328 ± 0.0042 J kg⁻¹ s⁻¹;
+- χ² = 0.22 on 4 degrees of freedom.
+
+### K4: the state on C1's ladder (1200/600/300 s), passes
+
+| quantity | 1200 s | 600 s | 300 s | class |
+|---|---:|---:|---:|---|
+| RH profile (largest layer difference) | | 0.021 | 0.017 | phase-sensitive |
+| RH 300-700 | 0.7107 | 0.7114 | 0.7108 | phase-sensitive |
+| precipitation, mm/day | 4.153 | 4.172 | 4.193 | phase-sensitive |
+| FE | 0.99532 | 0.99531 | 0.99538 | phase-sensitive |
+| SE | 0.9658 | 0.9653 | 0.9654 | converged |
+| α_total,unique | 0.0387 | 0.0393 | 0.0391 | converged |
+| cloud-base mass flux | 0.00493 | 0.00495 | 0.00497 | phase-sensitive |
+| subsidence per day | 1.703e7 | 1.712e7 | 1.716e7 | phase-sensitive |
+| R_recycle | 1.6e-7 | 1.7e-7 | 4.9e-7 | phase-sensitive |
+| *CAPE_d (excluded, judged by K3)* | 82.1 | 62.6 | 52.0 | changed equilibrium |
+| *duty cycle (not a gate)* | 0.458 | 0.254 | 0.148 | changed equilibrium |
+| **CAPE_after** | 40.5 | 41.6 | 41.6 | **converged** |
+| **CAPE_mean** | 51.1 | 51.9 | 51.9 | **converged** |
+
+**G5's quantities, by the same rule:**
+
+- continuous p_top 101.0/100.6/101.2 hPa, phase-sensitive;
+- 𝓓(p) phase-sensitive;
+- subsidence-mass profile converged;
+- daily 𝓜 425.8/427.9/429.1 kg m⁻², phase-sensitive.
+
+**No quantity other than CAPE_d and the duty cycle is a changed
+equilibrium.** CAPE_d's difference ratio on this ladder is 10.55/19.5 =
+0.541. As stated before the run, a ratio near 0.5 is what HS expects, and it
+carries no information here.
+
+### K5: across the ladders, reported
+
+**C1's 1200 s against T1's 900 s:** every quantity in F4's list, CAPE_d,
+CAPE_after, CAPE_mean and the duty cycle lie within 2 combined daily SEs. The
+RH profile has none of its 23 layers outside.
+
+**CAPE_after and CAPE_mean on C0's ladder** (3600/1800/900 s):
+
+- **CAPE_after:** 37.4, 40.2 and 41.8 J/kg, phase-sensitive.
+- **CAPE_mean:** 48.6, 51.8 and 52.6 J/kg, converged.
+- **Across all six runs from 1800 s down,** CAPE_mean lies within 51.1-52.6
+  J/kg and CAPE_after within 40.2-41.8 J/kg.
+
+### Secondary, reported
+
+**Events on C1:**
+
+- f_C means 0.48, 0.45 and 0.46, medians 0.39-0.44;
+- steps per event 1.7, 1.2 and 1.4.
+
+**Origin-conditioned efficiencies:**
+
+- FE by the pressure of first condensation varies by ≤ 8e-4 across all six
+  runs;
+- PE by ≤ 0.005, largest at 154 hPa;
+- PE at 288 hPa is 0.9456-0.9476.
+
+### What the result says, and what it does not
+
+**1. T1's G3 failure is the CAPE sample, not the column.**
+
+- T1's CAPE_d dependence is first-order in the host step. It predicted CAPE_d
+  at three unseen host steps within their uncertainty.
+- The host-step time-mean CAPE converges, and so do the state convection
+  leaves and every state quantity in F4's list.
+- What CAPE_d measures is the destabilisation that accumulates over a host
+  step before convection's first window samples it. Its slope, about
+  0.03 J kg⁻¹ s⁻¹ (≈ 110 J/kg per hour), is that rate.
+- **G3's verdict on T1 stands as frozen.** This is the reading of it.
+
+**2. The intercept a ≈ 43-46 J/kg is an extrapolation, not a state the model
+reaches.**
+
+- At a 300 s host step the host step is one convective window. There the
+  sampled CAPE, 52.0, equals the time mean, 51.9.
+- Below 300 s the line has not been tested, and the convective substep would
+  have to shrink with it.
+
+**3. The duty cycle** falls with the host step on both ladders, while 𝓜,
+𝓓(p) and the state converge. That is F4's "numerical representation of
+intermittency" case: events are counted per host step, and a shorter host
+step splits one event's timing more finely.
+
+**4. Re-triggering within a host step** was not tested and is not needed to
+explain the result. It stays a separate, module-coupling question.
+
+**Decision, as frozen:** K1, K2, K3 and K4 pass.
+
+- **What is offered to the user:** F4's row "T1 and T2 converge the state but
+  not the event timing".
+- **The user's decision:**
+  - whether to run T2 (host 1800 s; Δt_conv = 600, 300 and 150 s) and then
+    rerun F0's qualification;
+  - and whether a time-mean CAPE should be F4's CAPE quantity going forward.
+    That would be a successor criterion applied prospectively, as with F6.
+- **Not done:** no default changed, no substep length chosen, F0 not
+  qualified.
