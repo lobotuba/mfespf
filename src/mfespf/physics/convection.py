@@ -280,6 +280,7 @@ class ConvectiveAdjustmentModule(Module):
         precipitation_evaporation: str = "cascade",
         condensate_pathway: str = "immediate",
         cloud_water_conversion_rate: float = CLOUD_WATER_CONVERSION_PER_M,
+        track_water_provenance: bool = False,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         relaxed = relaxation_timescale > 0.0
@@ -310,6 +311,11 @@ class ConvectiveAdjustmentModule(Module):
             raise ConfigurationError(
                 "carried cloud water needs mass-flux convection, the plume's own detrained "
                 "state, and precipitation_evaporation 'none' or 'rate_law_only'"
+            )
+        if track_water_provenance and condensate_pathway != "carried":
+            raise ConfigurationError(
+                "water provenance is carried with the cloud-water pathway "
+                "(fall-path-closure-candidate.md)"
             )
         # Mass-flux convection (mass-flux-moisture-transport.md) replaces the moist
         # adjustment, so it composes only with the dry one, and only where the
@@ -419,6 +425,7 @@ class ConvectiveAdjustmentModule(Module):
                 ),
                 # The plume's layer thicknesses.
                 *(("atmosphere_interface_pressure",) if mass_flux else ()),
+                *(("water_provenance",) if track_water_provenance else ()),
             ),
             produced_outputs=(
                 "convective_temperature_tendency",
@@ -440,6 +447,11 @@ class ConvectiveAdjustmentModule(Module):
                         "plume_top_pressure",
                         "mass_flux_substeps",
                         *MASS_FLUX_DECOMPOSITION,
+                        *(
+                            ("water_provenance_change_rate", "convective_provenance_milestones")
+                            if track_water_provenance
+                            else ()
+                        ),
                     )
                     if mass_flux
                     else ()
@@ -622,6 +634,9 @@ class ConvectiveAdjustmentModule(Module):
         self.precipitation_evaporation = precipitation_evaporation
         self.condensate_pathway = condensate_pathway
         self.cloud_water_conversion_rate = cloud_water_conversion_rate
+        self.track_water_provenance = track_water_provenance
+        self._provenance_change: np.ndarray | None = None
+        self._provenance_milestones: np.ndarray | None = None
         self._mass_flux_parts: dict[str, np.ndarray] = {}
         self._mass_flux_tendency: np.ndarray | None = None
         self._convective_condensation: np.ndarray | None = None
@@ -800,6 +815,27 @@ class ConvectiveAdjustmentModule(Module):
             if f:
                 mixed[top] = (1.0 - f) * w[top] + f * total_water * layer_mass[top] / total_mass
         return mixed - w
+
+    def _mix_classes(self, classes: np.ndarray, layer_mass: np.ndarray) -> np.ndarray:
+        """Each provenance class mixed over this step's groups exactly as
+        ``_vapour_transport`` mixes the vapour: uniform specific amount within a
+        group, its total unchanged, the partial top taking its share."""
+        mixed = np.array(classes, dtype=float)
+        n = mixed.shape[1]
+        for low, high in self._mixing_groups:
+            span = slice(low, high + 1)
+            top = high + 1
+            f = self._partial_tops.get(top, 0.0) if top < n else 0.0
+            total = np.sum(classes[:, span], axis=1) + (f * classes[:, top] if f else 0.0)
+            total_mass = float(np.sum(layer_mass[span])) + f * float(layer_mass[top] if f else 0.0)
+            if total_mass <= 0.0:
+                continue
+            mixed[:, span] = np.outer(total, layer_mass[span]) / total_mass
+            if f:
+                mixed[:, top] = (1.0 - f) * classes[:, top] + f * total * layer_mass[top] / (
+                    total_mass
+                )
+        return mixed
 
     def relaxation_fraction(self, dt: float) -> float:
         """The share of the instantaneous adjustment applied over ``dt``.
@@ -1085,6 +1121,16 @@ class ConvectiveAdjustmentModule(Module):
                 "mass-flux convection composes with the water module over one interval"
             )
         vapour = base + vapour_change
+        # The provenance classes start from the committed classes, which sum to
+        # the committed vapour this module's base is, and are mixed over the
+        # same groups (fall-path-closure-candidate.md).
+        classes = None
+        start = None
+        if self.track_water_provenance:
+            start = np.asarray(
+                self.input_field("water_provenance").require_units("kg m^-2").values, dtype=float
+            )
+            classes = self._mix_classes(start, layer_mass)
         interfaces = np.asarray(
             self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
             dtype=float,
@@ -1110,6 +1156,7 @@ class ConvectiveAdjustmentModule(Module):
             precipitation_evaporation=self.precipitation_evaporation,
             condensate_pathway=self.condensate_pathway,
             conversion_rate=self.cloud_water_conversion_rate,
+            provenance=classes,
             **common,
         )
         step = result.step
@@ -1118,6 +1165,11 @@ class ConvectiveAdjustmentModule(Module):
         self._cape_removal = result.cape_removal
         self._surface_precipitation = step.surface_precipitation / ctx.dt
         self._mass_flux_substeps = step.substeps
+        if start is not None:
+            if result.provenance is None or result.milestones is None:
+                raise ConfigurationError("mass-flux convection lost the provenance classes")
+            self._provenance_change = (result.provenance - start) / ctx.dt
+            self._provenance_milestones = result.milestones.as_array()
         self._mass_flux_parts = {
             name: np.asarray(getattr(step, attribute), dtype=float) / ctx.dt
             for name, (attribute, _, _) in MASS_FLUX_DECOMPOSITION.items()
@@ -1258,6 +1310,49 @@ class ConvectiveAdjustmentModule(Module):
                 )
                 for name, (_, physical, units) in MASS_FLUX_DECOMPOSITION.items()
             },
+            **(self._provenance_outputs(ctx, provenance) if self.track_water_provenance else {}),
+        }
+
+    def _provenance_outputs(self, ctx: Any, provenance: Any) -> dict[str, Field]:
+        n = np.asarray(self._adjusted).size
+        change = (
+            self._provenance_change
+            if self._provenance_change is not None
+            else np.zeros((2 * n + 1, n))
+        )
+        crossed = (
+            self._provenance_milestones
+            if self._provenance_milestones is not None
+            else np.zeros((5, n))
+        )
+        common = dict(
+            quantity_kind=QuantityKind.DIAGNOSTIC,
+            time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+            time_interval=ctx.dt,
+            timestamp=ctx.time,
+            spatial_support=SpatialSupport.LAYER_AVERAGE,
+            provenance=provenance,
+        )
+        return {
+            "water_provenance_change_rate": Field(
+                field_id="water_provenance_change_rate",
+                physical_name="convection's change to each provenance class of the vapour",
+                values=np.asarray(change, dtype=float),
+                units="kg m^-2 s^-1",
+                dimensions=("provenance_class", "layer"),
+                **common,
+            ),
+            "convective_provenance_milestones": Field(
+                field_id="convective_provenance_milestones",
+                physical_name=(
+                    "first condensation, first precipitation by origin and by location, and "
+                    "first surface arrival, crossed in convection this step"
+                ),
+                values=np.asarray(crossed, dtype=float),
+                units="kg m^-2",
+                dimensions=("milestone", "layer"),
+                **common,
+            ),
         }
 
     def emit_outputs(self) -> dict[str, Field]:
@@ -1484,6 +1579,7 @@ class ConvectiveAdjustmentModule(Module):
                     "detrained_state": self.detrained_state,
                     "precipitation_evaporation": self.precipitation_evaporation,
                     "condensate_pathway": self.condensate_pathway,
+                    **({"tracks_water_provenance": True} if self.track_water_provenance else {}),
                     **(
                         {"cloud_water_conversion_rate_per_m": self.cloud_water_conversion_rate}
                         if self.condensate_pathway == "carried"

@@ -71,6 +71,7 @@ from mfespf.physics.plume import (
     fractional_entrainment_rate,
     water_vapour_lapse_rate,
 )
+from mfespf.physics.provenance import Milestones, proportional
 from mfespf.physics.thermodynamics import (
     deposition_latent_heat_excess,
     saturation_humidity_within_domain,
@@ -220,6 +221,7 @@ class WaterModule(Module):
         end_of_step_saturation: bool = False,
         receives_convective_condensation: bool = False,
         diagnose_convective_recycling: bool = False,
+        track_water_provenance: bool = False,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         diffusing = eddy_diffusivity > 0.0
@@ -229,6 +231,11 @@ class WaterModule(Module):
             raise ConfigurationError(
                 "the recycling of convective evaporation is measured against the end-of-step "
                 "adjustment of mass-flux convection's condensation; it needs both"
+            )
+        if track_water_provenance and (not receives_convective_condensation or receives_advection):
+            raise ConfigurationError(
+                "water provenance follows mass-flux convection's classes in a column with no "
+                "circulation (fall-path-closure-candidate.md)"
             )
         if receives_convective_condensation and not receives_convective_transport:
             raise ConfigurationError(
@@ -329,6 +336,7 @@ class WaterModule(Module):
                 # Diagnostic only (convective-condensate-ledger.md): convection's
                 # evaporation, to measure how much of it this module re-condenses.
                 *(("convective_evaporation_rate",) if diagnose_convective_recycling else ()),
+                *(("water_provenance_change_rate",) if track_water_provenance else ()),
                 # Every other heating of the layers this step, to form the
                 # temperature the step ends at (docs/protocols/end-of-step-saturation.md).
                 *(
@@ -361,6 +369,11 @@ class WaterModule(Module):
                 *(
                     ("convective_evaporation_recondensation_rate",)
                     if diagnose_convective_recycling
+                    else ()
+                ),
+                *(
+                    ("water_provenance", "large_scale_provenance_milestones")
+                    if track_water_provenance
                     else ()
                 ),
             ),
@@ -457,6 +470,10 @@ class WaterModule(Module):
         self.end_of_step_saturation = end_of_step_saturation
         self.receives_convective_condensation = receives_convective_condensation
         self.diagnose_convective_recycling = diagnose_convective_recycling
+        self.track_water_provenance = track_water_provenance
+        self._provenance = np.zeros((2 * n_layers + 1, n_layers))
+        self._pending_provenance: np.ndarray | None = None
+        self._large_scale_milestones = np.zeros((5, n_layers))
         self._recycled = np.zeros(n_layers)
         self._convective_condensation = np.zeros(0)
         self.eddy_diffusivity = float(eddy_diffusivity)
@@ -522,6 +539,15 @@ class WaterModule(Module):
                 )
         if np.any(self.vapour < 0.0):
             raise ConfigurationError("vapour mass cannot be negative")
+        if self.track_water_provenance:
+            if supplied is None:
+                raise ConfigurationError(
+                    "water provenance starts from the vapour supplied; a humidity filled in "
+                    "on the first step would enter no class"
+                )
+            # The initial vapour has no recorded history: it starts a cohort.
+            self._provenance = np.zeros((2 * self.n_layers + 1, self.n_layers))
+            self._provenance[0] = self.vapour
         self.mark_initialized()
 
     # --- physics ----------------------------------------------------------
@@ -641,6 +667,13 @@ class WaterModule(Module):
         # Kept apart: (own + c) - c is not own in floating point, and a layer
         # condensed to exactly nothing would come out a rounding below it.
         own_condensation = self._condensation
+        if self.track_water_provenance:
+            self._carry_provenance(
+                provisional,
+                own_condensation,
+                np.asarray(pressure, dtype=float),
+                ctx.dt,
+            )
         if self.diagnose_convective_recycling:
             self._recycled = self._recycling(
                 provisional,
@@ -719,6 +752,68 @@ class WaterModule(Module):
                 equation_id=EQUATION_IDS["condensation"],
             ),
         ]
+
+    def _carry_provenance(
+        self,
+        provisional: np.ndarray,
+        own_condensation: np.ndarray,
+        pressure: np.ndarray,
+        dt: float,
+    ) -> None:
+        """The provenance classes through this module's step, composed as the
+        vapour is (fall-path-closure-candidate.md): convection's change, the eddy
+        diffusion of each class from the committed classes, surface evaporation
+        into U, then this module's condensation taken from every class in
+        proportion. What it condenses rains out at once, so it crosses every
+        milestone it has not already crossed and ends its cohort."""
+        n = self.n_layers
+        rate = self.input_field("water_provenance_change_rate").require_units("kg m^-2 s^-1")
+        classes = self._provenance + np.asarray(rate.values, dtype=float) * float(
+            rate.time_interval or dt
+        )
+        if self.eddy_diffusivity > 0.0:
+            interfaces = np.asarray(
+                self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
+                dtype=float,
+            )
+            for c in range(classes.shape[0]):
+                if np.any(self._provenance[c]):
+                    classes[c] += (
+                        eddy_diffusion_rate(
+                            vapour=self._provenance[c],
+                            layer_mass=self._layer_mass,
+                            temperature=self._layer_temperature,
+                            pressure=pressure,
+                            interface_pressure=interfaces,
+                            diffusivity=self.eddy_diffusivity,
+                            dt=dt,
+                        )
+                        * dt
+                    )
+        classes[0, 0] += self._evaporation * dt
+        crossed = Milestones.zeros(n)
+        # A layer this module empties exactly empties every class
+        # (fall-path-closure-candidate.md): the classes' sum and the vapour agree
+        # only to rounding, and taking the vapour's amount from them would leave
+        # that rounding behind in a layer that holds nothing.
+        emptied = (provisional - own_condensation == 0.0) & (provisional > 0.0)
+        for k in (int(j) for j in np.flatnonzero(own_condensation > 0.0)):
+            taken = (
+                np.array(classes[:, k])
+                if emptied[k]
+                else proportional(classes[:, k], float(own_condensation[k]))
+            )
+            classes[:, k] = classes[:, k] - taken
+            # It rains out at once: never-condensed water crosses every
+            # milestone here and is counted as large-scale-born; convective-born
+            # water forms precipitation (C_i, for the first time) and reaches
+            # the surface (C_i and R_i), by its origin.
+            crossed.first_condensed_large_scale[k] += taken[0]
+            crossed.first_precip += taken[1 : 1 + n]
+            crossed.first_precip_location[k] += float(np.sum(taken[1 : 1 + n]))
+            crossed.first_surface += taken[1 : 1 + n] + taken[1 + n :]
+        self._pending_provenance = classes
+        self._large_scale_milestones = crossed.as_array()
 
     def _recycling(
         self,
@@ -892,6 +987,9 @@ class WaterModule(Module):
             )
 
         self.vapour = updated
+        if self.track_water_provenance and self._pending_provenance is not None:
+            self._provenance = self._pending_provenance
+            self._pending_provenance = None
         self._budget = StateBudget(
             state_id=VAPOUR_STATE,
             initial_value=initial,
@@ -908,6 +1006,27 @@ class WaterModule(Module):
         provenance = Provenance(producer=self.module_id, derivation=EQUATION_IDS["latent_energy"])
         timestamp = self._context.time if self._context else 0.0
         return {
+            **(
+                {
+                    # The vapour by provenance class (fall-path-closure-candidate.md),
+                    # committed with it: U, then C_i, then R_i by layer of first
+                    # condensation. Diagnostic: its sum is the vapour.
+                    "water_provenance": Field(
+                        field_id="water_provenance",
+                        physical_name="the vapour of each layer by provenance class",
+                        values=np.array(self._provenance),
+                        units="kg m^-2",
+                        quantity_kind=QuantityKind.DIAGNOSTIC,
+                        time_semantics=TimeSemantics.INSTANTANEOUS,
+                        timestamp=timestamp,
+                        spatial_support=SpatialSupport.LAYER_AVERAGE,
+                        dimensions=("provenance_class", "layer"),
+                        provenance=provenance,
+                    )
+                }
+                if self.track_water_provenance
+                else {}
+            ),
             "vapour_bearing_layer_temperature": Field(
                 field_id="vapour_bearing_layer_temperature",
                 physical_name="layer temperature where the column holds vapour",
@@ -1130,6 +1249,29 @@ class WaterModule(Module):
                 if self.diagnose_convective_recycling
                 else {}
             ),
+            **(
+                {
+                    "large_scale_provenance_milestones": Field(
+                        field_id="large_scale_provenance_milestones",
+                        physical_name=(
+                            "milestones crossed by this module's condensation this step: "
+                            "first condensation (convective, large-scale), first "
+                            "precipitation by origin and by location, first surface arrival"
+                        ),
+                        values=np.array(self._large_scale_milestones),
+                        units="kg m^-2",
+                        quantity_kind=QuantityKind.DIAGNOSTIC,
+                        time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                        time_interval=ctx.dt,
+                        timestamp=ctx.time,
+                        spatial_support=SpatialSupport.LAYER_AVERAGE,
+                        dimensions=("milestone", "layer"),
+                        provenance=provenance,
+                    )
+                }
+                if self.track_water_provenance
+                else {}
+            ),
         }
 
     def report_transfers(self) -> tuple[list[Transfer], list[Transfer]]:
@@ -1318,13 +1460,23 @@ class WaterModule(Module):
                 if self.diagnose_convective_recycling
                 else {}
             ),
+            **({"tracks_water_provenance": True} if self.track_water_provenance else {}),
         }
 
     def checkpoint(self) -> dict[str, Any]:
-        return {VAPOUR_STATE: np.array(self.vapour)}
+        return {
+            VAPOUR_STATE: np.array(self.vapour),
+            **(
+                {"water_provenance": np.array(self._provenance)}
+                if self.track_water_provenance
+                else {}
+            ),
+        }
 
     def restore(self, checkpoint: dict[str, Any]) -> None:
         self.vapour = np.array(checkpoint[VAPOUR_STATE], dtype=float)
+        if "water_provenance" in checkpoint:
+            self._provenance = np.array(checkpoint["water_provenance"], dtype=float)
 
 
 class PrescribedHumidityModule(Module):

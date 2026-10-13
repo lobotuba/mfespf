@@ -42,6 +42,13 @@ from typing import Any
 import numpy as np
 
 from mfespf.core.errors import ConfigurationError
+from mfespf.physics.provenance import (
+    Milestones,
+    condense,
+    evaporate,
+    form_precipitation,
+    surface_arrival,
+)
 from mfespf.physics.thermodynamics import saturation_specific_humidity
 
 __all__ = [
@@ -66,6 +73,7 @@ __all__ = [
     "entraining_plume",
     "evaporation_capacity",
     "fall_and_evaporate",
+    "provenance_substep",
     "unit_rates",
 ]
 
@@ -906,6 +914,94 @@ def cloud_base_mass_flux(
     return max(0.0, (plume.cape - residual) / (adjustment_time * rate)), rate
 
 
+def provenance_substep(
+    plume: Plume,
+    step: MassFluxStep,
+    *,
+    scale: float,
+    classes: np.ndarray,
+    layer_mass: np.ndarray,
+) -> tuple[np.ndarray, Milestones]:
+    """Carry the environment's water provenance classes through one substep
+    (fall-path-closure-candidate.md).
+
+    ``classes`` is the environment's vapour by class, (2n + 1, n) kg m^-2, at
+    the start of the substep; ``step`` the substep's bulk result, at cloud-base
+    mass ``scale`` (M_b dt). The plume carries its vapour and cloud water by
+    class, mixing in entrained air and detraining in proportion; it condenses,
+    evaporates and converts by the same amounts as the bulk plume. The
+    environment's classes then take the same flux-form operator as its vapour,
+    the detrained cloud water's evaporation and the falling precipitation's.
+    What reaches the surface ends its cohort. Returns the classes after the
+    substep and the milestones it crossed.
+    """
+    if plume.liquid is None or plume.conversion is None:
+        raise ConfigurationError("water provenance is carried with the cloud-water pathway only")
+    K, n = classes.shape
+    m = np.asarray(layer_mass, dtype=float)
+    q = classes / m
+    unit = Milestones.zeros(n)
+    scaled = Milestones.zeros(n)
+    detrained_vapour = np.zeros((K, n))
+    detrained_cloud = np.zeros((K, n))
+    rain_formed = np.zeros((K, n))
+    vapour = np.zeros(K)
+    cloud = np.zeros(K)
+    E, D, M = plume.entrainment, plume.detrainment, plume.flux
+    if plume.active:
+        for k in range(plume.source, plume.top + 1):
+            vapour = vapour + E[k] * q[:, k]
+            net = float(plume.condensate[k])
+            if net > 0.0:
+                vapour, formed = condense(vapour, net, k, unit, large_scale=False)
+                cloud = cloud + formed
+            elif net < 0.0:
+                cloud, freed = evaporate(cloud, -net)
+                vapour = vapour + freed
+            if plume.conversion[k] > 0.0:
+                cloud, rain = form_precipitation(cloud, float(plume.conversion[k]), k, unit)
+                rain_formed[:, k] += scale * rain
+            mass = 1.0 if k == plume.source else 1.0 + float(E[k])
+            share = min(float(D[k]) / mass, 1.0)
+            detrained_vapour[:, k] = vapour * share
+            detrained_cloud[:, k] = cloud * share
+            vapour = vapour - detrained_vapour[:, k]
+            cloud = cloud - detrained_cloud[:, k]
+    for name in ("first_condensed", "first_precip", "first_precip_location"):
+        setattr(scaled, name, scale * getattr(unit, name))
+
+    rate = np.zeros((K, n))
+    rate[:, :-1] += M[1:-1] * q[:, 1:]
+    rate -= M[:-1] * q
+    rate += -E * q + detrained_vapour
+    after = classes + scale * rate
+
+    # The detrained cloud water evaporates into the receiving layer as far as
+    # the bulk step found it could, and the rest becomes precipitation there.
+    plume_evaporation = scale * np.asarray(plume.cloud_evaporation, dtype=float)
+    for k in range(n):
+        arriving = scale * detrained_cloud[:, k]
+        if not np.any(arriving):
+            continue
+        taken = float(step.cloud_evaporation[k] - plume_evaporation[k])
+        left, freed = evaporate(arriving, taken)
+        after[:, k] += freed
+        if np.sum(left) > 0.0:
+            _, rain = form_precipitation(left, float(np.sum(left)), k, scaled)
+            rain_formed[:, k] += rain
+
+    # The fall: what comes from above evaporates as the bulk fall did, and rain
+    # formed in a layer joins the flux to the layer below.
+    falling = np.zeros(K)
+    for k in range(n - 1, -1, -1):
+        if step.rain_evaporation[k] > 0.0:
+            falling, freed = evaporate(falling, float(step.rain_evaporation[k]))
+            after[:, k] += freed
+        falling = falling + rain_formed[:, k]
+    surface_arrival(falling, scaled)
+    return after, scaled
+
+
 #: A step needing more substeps than this is refused, not limited (third erratum).
 MAX_SUBSTEPS = 500
 
@@ -920,6 +1016,8 @@ class Convection:
     cape_removal: float
     first_cloud_base_flux: float
     mean_cloud_base_flux: float
+    provenance: np.ndarray | None = None
+    milestones: Milestones | None = None
 
 
 def convect(
@@ -942,6 +1040,7 @@ def convect(
     precipitation_evaporation: str = "cascade",
     condensate_pathway: str = "immediate",
     conversion_rate: float = CLOUD_WATER_CONVERSION_PER_M,
+    provenance: np.ndarray | None = None,
 ) -> Convection:
     """Integrate the closure over ``dt`` as the rate law it is (third erratum).
 
@@ -968,6 +1067,17 @@ def convect(
     )
     elapsed, substeps, moved = 0.0, 0, 0.0
     first: tuple[Plume, float, float] | None = None
+    classes = None if provenance is None else np.array(provenance, dtype=float)
+    milestones = None if provenance is None else Milestones.zeros(n)
+    if classes is not None and (
+        condensate_pathway != "carried"
+        or detrained_state != "plume"
+        or precipitation_evaporation not in ("none", "rate_law_only")
+    ):
+        raise ConfigurationError(
+            "water provenance follows the carried cloud-water pathway with the rate law or "
+            "no precipitation evaporation"
+        )
     while elapsed < dt * (1.0 - 1.0e-12):
         plume = entraining_plume(
             temperature=T,
@@ -1010,6 +1120,11 @@ def convect(
             precipitation_evaporation=precipitation_evaporation,
             **fixed,
         )
+        if classes is not None and milestones is not None:
+            classes, crossed = provenance_substep(
+                plume, step, scale=flux * h, classes=classes, layer_mass=m
+            )
+            milestones.add(crossed)
         T = T + (step.energy + latent_heat * step.condensation) / C
         w = w + step.transport - step.condensation
         for key in keys:
@@ -1043,4 +1158,6 @@ def convect(
         cape_removal=removal0,
         first_cloud_base_flux=flux0,
         mean_cloud_base_flux=moved / dt,
+        provenance=classes,
+        milestones=milestones,
     )

@@ -422,6 +422,50 @@ def test_the_recycling_counterfactual(evaporation):
         assert np.all(recycled <= evaporated * (1.0 + 1e-9) + 1e-18)
 
 
+@pytest.mark.req("CON-001", "CON-004", "KER-005", "VAL-001")
+def test_the_provenance_classes_follow_the_vapour():
+    """fall-path-closure-candidate.md, F5 and F6 through a coupled run: the
+    classes sum to the vapour at every step, none goes negative, the milestones
+    are ordered, PE = FE SE, both inventories close against their milestones,
+    and the bulk state is bit-identical with the tracer off."""
+    options = dict(condensate_pathway="carried", precipitation_evaporation="rate_law_only")
+    run = _warm_moist_column(**options, track_water_provenance=True).run(6)
+    assert run.may_support_a_claim, run.manifest.invalidation_reasons + run.manifest.warnings
+    plain = _warm_moist_column(**options).run(6)
+    initial = None
+    convective = np.zeros((5, 30))
+    large_scale = np.zeros((5, 30))
+    evaporated = 0.0
+    for tracked, untracked in zip(run.steps, plain.steps, strict=True):
+        o = tracked.outputs
+        for name in ("atmosphere_water_vapour", "atmosphere_layer_temperature"):
+            assert np.array_equal(o[name].values, untracked.outputs[name].values)
+        classes = np.asarray(o["water_provenance"].values, dtype=float)
+        vapour = np.asarray(o["atmosphere_water_vapour"].values, dtype=float)
+        assert np.all(np.abs(classes.sum(axis=0) - vapour) <= 1e-12 * vapour)
+        assert np.all(classes >= -1e-12 * vapour)
+        assert not np.any(classes[:, vapour == 0.0])
+        convective += np.asarray(o["convective_provenance_milestones"].values) * 1.0
+        large_scale += np.asarray(o["large_scale_provenance_milestones"].values) * 1.0
+        evaporated += float(o["surface_evaporation_flux"].values) * 3600.0
+        total = convective + large_scale
+        c_unique, c_precip, p_surface = (float(np.sum(total[i])) for i in (0, 2, 4))
+        assert p_surface <= c_precip * (1 + 1e-12) and c_precip <= c_unique * (1 + 1e-12)
+    assert c_unique > 0.0 and c_precip > 0.0 and p_surface > 0.0
+    FE, SE, PE = c_precip / c_unique, p_surface / c_precip, p_surface / c_unique
+    assert PE == pytest.approx(FE * SE, rel=1e-14)
+    initial = np.asarray(_warm_moist_column(**options).initial_state["atmosphere_water_vapour"])
+    final = np.asarray(run.steps[-1].outputs["water_provenance"].values, dtype=float)
+    throughput = c_unique + float(np.sum(large_scale[1])) + evaporated
+    # Convective-born water enters only by first condensation and leaves only
+    # by reaching the surface; never-condensed water enters only by surface
+    # evaporation and leaves only by condensing.
+    assert float(np.sum(final[1:])) == pytest.approx(c_unique - p_surface, abs=1e-12 * throughput)
+    assert float(np.sum(final[0]) - np.sum(initial)) == pytest.approx(
+        evaporated - c_unique - float(np.sum(large_scale[1])), abs=1e-12 * throughput
+    )
+
+
 def _warm_moist_column(**overrides):
     n = 30
     options = dict(
@@ -445,6 +489,8 @@ def _warm_moist_column(**overrides):
             "convective_target": "entraining_plume",
             "precipitation_evaporation": "cascade",
             "diagnose_convective_recycling": False,
+            "condensate_pathway": "immediate",
+            "track_water_provenance": False,
         }
     )
     atmosphere = next(s.module for s in probe.schedule.ordered() if s.module_id == "atmosphere")

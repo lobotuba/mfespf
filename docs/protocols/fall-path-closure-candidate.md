@@ -269,3 +269,159 @@ not a candidate until a protocol addresses it.
   - both inventory closures;
   - bulk identity with the tracer on and off;
   - option-off identity with the previous code.
+
+---
+
+## Result (appended; nothing above this line changed)
+
+### Erratum, corrected while running, both readings kept
+
+**Run 1.** F6's class-sum check failed in two ways:
+
+| dt | worst class-sum residual |
+|---|---|
+| 3600 s | 5.1e-12 relative |
+| 1800 s and 900 s | about 1e+283, a division by zero |
+
+- **The cause, mine:** the frozen rule "a layer the water module empties
+  exactly empties every class" had not been implemented.
+- **The effect:** when the 69 hPa top layer was emptied to exactly zero vapour,
+  its classes kept about 5.5e-17 kg m^-2, the rounding of taking the bulk
+  amount from a pool whose sum differs from it by an ulp. The water module
+  commits the bulk layer as exactly zero.
+
+**The correction:** an emptied layer now gives up its whole pool, counted at
+its milestones. The coupled test now also asserts that a zero-vapour layer
+holds no class water.
+
+**What it touched:**
+
+- The tracer is passive, so the bulk results are unchanged.
+- Run 1's F1-F5 are run 2's.
+- All three timesteps were rerun. Run 1's outputs are kept.
+
+### Run 2: the gates
+
+All three runs completed:
+
+| dt | steps | residual |
+|---|---:|---:|
+| 3600 s | 480 | 5.9e-16 |
+| 1800 s | 960 | 5.7e-16 |
+| 900 s | 1920 | 6.4e-16 |
+
+- All are invalid on the validity-domain gate only, as every run in this
+  branch has been.
+- The radiation replay was identical at every step.
+- Parameters read back: c0 = 0.045, ke = 1e-6, "rate_law_only", "carried",
+  provenance on.
+
+| gate | result |
+|---|---|
+| F1 conservation | **pass**: conservation gate passed; residuals ≤ 6.4e-16 |
+| F2 no negative states | **pass**: every run completed every step; no class below zero |
+| F3 forced recycling | **pass**: R_recycle 2.9e-7, 2.4e-7 and 1.9e-7, against ≤ 0.0042 |
+| F4 timestep | **fail**: the RH profile is a changed equilibrium |
+| F5 option-off identity | **pass**: off, bit-for-bit the previous code; on, the bulk state matches Aα3 to every digit (RH 0.7110118708707003, T_s 313.65191390385814) |
+| F6 topology | **fail as frozen**: the class sum against the layer vapour; everything else in F6 passes |
+
+**F4, late means (days 10-20):**
+
+| quantity | 3600 s | 1800 s | 900 s | class |
+|---|---:|---:|---:|---|
+| RH 300-700 | 0.7110 | 0.7105 | 0.7136 | phase-sensitive |
+| precipitation, mm/day | 4.131 | 4.171 | 4.170 | converged |
+| FE | 0.9954 | 0.9954 | 0.9953 | phase-sensitive |
+| SE | 0.9671 | 0.9668 | 0.9660 | phase-sensitive |
+| α_total,unique | 0.0373 | 0.0376 | 0.0385 | phase-sensitive |
+| cloud-base mass flux | 0.00485 | 0.00490 | 0.00493 | phase-sensitive |
+| duty cycle | 0.433 | 0.225 | 0.166 | converged |
+| CAPE_d | 126 | 79 | 60 | converged |
+| subsidence per day | 1.68e7 | 1.69e7 | 1.70e7 | phase-sensitive |
+| R_recycle | 2.9e-7 | 2.4e-7 | 1.9e-7 | phase-sensitive |
+| **RH profile** (largest layer difference) | | 0.029 (1800 vs 3600) | 0.042 (900 vs 1800) | **changed equilibrium** |
+
+**The RH profile's failure is in the layers near the plume top.**
+
+- **Below 400 hPa,** every layer agrees across the three steps within 0.006.
+- **At 288 hPa** the largest differences occur: 0.716, 0.687 and 0.646.
+- **At 254 hPa** the 900-vs-1800 s difference, 0.022, exceeds twice the
+  combined standard error, 0.019. That makes the classification a changed
+  equilibrium, not phase.
+- **Duty cycle and CAPE** pass the rule by shrinking differences, but they
+  fall steeply with the step. The events grow shorter and more frequent, as
+  A6 found. Mean mass flux and precipitation converge.
+
+**F6:**
+
+| check | 3600 s | 1800 s | 900 s |
+|---|---:|---:|---:|
+| class sum vs layer vapour, worst relative (frozen: ≤ 1e-12) | **5.1e-12** | **7.8e-12** | **2.4e-11** |
+| cells with zero vapour and nonzero classes | 0 | 0 | 0 |
+| ordering P ≤ C_precip ≤ C, violations | 0 | 0 | 0 |
+| PE − FE·SE | 0.0 | 0.0 | 0.0 |
+| convective-born inventory closure | 1.1e-16 | 2.1e-16 | 7.3e-16 |
+| U inventory closure | 1.4e-16 | 6.0e-16 | 8.7e-16 |
+
+- **The recycling-invariance unit test passes.**
+- **Where the class-sum residual sits:** in one layer, 85 hPa. It is
+  0.9e-16 to 4.1e-16 kg m^-2 against about 1.7e-5 kg m^-2 of vapour.
+- **Its cause, traced over the first six days:**
+  - the layer then held 2.9e-3 kg m^-2;
+  - the class sum and the vapour differed by ±1-5 ulp, about 1e-18 kg m^-2,
+    of both signs, summing to exactly zero over those days;
+  - the layer later dried about 170-fold;
+  - the accumulated rounding walk of the tracer's independent arithmetic
+    then reads as 5e-12 to 2e-11 of what remains.
+- **No pathway loses water:** both inventory closures hold to ≤ 9e-16 of
+  throughput.
+- **The criterion is not changed.** As frozen, F6 fails.
+
+### Decision, as frozen
+
+**F0 is not a candidate.**
+
+- F4 fails on the RH profile near the plume top, 254-288 hPa.
+- F6 fails on the class-sum criterion, as frozen.
+
+**It is not a candidate until a protocol addresses them.**
+
+### What F0 measured
+
+**Molecule-once efficiencies,** the user's tracer, convective-born water:
+
+| | late, all three timesteps |
+|---|---|
+| FE | 0.995 |
+| SE | 0.966-0.967 |
+| PE | 0.962-0.963 |
+| α_total,unique | 0.037-0.039 |
+
+- **The molecule-once α is half the gross one.** Stage A's gross α_total
+  for the same physics was 0.077. Water that evaporates from rain and later
+  condenses again is counted twice in the gross denominator. Counted once, it
+  is water that eventually reaches the surface.
+- **Large-scale-born first condensation** is 1.7-1.9 kg m^-2, against
+  41.1-41.6 kg m^-2 convective-born.
+- **R_recycle is about 2e-7.** The forced loop is gone.
+
+**The column under F0:**
+
+- RH 300-700 is 0.71;
+- precipitation is 4.1-4.2 mm/day;
+- the surface is 313.6 K under the frozen radiation;
+- convection is intermittent, and how intermittent depends on the step.
+
+**Not concluded:**
+
+- no adoption, no default changed, no constant fitted;
+- **the two failures each need their own decision.**
+  - **F4:** whether the plume-top layers' step dependence is phase
+    (event timing) or a real equilibrium shift is the A6 question again,
+    now confined to 254-288 hPa.
+  - **F6:** whether a per-layer relative criterion is the right measure for
+    a tracer whose rounding accumulates while its layer dries. That is the
+    criterion's reasoning, not the code, and it is said here rather than
+    changed.
+- **The stratospheric protocol and the interactive-radiation run** follow
+  only once these are settled.
