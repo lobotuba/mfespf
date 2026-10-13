@@ -355,3 +355,37 @@ Interactive radiation, from R4's state, 10 days:
     environment's saturation humidity at the environment's temperature, not
     the warmer plume's.
 - **No production conclusion is drawn.** The user decides.
+
+### Addendum (appended after the user's review, 2026-10-13)
+
+**The user's disposition of Part T, recorded as worded:**
+
+> Formally not classified under the preregistered threshold; scientifically
+> inconsistent with the trigger hypothesis and supportive of
+> detrainment-dominated moistening.
+
+The frozen verdict above is not altered.
+
+**Interpretive erratum, both readings kept.**
+
+- **Reading 1 (above):**
+  - "convective transport moistens the free troposphere (+1.53) and
+    condensation removes it (-1.59)";
+  - so "the plume's detrainment of warm, saturated air moistens faster than
+    its compensating subsidence dries it".
+- **Reading 2, after re-reading the operator's bookkeeping:**
+  - the transport label `convective_vapour_transport` is
+    (q - q0)·m + formed;
+  - it therefore includes the plume's own condensate formed in each layer;
+  - the label `evaporation_minus_condensation` subtracts the same condensate
+    (less what evaporates);
+  - so the pair contains the plume's in-layer rain-out on both sides;
+  - and it does not by itself measure detrainment against subsidence.
+  - Also, the operator carries the plume's dry static energy D·s_u with its
+    vapour. The "more water than the environment can hold" phrasing holds
+    only to second order in the plume's temperature excess.
+- **What stands:** the RH numbers, the ladder's frozen verdict and the
+  reconstruction (0.037 against 0.038).
+- **What is open:** the attribution to detrainment.
+- **Where it is resolved:** `detrainment-thermodynamic-state.md` splits the
+  operator into subsidence and net detrainment and measures it.
