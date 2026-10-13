@@ -376,3 +376,46 @@ protocol with successor gates.
 4. F0 is called a closure candidate only after that.
 5. Interactive-radiation F0 only if both F0 and the model top qualify.
 6. P1-P3 reconsidered afterwards.
+
+## Erratum to the interpretation (after T2), both readings kept
+
+**Reading 1 (Result and user disposition above).**
+
+- T1's CAPE_d dependence is a first-order sampling bias proportional to the
+  host step.
+- g is the destabilisation the host step accumulates before the first window
+  samples it.
+- HS is supported.
+
+**Reading 2, after T2 (`convective-substep-convergence.md`).**
+
+- **The confound.** This protocol held Δt_conv at 300 s throughout, so the
+  host step and N = Δt_host/Δt_conv moved together on both ladders. The
+  section "What this experiment cannot separate HS from" did not list that.
+- **T2 separates them.** At a fixed host step of 1800 s, host-start CAPE is
+  86.0, 102.0 and 154.4 J/kg at N = 3, 6 and 12.
+- **At equal N, different host steps agree:**
+  - 156.9 against 154.4 at N = 12;
+  - 73.8 against 86.0 at N = 3, within 2 combined SEs.
+  - The duty cycle agrees likewise: 0.817 against 0.825, and 0.364 against
+    0.379.
+- **HS's stated mechanism is therefore not supported once N is separated.**
+  The accumulated destabilisation is fixed at a fixed host step, yet CAPE_d
+  changes by 68 J/kg.
+- **What K3's passes measured.** They stand as measured facts. The line they
+  confirmed is a line in N, about 46 + 9.3·N J/kg at Δt_conv = 300 s. It is
+  not established as accumulation over the host step.
+
+**What is unaffected:**
+
+- **G3 on T1 stays failed.**
+- **Time-mean and host-end CAPE converge** across this protocol's host-step
+  ladder.
+- **The prospective criterion does not rest on HS's mechanism.** It uses
+  time-mean CAPE, keeps host-start CAPE as a disclosed diagnostic, and drops
+  the duty cycle as a gate.
+
+**The disposition's wording,** "a first-order sampling bias proportional to
+host timestep", is on this reading a dependence on the number of convective
+windows per host step. Whether the recorded wording stands is the user's
+decision.

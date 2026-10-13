@@ -457,8 +457,13 @@ class ConvectiveAdjustmentModule(Module):
                         "plume_buoyancy",
                         "plume_top_pressure",
                         "mass_flux_substeps",
-                        "dilute_cape_after_convection",
-                        "dilute_cape_time_mean",
+                        "cape_host_start",
+                        "cape_time_mean",
+                        "cape_pre_convection",
+                        "cape_post_convection",
+                        "cape_host_end",
+                        "cape_window_start",
+                        "convective_active_time_fraction",
                         "requested_cloud_base_mass_flux",
                         "plume_top_pressure_continuous",
                         *MASS_FLUX_DECOMPOSITION,
@@ -653,6 +658,11 @@ class ConvectiveAdjustmentModule(Module):
         self.convective_substep = convective_substep
         self._cape_after = 0.0
         self._cape_time_mean = 0.0
+        self._cape_host_start = 0.0
+        self._cape_pre = 0.0
+        self._cape_post = 0.0
+        self._cape_window_start = np.zeros(1)
+        self._active_fraction = 0.0
         self._requested_flux = 0.0
         self._top_continuous = float("nan")
         self._provenance_change: np.ndarray | None = None
@@ -1188,6 +1198,12 @@ class ConvectiveAdjustmentModule(Module):
         self._mass_flux_substeps = step.substeps
         self._cape_after = result.cape_after
         self._cape_time_mean = result.cape_time_mean
+        self._cape_host_start = result.cape
+        self._cape_pre = result.cape_pre_convection
+        self._cape_post = result.cape_post_convection
+        if result.cape_window_start is not None:
+            self._cape_window_start = np.array(result.cape_window_start)
+        self._active_fraction = result.active_time_fraction
         self._requested_flux = result.first_cloud_base_flux
         self._top_continuous = (
             result.plume.top_pressure_continuous if result.plume.active else float("nan")
@@ -1321,17 +1337,57 @@ class ConvectiveAdjustmentModule(Module):
                 self._mass_flux_substeps,
                 "1",
             ),
-            "dilute_cape_after_convection": scalar(
-                "dilute_cape_after_convection",
-                "the plume's CAPE on the state convection leaves",
-                self._cape_after,
+            # Labelled CAPE (convective-cape-sampling.md, user disposition):
+            # the host-start sample carries a first-order splitting bias and is
+            # disclosed as such; convergence uses the time mean.
+            "cape_host_start": scalar(
+                "cape_host_start",
+                "the plume's CAPE at the step's first window, an operator-splitting diagnostic",
+                self._cape_host_start,
                 "J kg^-1",
             ),
-            "dilute_cape_time_mean": scalar(
-                "dilute_cape_time_mean",
+            "cape_time_mean": scalar(
+                "cape_time_mean",
                 "the plume's CAPE averaged over the step, convection's idle remainder included",
                 self._cape_time_mean,
                 "J kg^-1",
+            ),
+            "cape_pre_convection": scalar(
+                "cape_pre_convection",
+                "the plume's CAPE at each convective window's start, averaged over the windows",
+                self._cape_pre,
+                "J kg^-1",
+            ),
+            "cape_post_convection": scalar(
+                "cape_post_convection",
+                "the plume's CAPE at each convective window's end, averaged over the windows",
+                self._cape_post,
+                "J kg^-1",
+            ),
+            "cape_host_end": scalar(
+                "cape_host_end",
+                "the plume's CAPE on the state convection leaves at the step's end",
+                self._cape_after,
+                "J kg^-1",
+            ),
+            "cape_window_start": Field(
+                field_id="cape_window_start",
+                physical_name="the plume's CAPE at the start of each convective window",
+                values=np.asarray(self._cape_window_start, dtype=float),
+                units="J kg^-1",
+                quantity_kind=QuantityKind.DIAGNOSTIC,
+                time_semantics=TimeSemantics.INSTANTANEOUS,
+                time_interval=ctx.dt,
+                timestamp=ctx.time,
+                spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                dimensions=("convective_window",),
+                provenance=provenance,
+            ),
+            "convective_active_time_fraction": scalar(
+                "convective_active_time_fraction",
+                "the share of the step convection integrated with a positive mass flux",
+                self._active_fraction,
+                "1",
             ),
             "requested_cloud_base_mass_flux": scalar(
                 "requested_cloud_base_mass_flux",

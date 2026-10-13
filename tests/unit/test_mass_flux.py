@@ -512,6 +512,34 @@ def test_the_time_mean_cape_lies_between_the_sampled_and_the_remaining_cape():
 
 
 @pytest.mark.req("EQR-002", "VAL-001")
+def test_the_labelled_cape_samples_follow_the_convective_windows():
+    """convective-substep-convergence.md: one starting CAPE per window, the
+    first being the host-start sample; window means bracketed by the host
+    start and end; the active-time fraction a share of the step. Without a
+    substep the step is one window. An idle step holds one CAPE everywhere."""
+    c = _column()
+    options = dict(
+        entrainment_rate=1.0e-3,
+        evaporating_fraction=0.67,
+        condensate_pathway="carried",
+        precipitation_evaporation="rate_law_only",
+        **c,
+    )
+    r = convect(dt=900.0, substep=300.0, **options)
+    starts = r.cape_window_start
+    assert starts is not None and starts.size == 3 and starts[0] == r.cape
+    assert r.cape_after <= r.cape_post_convection <= r.cape_pre_convection <= r.cape
+    assert 0.0 < r.active_time_fraction <= 1.0
+    whole = convect(dt=900.0, **options)
+    assert whole.cape_window_start is not None and whole.cape_window_start.size == 1
+    assert whole.cape_pre_convection == whole.cape
+    assert whole.cape_post_convection == whole.cape_after
+    idle = convect(dt=900.0, substep=300.0, trigger=1.0e9, **options)
+    assert idle.active_time_fraction == 0.0
+    assert idle.cape_pre_convection == idle.cape_post_convection == idle.cape
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
 def test_the_continuous_plume_top_lies_between_its_bracketing_layers():
     """T0: the buoyancy work's zero crossing, interpolated between the last layer
     it was positive in and the terminal layer, lies between their pressures."""

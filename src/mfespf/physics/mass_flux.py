@@ -1039,6 +1039,25 @@ class Convection:
     milestones: Milestones | None = None
     cape_after: float = float("nan")
     cape_time_mean: float = float("nan")
+    cape_window_start: np.ndarray | None = None
+    active_time_fraction: float = float("nan")
+
+    @property
+    def cape_pre_convection(self) -> float:
+        """The mean over the step's windows of CAPE at each window's start
+        (convective-substep-convergence.md)."""
+        if self.cape_window_start is None:
+            return float("nan")
+        return float(np.mean(self.cape_window_start))
+
+    @property
+    def cape_post_convection(self) -> float:
+        """The mean over the step's windows of CAPE at each window's end:
+        nothing else acts within convection, so a window ends at the next
+        one's start, and the last at the CAPE convection leaves."""
+        if self.cape_window_start is None:
+            return float("nan")
+        return float(np.mean(np.append(self.cape_window_start[1:], self.cape_after)))
 
 
 def convect(
@@ -1091,6 +1110,12 @@ def convect(
     # The step's time-mean CAPE (convective-cape-sampling.md, C0): each
     # substep's starting CAPE times its length, a diagnostic never fed back.
     cape_time = 0.0
+    # Each window's starting CAPE and the time convection integrated
+    # (convective-substep-convergence.md): diagnostics, never fed back.
+    windows = 1 if substep is None else round(dt / substep)
+    window_start = np.full(windows, np.nan)
+    window, fresh = 0, True
+    active_time = 0.0
     first: tuple[Plume, float, float] | None = None
     # A common convective step (convective-temporal-convergence.md, T1): the
     # host step is integrated in windows of ``substep``, every substep ending at
@@ -1138,6 +1163,9 @@ def convect(
         )
         if first is None:
             first = (plume, removal, flux)
+        if fresh and window < windows:
+            window_start[window] = plume.cape
+            fresh = False
         if flux <= 0.0:
             break
         outflow = flux * (plume.flux[:-1] + plume.entrainment)
@@ -1147,6 +1175,7 @@ def convect(
         if substep is not None:
             h = min(h, window_end - elapsed)
         cape_time += plume.cape * h
+        active_time += h
         step = apply_mass_flux(
             plume,
             cloud_base_flux=flux,
@@ -1173,6 +1202,7 @@ def convect(
         if substep is not None and elapsed >= window_end * (1.0 - 1.0e-12):
             elapsed = window_end
             window_end = min(dt, window_end + substep)
+            window, fresh = window + 1, True
         if substeps > MAX_SUBSTEPS:
             raise ConfigurationError(
                 f"mass-flux convection needed more than {MAX_SUBSTEPS} substeps in one step "
@@ -1212,4 +1242,7 @@ def convect(
         cape_after=cape_after,
         # The idle remainder of the step holds the CAPE convection left.
         cape_time_mean=(cape_time + max(dt - elapsed, 0.0) * cape_after) / dt,
+        # Windows after convection stopped start, and end, where it left CAPE.
+        cape_window_start=np.where(np.isnan(window_start), cape_after, window_start),
+        active_time_fraction=active_time / dt,
     )
