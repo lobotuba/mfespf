@@ -205,3 +205,153 @@ central drying test, and that is recorded.
 **Either way, the user decides.**
 
 ---
+
+## Result (appended; nothing above this line changed)
+
+**Corrected while running, before any result was read:** two exactness
+defects in the water module's composition with convection, both found by the
+gates.
+
+1. **The arithmetic (own + c) - c** left a layer emptied below the
+   saturation floor at about -1e-21 kg m^-2. Fixed by keeping the module's
+   own condensation apart (commit 9289034).
+2. **Committing from summed rates** leaves the same residue on any exactly
+   emptied layer. The module now commits such a layer as exactly empty, only
+   where the residue is within 1e-12 of that layer's own gross flux. A real
+   over-draw is still refused.
+
+Both are option-off neutral. The T runs were rerun after them.
+
+### Part R: the top-layer drift is the convective adjustment, not radiation or the mass flux
+
+The top layer is 1.07 hPa. Integrals over 240 steps (10 days):
+
+| run | radiative tendency | dry convective adjustment | mass-flux transport | dT_ref, start → end | valid |
+|---|---:|---:|---:|---|---|
+| R0a-i, R4's scheme | -70.9 K | **+70.9 K** | | -27.66 → -27.67 | yes |
+| R0b, mass flux | -19.7 K | +11.3 K | 0.0 | -27.66 → **-36.07** | no (RRTMG domain) |
+
+**R0a-ii could not be built as specified:** `moist_radiative_convective`
+forces the convection module on. It ran with convection present, and only
+its water-composition switches differed: -70.88 and +70.85 K, inside the
+domain. It does not decide anything, and that is recorded.
+
+**Verdict as frozen,** third row: R0b's top layer is governed by a
+non-radiative tendency, and that operator is named.
+
+- **The operator:** `convection:dry_convective_adjustment`.
+- **In R4's configuration** (entraining-plume target), it mixes the layers
+  near 1 hPa, where no convection exists, and heats the top layer by about
+  7 K/day, exactly balancing its radiative cooling. That is what held R4's
+  top layer inside RRTMG's tables.
+- **In the mass-flux configuration** the target is the dry adiabat. The
+  adjustment supplies only +11.3 K, and the top layer falls toward its own
+  radiative equilibrium, 36 K below RRTMG's reference.
+- **The drift is not caused by the mass flux.** The plume tops out at
+  103-154 hPa, and its transport at the top layer is zero.
+- **The stratospheric water** changes little: 26.4 → 25.3 ppmv.
+
+**What it implies, not acted on:**
+
+- R4's upper stratosphere is held by a convective closure acting where it
+  has no business.
+- The model's own radiative equilibrium at 1 hPa lies outside RRTMG's
+  tables.
+- `tropical-cloud-field.md` found the tropical stratosphere 12-20 K too cold
+  above 70 hPa, which is consistent.
+
+### Part T: the trigger ladder under one radiation
+
+**The common radiation held.** The replayed heating was identical value for
+value at every step of every case (checksum -2646.2636 in all four). The
+water and energy residuals were 4.9-5.8e-16.
+
+**All four runs are invalid on the mass-flux record's domain.** With the
+radiation frozen, cold detrained air drove the plume down to 143 K. That is
+a property of the diagnostic configuration, and the cases are compared
+within it. Days 10-20:
+
+| case | C_min | duty cycle | events | mass transport, kg m^-2 | subsidence, kg m^-2 Pa | precipitation, kg m^-2 | mean CAPE_d | RH 300-700 (variance) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| T0 | 70 | 0.908 | 23 | 7207 | 2.88e8 | 43.3 | 382 | 0.9372 (7.5e-5) |
+| T1 | 35 | 0.883 | 29 | 7204 | 2.88e8 | 43.3 | 372 | 0.9372 (6.6e-5) |
+| T2 | 10 | 0.908 | 22 | 7187 | 2.88e8 | 43.2 | 379 | 0.9373 (6.9e-5) |
+| T3 | 0 | 1.000 | 1 | 12922 | 4.81e8 | 43.8 | 348 | 0.9351 (8.6e-5) |
+
+**The RH decomposition,** days 10-20 over 300-700 hPa, mass-weighted, the
+same in all four cases to 0.01. T0's:
+
+- **d ln q_v:**
+  - convective transport **+1.53**;
+  - condensation **-1.59**;
+  - diffusion +0.05.
+- **d ln q_sat:**
+  - radiation -1.27;
+  - mass-flux transport (its dry part) -0.22;
+  - latent heat **+1.45**.
+- **Reconstruction:** d ln RH 0.037, against an actual 0.038.
+
+**Verdict as frozen: not confirmed, and not rejected.**
+
+- **Not confirmed:** RH falls only 0.002 from T0 to T3, not the 0.03
+  required. The duty cycle does not rise monotonically (0.908, 0.883,
+  0.908, 1.000).
+- **Not rejected:** T3 is continuous (1.000 ≥ 0.8), but its subsidence rose
+  by a factor of 1.67, not the 2 the rule requires.
+- **So it is reported as found, without classification.**
+
+**What was found.**
+
+- **Under this radiation, convection was nearly continuous at every
+  trigger.** The duty cycle was 0.91 at the frozen 70 J/kg, with mean CAPE
+  near 380, so the ladder had little activation left to vary.
+- **Continuous convection with 67 percent more subsidence left RH at 0.935.**
+- **In every case convective transport moistens the free troposphere:**
+  - detrainment of buoyant, saturated plume air;
+  - that air is warmer than the environment, so it carries more water than
+    the environment can hold.
+- **Condensation removes it:** the water module's saturation adjustment, at
+  saturation.
+- **The plume-subsidence circulation therefore does not dry this column's
+  free troposphere.** Its net effect there is to moisten, and saturation
+  holds the result.
+
+### Part A6s: the supporting quantities
+
+Interactive radiation, from R4's state, 10 days:
+
+| dt | RH, days 0-10 | RH, days 5-10 | variance, days 5-10 | events | mass transport | subsidence | precipitation |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 3600 s | 0.9191 | 0.8941 | 1.04e-5 | 71 | 5484 | 2.151e8 | 36.52 |
+| 1800 s | 0.9170 | 0.8945 | 1.20e-5 | 86 | 5735 | 2.252e8 | 36.78 |
+| 900 s | 0.9204 | 0.8979 | 1.51e-5 | 139 | 5733 | 2.249e8 | 36.68 |
+
+**Classification as frozen: a changed attractor.**
+
+- **RH:** the day 5-10 mean differences do not shrink, 0.0004 then 0.0034,
+  just as the endpoint ones grew.
+- **Mass transport, subsidence and precipitation converge** from 1800 s on.
+- **The event count rises with the resolution of the step,** 71, 86 and 139,
+  so events are shorter and more frequent at short steps.
+- **The size:** the RH dependence on the step is 0.003, against the
+  0.5-0.8 gap between this column and the observed.
+
+**A6 still fails.**
+
+### What the branch says, and what it does not
+
+- **The top-layer blocker is not the mass flux.** It is the removal of a
+  convective adjustment that R4 applied at 1 hPa.
+- **The trigger is not the mechanism holding the free troposphere moist.**
+  With convection running continuously, the plume's detrainment of warm,
+  saturated air moistens the free troposphere faster than its compensating
+  subsidence dries it. Condensation then holds the result near saturation.
+- **This is the branch's "rejected" outcome in substance,** though not by
+  its frozen numbers, since subsidence rose ×1.67, not ×2.
+- **The likely physics,** not measured here:
+  - the detrainment law δ = ε at 1 km^-1 detrains a great deal of saturated
+    air throughout the free troposphere;
+  - Romps' (2014) RH = (a + α)/(1 + a) assumes the detrained air carries the
+    environment's saturation humidity at the environment's temperature, not
+    the warmer plume's.
+- **No production conclusion is drawn.** The user decides.

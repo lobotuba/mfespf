@@ -638,6 +638,11 @@ class WaterModule(Module):
         # Convection's condensation already left the provisional profile above;
         # only this module's own leaves it here.
         final = provisional - own_condensation
+        # Layers condensed to exactly nothing (below the saturation floor, where
+        # everything condenses). The commit re-forms the state from summed rates,
+        # which leaves a residue of order 1e-21 kg m^-2 either side of zero; these
+        # layers are committed as the exact zero computed here, not as that residue.
+        self._emptied = (final == 0.0) & (provisional > 0.0)
         self._specific_humidity = final / self._layer_mass
         self._relative_humidity = np.divide(
             self._specific_humidity,
@@ -800,6 +805,16 @@ class WaterModule(Module):
         for contribution in contributions:
             total = total + np.broadcast_to(contribution.as_array(), (self.n_layers,))
         updated = initial + total * dt
+        # A layer this module emptied exactly is committed empty, but only where the
+        # residue is at the round-off scale of that layer's own fluxes; a real
+        # over-draw is larger and still refused below.
+        emptied = getattr(self, "_emptied", None)
+        if emptied is not None and np.shape(emptied) == updated.shape and np.any(emptied):
+            gross = np.abs(initial) + dt * sum(
+                np.abs(np.broadcast_to(c.as_array(), (self.n_layers,))) for c in contributions
+            )
+            residue = emptied & (np.abs(updated) <= 1.0e-12 * gross)
+            updated = np.where(residue, 0.0, updated)
 
         overdrawn = updated < 0.0
         if np.any(overdrawn):
