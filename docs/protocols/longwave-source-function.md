@@ -302,3 +302,56 @@ The model's solver now gives 348.14 there. What the V tests measure now is
 the disagreement between the two references, as recorded.
 
 **As frozen, R4 follows (P2 passed).**
+
+## R4 result (appended; nothing above this line changed)
+
+**R4** is R3's configuration, `rrtmg_longwave`, plus `k_distribution_source`
+and `linear_in_tau_source`.
+
+- **The run:** 178 bins, 200000 steps, 34648 s. That is 1.9 times R3's
+  time: every sub-column now evaluates the interface Planck fluxes and the
+  band totals.
+- **G0 passes.** The run is complete and valid, with residual 7.4e-16,
+  imbalance 0.002 W m^-2 and no domain violations.
+- **The state is saved:** `gcl_r4_200000_state.npz`.
+
+Against CERES EBAF Ed4.0, global:
+
+| test | observed | R3 | **R4** | verdict on R4 |
+|---|---:|---:|---:|---|
+| G1: planetary albedo | 0.291 | 0.268 | **0.271** | pass (0.021) |
+| G2: shortwave cloud effect | -45.8 | -49.5 | **-49.8** | pass (4.0) |
+| G3: longwave cloud effect | +27.9 | +14.5 | **+17.0** | **fail** (10.9) |
+| G4: surface, against 288 K | | +14.65 K | **+13.49 K** | **fail** |
+
+**R4 fails G3 and G4, as predicted.** The surface is 301.49 K, 1.17 K below
+R3's 302.65: within the predicted 3 K. The sign was not predicted; it is
+cooling.
+
+**Reported, against R3:**
+
+| | observed | R3 | R4 |
+|---|---:|---:|---:|
+| outgoing longwave | 240.1 | 248.9 | 248.2 W m^-2 |
+| clear-sky outgoing longwave | 268.1 | 263.4 | 265.3 W m^-2 |
+| precipitable water | ~25 | 109.6 | **98.4** kg m^-2 |
+| relative humidity, 300-700 hPa | 0.4-0.5 | 0.91 | 0.89 |
+| latent heat flux | | 128.8 | 127.9 W m^-2 |
+| sunlight absorbed in the atmosphere | | 76.9 | 75.0 W m^-2 |
+| cold point | | 203.6 K at 57 hPa | 201.4 K at 69 hPa |
+| stratospheric water | | 44.4 | 26.6 ppmv |
+| cloud tops, ISCCP 227.5 / 234.8 / 262.8 / 281.1 K | | 252.1 / 262.8 / 283.3 / 296.3 | 249.5 / 260.7 / 281.8 / 295.0 K |
+| CO2 doubling, top / 203 hPa | | 2.57 / 4.07 | 2.54 / 4.48 W m^-2 |
+
+**What it says.**
+
+- **The solver's own errors were worth 1.2 K here.** (p) lets out more at
+  the top for a given state: clear-sky OLR is +1.8 for a column 0.8 K
+  cooler at the cloud tops. The column answers with 11 kg m^-2 less water
+  and a colder cold point.
+- **The water is still four times the observed, and the free troposphere
+  still at 0.89.** The cloud tops remain 15-22 K warmer than ISCCP's. As
+  `chou-column-greenhouse-attribution.md` measured, that is the lever, and
+  nothing in this protocol pulls it.
+- **Adoption of either switch is the user's decision.** As frozen, the
+  drying mechanism starts from R4's configuration.
