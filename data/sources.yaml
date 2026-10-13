@@ -493,6 +493,475 @@ sources:
   notes: Copied to tests/data/aer_rrtmg_lw/ for the P0 port check (rrtmg-longwave.md).
   sha256: c13779d69ce9993ad590e6d8e28e986f42e1dd274eacaf21f5902a4de7a0c7d3
 
+- dataset_id: NCEP-R1-SHUM-LTM-1991-2020
+  loader: none
+  title: 'NCEP/NCAR Reanalysis 1 specific humidity, monthly long-term means 1991-2020'
+  filename: shum.mon.ltm.1991-2020.nc
+  url: https://psl.noaa.gov/thredds/fileServer/Datasets/ncep.reanalysis/Monthlies/pressure/shum.mon.ltm.1991-2020.nc
+  provider: 'NOAA Physical Sciences Laboratory'
+  provenance_class: reanalysis
+  variables:
+  - specific_humidity
+  units:
+  - 'g kg^-1'
+  temporal_coverage: '1991-2020 monthly climatology'
+  spatial_coverage: 'global 2.5 degree, 1000 to 300 hPa'
+  uncertainty: 'none published per cell'
+  licence: 'US Government work; cite on use.'
+  citation: 'Kalnay, E. et al. (1996), The NCEP/NCAR 40-Year Reanalysis Project, BAMS 77, 437-471.'
+  notes: 'Observed vapour of chou-column-greenhouse-attribution.md and tropical-surface-diagnostic.md; tropical RH and precipitable water of ocean-heat-transport-circulation.md. Declared here, late: it was used before this entry existed.'
+  sha256: 03bb3f078aea64ee9e227c8e792e6636c060c314a5c2b9e9927ae67f34ac13f6
+- dataset_id: NCEP-R1-NSWRS-SFC-LTM-1991-2020
+  loader: none
+  title: 'NCEP/NCAR Reanalysis 1 net shortwave radiation at the surface (positive upward), monthly long-term means 1991-2020'
+  filename: nswrs.sfc.mon.ltm.1991-2020.nc
+  url: https://psl.noaa.gov/thredds/fileServer/Datasets/ncep.reanalysis/Monthlies/surface_gauss/nswrs.sfc.mon.ltm.1991-2020.nc
+  provider: 'NOAA Physical Sciences Laboratory'
+  provenance_class: reanalysis
+  variables:
+  - nswrs
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1991-2020 monthly climatology'
+  spatial_coverage: 'global T62 Gaussian grid'
+  uncertainty: 'none published per cell'
+  licence: 'US Government work; cite on use.'
+  citation: 'Kalnay, E. et al. (1996), The NCEP/NCAR 40-Year Reanalysis Project, BAMS 77, 437-471.'
+  notes: 'Composited on annual-mean omega500 masks within 20 degrees for ocean-heat-transport-circulation.md. downloads.psl.noaa.gov refused requests (403) on 2026-10-12; fetched from PSL THREDDS, whose omega file matches the recorded checksum.'
+  sha256: c2aa55e709dca2ae419500a03f20b211e2087307dfa0404c69a53731babb3e74
+- dataset_id: NCEP-R1-NLWRS-SFC-LTM-1991-2020
+  loader: none
+  title: 'NCEP/NCAR Reanalysis 1 net longwave radiation at the surface (positive upward), monthly long-term means 1991-2020'
+  filename: nlwrs.sfc.mon.ltm.1991-2020.nc
+  url: https://psl.noaa.gov/thredds/fileServer/Datasets/ncep.reanalysis/Monthlies/surface_gauss/nlwrs.sfc.mon.ltm.1991-2020.nc
+  provider: 'NOAA Physical Sciences Laboratory'
+  provenance_class: reanalysis
+  variables:
+  - nlwrs
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1991-2020 monthly climatology'
+  spatial_coverage: 'global T62 Gaussian grid'
+  uncertainty: 'none published per cell'
+  licence: 'US Government work; cite on use.'
+  citation: 'Kalnay, E. et al. (1996), The NCEP/NCAR 40-Year Reanalysis Project, BAMS 77, 437-471.'
+  notes: 'Composited on annual-mean omega500 masks within 20 degrees for ocean-heat-transport-circulation.md. downloads.psl.noaa.gov refused requests (403) on 2026-10-12; fetched from PSL THREDDS, whose omega file matches the recorded checksum.'
+  sha256: 12bd63f830d1bb1a2d73c5fadd45126cb19c4dac56d53529b9ee1c1d84e2f5f2
+- dataset_id: NCEP-R1-LHTFL-SFC-LTM-1991-2020
+  loader: none
+  title: 'NCEP/NCAR Reanalysis 1 latent heat flux at the surface (positive upward), monthly long-term means 1991-2020'
+  filename: lhtfl.sfc.mon.ltm.1991-2020.nc
+  url: https://psl.noaa.gov/thredds/fileServer/Datasets/ncep.reanalysis/Monthlies/surface_gauss/lhtfl.sfc.mon.ltm.1991-2020.nc
+  provider: 'NOAA Physical Sciences Laboratory'
+  provenance_class: reanalysis
+  variables:
+  - lhtfl
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1991-2020 monthly climatology'
+  spatial_coverage: 'global T62 Gaussian grid'
+  uncertainty: 'none published per cell'
+  licence: 'US Government work; cite on use.'
+  citation: 'Kalnay, E. et al. (1996), The NCEP/NCAR 40-Year Reanalysis Project, BAMS 77, 437-471.'
+  notes: 'Composited on annual-mean omega500 masks within 20 degrees for ocean-heat-transport-circulation.md. downloads.psl.noaa.gov refused requests (403) on 2026-10-12; fetched from PSL THREDDS, whose omega file matches the recorded checksum.'
+  sha256: 7656945142b51589b86abbc068d093210498db5ae253f0ab8f4846da489e9c8c
+- dataset_id: NCEP-R1-SHTFL-SFC-LTM-1991-2020
+  loader: none
+  title: 'NCEP/NCAR Reanalysis 1 sensible heat flux at the surface (positive upward), monthly long-term means 1991-2020'
+  filename: shtfl.sfc.mon.ltm.1991-2020.nc
+  url: https://psl.noaa.gov/thredds/fileServer/Datasets/ncep.reanalysis/Monthlies/surface_gauss/shtfl.sfc.mon.ltm.1991-2020.nc
+  provider: 'NOAA Physical Sciences Laboratory'
+  provenance_class: reanalysis
+  variables:
+  - shtfl
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1991-2020 monthly climatology'
+  spatial_coverage: 'global T62 Gaussian grid'
+  uncertainty: 'none published per cell'
+  licence: 'US Government work; cite on use.'
+  citation: 'Kalnay, E. et al. (1996), The NCEP/NCAR 40-Year Reanalysis Project, BAMS 77, 437-471.'
+  notes: 'Composited on annual-mean omega500 masks within 20 degrees for ocean-heat-transport-circulation.md. downloads.psl.noaa.gov refused requests (403) on 2026-10-12; fetched from PSL THREDDS, whose omega file matches the recorded checksum.'
+  sha256: 8d6a7f9a4b6966e32cf3e3aa744b0b4a863ff5e96376078dd4a2f52bd621b5a7
+- dataset_id: NCEP-R1-SKT-SFC-LTM-1991-2020
+  loader: none
+  title: 'NCEP/NCAR Reanalysis 1 skin temperature, monthly long-term means 1991-2020'
+  filename: skt.sfc.mon.ltm.1991-2020.nc
+  url: https://psl.noaa.gov/thredds/fileServer/Datasets/ncep.reanalysis/Monthlies/surface_gauss/skt.sfc.mon.ltm.1991-2020.nc
+  provider: 'NOAA Physical Sciences Laboratory'
+  provenance_class: reanalysis
+  variables:
+  - skt
+  units:
+  - 'degC'
+  temporal_coverage: '1991-2020 monthly climatology'
+  spatial_coverage: 'global T62 Gaussian grid'
+  uncertainty: 'none published per cell'
+  licence: 'US Government work; cite on use.'
+  citation: 'Kalnay, E. et al. (1996), The NCEP/NCAR 40-Year Reanalysis Project, BAMS 77, 437-471.'
+  notes: 'Composited on annual-mean omega500 masks within 20 degrees for ocean-heat-transport-circulation.md. downloads.psl.noaa.gov refused requests (403) on 2026-10-12; fetched from PSL THREDDS, whose omega file matches the recorded checksum.'
+  sha256: 69ed66e09396ae130cc4dea3d0034359659ea0f560f06f0598b6320706311e34
+- dataset_id: NCEP-R1-LAND-MASK
+  loader: none
+  title: 'NCEP/NCAR Reanalysis 1 land-sea mask, T62 Gaussian grid'
+  filename: land.sfc.gauss.nc
+  url: https://downloads.psl.noaa.gov/Datasets/ncep.reanalysis/surface_gauss/land.sfc.gauss.nc
+  provider: 'NOAA Physical Sciences Laboratory'
+  provenance_class: reanalysis
+  variables:
+  - land_fraction
+  units:
+  - '1'
+  temporal_coverage: 'invariant'
+  spatial_coverage: 'global T62 Gaussian grid'
+  uncertainty: 'none published per cell'
+  licence: 'US Government work; cite on use.'
+  citation: 'Kalnay, E. et al. (1996), The NCEP/NCAR 40-Year Reanalysis Project, BAMS 77, 437-471.'
+  notes: 'Separates ocean from land in the composites of ocean-heat-transport-circulation.md.'
+  sha256: 7da97a6d508a499302002891bb11e7c284d99019698cb89de1b5f5da37df3ca3
+- dataset_id: OAFLUX-V3-QNET-1991
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 1991'
+  filename: qnet_1991.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_1991.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1991, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: fe893287f58f3877f4bc4d4517d113e1392ba0b238b81782f2f5c0221f05aa6d
+- dataset_id: OAFLUX-V3-QNET-1992
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 1992'
+  filename: qnet_1992.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_1992.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1992, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 76b6520e14ce133f6c59da2f7394195ba428f01c60e0483080fd368e16bce24f
+- dataset_id: OAFLUX-V3-QNET-1993
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 1993'
+  filename: qnet_1993.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_1993.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1993, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: f9be361763968594bf8a197087659a9c7b2ee0d9b0617a97b85b5a417e1eeb5b
+- dataset_id: OAFLUX-V3-QNET-1994
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 1994'
+  filename: qnet_1994.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_1994.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1994, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 9f75fda980aa06a71b89f03809ed8f2fabaf128a37c8c13973c3bb1553c1db70
+- dataset_id: OAFLUX-V3-QNET-1995
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 1995'
+  filename: qnet_1995.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_1995.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1995, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 41f164862ff3a2a566a42e8f440e281b8b3c1195eac3ddf99fb2e88575fba9de
+- dataset_id: OAFLUX-V3-QNET-1996
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 1996'
+  filename: qnet_1996.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_1996.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1996, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 0f8535b9a385021a1f11f9284a851ae021c5f71c930c0a186e5268fe30e2587b
+- dataset_id: OAFLUX-V3-QNET-1997
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 1997'
+  filename: qnet_1997.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_1997.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1997, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 436ca4f3ef341839a0e875741b1608af9175a215fc289e5fdeb2632cc6c596a1
+- dataset_id: OAFLUX-V3-QNET-1998
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 1998'
+  filename: qnet_1998.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_1998.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1998, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 2ea088249c048bac3001a00e5ddc28170992f83bd6a94181c553e0a370266478
+- dataset_id: OAFLUX-V3-QNET-1999
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 1999'
+  filename: qnet_1999.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_1999.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '1999, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 57d553890a602a42b6760d8bfd725c2fe95731c665a45a9fa55c568058044ae0
+- dataset_id: OAFLUX-V3-QNET-2000
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 2000'
+  filename: qnet_2000.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_2000.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '2000, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: c5971ed7db214607cef708e697ae37cded92f6e9ca58729cce02a49e0471e04a
+- dataset_id: OAFLUX-V3-QNET-2001
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 2001'
+  filename: qnet_2001.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_2001.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '2001, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 3ea2003d39d8922e0d892c357acb6dba6e57f9688b7123b7817985edea49c67c
+- dataset_id: OAFLUX-V3-QNET-2002
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 2002'
+  filename: qnet_2002.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_2002.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '2002, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: db4b4bd738212437bbb914f03fe044beb14b5b61cb63068888be6037e3bce5a7
+- dataset_id: OAFLUX-V3-QNET-2003
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 2003'
+  filename: qnet_2003.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_2003.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '2003, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 6136d92f43692081d6fe3c04f8513f3cd76149e187413d2ca647696fd36366fc
+- dataset_id: OAFLUX-V3-QNET-2004
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 2004'
+  filename: qnet_2004.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_2004.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '2004, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 3a6987a6fcda568005060fd76ba10cd6415020725b50a9b63f5d08e2d2f9fdd1
+- dataset_id: OAFLUX-V3-QNET-2005
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 2005'
+  filename: qnet_2005.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_2005.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '2005, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 3aee24d17e91d2ebb088c3d6880bf251b1cec31dd2f1c3203468ef03927fa1ba
+- dataset_id: OAFLUX-V3-QNET-2006
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 2006'
+  filename: qnet_2006.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_2006.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '2006, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: f9e3d06cdbe40dcd7fc07ddda9bde07114e19a4ffd80cb9a5c4bf940f110a542
+- dataset_id: OAFLUX-V3-QNET-2007
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 2007'
+  filename: qnet_2007.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_2007.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '2007, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 8b8c099933301217cd259a6c2a4ab7b0fc11099e018a1c06138f38e8a3b3617c
+- dataset_id: OAFLUX-V3-QNET-2008
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 2008'
+  filename: qnet_2008.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_2008.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '2008, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 6abc2d97f2076fa4a3e0f40d976f563881cc03b08fb4114a24642bdbc4d89ca5
+- dataset_id: OAFLUX-V3-QNET-2009
+  loader: none
+  title: 'OAFlux v3 net surface heat flux over the ocean, monthly, 2009'
+  filename: qnet_2009.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/netheat_1983-2009/qnet_2009.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - net_surface_heat_flux
+  units:
+  - 'W m^-2'
+  temporal_coverage: '2009, monthly'
+  spatial_coverage: 'global ocean, 1 degree'
+  uncertainty: 'none per cell; Yu and Weller (2007) give regional uncertainties'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Positive downward; qnet = SW - LW - LH - SH with ISCCP-FD radiation. The independent check of NCEP R1''s ocean heat delivery sign, and the verdict value, in ocean-heat-transport-circulation.md.'
+  sha256: 3c02e7148a39f04c7318b3c9333c0d2b24b8e0bb37102a6e6e575b8d67164c62
+
 # --- not fetchable without credentials --------------------------------------
 #
 # CERES EBAF is the single most valuable dataset for this framework: it reports
