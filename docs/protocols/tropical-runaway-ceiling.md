@@ -131,3 +131,70 @@ rises, between two states inside the tables.
    - Its cold point is 196.35 K at 109.6 hPa, and it is 268.8 K at 1 hPa.
    - The troposphere, the humidity, the tests and their tolerances are
      unchanged.
+
+## Result (appended; nothing above this line changed)
+
+**Under the erratum's reading, the states up to T_s = 305 K are inside
+RRTMG's tables:** the largest departure is 18.6-25.7 K. From 307.5 K the
+tropopause rises far enough that the pseudo-adiabat's upper troposphere
+departs by more than 30 K. Those states are reported and excluded, as
+frozen. Above about 317.5 K the solver refuses: the gas optics go negative.
+
+**K0 passes.** The module on N0's tail-mean state gives N = 49.53 W m^-2,
+against N0's recorded 48.90.
+
+All values in W m^-2:
+
+| T_s | H95: OLR | clear | absorbed | **N** | HOBS: OLR | clear | absorbed | **N** |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 290.0 | 221.9 | 254.7 | 299.4 | 77.5 | 231.8 | 269.4 | 297.1 | 65.3 |
+| 295.0 | 233.5 | 260.9 | 301.9 | 68.3 | 246.0 | 279.2 | 299.1 | 53.2 |
+| 297.5 | 239.5 | 263.5 | 303.2 | 63.7 | 253.5 | 283.8 | 300.3 | 46.8 |
+| 300.0 | 245.2 | 265.5 | 304.7 | 59.5 | 260.9 | 288.1 | 301.5 | **40.5** |
+| 302.5 | 250.8 | 267.3 | 306.3 | 55.5 | 268.2 | 291.8 | 302.8 | 34.6 |
+| 305.0 | 255.8 | 268.7 | 307.9 | **52.1** | 274.9 | 294.9 | 304.1 | 29.3 |
+| 310.0 (outside the tables) | 263.4 | 270.5 | 311.5 | 48.1 | 285.3 | 298.9 | 307.0 | 21.7 |
+| 317.5 (outside the tables) | 272.2 | 274.4 | 317.3 | 45.1 | refused | | | |
+
+The band needs N = 42.51.
+
+**The verdicts as frozen:**
+
+- **K1 passes.** H95 has no stable equilibrium among the states inside the
+  tables: N falls from 77.5 to 52.1 and stays above 42.51. Even the
+  extrapolated states reach only 45.1 at 317.5 K.
+- **K2 passes.** HOBS crosses 42.51 between 297.5 and 300.0 K: a **stable
+  equilibrium near 298.75 K**, against the observed band's 299.61 K.
+
+**The explanation is supported.** At the runaway's humidity the column
+cannot shed what the tropics absorb at any surface temperature inside the
+tables. At the observed humidity, the same radiation, clouds and sunlight
+equilibrate within 0.9 K of the observed tropical surface.
+
+**Reported:**
+
+- **How dry the free troposphere must be.** HOBS below 850 hPa and a uniform
+  r above:
+
+  | r | 0.3 | 0.4 | 0.5 | 0.6 | 0.7 | 0.8 | 0.9 |
+  |---|---|---|---|---|---|---|---|
+  | stable equilibrium near | 296.25 K | 298.75 | 298.75 | 301.25 | 303.75 | **none** | **none** |
+
+  The stability threshold lies between 0.7 and 0.8.
+- **The clear-sky ceiling.** At saturation (H100) the clear-sky OLR rises by
+  only 3 W m^-2 from 300 to 305 K (263.6 to 266.6), and by 5.6 more by
+  317.5 K outside the tables. The all-sky OLR is lower still: the cloud field
+  traps 15-30 W m^-2 of it.
+- **The CERES comparison.** The observed band OLR (±30°) is 259.3 W m^-2.
+  At HOBS's equilibrium the model's is about 257.
+- **The caveat.** The temperature profile is a prescribed pseudo-adiabat, not
+  the column's own convection, and the humidity is prescribed. This shows
+  what humidity the column needs. It does not show a mechanism that delivers
+  it.
+
+**What it says.** The runaway, the global warm bias and the cloud effect's
+collapse are one finding seen three ways: the free troposphere is too humid.
+With the observed humidity the tropical column is stable and right. The
+drying mechanism must bring the free troposphere below about 0.75, and the
+two-column overturning could not, because the moist runaway erased the
+surface contrast it needed.
