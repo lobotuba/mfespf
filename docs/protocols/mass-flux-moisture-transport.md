@@ -383,3 +383,39 @@ parcel are two different plumes.
 - **Exactness.** Entrainment draws the start-of-step environment, so the
   plume's budget identities, Σ(E h_e - D h_u) = 0 and Σ(E q_e - D q_u) = ΣP,
   hold exactly under subcycling.
+
+## Third erratum, before any gate result (nothing above this line changed)
+
+A development probe ran the scheme from R4's state. It is not a gate, and its
+numbers decide nothing. It found two defects in the numerics as frozen.
+
+1. **The closure was applied once per step.** M_b = CAPE_d / (τ_c Γ_M) is a
+   rate law. Held for the whole 3600 s step, it extrapolates linearly. Where
+   Γ_M is small, that is a mass flux that overturns the column many times in
+   one step, long after its CAPE is gone.
+2. **Entrainment drew the start-of-step environment in every substep** (the
+   second erratum). Under many substeps it kept removing water at the start
+   value from a layer that subsidence had already refilled with drier air.
+   The probe refused at step 54: "mass-flux transport drew a layer's vapour
+   below zero".
+
+**The readings:**
+
+1. **Cap M_b,** as CAM5 does with its Courant limit. That is a numerical
+   limit on a physical quantity, which the protocol forbids, so it is not
+   taken.
+2. **Integrate the closure as the rate law it is,** taken.
+   - Each substep recomputes the plume and the closure (CAPE_d, Γ_M, M_b) on
+     the current state.
+   - Each substep then takes one exact, conservative step of the operator,
+     long enough that no layer loses more than half its mass.
+   - Entrainment draws the current environment, so the plume's budget
+     identities hold exactly within every substep.
+   - The measured fraction of that substep's condensate evaporates on the
+     current state's deficits.
+   - Convection stops for the rest of the step once CAPE_d falls to the
+     trigger, or Γ_M to zero or below.
+   - A step that would need more than 500 substeps is refused, naming the
+     state, rather than limited.
+
+The trigger, τ_c, ε, α, the closure form and every gate are unchanged.
