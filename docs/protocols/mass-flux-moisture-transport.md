@@ -1,0 +1,258 @@
+# Protocol: mass-flux convection with compensating subsidence
+
+**Frozen before any code or run.** Results are appended below a line at the
+end; nothing above it changes afterwards. The design is the user's
+(2026-10-13 review). The parameter choices and their sources are declared
+here, before any outcome is seen.
+
+## Why
+
+**`free-troposphere-moisture-budget.md`:** over 300-700 hPa,
+
+- convection's vapour mixing supplies 96 percent of the water;
+- condensation removes 98 percent;
+- nothing in the column descends and dries;
+- denying the supply made the free troposphere wetter: 0.985, Db.
+
+**`tropical-runaway-ceiling.md`:** the radiation is right, and the free
+troposphere must stay below about 0.75 for the tropics to be stable.
+R4 holds 0.89.
+
+**What the code does.** Convection is a lapse-rate adjustment that mixes
+specific humidity uniformly over each mixed group. Real convection rises in
+narrow plumes, and the rest of the column sinks to compensate. The sinking
+air dries, and only detrainment and evaporating condensate re-moisten it
+(Yanai et al. 1973, *J. Atmos. Sci.* 30, 611; Arakawa & Schubert 1974,
+*J. Atmos. Sci.* 31, 674).
+
+## The hierarchy
+
+dilute CAPE → cloud-base mass flux M_b → plume M_u(z) → M_e(z) = -M_u(z) →
+conservative scalar fluxes
+
+A new convection option, `mass_flux_convection`, replaces the moist,
+entraining-plume lapse-rate adjustment and its vapour mixing. The dry
+adjustment of dry-unstable layers and the surface sensible heat flux are
+unchanged.
+
+### 1. Trigger and amplitude, separately
+
+- **The source layer:** the layer of largest moist static energy
+  h = c_p T + g z + L q among those centred below 850 hPa. That is ZM's
+  choice of launch level (Zhang & McFarlane 1995, *Atmos.-Ocean* 33, 407).
+- **Dilute CAPE:** CAPE_d is the integrated buoyancy of the entraining plume
+  of section 2, launched from the source layer, from its level of free
+  convection to its termination level.
+- **The trigger:** convection runs only if CAPE_d > C_min = 70 J kg^-1.
+  That is CAM5 `zm_conv.F90` `capelmt`.
+- **The closure:**
+
+  M_b = max[0, (CAPE_d - C_residual) / (τ_c Γ_M)]
+
+  - **C_residual = 0,** as ZM removes CAPE.
+  - **τ_c = 3600 s,** CAM5 `zm_conv.F90` `tau`. It is a declared closure
+    hypothesis, not a numerical constant (section 7).
+  - **Γ_M:** the rate at which unit cloud-base mass flux removes CAPE_d,
+    diagnosed with the model's own operator. Apply the transport operator
+    of section 4 at M_b = 1 kg m^-2 s^-1 for one step dt, recompute CAPE_d
+    on the result, and Γ_M = -(ΔCAPE_d)/dt.
+  - **If Γ_M ≤ 0,** M_b = 0 and the step is counted.
+
+### 2. The plume
+
+- **Continuity:** ∂M_u/∂z = (ε - δ) M_u, with M_u(z_b) = M_b at the level
+  of free convection z_b. Below z_b, M_u ramps linearly in pressure from
+  zero at the source layer's base.
+- **The entrainment law: ε constant, 1 km^-1.**
+  - The source is Romps (2010, *J. Atmos. Sci.* 67, 1908), direct LES
+    measurement in deep convection.
+  - The declared range is 0.5-2 km^-1: Romps finds bulk methods
+    underestimate entrainment by about a factor of 2.
+  - The same ε dilutes the CAPE parcel. Neale et al. (2008, *J. Climate* 21,
+    5904) use 0.69 km^-1, inside the range.
+- **The detrainment law:** δ = ε below the termination level. That is the
+  turbulent exchange, with constant mass flux (Tiedtke 1989, *Mon. Wea. Rev.*
+  117, 1779). The whole remaining M_u detrains in the termination layer, as
+  organised detrainment.
+- **Plume thermodynamics:**
+  - h_u and q_t,u are integrated upward with entrainment of environmental
+    h_e and q_e;
+  - the plume is saturated above its lifting condensation level, at its
+    own temperature;
+  - condensate formed in a layer leaves the plume at that layer's top, as
+    P_f.
+- **The buoyancy:**
+
+  B_u = g[(T_u - T_e)/T_e + 0.61(q_v,u - q_v,e) - q_c,u]
+
+  q_c,u is the condensate formed within the layer before it leaves: the
+  loading, at this resolution.
+- **Termination (simplification, declared):** the plume stops at the level
+  where its integrated buoyancy work from z_b, ∫B_u dz, first returns to
+  zero or below after its level of neutral buoyancy. A kinetic-energy
+  equation for w_u is deferred.
+- **Downdrafts are deferred:** M_d = 0.
+
+### 3. Compensation by exact continuity
+
+- **The environment's flux:** at every interface, M_e = -(M_u + M_d) =
+  -M_u. Subsidence has no amplitude of its own.
+- **The rule (A1):** a step whose interface mass continuity misses by more
+  than round-off is rejected.
+
+### 4. One conservative operator
+
+- **The flux.** For each conserved scalar φ, moist static energy h and total
+  water q_t:
+
+  F_φ = M_u (φ_u - φ_e)
+
+- **The update:** (∂φ̄/∂t)_conv = -g ∂F_φ/∂p + S_φ.
+  - **S_φ holds only** the precipitation that leaves, and the evaporation of
+    section 6.
+  - **Entrainment, detrainment, plume transport and subsidence** are this one
+    operator. None is applied separately.
+- **Numerics (declared).** Fluxes are upwind at interfaces. If M dt exceeds
+  half of any layer's mass, the operator subcycles until it does not. M_b is
+  never limited: CAM5's Courant cap on M_b would be a numerical limit on a
+  physical quantity, which CLAUDE.md forbids.
+
+### 5. The non-targeting rule
+
+- **What may not set M_b or subsidence:** neither may be closed on, or
+  tuned against, relative humidity, precipitable water, precipitation or
+  evaporation.
+- **What may not move once frozen:** τ_c, ε, the detrainment law, α, f_evap
+  and C_min. Their sensitivity is preregistered in section 7.
+- **What stays a prediction:** RH, precipitable water and precipitation.
+
+### 6. α = 0.67
+
+- **The measured `EVAPORATING_CONDENSATE_FRACTION`** partitions what forms:
+  - P_evap = α P_formed;
+  - P_surface = (1 - α) P_formed.
+- **The deposition rule (frozen):**
+  - P_evap evaporates into the environment in the layer where it formed,
+    up to that layer's saturation deficit. That is Romps' (2014)
+    placement.
+  - What exceeds the deficit falls to the next layer below and evaporates
+    there, again limited by subsaturation, and so on downward.
+  - What reaches the surface joins P_surface.
+- **The energy:** the latent cooling is the environment's.
+- **α does not close M_b.**
+
+### 7. τ_c as a hypothesis, and the preregistered sensitivity
+
+**The verdict runs use τ_c = 3600 s and ε = 1 km^-1.**
+
+**The sensitivity ensemble,** the same runs at:
+
+- τ_c = 1800, 7200 and 14400 s. Observed dilute CAPE implies a relaxation
+  of 3-5 h, per the ARM-ASR literature cited in the E3SM ZM documentation;
+- ε = 0.5 and 2 km^-1.
+
+**A qualitative conclusion holds only if it survives the whole ensemble.**
+Nothing is retuned after the results.
+
+**The alternative, named and excluded.** A closure on the subcloud convective
+velocity scale, M_b = C_M ρ_b w_*, is a named alternative hypothesis for
+shallow regimes. It is not part of this protocol.
+
+## Ownership and bookkeeping
+
+**Who owns what.** Convection computes the operator and publishes the
+temperature and vapour tendencies, the precipitation reaching the surface,
+and the evaporation. The water module remains the owner of vapour and of
+latent energy:
+
+- it commits the vapour tendency;
+- it records the precipitation transfer to the surface water store;
+- it books the latent energy of the plume's condensation, which leaves
+  (1 - α) as precipitation;
+- it books the latent energy of the evaporation, as transfers both modules
+  declare.
+
+**What stays.** The water module's surface evaporation, eddy diffusion and
+end-of-step saturation are unchanged and compose after convection, as now.
+
+## The gates (all must pass before any physics run)
+
+| gate | passes if |
+|---|---|
+| A1: mass | at every interface M_u + M_e = 0 to round-off; entrainment and detrainment exchanges cancel |
+| A2: water | per step, column water change = E - P_surface to 1e-12 relative; plume, environment and evaporation transfers contribute zero |
+| A3: energy | column moist enthalpy closes to the existing reconciliation tolerance, phase changes and precipitation enthalpy included |
+| A4: drying without destruction | a moist, conditionally unstable column with surface fluxes off: total water and moist enthalpy constant less what precipitates; the subsiding environment warms and its RH falls; no water leaves except as precipitation |
+| A5: no circulation | with CAPE_d ≤ C_min, M_u = M_e = 0 and the operator changes nothing. With the option off the column is the present one, to the bit (R4, 200 steps) |
+| A6: timestep | from R4's state, 10 days at dt = 3600, 1800 and 900 s: free-tropospheric RH, precipitation, M_b and the energy residual converge (900-vs-1800 differences at most half the 1800-vs-3600 ones) |
+| A7: Db reversed | from R4's state, halving the surface evaporation coefficient lowers the free troposphere's RH: less supply now means drier, where Db's denial made it wetter |
+
+## The tests of the physics
+
+**P1, its own theory, judged.** In layers between 300 and 700 hPa where
+M_u > 0 and δ = ε, the equilibrated RH matches Romps' (2014) environmental
+budget with the run's own values, within 0.05:
+
+RH = (a + α)/(1 + a), a = ε(1 - α)/γ
+
+- γ is the run's water-vapour lapse rate, `water_vapour_lapse_rate`;
+- the in-repo implementation is `bulk_plume_relative_humidity` with δ = ε;
+- the scheme must produce the humidity its own physics predicts.
+
+**P2, the global column:** R4's configuration with `mass_flux_convection`,
+200000 steps.
+
+- **Judged:** G0-G4 as frozen in `global-column-chou-longwave.md`.
+- **Reported against R4:**
+  - RH 300-700;
+  - precipitable water;
+  - the C-shape;
+  - the lapse rate;
+  - cloud-top temperatures;
+  - M_b and its distribution;
+  - the trigger frequency;
+  - the CAPE_d distribution.
+
+**P3, the tropical column:** N0's configuration
+(`ocean-heat-transport-circulation.md`) with `mass_flux_convection`.
+
+- **Judged:** valid, and equilibrated (net TOA within ±0.1 W m^-2 of its
+  export).
+- **Reported:** the surface, against 299.61 K.
+
+**The sensitivity ensemble of section 7** runs on P2 and P3.
+
+## What is expected, stated before any code
+
+**The theory has a floor.** With α = 0.67, Romps' RH = (a + α)/(1 + a) can
+never fall below α: a single convecting column under this theory holds its
+free troposphere at 0.67 or above, whatever the entrainment.
+
+- **At ε = 1 km^-1 and γ about 0.45 km^-1:** a ≈ 0.73 and RH ≈ 0.81.
+- **Expected outcome:**
+  - the first subsaturated free troposphere the column has had, and drier
+    than R4's 0.89;
+  - above the 0.75 tropical threshold, so P3 may still run away;
+  - G4 expected to fail.
+- **The observed 0.43 is out of reach for a single column.** Reaching it
+  needs the dry subtropics: the two-column overturning, on a base state that
+  no longer runs away. That is the step after this one.
+
+**Why build it anyway.** It replaces the closure the budget shows to be
+structurally unable to dry. It makes subsidence a consequence of convection
+rather than a parameter. It is the convection every later configuration
+needs. P1 makes it falsifiable against its own theory.
+
+## Order
+
+1. The code, with A1-A5 as unit tests;
+2. A6 and A7;
+3. P2 and P3;
+4. P1 on both;
+5. the sensitivity ensemble.
+
+**If any of A1-A5 fails,** the build stops and the failure is recorded.
+
+**Adoption is the user's decision.**
+
+---
