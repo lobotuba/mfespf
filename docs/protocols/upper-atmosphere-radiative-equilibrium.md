@@ -355,3 +355,27 @@ Atmosphere 1976, which is not a gate:
   - the temperature of layers above 1 hPa is radiative only (no
     gravity-wave drag, no circulation);
   - their vapour is held at R4's top-layer mixing ratio, not measured.
+
+## User disposition (2026-10-13), appended
+
+> The raised top is not adopted. It is a useful diagnostic configuration that
+> restores validity near 1 hPa but displaces a weaker upper-boundary
+> temperature discontinuity to 0.1 hPa and does not resolve the broad
+> stratospheric cold bias.
+
+**The reasons:**
+
+- The new terminal layer is about 7 K colder than the layer below. The
+  protocol does not permit a sacrificial terminal layer.
+- The 1-30 hPa cold bias of 8-15 K remains.
+
+**What is kept:**
+
+- **The ozone extension** (`ozone_above_1hpa`, AFGL Table 1f). It is
+  source-traceable and option-controlled, and is required for any experiment
+  above 1 hPa.
+- **The default top is unchanged.** The raised vertical domain is not made the
+  production default.
+
+**Next stratospheric work, when resumed:** the upper-boundary energy treatment
+and the broad radiative bias. Not another increase in the top's altitude.

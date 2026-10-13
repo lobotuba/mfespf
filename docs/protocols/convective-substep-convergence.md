@@ -264,3 +264,23 @@ re-tested only at window starts, and convection stops for the rest of the
 host step once CAPE is below it. The number of re-tests per host step then
 shapes how events start and stop. That fits the event table: longer events
 and higher f_C as N rises.
+
+## User disposition (2026-10-13), appended
+
+**U3's verdict stands:**
+
+- the temperature gate is not loosened;
+- neither 300 nor 150 s is selected, despite their pairwise agreement. The
+  frozen three-level sequence failed, and the trends have not reached a
+  demonstrated common limit.
+
+**Project state:**
+
+- **F0:** not qualified.
+- **Convective substep:** none selected.
+- **Interactive-radiation F0 and P1-P3:** blocked.
+- **Raised top:** not adopted.
+- **T4:** remains cancelled. Terminal deposition is unrelated to the
+  diagnosed failure region.
+- **Next authorised work:** the crossed closure-window integration protocol,
+  `convective-window-integration.md`.

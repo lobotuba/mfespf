@@ -419,3 +419,31 @@ protocol with successor gates.
 host timestep", is on this reading a dependence on the number of convective
 windows per host step. Whether the recorded wording stands is the user's
 decision.
+
+## Corrected disposition (2026-10-13, the user's), appended
+
+**This supersedes the causal wording of the disposition above.** The original
+stays in the historical record, superseded as a causal interpretation. The
+frozen verdict and the numerical predictions above are untouched.
+
+**The experimental result, which stands:**
+
+> At fixed 300 s convective substep, host-start CAPE varied linearly across
+> the tested host-step ladder and the out-of-sample predictions succeeded.
+
+**The corrected interpretation:**
+
+> Subsequent crossed evidence showed that the linear ladder confounded host
+> timestep with the number of convective windows per host step. The
+> prediction remains an empirical result for that ladder, but it does not
+> establish that accumulated host-step destabilization caused the dependence.
+> T2 indicates that window count or closure integration is the leading
+> unresolved mechanism.
+
+**The prospective criterion stands.**
+
+- **Time-mean CAPE remains the state-convergence diagnostic.** T2 shows it
+  has not yet converged with the substep: 47.3, 51.8 and 57.1 J/kg at 600,
+  300 and 150 s.
+- **Host-start CAPE remains a disclosed diagnostic,** now of the closure's
+  control flow.
