@@ -1000,6 +1000,12 @@ def build_equation_registry() -> EquationRegistry:
                 "convection first returns to zero; no kinetic-energy equation.",
                 "Constant latent heat of vaporisation in the plume; the fusion excess is "
                 "booked by the water module on the net condensation.",
+                "The detrained state is declared (detrainment-thermodynamic-state.md): "
+                "'plume' detrains s_u and q_u; 'mixed_equilibrium' then brings each "
+                "receiving layer to saturation at constant h = s + L q after every "
+                "substep; 'environment_saturation' caps the detrained vapour at "
+                "q_s(T_e, p) and keeps the excess's latent heat in s. Detrained "
+                "condensate joins the plume's and follows the alpha pathway.",
             ),
             validity_domain=ValidityDomain(
                 ranges=(("T", 170.0, 340.0, "K"),),
@@ -1021,6 +1027,9 @@ def build_equation_registry() -> EquationRegistry:
                 "test_subsidence_dries_and_warms_a_column_without_destroying_water",
                 "test_no_cape_means_no_convection",
                 "test_the_option_off_leaves_the_column_unchanged",
+                "test_the_advective_split_is_the_operator",
+                "test_mixed_equilibrium_leaves_no_receiving_layer_supersaturated",
+                "test_environment_saturation_detrains_no_vapour_above_the_layers_saturation",
             ),
             known_failure_modes=(
                 "a single plume cannot represent a spectrum of cloud depths",

@@ -283,3 +283,177 @@ published source of that spread.
   - D1 leaves no layer with D > 0 above saturation;
   - D2 detrains no vapour above q_s(T_e);
   - the advective split sums to the operator exactly.
+
+---
+
+## Result (appended; nothing above this line changed)
+
+**Setup reproduced.**
+
+- **D0 is T0:** RH 0.93720, the same mass transport, precipitation and
+  duty cycle.
+- **The replayed radiation was identical** value for value in all three
+  cases (checksum -2646.2636).
+- **D0's code is bit-for-bit the code before this change.** A digest of
+  `convect` on three soundings and of six coupled steps matched one from a
+  worktree of the previous commit.
+- **All three runs closed water and energy to 4.9-6.0e-16.**
+- **Validity:**
+  - all three are invalid on the validity-domain gate only, as T0-T3 were;
+  - the conservation gate passed;
+  - δ, ε, the trigger, τ_c and α read back unchanged from each run's
+    published parameters.
+
+**The split closes.** Inside 300-700 hPa, the published terms equal the
+labelled totals to 1e-15:
+
+- for vapour, -0.006739 in both;
+- for temperature, through d ln q_s, -0.043387 in both.
+
+Globally the vapour check does not close. The convection label also carries
+the dry adjustment's own vapour mixing near the surface, which no band here
+contains.
+
+### The free troposphere's budget, days 10-20, 300-700 hPa
+
+**Water, kg m^-2 over 10 days:**
+
+| | D0 | D1 | D2 |
+|---|---:|---:|---:|
+| detrained vapour, gross | 410.15 | 409.78 | 362.49 |
+| net detrainment, D (q_det - q) | +58.89 | +58.66 | +44.70 |
+| subsidence | -111.81 | -111.73 | -103.14 |
+| re-evaporation of convective condensate | +56.19 | +56.38 | +59.59 |
+| plume condensate formed in these layers | 81.34 | 81.46 | 69.72 |
+| detrained condensate | 0 | 0.149 | 17.30 |
+| post-detrainment excess | 0.066 | 0.149 | 0.022 |
+| large-scale (water-module) condensation | 3.034 | 2.891 | 1.937 |
+| diffusion | +1.05 | +1.05 | +1.09 |
+
+**d ln RH by mechanism.** Each vapour term is set against its own heating:
+
+| | D0 | D1 | D2 |
+|---|---:|---:|---:|
+| subsidence (drying and warming) | **-7.03** | -7.02 | -6.46 |
+| net detrainment, with its heating (ΔRH_det) | +0.74 | +0.69 | **-0.60** |
+| re-evaporation, with its cooling | **+5.66** | +5.67 | +6.27 |
+| radiation (ΔRH_rad) | +1.27 | +1.27 | +1.27 |
+| large-scale condensation, with its latent heat | -0.57 | -0.54 | -0.44 |
+| convective latent heat, net of transport | -0.08 | -0.08 | -0.09 |
+| diffusion | +0.05 | +0.05 | +0.05 |
+| sum / actual | 0.037 / 0.038 | 0.040 / 0.041 | 0.006 / 0.008 |
+
+**The other measures:**
+
+| | D0 | D1 | D2 |
+|---|---:|---:|---:|
+| mean RH 300-700 | 0.9372 | 0.9385 | **0.8980** |
+| duty cycle | 0.908 | 0.896 | 0.854 |
+| mass transport, kg m^-2 | 7207 | 7200 | 6715 |
+| subsidence span, kg m^-2 Pa | 2.88e8 | 2.88e8 | 2.69e8 |
+| surface precipitation, kg m^-2 | 43.32 | 43.25 | 43.65 |
+| mean CAPE_d | 382 | 379 | 315 |
+
+### Verdicts, as frozen
+
+**Premise check: it holds, so D1 is "not a test".**
+
+- D0's post-detrainment excess over 300-700 hPa is 0.066 kg m^-2. That is
+  **2.2 percent** of its large-scale condensation there (3.034), under the
+  10 percent line.
+- Over 100-850 hPa it is 2.4 percent.
+- **Detrainment does not create supersaturation in this operator,** as the
+  analysis frozen above predicted.
+- D1 moved RH by +0.0013, and the excess plus large-scale condensation by
+  1.9 percent. That is not material, and it is in any case not a test.
+
+**D2: supported, by all six frozen conditions.**
+
+1. Gross detrained vapour falls 11.6 percent (≥ 10).
+2. Detrained condensate is carried explicitly, at 17.3 kg m^-2.
+3. Excess plus large-scale condensation falls 36.8 percent, from 3.100 to
+   1.959 (≥ 10).
+4. RH falls by 0.039 (≥ 0.03). ΔRH_det goes from +0.74 to -0.60, so the
+   fall is attributed to the detrainment terms.
+5. Residual 6.0e-16, and the conservation gate passed.
+6. δ, ε and the trigger are unchanged.
+
+**Neither case meets the rejection rule.**
+
+### What the result says, and what it does not
+
+**1. The formal verdict and its mechanism point different ways.**
+
+- **What D2 does:** it detrains 11.6 percent less vapour by declaring the
+  detrained air no moister than the environment's saturation. It does not
+  remove supersaturation, because there was almost none to remove.
+- **What it shows:** humidity is sensitive to the amount of vapour detrained
+  air carries.
+- **What it does not show:** that the operator mishandles a supersaturated
+  mixture.
+- **D2 remains a diagnostic limit,** as declared. Physically, the warm, moist
+  detrained air would have to give up water without being cooled to the
+  environment's temperature.
+- **Subsidence fell 7 percent in D2, and RH still fell.** So it was not
+  subsidence that dried it.
+
+**2. The dominant moistening term is the re-evaporation of convective condensate, not detrainment.**
+
+- **In D0:**
+  - subsidence -7.03;
+  - re-evaporation with its cooling +5.66;
+  - radiation +1.27;
+  - net detrainment +0.74.
+- **Re-evaporation's mechanics:**
+  - The fraction α = 0.67 of the plume's condensate evaporates in the layer
+    where it formed, or cascades to the layers below. It cools them as it
+    does.
+  - It puts 56 kg m^-2 into 300-700 hPa, about as much as net detrainment
+    (59).
+  - Its cooling doubles its effect on RH.
+- **In D2,** the detrained condensate adds to re-evaporation (+6.27). That
+  offsets part of D2's drying.
+- **This confirms the interpretive erratum** in
+  `mass-flux-diagnostic-branch.md`:
+  - T0's "condensation -1.59" was mostly the plume's own condensate in the
+    bookkeeping;
+  - the water module's large-scale condensation is small, 3.0 kg m^-2
+    against 56 re-evaporated;
+  - "condensation is cleaning up supersaturation created by detrainment" is
+    not what happens here.
+
+**3. A property of the α pathway was found while testing D1, not acted on.**
+
+- `deposit_evaporation` limits each layer's evaporation by its deficit at
+  the temperature before that evaporation's own cooling.
+- A layer it evaporates into can therefore end slightly above saturation
+  (0.2 percent in the unit sounding).
+- The water module's adjustment then condenses the overshoot.
+- It is unchanged in every case, and it is conservative. It is a candidate
+  for part of the 3 kg m^-2 of large-scale condensation, not measured apart.
+
+**Not concluded:**
+
+- No production conclusion, and no default changes.
+- **The rule for the rejected outcome** pointed to δ(z). The supported
+  outcome names no successor.
+- **The data point to the α pathway** (where, and how much, convective
+  condensate re-evaporates) as the larger term. That is for the user to
+  decide.
+
+### Addendum: the user's recording of D2 (2026-10-13)
+
+The frozen classification stands: **supported**. All six criteria were met.
+The causal explanation is recorded as the user worded it:
+
+> D2 is supported as a vapor-partition sensitivity, not as a
+> supersaturation-removal mechanism. Its reduction in free-tropospheric
+> relative humidity arises primarily from a 12% reduction in vapor transferred
+> from the plume to the environment. The diagnosed post-detrainment
+> supersaturation was too small to explain the response.
+
+**The user's decision on what follows:**
+
+- the next protocol targets the re-evaporation of convective condensate
+  (`convective-reevaporation-placement.md`), not δ(z);
+- D2 is not combined with it.

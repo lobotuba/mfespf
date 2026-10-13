@@ -78,6 +78,7 @@ from mfespf.physics.equations import EQUATION_IDS
 from mfespf.physics.mass_flux import (
     CAPE_TRIGGER_J_KG,
     CONVECTIVE_ADJUSTMENT_TIME_S,
+    DETRAINED_STATES,
     PLUME_ENTRAINMENT_PER_M,
     convect,
 )
@@ -163,6 +164,53 @@ def relaxation_declaration(nominal: float) -> DeclaredRange:
     )
 
 
+#: The mass-flux operator's decomposition, published per layer as rates
+#: (detrainment-thermodynamic-state.md): field -> (MassFluxStep attribute,
+#: physical name, units). The evaporation is added beside them.
+MASS_FLUX_DECOMPOSITION: dict[str, tuple[str, str, str]] = {
+    "mass_flux_subsidence_vapour_rate": (
+        "subsidence_vapour",
+        "vapour moved into each layer by compensating subsidence",
+        "kg m^-2 s^-1",
+    ),
+    "mass_flux_detrainment_vapour_rate": (
+        "detrainment_vapour",
+        "net vapour added to each layer by detrainment, D (q_det - q)",
+        "kg m^-2 s^-1",
+    ),
+    "mass_flux_subsidence_heating": (
+        "subsidence_energy",
+        "dry static energy moved into each layer by compensating subsidence",
+        "W m^-2",
+    ),
+    "mass_flux_detrainment_heating": (
+        "detrainment_energy",
+        "net dry static energy added to each layer by detrainment, D (s_det - s)",
+        "W m^-2",
+    ),
+    "detrained_vapour_rate": (
+        "detrained_vapour",
+        "vapour detrained into each layer, gross",
+        "kg m^-2 s^-1",
+    ),
+    "detrained_condensate_rate": (
+        "detrained_condensate",
+        "condensate detrained into each layer",
+        "kg m^-2 s^-1",
+    ),
+    "post_detrainment_excess_rate": (
+        "post_detrainment_excess",
+        "supersaturation detrainment leaves in a receiving layer, at constant h",
+        "kg m^-2 s^-1",
+    ),
+    "convective_evaporation_rate": (
+        "evaporation",
+        "convective condensate evaporated in each layer",
+        "kg m^-2 s^-1",
+    ),
+}
+
+
 class ConvectiveAdjustmentModule(Module):
     """Restores a dry-stable profile, conserving the column's enthalpy."""
 
@@ -189,9 +237,16 @@ class ConvectiveAdjustmentModule(Module):
         convective_adjustment_time: float = CONVECTIVE_ADJUSTMENT_TIME_S,
         cape_trigger: float = CAPE_TRIGGER_J_KG,
         evaporating_fraction: float = EVAPORATING_CONDENSATE_FRACTION,
+        detrained_state: str = "plume",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         relaxed = relaxation_timescale > 0.0
+        if detrained_state not in DETRAINED_STATES:
+            raise ConfigurationError(
+                f"detrained_state {detrained_state!r} is not one of {DETRAINED_STATES}"
+            )
+        if detrained_state != "plume" and not mass_flux:
+            raise ConfigurationError("detrained_state applies only to mass-flux convection")
         # Mass-flux convection (mass-flux-moisture-transport.md) replaces the moist
         # adjustment, so it composes only with the dry one, and only where the
         # water module condenses after it, because the plume's condensation is
@@ -320,6 +375,7 @@ class ConvectiveAdjustmentModule(Module):
                         "plume_buoyancy",
                         "plume_top_pressure",
                         "mass_flux_substeps",
+                        *MASS_FLUX_DECOMPOSITION,
                     )
                     if mass_flux
                     else ()
@@ -498,6 +554,8 @@ class ConvectiveAdjustmentModule(Module):
         self.convective_adjustment_time = convective_adjustment_time
         self.cape_trigger = cape_trigger
         self.evaporating_fraction = evaporating_fraction
+        self.detrained_state = detrained_state
+        self._mass_flux_parts: dict[str, np.ndarray] = {}
         self._mass_flux_tendency: np.ndarray | None = None
         self._convective_condensation: np.ndarray | None = None
         self._plume: Any = None
@@ -981,6 +1039,7 @@ class ConvectiveAdjustmentModule(Module):
             evaporating_fraction=self.evaporating_fraction,
             adjustment_time=self.convective_adjustment_time,
             trigger=self.cape_trigger,
+            detrained_state=self.detrained_state,
             **common,
         )
         step = result.step
@@ -989,6 +1048,10 @@ class ConvectiveAdjustmentModule(Module):
         self._cape_removal = result.cape_removal
         self._surface_precipitation = step.surface_precipitation / ctx.dt
         self._mass_flux_substeps = step.substeps
+        self._mass_flux_parts = {
+            name: np.asarray(getattr(step, attribute), dtype=float) / ctx.dt
+            for name, (attribute, _, _) in MASS_FLUX_DECOMPOSITION.items()
+        }
         self._mass_flux_tendency = step.energy / np.asarray(heat_capacity, dtype=float) / ctx.dt
         self._convective_condensation = step.condensation / ctx.dt
         return vapour_change + step.transport
@@ -1109,6 +1172,22 @@ class ConvectiveAdjustmentModule(Module):
                 self._mass_flux_substeps,
                 "1",
             ),
+            **{
+                name: Field(
+                    field_id=name,
+                    physical_name=physical,
+                    values=np.asarray(self._mass_flux_parts.get(name, np.zeros(n)), dtype=float),
+                    units=units,
+                    quantity_kind=QuantityKind.DIAGNOSTIC,
+                    time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                    time_interval=ctx.dt,
+                    timestamp=ctx.time,
+                    spatial_support=SpatialSupport.LAYER_AVERAGE,
+                    dimensions=("layer",),
+                    provenance=provenance,
+                )
+                for name, (_, physical, units) in MASS_FLUX_DECOMPOSITION.items()
+            },
         }
 
     def emit_outputs(self) -> dict[str, Field]:
@@ -1332,6 +1411,7 @@ class ConvectiveAdjustmentModule(Module):
                     "convective_adjustment_time_s": self.convective_adjustment_time,
                     "cape_trigger_J_kg": self.cape_trigger,
                     "evaporating_fraction": self.evaporating_fraction,
+                    "detrained_state": self.detrained_state,
                 }
                 if self.mass_flux
                 else {}

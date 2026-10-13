@@ -47,6 +47,7 @@ from mfespf.physics.thermodynamics import saturation_specific_humidity
 __all__ = [
     "CAPE_TRIGGER_J_KG",
     "CONVECTIVE_ADJUSTMENT_TIME_S",
+    "DETRAINED_STATES",
     "MAX_SUBSTEPS",
     "PLUME_ENTRAINMENT_PER_M",
     "SOURCE_LAYER_FLOOR_PA",
@@ -76,6 +77,21 @@ CONVECTIVE_ADJUSTMENT_TIME_S = 3600.0
 
 #: The source layer is sought among layers centred below this pressure, Pa.
 SOURCE_LAYER_FLOOR_PA = 85000.0
+
+#: The state detrained air enters the environment in
+#: (``docs/protocols/detrainment-thermodynamic-state.md``):
+#:
+#: - ``"plume"``: the plume's own s_u and q_u (D0, the original scheme);
+#: - ``"mixed_equilibrium"``: as D0, then each receiving layer brought to
+#:   saturation at constant moist static energy after every substep, the
+#:   condensate detrained explicitly (D1);
+#: - ``"environment_saturation"``: vapour capped at the receiving layer's
+#:   saturation, the excess detrained as condensate with its latent heat left
+#:   in s (D2, a diagnostic limit).
+#:
+#: In D1 and D2 the detrained condensate joins the plume's condensate in that
+#: layer and follows the same evaporating-fraction pathway.
+DETRAINED_STATES = ("plume", "mixed_equilibrium", "environment_saturation")
 
 
 @dataclass(frozen=True)
@@ -301,14 +317,21 @@ def deposit_evaporation(amounts: np.ndarray, deficits: np.ndarray) -> tuple[np.n
     return evaporated, falling
 
 
-def _operator(plume: Plume, s: np.ndarray, q: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _operator(
+    plume: Plume,
+    s: np.ndarray,
+    q: np.ndarray,
+    s_det: np.ndarray | None = None,
+    q_det: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """m dphi/dt per unit cloud-base flux for phi = s and q: subsidence upwind, and
     the exchange with a plume launched into this same environment, so the plume's
-    budget identities hold exactly (the protocol's third erratum)."""
+    budget identities hold exactly (the protocol's third erratum). The detrained
+    air carries ``s_det`` and ``q_det``, the plume's own unless given."""
     M = plume.flux
     E, D = plume.entrainment, plume.detrainment
-    s_u = np.nan_to_num(plume.s_u)
-    q_u = np.nan_to_num(plume.q_u)
+    s_u = np.nan_to_num(plume.s_u) if s_det is None else s_det
+    q_u = np.nan_to_num(plume.q_u) if q_det is None else q_det
     rate_s = np.zeros_like(s)
     rate_q = np.zeros_like(q)
     rate_s[:-1] += M[1:-1] * s[1:]
@@ -325,6 +348,19 @@ def unit_rates(plume: Plume, s: np.ndarray, q: np.ndarray) -> tuple[np.ndarray, 
     return _operator(plume, s, q)
 
 
+def _advective_split(
+    plume: Plume, phi: np.ndarray, phi_det: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """The operator in advective form, per unit cloud-base flux: subsidence
+    M_(k+1) (phi_(k+1) - phi_k) and net detrainment D_k (phi_det,k - phi_k).
+    Their sum is the flux form because M_(k+1) - M_k = E_k - D_k; they are
+    computed independently, so a test can check that."""
+    M, D = plume.flux, plume.detrainment
+    subsidence = np.zeros_like(phi)
+    subsidence[:-1] = M[1:-1] * (phi[1:] - phi[:-1])
+    return subsidence, D * (phi_det - phi)
+
+
 @dataclass(frozen=True)
 class MassFluxStep:
     """One step's convective change, as the protocol's erratum divides it.
@@ -334,7 +370,13 @@ class MassFluxStep:
     the vapour moved (kg m^-2), also summing to zero. ``condensation`` is the
     net condensation c = P - e in each layer (kg m^-2), which the water module
     turns into precipitation and latent heat; its column sum is the surface
-    precipitation.
+    precipitation. ``formed`` includes the detrained condensate.
+
+    The rest decompose it (detrainment-thermodynamic-state.md), all kg m^-2 or
+    J m^-2 over the step: the operator's subsidence and net-detrainment parts
+    for vapour and dry static energy; the vapour and condensate detrained,
+    gross; and the supersaturation detrainment leaves in a receiving layer at
+    constant moist static energy, removed by convection only in D1.
     """
 
     energy: np.ndarray
@@ -344,6 +386,25 @@ class MassFluxStep:
     formed: np.ndarray
     surface_precipitation: float
     substeps: int
+    subsidence_vapour: np.ndarray
+    detrainment_vapour: np.ndarray
+    subsidence_energy: np.ndarray
+    detrainment_energy: np.ndarray
+    detrained_vapour: np.ndarray
+    detrained_condensate: np.ndarray
+    post_detrainment_excess: np.ndarray
+
+
+#: The decomposition fields, summed over substeps.
+_PARTS = (
+    "subsidence_vapour",
+    "detrainment_vapour",
+    "subsidence_energy",
+    "detrainment_energy",
+    "detrained_vapour",
+    "detrained_condensate",
+    "post_detrainment_excess",
+)
 
 
 def apply_mass_flux(
@@ -361,15 +422,32 @@ def apply_mass_flux(
     gravity: float,
     gas_constant: float,
     evaporating_fraction: float,
+    detrained_state: str = "plume",
 ) -> MassFluxStep:
     """One exact, conservative step of the plume's transport at a fixed mass flux,
     then the measured fraction of its condensate evaporated where it formed and
     below. Refused if any layer would lose more than half its mass: the
-    integrator (``convect``) chooses the step so that it never does."""
+    integrator (``convect``) chooses the step so that it never does.
+
+    ``detrained_state`` is one of ``DETRAINED_STATES``.
+    """
+    if detrained_state not in DETRAINED_STATES:
+        raise ConfigurationError(
+            f"detrained_state {detrained_state!r} is not one of {DETRAINED_STATES}"
+        )
     n = np.asarray(layer_mass).size
     zero = np.zeros(n)
     if not plume.active or cloud_base_flux <= 0.0 or dt <= 0.0:
-        return MassFluxStep(zero, zero.copy(), zero.copy(), zero.copy(), zero.copy(), 0.0, 0)
+        return MassFluxStep(
+            zero,
+            zero.copy(),
+            zero.copy(),
+            zero.copy(),
+            zero.copy(),
+            0.0,
+            0,
+            *(zero.copy() for _ in _PARTS),
+        )
     T = np.asarray(temperature, dtype=float)
     m = np.asarray(layer_mass, dtype=float)
     C = np.asarray(heat_capacity, dtype=float)
@@ -385,14 +463,45 @@ def apply_mass_flux(
             "a mass-flux step would take more than half of a layer's mass; the "
             "integrator must shorten it"
         )
-    rate_s, rate_q = _operator(plume, s0, q0)
-    s = s0 + cloud_base_flux * dt * rate_s / m
-    q = q0 + cloud_base_flux * dt * rate_q / m
+    p = np.asarray(pressure, dtype=float)
+    scale = cloud_base_flux * dt
+    D = plume.detrainment
+    detraining = (D > 0.0) & ~np.isnan(plume.q_u)
+    s_det = np.nan_to_num(plume.s_u)
+    q_det = np.nan_to_num(plume.q_u)
+    held = np.zeros(n)
+    if detrained_state == "environment_saturation":
+        # D2: no more vapour than the receiving layer holds at its own
+        # temperature; the rest detrains as condensate, its latent heat in s so
+        # that D h_u still enters the layer exactly.
+        capped = np.where(detraining, np.minimum(q_det, saturation_specific_humidity(T, p)), q_det)
+        excess = q_det - capped
+        s_det = s_det + latent_heat * excess
+        q_det = capped
+        held = scale * D * excess
+    rate_s, rate_q = _operator(plume, s0, q0, s_det, q_det)
+    s = s0 + scale * rate_s / m
+    q = q0 + scale * rate_q / m
     if np.any(q < 0.0):
         raise ConfigurationError("mass-flux transport drew a layer's vapour below zero")
-    formed = cloud_base_flux * dt * plume.condensate
+    subsidence_s, detrainment_s = _advective_split(plume, s0, s_det)
+    subsidence_q, detrainment_q = _advective_split(plume, q0, q_det)
+    # What detrainment leaves above saturation in a receiving layer, brought to
+    # saturation at constant h = s + L q by the plume's own solve. Measured in
+    # every mode; removed here only in D1, where it is detrained condensate.
+    post = np.zeros(n)
+    for k in (int(j) for j in np.flatnonzero(detraining)):
+        h = s[k] + latent_heat * q[k]
+        _, held_vapour = _saturate(h, q[k], z[k], p[k], cp[k], latent_heat, gravity)
+        post[k] = (q[k] - held_vapour) * m[k]
+        if detrained_state == "mixed_equilibrium" and held_vapour < q[k]:
+            s[k] = h - latent_heat * held_vapour
+            q[k] = held_vapour
+    if detrained_state == "mixed_equilibrium":
+        held = post.copy()
+    formed = scale * plume.condensate + held
     t_after = (s - gravity * z) / cp
-    deficits = saturation_specific_humidity(t_after, np.asarray(pressure, dtype=float)) * m - q * m
+    deficits = saturation_specific_humidity(t_after, p) * m - q * m
     evaporated, _ = deposit_evaporation(evaporating_fraction * formed, deficits)
     condensation = formed - evaporated
     vapour_change = (q - q0) * m + evaporated
@@ -405,6 +514,13 @@ def apply_mass_flux(
         formed=formed,
         surface_precipitation=float(np.sum(formed) - np.sum(evaporated)),
         substeps=1,
+        subsidence_vapour=scale * subsidence_q,
+        detrainment_vapour=scale * detrainment_q,
+        subsidence_energy=scale * subsidence_s,
+        detrainment_energy=scale * detrainment_s,
+        detrained_vapour=scale * D * q_det,
+        detrained_condensate=held,
+        post_detrainment_excess=post,
     )
 
 
@@ -425,6 +541,7 @@ def cloud_base_mass_flux(
     adjustment_time: float = CONVECTIVE_ADJUSTMENT_TIME_S,
     trigger: float = CAPE_TRIGGER_J_KG,
     residual: float = 0.0,
+    detrained_state: str = "plume",
 ) -> tuple[float, float]:
     """M_b = max[0, (CAPE_d - C_residual) / (τ_c Γ_M)], and Γ_M.
 
@@ -451,6 +568,7 @@ def cloud_base_mass_flux(
         gravity=gravity,
         gas_constant=gas_constant,
         evaporating_fraction=evaporating_fraction,
+        detrained_state=detrained_state,
     )
     C = np.asarray(heat_capacity, dtype=float)
     # The full change the environment sees: the redistribution and the latent
@@ -509,6 +627,7 @@ def convect(
     evaporating_fraction: float,
     adjustment_time: float = CONVECTIVE_ADJUSTMENT_TIME_S,
     trigger: float = CAPE_TRIGGER_J_KG,
+    detrained_state: str = "plume",
 ) -> Convection:
     """Integrate the closure over ``dt`` as the rate law it is (third erratum).
 
@@ -522,7 +641,7 @@ def convect(
     m = np.asarray(layer_mass, dtype=float)
     C = np.asarray(heat_capacity, dtype=float)
     n = m.size
-    keys = ("energy", "transport", "condensation", "evaporation", "formed")
+    keys = ("energy", "transport", "condensation", "evaporation", "formed", *_PARTS)
     totals = {k: np.zeros(n) for k in keys}
     fixed: dict[str, Any] = dict(
         layer_mass=m,
@@ -547,6 +666,7 @@ def convect(
             evaporating_fraction=evaporating_fraction,
             adjustment_time=adjustment_time,
             trigger=trigger,
+            detrained_state=detrained_state,
             **fixed,
         )
         if first is None:
@@ -564,6 +684,7 @@ def convect(
             temperature=T,
             vapour=w,
             evaporating_fraction=evaporating_fraction,
+            detrained_state=detrained_state,
             **fixed,
         )
         T = T + (step.energy + latent_heat * step.condensation) / C
@@ -590,6 +711,7 @@ def convect(
         formed=totals["formed"],
         surface_precipitation=float(np.sum(totals["formed"]) - np.sum(totals["evaporation"])),
         substeps=substeps,
+        **{k: totals[k] for k in _PARTS},
     )
     return Convection(
         step=result,

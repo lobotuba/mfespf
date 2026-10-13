@@ -17,6 +17,7 @@ import pytest
 from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError
 from mfespf.physics.mass_flux import (
+    DETRAINED_STATES,
     apply_mass_flux,
     cloud_base_mass_flux,
     convect,
@@ -85,12 +86,19 @@ def test_the_plume_conserves_mass_water_and_moist_static_energy():
 
 @pytest.mark.req("CON-001", "CON-004", "EQR-002")
 @pytest.mark.parametrize("alpha", [0.0, 0.67])
-def test_the_operator_redistributes_energy_and_removes_only_precipitation(alpha):
-    """A2 and A3 in the operator: the temperature part sums to zero, the transport
-    sums to zero, the net condensation sums to the surface precipitation, and the
-    column's water falls by exactly that."""
+@pytest.mark.parametrize("state", DETRAINED_STATES)
+def test_the_operator_redistributes_energy_and_removes_only_precipitation(alpha, state):
+    """A2 and A3 in the operator, for every detrained state: the temperature part
+    sums to zero, the transport sums to zero, the net condensation sums to the
+    surface precipitation, and the column's water falls by exactly that."""
     c = _column()
-    result = convect(dt=3600.0, entrainment_rate=1.0e-3, evaporating_fraction=alpha, **c)
+    result = convect(
+        dt=3600.0,
+        entrainment_rate=1.0e-3,
+        evaporating_fraction=alpha,
+        detrained_state=state,
+        **c,
+    )
     assert result.mean_cloud_base_flux > 0.0 and result.step.substeps >= 1
     step = result.step
     typical = float(np.max(np.abs(step.energy)))
@@ -104,13 +112,20 @@ def test_the_operator_redistributes_energy_and_removes_only_precipitation(alpha)
 
 
 @pytest.mark.req("CON-004", "EQR-002", "VAL-001")
-def test_subsidence_dries_and_warms_a_column_without_destroying_water():
+@pytest.mark.parametrize("state", DETRAINED_STATES)
+def test_subsidence_dries_and_warms_a_column_without_destroying_water(state):
     """A4: one hour of the closure's mass flux on a moist, conditionally unstable
     column with no surface fluxes. The environment between the level of free
     convection and the detrainment layer warms and its relative humidity falls,
     and water leaves only as precipitation."""
     c = _column()
-    result = convect(dt=3600.0, entrainment_rate=1.0e-3, evaporating_fraction=0.67, **c)
+    result = convect(
+        dt=3600.0,
+        entrainment_rate=1.0e-3,
+        evaporating_fraction=0.67,
+        detrained_state=state,
+        **c,
+    )
     plume, step = result.plume, result.step
     C, m, p = c["heat_capacity"], c["layer_mass"], c["pressure"]
     T_new = c["temperature"] + (step.energy + LATENT * step.condensation) / C
@@ -134,11 +149,101 @@ def test_no_cape_means_no_convection():
     plume = entraining_plume(entrainment_rate=1.0e-3, **c)
     flux, _ = cloud_base_mass_flux(plume, entrainment_rate=1.0e-3, evaporating_fraction=0.67, **c)
     assert flux == 0.0
-    step = apply_mass_flux(plume, cloud_base_flux=flux, dt=3600.0, evaporating_fraction=0.67, **c)
-    assert not np.any(step.energy) and not np.any(step.transport) and not np.any(step.condensation)
+    for state in DETRAINED_STATES:
+        step = apply_mass_flux(
+            plume,
+            cloud_base_flux=flux,
+            dt=3600.0,
+            evaporating_fraction=0.67,
+            detrained_state=state,
+            **c,
+        )
+        assert not np.any(step.energy) and not np.any(step.transport)
+        assert not np.any(step.condensation) and not np.any(step.detrained_condensate)
     evaporated, reaching = deposit_evaporation(np.array([0.0, 0.0, 2.0]), np.array([0.5, 1.0, 0.0]))
     np.testing.assert_allclose(evaporated, [0.5, 1.0, 0.0])
     assert reaching == pytest.approx(0.5)
+
+
+def _one_step(state, rh=0.95, flux=0.05, dt=600.0, alpha=0.67):
+    """One operator step of ``state`` on the unstable sounding, and the state it leaves."""
+    c = _column(rh=rh)
+    plume = entraining_plume(entrainment_rate=1.0e-3, **c)
+    step = apply_mass_flux(
+        plume,
+        cloud_base_flux=flux,
+        dt=dt,
+        evaporating_fraction=alpha,
+        detrained_state=state,
+        **c,
+    )
+    T_new = c["temperature"] + (step.energy + LATENT * step.condensation) / c["heat_capacity"]
+    w_new = c["vapour"] + step.transport - step.condensation
+    return c, plume, step, T_new, w_new
+
+
+@pytest.mark.req("CON-004", "EQR-002")
+@pytest.mark.parametrize("state", DETRAINED_STATES)
+def test_the_advective_split_is_the_operator(state):
+    """detrainment-thermodynamic-state.md: subsidence M_(k+1)(phi_(k+1) - phi_k) and
+    net detrainment D (phi_det - phi), computed independently, add up to the
+    flux-form operator, because M_(k+1) - M_k = E - D."""
+    _, plume, step, _, _ = _one_step(state)
+    moved_vapour = step.transport - step.formed
+    moved_energy = step.energy + LATENT * step.formed
+    if state == "mixed_equilibrium":
+        # The equilibration after the operator turns that much vapour into
+        # condensate, with its latent heat into s.
+        moved_vapour = moved_vapour + step.detrained_condensate
+        moved_energy = moved_energy - LATENT * step.detrained_condensate
+    np.testing.assert_allclose(
+        step.subsidence_vapour + step.detrainment_vapour,
+        moved_vapour,
+        rtol=0.0,
+        atol=1e-12 * float(np.max(np.abs(moved_vapour))),
+    )
+    np.testing.assert_allclose(
+        step.subsidence_energy + step.detrainment_energy,
+        moved_energy,
+        rtol=0.0,
+        atol=1e-10 * float(np.max(np.abs(moved_energy))),
+    )
+    interior = slice(plume.lfc + 1, plume.top)
+    assert np.all(step.subsidence_vapour[interior] < 0.0)
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_mixed_equilibrium_leaves_no_receiving_layer_supersaturated():
+    """D1: on a saturated sounding the plume's detrainment leaves a receiving layer
+    above saturation, and D1 brings each back to it at constant moist static
+    energy, detraining that water as condensate. With no evaporating fraction,
+    so the equilibration is seen alone: the evaporation is limited by the deficit
+    before its own cooling, and that is the existing pathway, unchanged here."""
+    _, _, before, _, _ = _one_step("plume", rh=1.0, alpha=0.0)
+    assert float(np.sum(before.post_detrainment_excess)) > 0.0
+    assert not np.any(before.detrained_condensate)
+    c, plume, step, T_new, w_new = _one_step("mixed_equilibrium", rh=1.0, alpha=0.0)
+    receiving = plume.detrainment > 0.0
+    q_new = w_new / c["layer_mass"]
+    q_s = saturation_specific_humidity(T_new, c["pressure"])
+    assert np.all(q_new[receiving] <= q_s[receiving] * (1.0 + 1e-9))
+    np.testing.assert_allclose(step.detrained_condensate, step.post_detrainment_excess)
+    assert float(np.sum(step.detrained_condensate)) > 0.0
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_environment_saturation_detrains_no_vapour_above_the_layers_saturation():
+    """D2: detrained vapour is at most the receiving layer's saturation at its own
+    temperature, and the buoyant plume's excess over it detrains as condensate."""
+    c, plume, step, _, _ = _one_step("environment_saturation")
+    receiving = plume.detrainment > 0.0
+    scale = 0.05 * 600.0
+    q_det = step.detrained_vapour[receiving] / (scale * plume.detrainment[receiving])
+    q_s = saturation_specific_humidity(c["temperature"], c["pressure"])[receiving]
+    assert np.all(q_det <= q_s * (1.0 + 1e-12))
+    assert float(np.sum(step.detrained_condensate)) > 0.0
+    _, _, plume_step, _, _ = _one_step("plume")
+    assert float(np.sum(step.detrained_vapour)) < float(np.sum(plume_step.detrained_vapour))
 
 
 def _warm_moist_column(**overrides):
