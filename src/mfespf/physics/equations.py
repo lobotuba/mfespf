@@ -1325,7 +1325,10 @@ def build_equation_registry() -> EquationRegistry:
                     "measured",
                     "SWOOSH v2.73 combined, anomaly-filled, 1991-2020 global area-weighted "
                     "mean, 316 to 1 hPa; held at the 316 hPa value below; the column "
-                    "between the model top and 1 hPa placed in the top layer",
+                    "between the model top and 1 hPa placed in the top layer; above 1 hPa "
+                    "nothing, unless the AFGL U.S. Standard profile (Anderson et al. 1986, "
+                    "Table 1f) is declared, and SWOOSH's 1 hPa value is never held upward "
+                    "(upper-atmosphere-radiative-equilibrium.md)",
                 ),
             ),
             assumptions=(

@@ -708,6 +708,7 @@ class SpectralRadiationModule(Module):
         linear_in_tau_source: bool = False,
         couple_cloud_field: bool = False,
         cloud_field_module_id: str = "cloud_field",
+        ozone_above_1hpa: str = "none",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         n_bands = grid.n_bins
@@ -1058,6 +1059,7 @@ class SpectralRadiationModule(Module):
                 f"{n_bands}; build both with ozone_bands"
             )
         self.ozone_path: np.ndarray | None = None
+        self.ozone_above_1hpa = ozone_above_1hpa
         # Chou et al.'s (2001) 15-micron CO2 band: (vertical k per bin in
         # (cm-atm)^-1, each bin's kind, CO2 ppmv). None leaves CO2 to whatever
         # absorption_coefficient carries.
@@ -1273,6 +1275,7 @@ class SpectralRadiationModule(Module):
                     pressure,
                     self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
                     mass.values,
+                    self.ozone_above_1hpa,
                 )
             rrtmg_optics_now = rrtmg_optics(
                 self.rrtmg,
@@ -1316,6 +1319,7 @@ class SpectralRadiationModule(Module):
                     self.input_field("atmosphere_layer_pressure").require_units("Pa").values,
                     self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
                     mass.values,
+                    self.ozone_above_1hpa,
                 )
             # Tabulated in pressure and scaled in temperature, so evaluated
             # per layer every step.
@@ -1337,6 +1341,7 @@ class SpectralRadiationModule(Module):
                     self.input_field("atmosphere_layer_pressure").require_units("Pa").values,
                     self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
                     mass.values,
+                    self.ozone_above_1hpa,
                 )
             ozone_tau = ozone_optical_depth(self.ozone_k, self.ozone_path)
             contributions.append((ozone_tau, np.zeros_like(ozone_tau), np.zeros_like(ozone_tau)))
@@ -1706,6 +1711,12 @@ class SpectralRadiationModule(Module):
             **dict(self.configuration),
             "spectral_grid_id": self.grid.grid_id,
             "spectral_resolution_identifier": self.grid.resolution_identifier,
+            # Only when declared, so a column under 1 hPa hashes as before.
+            **(
+                {"ozone_above_1hpa": self.ozone_above_1hpa}
+                if self.ozone_above_1hpa != "none"
+                else {}
+            ),
             "n_bands": self.grid.n_bins,
             "spectral_edges": self.grid.edges.tolist(),
             # Recorded band by band: a band-mean would make two spectrally

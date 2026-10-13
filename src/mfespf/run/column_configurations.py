@@ -700,6 +700,7 @@ def radiating_column(
     solar_vapour_absorption: bool = False,
     measured_solar_spectrum: bool = False,
     ozone: bool = False,
+    ozone_above_1hpa: str = "none",
     co2_band: bool = False,
     co2_ppmv: float = 284.7,
     ozone_infrared: bool = False,
@@ -903,6 +904,7 @@ def radiating_column(
         k_distribution_source=k_distribution_source,
         linear_in_tau_source=linear_in_tau_source,
         couple_cloud_field=observed_cloud_field,
+        ozone_above_1hpa=ozone_above_1hpa,
     )
     atmosphere = AtmosphericColumnModule(
         n_layers=n_layers,

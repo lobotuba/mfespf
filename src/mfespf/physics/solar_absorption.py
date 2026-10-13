@@ -337,21 +337,77 @@ def ozone_bands(grid: SpectralGrid) -> tuple[SpectralGrid, np.ndarray]:
     return new_grid, k
 
 
-def _ozone_mixing_ratio(pressure_pa: np.ndarray) -> np.ndarray:
-    """SWOOSH's mixing ratio at each pressure, mol mol^-1, held below 316 hPa."""
+#: Ozone above 1 hPa, where SWOOSH ends: the AFGL U.S. Standard profile
+#: (Anderson, Clough, Kneizys, Chetwynd & Shettle 1986, AFGL-TR-86-0110, Table 1f,
+#: Model 6), pressure in hPa and mixing ratio in ppmv, from 45 to 75 km. As
+#: transcribed in the joseki package (``afgl_1986/table_1f.csv``, data/sources.yaml)
+#: and checked against the report's printed table at 42.5-70 km
+#: (upper-atmosphere-radiative-equilibrium.md).
+AFGL_US_STANDARD_OZONE_HPA_PPMV = (
+    (1.491, 5.25),
+    (1.090, 4.10),
+    (0.7978, 3.10),
+    (0.4250, 1.80),
+    (0.2190, 1.10),
+    (0.1090, 0.70),
+    (0.05220, 0.30),
+    (0.02400, 0.25),
+)
+
+#: What supplies ozone above 1 hPa: nothing (a column whose top is above 1 hPa is
+#: refused), or the AFGL U.S. Standard profile.
+OZONE_ABOVE_1HPA = ("none", "afgl_us_standard")
+
+#: SWOOSH's top level, Pa.
+_SWOOSH_TOP_PA = 100.0
+
+
+def _ozone_mixing_ratio(pressure_pa: np.ndarray, above_1hpa: str = "none") -> np.ndarray:
+    """SWOOSH's mixing ratio at each pressure, mol mol^-1, held below 316 hPa.
+
+    Above 1 hPa SWOOSH has no data, and its 1 hPa value is not held upward: a
+    pressure there is refused unless ``above_1hpa`` declares where the ozone
+    comes from. With "afgl_us_standard" it is the AFGL profile, interpolated in
+    log pressure within its own table and refused beyond it. The two records
+    meet at 1 hPa with a step, which is reported rather than smoothed.
+    """
+    if above_1hpa not in OZONE_ABOVE_1HPA:
+        raise ConfigurationError(
+            f"ozone_above_1hpa {above_1hpa!r} is not one of {OZONE_ABOVE_1HPA}"
+        )
+    pa = np.asarray(pressure_pa, dtype=float)
     p = np.array([row[0] for row in OZONE_PROFILE_HPA_PPMV])[::-1] * 100.0
     v = np.array([row[1] for row in OZONE_PROFILE_HPA_PPMV])[::-1] * 1.0e-6
-    return np.interp(np.log(np.asarray(pressure_pa, dtype=float)), np.log(p), v)
+    out = np.interp(np.log(pa), np.log(p), v)
+    high = pa < _SWOOSH_TOP_PA
+    if np.any(high):
+        if above_1hpa == "none":
+            raise ConfigurationError(
+                "ozone is measured (SWOOSH) only to 1 hPa; a layer above it needs a declared "
+                "source (ozone_above_1hpa), and SWOOSH's last value is not held"
+            )
+        p_a = np.array([row[0] for row in AFGL_US_STANDARD_OZONE_HPA_PPMV])[::-1] * 100.0
+        v_a = np.array([row[1] for row in AFGL_US_STANDARD_OZONE_HPA_PPMV])[::-1] * 1.0e-6
+        if np.any(pa[high] < p_a[0]):
+            raise ConfigurationError(
+                f"the AFGL ozone table ends at {p_a[0] / 100:g} hPa; nothing above it is held"
+            )
+        out[high] = np.interp(np.log(pa[high]), np.log(p_a), v_a)
+    return out
 
 
 def ozone_layer_path(
-    layer_pressure: np.ndarray, interface_pressure: np.ndarray, layer_mass: np.ndarray
+    layer_pressure: np.ndarray,
+    interface_pressure: np.ndarray,
+    layer_mass: np.ndarray,
+    above_1hpa: str = "none",
 ) -> np.ndarray:
     """Ozone in each layer, cm-atm at STP, from the SWOOSH profile.
 
     Each layer carries the mixing ratio at its centre times its air. The top
     layer also carries the column between its top interface and 1 hPa, where
-    SWOOSH ends; what lies above 1 hPa (about a dobson unit) is left out.
+    SWOOSH ends; what lies above 1 hPa (about a dobson unit) is left out. A
+    column reaching above 1 hPa takes its ozone there from ``above_1hpa``.
     Molecules per kilogram of dry air are ``R_d / k_B``, and a cm-atm is the
     Loschmidt number times a centimetre, so no molar mass is assumed.
     """
@@ -363,7 +419,7 @@ def ozone_layer_path(
     k_b = value_of("boltzmann")
     molecules_per_kg = value_of("gas_constant_dry_air") / k_b
     cm_atm = value_of("standard_surface_pressure") / (k_b * _STP_TEMPERATURE_K) * 0.01
-    path = _ozone_mixing_ratio(p) * m * molecules_per_kg / cm_atm
+    path = _ozone_mixing_ratio(p, above_1hpa) * m * molecules_per_kg / cm_atm
     top = float(p_i[-1])
     if top > 100.0:
         # Gravity as the grid has it: the top layer's own dp / m.

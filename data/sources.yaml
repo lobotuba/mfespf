@@ -258,6 +258,31 @@ sources:
   notes: The combined anomaly-filled fields' 1991-2020 global means give the stratospheric-water
     threshold (stratospheric-water.md) and the ozone profile in physics/solar_absorption.py.
   sha256: 39d35370f4c3e2090d06287674a7481d8e89ef19ef158fc21e0898f5dccf40ee
+- dataset_id: AFGL-1986-US-STANDARD-OZONE
+  loader: none
+  title: AFGL atmospheric constituent profiles, Model 6 (U.S. Standard), Table 1f
+  filename: afgl_1986_us_standard_table_1f.csv
+  url: https://raw.githubusercontent.com/rayference/joseki/main/src/joseki/data/afgl_1986/table_1f.csv
+  provider: joseki (Rayference), transcription of AFGL-TR-86-0110
+  provenance_class: idealised
+  variables:
+  - pressure
+  - temperature
+  - ozone_mixing_ratio
+  units:
+  - hPa
+  - K
+  - ppmv
+  temporal_coverage: climatological reference
+  spatial_coverage: U.S. Standard (mid-latitude reference), 0 to 120 km
+  uncertainty: none stated; the report gives about 10-30 percent relative consistency
+  licence: US Government report (public domain); joseki transcription MIT-licensed.
+  citation: 'Anderson, G. P., Clough, S. A., Kneizys, F. X., Chetwynd, J. H. and Shettle, E. P. (1986),
+    AFGL Atmospheric Constituent Profiles (0-120 km), AFGL-TR-86-0110, DTIC ADA175173.'
+  notes: Ozone above 1 hPa (45-75 km) for upper-atmosphere-radiative-equilibrium.md, embedded in
+    physics/solar_absorption.py as AFGL_US_STANDARD_OZONE_HPA_PPMV. Checked against the report's
+    printed Table 1f (archive.org OCR of DTIC_ADA175173) at 42.5, 45, 47.5, 50, 55, 65 and 70 km.
+  sha256: d2d06777c7fbb9ed5bde5bf262a854ff61f9e83ea4d9b771006f10b87468eeda
 - dataset_id: NCEP-R1-OMEGA-LTM-1991-2020
   loader: none
   title: NCEP/NCAR Reanalysis 1 pressure vertical velocity, monthly long-term means 1991-2020

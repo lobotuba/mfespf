@@ -220,3 +220,138 @@ G2, G4 and G6, and S5 passes G3 and G5. The user decides adoption.
 - **The march is diagnostic code in the run script.** It drives the radiation
   module the way the common-radiation replay does, and is not a module
   option.
+
+---
+
+## Result (appended; nothing above this line changed)
+
+### Errata, both readings kept
+
+**1. The ozone record.**
+
+- **Reading 1 (above):** EQ-OZONE-SOLAR-ABSORPTION and the code "disagree".
+- **Reading 2, on re-reading:** the record is incomplete, not contradicted.
+  - Its "the column between the model top and 1 hPa placed in the top layer"
+    is what the code does, for a top below 1 hPa.
+  - What it omitted is that ozone above 1 hPa was left out.
+- **The record now says so.** It also says that SWOOSH's 1 hPa value is never
+  held upward.
+
+**2. The data's provenance class.** The AFGL table was first registered as
+"reference_profile", which is not a class the registry has. It is
+`idealised`: a standard atmosphere built from observations, input rather than
+evidence about the Earth.
+
+### The data check
+
+`data/raw/afgl_1986_us_standard_table_1f.csv` is joseki's transcription of
+AFGL-TR-86-0110 Table 1f, sha256 d2d06777...7eda.
+
+- **Checked against** the report's printed Table 1f ("Model 6, U.S.
+  Standard"), from the archive.org OCR of DTIC_ADA175173.
+- **O3 matches at seven levels:**
+
+  | km | 42.5 | 45 | 47.5 | 50 | 55 | 65 | 70 |
+  |---|---:|---:|---:|---:|---:|---:|---:|
+  | ppmv | 6.20 | 5.25 | 4.10 | 3.10 | 1.80 | 0.70 | 0.30 |
+
+- **The step where SWOOSH and AFGL meet at 1 hPa** is 3.18 against 3.82
+  ppmv, AFGL 20 percent higher. It is reported, not smoothed.
+
+### The marches
+
+Every run converged by the frozen criterion, a final 30-day mean of
+max |dT/dt| ≤ 0.01 K/day.
+
+| run | top, layers | converged, days | dT_ref range | G1 | G2 | dry-unstable layers |
+|---|---|---:|---|---|---|---|
+| S1 | 1 hPa, 51 | 35.8 | -38.2 to +19.4 | pass | **fail** (top layer out of domain from day 0.5) | **the top, 1.07 hPa** |
+| S2 | 1 hPa, finer, 78 | 36.0 | -38.7 to +19.4 | pass | **fail** | **the top** |
+| S3 | 0.1 hPa, 62 | 48.8 | -27.7 to +19.4 | pass | pass | none |
+| S4 | 0.1 hPa, finer, 101 | 49.3 | -27.6 to +19.4 | pass | pass | none |
+
+**The top layer at equilibrium:**
+
+- S1: 237.3 K, 15.4 K colder than the layer below, dT_ref -38.2 K.
+- S2: 236.9 K, also cold and dry-unstable.
+- **Finer resolution changes it by 0.5 K, so the defect is not resolution.**
+
+**At 1.07 hPa:**
+
+| | T | Q_SW | Q_LW | longwave in the CO2 band, 550-800 cm⁻¹ | O3 band | rest |
+|---|---:|---:|---:|---:|---:|---:|
+| S1, the top layer | 237.3 | 13.7 | -13.7 | -9.6 | -0.7 | -3.4 |
+| S3, an interior layer | 257.4 | 9.0 | -9.0 | **-5.0** | -1.5 | -2.5 |
+
+- **The CO2 band's cooling halves with the atmosphere above present,** even
+  though the layer is 20 K warmer. That is the band centre no longer seeing
+  space.
+- **The sunlight falls** from 13.7 to 9.0 K/day, as the ozone above takes the
+  ultraviolet first.
+
+### Verdicts, as frozen
+
+**H1, the open top, is supported.** Every condition holds:
+
+1. S1's top layer fails G2, and ends 15.4 K colder than the layer below.
+2. S3 at 1.07 hPa is 257.4 K against S1's 237.3, +20.1 K (≥ 5).
+3. S3's 1.04 hPa layer cools at 1.02 times the layer below it (within
+   25 percent), against S1's top-layer ratio at the start of 20.8/11.4 = 1.82.
+
+**G6 passes.** S3 and S4 agree within 1.46 K at every pressure from 1 to
+50 hPa; the largest difference is at 1 hPa.
+
+**S5, the coupled check:** R0b's mass-flux configuration with interactive
+radiation, at the raised top, for 240 h.
+
+- **G3 passes.** Convection's temperature tendencies above 50 hPa integrate
+  to at most 3e-13 K: the dry adjustment's round-off. The mass flux and the
+  surface terms contribute exactly zero. The plume tops were at 103-154 hPa.
+- **G5 passes.** Residual 5.1e-16, conservation gate passed.
+- **The run is complete, not invalid.** The worst dT_ref is -26.5 K, at the
+  103 hPa plume-top layer. It is the first mass-flux run in this branch to
+  pass every gate.
+- **The 1 hPa temperature holds:** 257.79 to 257.75 K over the 10 days.
+
+**The raised top (0.1 hPa, AFGL ozone above 1 hPa) is a candidate upper
+configuration.** S3 and S4 pass G1, G2, G4 and G6, and S5 passes G3 and G5.
+The user decides adoption.
+
+### What the result says, and what it does not
+
+**The new top at 0.11 hPa keeps a weaker form of the boundary signature,**
+answering the user's question of displacement against elimination.
+
+| run | new top | the layer below | dT_ref |
+|---|---:|---:|---:|
+| S3 | 210.0 K | 7.0 K warmer | -23.9 |
+| S4 | 207.9 K | 5.7 K warmer | -24.3 |
+
+- It is stable and inside the domain. So the truncation is displaced to a
+  pressure where it no longer breaks a gate, not eliminated.
+- A top at 0.1 hPa is still a top.
+
+**H2, the broad cold bias, remains.** Reported against the U.S. Standard
+Atmosphere 1976, which is not a gate:
+
+| hPa | S3 | US 1976 | difference |
+|---:|---:|---:|---:|
+| 1 | 257.8 | 270.7 | -12.9 |
+| 3 | 241.7 | 249.5 | -7.8 |
+| 10 | 217.9 | 227.7 | -9.8 |
+| 30 | 205.9 | 220.5 | -14.6 |
+
+- Raising the top does not change 3-30 hPa (S1 and S3 within 0.1-1.5 K).
+- The candidates named above are untouched here:
+  - O2 absorption, absent;
+  - the diffuse treatment of sunlight;
+  - the ozone amount;
+  - the stratosphere's missing circulation and water.
+
+**Not concluded:**
+
+- no default changed;
+- **the configuration under the raised top:**
+  - the temperature of layers above 1 hPa is radiative only (no
+    gravity-wave drag, no circulation);
+  - their vapour is held at R4's top-layer mixing ratio, not measured.

@@ -13,7 +13,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from mfespf.core.errors import ConfigurationError
 from mfespf.physics.solar_absorption import (
+    AFGL_US_STANDARD_OZONE_HPA_PPMV,
     OZONE_BANDS,
     OZONE_PROFILE_HPA_PPMV,
     ozone_bands,
@@ -133,3 +135,55 @@ def test_ozone_absorbs_the_ultraviolet_and_little_else():
     assert np.all(above_100[hartley] > 30.0)
     # Nearly transparent in the Chappuis band: a couple of percent.
     assert 0.01 < float(tau[visible][0]) < 0.03
+
+
+@pytest.mark.req("DAT-007", "VAL-001")
+def test_ozone_above_1hpa_is_refused_unless_declared_and_never_held():
+    """upper-atmosphere-radiative-equilibrium.md: SWOOSH ends at 1 hPa. Above it
+    no value is held: a layer there is refused, unless the AFGL extension is
+    declared, which is itself refused beyond its own table."""
+    centre = np.array([5000.0, 150.0, 50.0])
+    interfaces = np.array([10000.0, 200.0, 100.0, 10.0])
+    mass = (interfaces[:-1] - interfaces[1:]) / G
+    with pytest.raises(ConfigurationError, match="not held"):
+        ozone_layer_path(centre, interfaces, mass)
+    path = ozone_layer_path(centre, interfaces, mass, "afgl_us_standard")
+    assert np.all(path > 0.0)
+    beyond = np.array([5000.0, 150.0, 1.0])
+    with pytest.raises(ConfigurationError, match="AFGL ozone table ends"):
+        ozone_layer_path(beyond, np.array([10000.0, 200.0, 2.0, 0.5]), mass, "afgl_us_standard")
+
+
+@pytest.mark.req("VAL-001")
+def test_the_two_ozone_records_meet_at_1hpa_each_exact_on_its_own_side():
+    """Below 1 hPa the profile is SWOOSH's, at 1 hPa exactly SWOOSH's last
+    level; above it, AFGL's log-pressure interpolation. The step between them
+    is the records' disagreement, reported rather than smoothed."""
+    from mfespf.physics.solar_absorption import _ozone_mixing_ratio
+
+    at_1hpa = _ozone_mixing_ratio(np.array([100.0]), "afgl_us_standard")[0]
+    assert at_1hpa == pytest.approx(OZONE_PROFILE_HPA_PPMV[-1][1] * 1e-6, rel=1e-12)
+    just_above = _ozone_mixing_ratio(np.array([100.0 * (1.0 - 1e-12)]), "afgl_us_standard")[0]
+    (p1, v1), (p2, v2) = AFGL_US_STANDARD_OZONE_HPA_PPMV[1], AFGL_US_STANDARD_OZONE_HPA_PPMV[2]
+    afgl_1hpa = v1 + (v2 - v1) * np.log(p1 / 1.0) / np.log(p1 / p2)
+    assert just_above == pytest.approx(afgl_1hpa * 1e-6, rel=1e-9)
+    assert afgl_1hpa / OZONE_PROFILE_HPA_PPMV[-1][1] == pytest.approx(1.20, abs=0.01)
+
+
+@pytest.mark.req("VAL-001")
+def test_the_afgl_column_above_1hpa_is_its_table_integral():
+    """Built layer by layer on a fine grid from 1 to 0.024 hPa, the ozone above
+    1 hPa converges to the integral of the AFGL table it comes from."""
+    p = np.array([row[0] for row in AFGL_US_STANDARD_OZONE_HPA_PPMV])[::-1] * 100.0
+    v = np.array([row[1] for row in AFGL_US_STANDARD_OZONE_HPA_PPMV])[::-1] * 1.0e-6
+    fine = np.geomspace(100.0, p[0], 20000)
+    mixing = np.interp(np.log(fine), np.log(p), v)
+    column_kg = -np.trapezoid(mixing, fine) / G
+    integral = column_kg * 287.047 / 1.380649e-23 / (101325.0 / (1.380649e-23 * 273.15) * 0.01)
+    many = np.geomspace(100.0, p[0], 801)
+    path = ozone_layer_path(
+        np.sqrt(many[:-1] * many[1:]), many, (many[:-1] - many[1:]) / G, "afgl_us_standard"
+    )
+    assert float(path.sum()) == pytest.approx(integral, rel=2e-3)
+    # About a dobson unit, as the code's own note says of what it used to omit.
+    assert 0.5e-3 < integral < 2.0e-3
