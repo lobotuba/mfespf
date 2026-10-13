@@ -48,6 +48,7 @@ EQUATION_IDS = {
     "solar_vapour_absorption": "EQ-SOLAR-VAPOUR-K-DISTRIBUTION",
     "observed_cloud_field": "EQ-ISCCP-CLOUD-FIELD",
     "wtg_circulation": "EQ-WTG-OVERTURNING-CIRCULATION",
+    "ocean_heat_transport": "EQ-OCEAN-HEAT-TRANSPORT",
     "area_weighted_mean": "EQ-AREA-WEIGHTED-GLOBAL-MEAN",
     "vapour_eddy_diffusion": "EQ-VAPOUR-EDDY-DIFFUSION",
     "ozone_solar_absorption": "EQ-OZONE-SOLAR-ABSORPTION",
@@ -950,6 +951,68 @@ def build_equation_registry() -> EquationRegistry:
                 "Herman and Raymond 2014, doi:10.1002/2014MS000359; Raymond and Zeng "
                 "2005; Cohen et al. 2024, doi:10.1029/2023MS003866; Sobel and "
                 "Bretherton 2000; Nilsson and Emanuel 1999"
+            ),
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["ocean_heat_transport"],
+            version=V1,
+            name="Prescribed ocean heat transport between a rising and a sinking region",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form=(
+                "C dT_s/dt += Q_region; Q_r = (1 - sigma) dQ, Q_s = -sigma dQ, so "
+                "sigma Q_r + (1 - sigma) Q_s = 0"
+            ),
+            physical_basis=(
+                "Ocean currents carry heat laterally beneath the atmosphere; in a slab ocean "
+                "the transport enters each mixed layer as a prescribed flux, the q-flux, "
+                "summing to zero over the domain (Hansen et al. 1984; Bitz et al. 2012)."
+            ),
+            variables=(
+                ("Q", "heat the ocean delivers to a region's surface", "W m^-2"),
+                ("sigma", "area fraction of the rising region", "1"),
+                ("dQ", "rising minus sinking delivery contrast", "W m^-2"),
+            ),
+            parameters=(
+                (
+                    "dQ",
+                    "measured",
+                    "within 20 degrees, annual-mean net surface heat flux on annual-mean "
+                    "omega500 masks, each region less the area-weighted mean: OAFlux "
+                    "1991-2009 13.39 W m^-2 (verdict), NCEP/NCAR R1 1991-2020 4.67",
+                ),
+            ),
+            assumptions=(
+                "the transport is fixed at its observed annual mean",
+                "annual means cancel the seasonal storage that monthly masks mix in",
+            ),
+            approximations=(
+                "The transport does not respond to the surface temperatures it creates.",
+                "The datasets differ by a factor of 2.9; the second is a sensitivity run.",
+            ),
+            validity_domain=ValidityDomain(
+                conditions=("two regions partitioning the domain, 0 < sigma < 1",),
+            ),
+            limiting_cases=(
+                "dQ = 0 adds nothing to either surface",
+                "the area-weighted sum of the two deliveries is zero for any dQ",
+            ),
+            conserved_quantities=("energy",),
+            permitted_discretizations=("one flux per region per step",),
+            correctness_tests=(
+                "test_the_ocean_moves_heat_and_makes_none",
+                "test_each_surface_warms_at_its_flux_over_its_heat_capacity",
+                "test_no_contrast_leaves_the_two_columns_identical",
+            ),
+            known_failure_modes=(
+                "on global or monthly omega500 masks the observed contrast vanishes or "
+                "changes sign (ocean-heat-transport-circulation.md)",
+            ),
+            source=(
+                "Hansen et al. 1984, AGU Monograph 29, 130-163; Bitz et al. 2012, J. Climate "
+                "25, 3053; Yu and Weller 2007, BAMS 88, 527"
             ),
         )
     )

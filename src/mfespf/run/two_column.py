@@ -19,6 +19,8 @@ from mfespf.physics.circulation import (
     AreaWeightedMeansModule,
     WeakTemperatureGradientCirculation,
 )
+from mfespf.physics.ocean_transport import OceanHeatTransport
+from mfespf.physics.surface import SURFACE_TEMPERATURE_STATE
 from mfespf.registries.states import StateRegistry
 from mfespf.run.column_configurations import reference_column
 from mfespf.run.driver import Kernel
@@ -51,11 +53,11 @@ _ASCENT, _DESCENT = "ascent", "descent"
 _STATES = ("atmosphere_layer_temperature", "atmosphere_water_vapour")
 
 
-def _authorize(kernel: Kernel, provider: str) -> Kernel:
-    """Let the circulation contribute tendencies to the region's air and water."""
+def _authorize(kernel: Kernel, provider: str, names: tuple[str, ...] = _STATES) -> Kernel:
+    """Let a module between the regions contribute tendencies to the named states."""
     states = StateRegistry()
     for entry in kernel.states.current():
-        if entry.record_id.split(":", 1)[-1] in _STATES:
+        if entry.record_id.split(":", 1)[-1] in names:
             entry = replace(
                 entry,
                 authorized_tendency_providers=entry.authorized_tendency_providers | {provider},
@@ -64,24 +66,48 @@ def _authorize(kernel: Kernel, provider: str) -> Kernel:
     return replace(kernel, states=states)
 
 
+def _column(tropical_latitude: float | None, column: dict[str, Any]) -> Kernel:
+    """The column each region holds: the reference column, or the tropical one."""
+    if tropical_latitude is None:
+        return reference_column(receives_advection=True, **column)
+    from mfespf.run.tropical_column import tropical_column
+
+    return tropical_column(latitude_limit=tropical_latitude, **column)
+
+
 def two_column(
     *,
     ascent_fraction: float = OBSERVED_ASCENT_FRACTION,
     relaxation_distance: float = OBSERVED_RELAXATION_DISTANCE_M,
     run_id: str = "TWO-COLUMN",
+    tropical_latitude: float | None = None,
+    ocean_heat_contrast: float | None = None,
     **column: Any,
 ) -> Kernel:
-    """Two reference columns and the circulation between them."""
+    """Two columns and the circulation between them.
+
+    ``tropical_latitude`` makes each region the tropical column of that band
+    (its sunlight, export and upwelling); ``ocean_heat_contrast`` adds the
+    ocean's heat transport between their surfaces, in W m^-2, rising minus
+    sinking (ocean-heat-transport-circulation.md).
+    """
     circulation = WeakTemperatureGradientCirculation(
         ascent_fraction=ascent_fraction, relaxation_distance=relaxation_distance
     )
-    regions = [
-        _authorize(
-            regionalize(reference_column(receives_advection=True, **column), region),
+    ocean = (
+        OceanHeatTransport(ascent_fraction=ascent_fraction, heat_contrast=ocean_heat_contrast)
+        if ocean_heat_contrast is not None
+        else None
+    )
+    regions = []
+    for region in (_ASCENT, _DESCENT):
+        kernel = _authorize(
+            regionalize(_column(tropical_latitude, dict(column)), region),
             circulation.module_id,
         )
-        for region in (_ASCENT, _DESCENT)
-    ]
+        if ocean is not None:
+            kernel = _authorize(kernel, ocean.module_id, (SURFACE_TEMPERATURE_STATE,))
+        regions.append(kernel)
     means = AreaWeightedMeansModule(
         regions=((_ASCENT, ascent_fraction), (_DESCENT, 1.0 - ascent_fraction)),
         fields=GLOBAL_MEAN_FIELDS,
@@ -93,7 +119,10 @@ def two_column(
             "Two-column overturning circulation: a rising and a sinking reference "
             "column under the relaxed, spectral weak-temperature-gradient balance."
         ),
-        middle_modules=[ModuleSchedule(circulation)],
+        middle_modules=[
+            ModuleSchedule(circulation),
+            *((ModuleSchedule(ocean),) if ocean is not None else ()),
+        ],
         global_modules=[ModuleSchedule(means)],
     )
     graph = kernel.graph
@@ -102,6 +131,20 @@ def two_column(
         (means.module_id, "area-weighted global means"),
     ):
         graph.add_node(Node(module_id, NodeType.MODULE, label))
+    if ocean is not None:
+        graph.add_node(Node(ocean.module_id, NodeType.MODULE, "ocean heat transport"))
+        for region in (_ASCENT, _DESCENT):
+            graph.add_edge(
+                Edge(
+                    source=f"{region}/surface",
+                    destination=ocean.module_id,
+                    exchanged=SURFACE_TEMPERATURE_STATE,
+                    edge_type=EdgeType.PHYSICAL_TRANSFER,
+                    interface_version="1.0.0",
+                    spatial_semantics="area_weighted_regions",
+                    equation_ids=("EQ-OCEAN-HEAT-TRANSPORT",),
+                )
+            )
     for region in (_ASCENT, _DESCENT):
         for owner, exchanged in (
             ("atmosphere", "atmosphere_layer_temperature"),

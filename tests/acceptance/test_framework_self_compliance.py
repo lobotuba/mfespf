@@ -146,6 +146,18 @@ def _ozone_on_the_measured_spectrum(**kwargs: Any) -> Kernel:
     )
 
 
+def _tropical_two_column_with_ocean(**kwargs: Any) -> Kernel:
+    """Two tropical columns, the circulation and the ocean's heat transport between
+    them (ocean-heat-transport-circulation.md)."""
+    return two_column(
+        ascent_fraction=0.558,
+        relaxation_distance=7.34e5,
+        tropical_latitude=20.0,
+        ocean_heat_contrast=13.39,
+        **kwargs,
+    )
+
+
 BUILDERS = {
     "airless_radiating_body": rc.airless_radiating_body,
     "null_control": rc.null_control,
@@ -171,6 +183,7 @@ BUILDERS = {
     # Two regions, the circulation between them and the global means: the one
     # configuration whose modules are filed under regions.
     "two_column": two_column,
+    "tropical_two_column_with_ocean": _tropical_two_column_with_ocean,
 }
 
 #: Module implementations no reference configuration in this file reaches, with
