@@ -305,3 +305,52 @@ So N0 stands for the null exactly, as frozen.
      to stand on.
 
 **W1 runs as frozen,** started when N0 exited.
+
+## W1 (appended; nothing above this line changed)
+
+**W1 is invalid, the same way N0 is.**
+
+- **Where it stopped.** The same refusal ended the run after 17113 s of a
+  two-column run, past the step at which N0 failed. W1 used the script before
+  the full warnings were captured, so its exact step count is not recorded.
+- **Its state.** Over the last fifth of the steps completed, both columns had
+  run away together.
+
+| | rising | sinking | observed rising / sinking |
+|---|---:|---:|---:|
+| surface | 313.705 K | 313.706 K | 300.26 / 298.79 K |
+| RH 300-700 hPa | 0.955 | **0.941** | 0.50 / **0.35** |
+| precipitable water to 300 hPa | 250.0 | 249.7 kg m^-2 | 42.3 / 32.7 |
+| ocean heat delivered | +5.92 | -7.47 W m^-2 | |
+| latent heat flux | 178.2 | 169.1 W m^-2 | |
+
+| test | observed | W1 | as a valid run would be judged |
+|---|---:|---:|---|
+| D1: sinking RH 300-700 | 0.35 | 0.941 | fail |
+| D2: band RH 300-700 | 0.43 | 0.949 | fail |
+| D3: band precipitable water | 38.0 | 249.9 | fail |
+| C1: omega500, sinking | +14.3 hPa/day | **+1.17** | fail |
+| C3: surface contrast | +1.46 K | **-0.001 K** | fail |
+| C4: T500 contrast | +0.65 K | +0.011 K | fail |
+
+**The verdicts are not taken: the run is invalid.** The right-hand column
+says only what a valid run in this state would have shown.
+
+**Where the ocean's contrast went.**
+
+- **The ocean delivers 13.4 W m^-2 more to the rising surface.** The surfaces
+  end within 0.001 K of each other.
+- **Evaporation carries it instead:** the rising column's latent heat flux is
+  9.1 W m^-2 larger.
+- **Why so little temperature difference.** At 314 K the saturation humidity
+  rises so steeply with temperature that a vanishing surface difference moves
+  that much latent heat. The two boundary layers are held to nearly one
+  temperature by the WTG balance above them.
+- **The consequence.** With no temperature difference the relaxed balance
+  barely overturns: 1.2 hPa/day.
+
+**The runaway base state erases the contrast the mechanism needs.** The
+mechanism is not tested by W1. It cannot be tested while the column it acts
+on runs away.
+
+**As frozen, W2 and W3 run now,** two at a time, and W4 after them.
