@@ -419,3 +419,76 @@ numbers decide nothing. It found two defects in the numerics as frozen.
      state, rather than limited.
 
 The trigger, τ_c, ε, α, the closure form and every gate are unchanged.
+
+## A1-A7 result (appended; nothing above this line changed)
+
+**A1-A5 pass,** as unit tests in `tests/unit/test_mass_flux.py`, commit
+4ef5e1f:
+
+- **The plume's budgets:** dM = E - D; Σ(E h_e - D h_u) = 0 to 1e-12;
+  Σ(E q_e - D q_u) = ΣP to 1e-12.
+- **The operator:** the energy redistribution sums to zero to 1e-10 of a
+  layer's change; the transport sums to zero; the net condensation sums to
+  the surface precipitation; the column's water falls by exactly that.
+- **Drying without destruction:** an hour of the closure on a moist,
+  unstable column warms and dries the environment between the level of free
+  convection and the detrainment layer, and water leaves only as
+  precipitation.
+- **No CAPE:** no convection. The evaporation cascade passes what a
+  saturated layer cannot take to the layer below.
+- **A coupled convecting column** reconciles its water and energy.
+- **With the option off,** 200 steps of R4 give all 13000 field values
+  identical to the code before the build, to the bit.
+
+**Found and corrected while building, before any gate was judged:** the
+water module subtracted convection's condensation twice, once from the
+provisional profile and once as its own. The conservation gate refused the
+first coupled run, and the cause is recorded in the commit.
+
+**A6 and A7:** from R4's state, 10 days each. All four runs are invalid on
+RRTMG's domain. The top layer, 1.1 hPa, drifts to 36 K below RRTMG's
+reference; it starts at -27.7 K in R4's state. The water and energy
+residuals are 5-6e-16.
+
+| run | dt | RH 300-700, 10-day mean | precipitation, mm/day | mean M_b, kg m^-2 s^-1 | share of steps convecting | surface at day 10 |
+|---|---:|---:|---:|---:|---:|---:|
+| A6 | 3600 s | 0.9191 | 3.652 | 0.00635 | 0.34 | 309.63 K |
+| A6 | 1800 s | 0.9170 | 3.678 | 0.00664 | 0.18 | 309.54 K |
+| A6 | 900 s | 0.9204 | 3.668 | 0.00664 | 0.15 | 309.56 K |
+| A7 | 3600 s, half the evaporation coefficient | **0.9313** | 3.409 | 0.00550 | 0.30 | 311.60 K |
+
+**A6 fails as frozen.** The criterion is that the 900-vs-1800 s difference be
+at most half the 1800-vs-3600 s one:
+
+- precipitation passes (0.010 against 0.026);
+- M_b passes (0.000 against 0.0003);
+- **RH fails** (0.0034 against 0.0021): the differences are small but do not
+  shrink;
+- the energy residual is at round-off in all three (5.1, 5.2 and
+  5.8e-16), so its "convergence" is the noise of the arithmetic. Read
+  literally, it fails too.
+
+**A7 fails as frozen.** Halving the surface evaporation made the free
+troposphere *wetter*, 0.931 against 0.919, not drier. With less evaporative
+cooling, the surface warms 2 K more in the 10 days. This is a drifting
+transient: R4's state warms about 8 K in 10 days under this scheme. Db's
+pathology has not been reversed.
+
+**As frozen, the gates must all pass before any physics run, so P1-P3 and the
+sensitivity ensemble do not run.** The build stands, conservative and
+tested, and switched off by default.
+
+**Reported, for the user's decision.** Across the probe and these runs:
+
+- **The scheme convects intermittently,** at the realistic magnitude of a
+  ZM-type scheme: M_b of 0.01-0.03 kg m^-2 s^-1 when active, about 0.006 on
+  average, which is 54 hPa/day of mean subsidence.
+- **The free troposphere stays near RH 0.92.** That is not the 0.81 Romps'
+  relation predicts for its ε and α.
+- **The likely reason,** not measured:
+  - with ε = 1 km^-1, dilute CAPE above the 70 J/kg trigger exists only in a
+    humid free troposphere (RH 0.8-0.95 on the synthetic soundings);
+  - convection therefore runs only while the column is humid, and between
+    events nothing sinks while radiation cools and moistens it.
+
+  The trigger, not the plume's budget, then sets the humidity.
