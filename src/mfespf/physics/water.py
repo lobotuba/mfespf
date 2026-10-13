@@ -219,9 +219,17 @@ class WaterModule(Module):
         receives_convective_transport: bool = False,
         end_of_step_saturation: bool = False,
         receives_convective_condensation: bool = False,
+        diagnose_convective_recycling: bool = False,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         diffusing = eddy_diffusivity > 0.0
+        if diagnose_convective_recycling and not (
+            receives_convective_condensation and end_of_step_saturation
+        ):
+            raise ConfigurationError(
+                "the recycling of convective evaporation is measured against the end-of-step "
+                "adjustment of mass-flux convection's condensation; it needs both"
+            )
         if receives_convective_condensation and not receives_convective_transport:
             raise ConfigurationError(
                 "convective condensation arrives with convection's transport; it needs "
@@ -318,6 +326,9 @@ class WaterModule(Module):
                 # (mass-flux-moisture-transport.md, erratum 2): this module books
                 # its precipitation and its latent heat, as it books its own.
                 *(("convective_condensation_rate",) if receives_convective_condensation else ()),
+                # Diagnostic only (convective-condensate-ledger.md): convection's
+                # evaporation, to measure how much of it this module re-condenses.
+                *(("convective_evaporation_rate",) if diagnose_convective_recycling else ()),
                 # Every other heating of the layers this step, to form the
                 # temperature the step ends at (docs/protocols/end-of-step-saturation.md).
                 *(
@@ -347,6 +358,11 @@ class WaterModule(Module):
                 "atmosphere_precipitable_water",
                 "vapour_bearing_layer_temperature",
                 "saturated_layer_temperature",
+                *(
+                    ("convective_evaporation_recondensation_rate",)
+                    if diagnose_convective_recycling
+                    else ()
+                ),
             ),
             imported_transfers=(
                 "evaporation_water",
@@ -440,6 +456,8 @@ class WaterModule(Module):
         self.receives_convective_transport = receives_convective_transport
         self.end_of_step_saturation = end_of_step_saturation
         self.receives_convective_condensation = receives_convective_condensation
+        self.diagnose_convective_recycling = diagnose_convective_recycling
+        self._recycled = np.zeros(n_layers)
         self._convective_condensation = np.zeros(0)
         self.eddy_diffusivity = float(eddy_diffusivity)
         self._diffusion_rate = np.zeros(n_layers)
@@ -623,6 +641,14 @@ class WaterModule(Module):
         # Kept apart: (own + c) - c is not own in floating point, and a layer
         # condensed to exactly nothing would come out a rounding below it.
         own_condensation = self._condensation
+        if self.diagnose_convective_recycling:
+            self._recycled = self._recycling(
+                provisional,
+                own_condensation,
+                np.asarray(pressure, dtype=float),
+                np.asarray(heat_capacity),
+                ctx.dt,
+            )
         self._condensation = own_condensation + self._convective_condensation
         self._precipitation = float(np.sum(self._condensation)) / ctx.dt
         # Where the layer is below the triple point the vapour deposits as ice
@@ -693,6 +719,40 @@ class WaterModule(Module):
                 equation_id=EQUATION_IDS["condensation"],
             ),
         ]
+
+    def _recycling(
+        self,
+        provisional: np.ndarray,
+        own_condensation: np.ndarray,
+        pressure: np.ndarray,
+        heat_capacity: np.ndarray,
+        dt: float,
+    ) -> np.ndarray:
+        """The condensation convection's evaporation causes here this step
+        (convective-condensate-ledger.md): this module's own condensation, less
+        what it would condense from the same profile without that evaporation's
+        water and cooling. A counterfactual solve that changes no state."""
+        rate = self.input_field("convective_evaporation_rate").require_units("kg m^-2 s^-1")
+        evaporated = np.asarray(rate.values, dtype=float) * float(rate.time_interval or dt)
+        kept = (
+            self._convective_condensation,
+            self._saturation_evaluated,
+            self._saturation_temperature,
+        )
+        # Without the evaporation the net convective condensation is larger by
+        # exactly that much, and so is its latent heating.
+        self._convective_condensation = self._convective_condensation + evaporated
+        try:
+            _, without = self._end_of_step_adjustment(
+                provisional - evaporated, pressure, heat_capacity, dt
+            )
+        finally:
+            (
+                self._convective_condensation,
+                self._saturation_evaluated,
+                self._saturation_temperature,
+            ) = kept
+        return np.asarray(own_condensation - without, dtype=float)
 
     def _end_of_step_adjustment(
         self, provisional: np.ndarray, pressure: np.ndarray, heat_capacity: np.ndarray, dt: float
@@ -1049,6 +1109,27 @@ class WaterModule(Module):
                 units="1",
                 **profile,  # type: ignore[arg-type]
             ),
+            **(
+                {
+                    "convective_evaporation_recondensation_rate": Field(
+                        field_id="convective_evaporation_recondensation_rate",
+                        physical_name=(
+                            "condensation caused in each layer by convection's evaporation"
+                        ),
+                        values=np.array(self._recycled) / ctx.dt,
+                        units="kg m^-2 s^-1",
+                        quantity_kind=QuantityKind.DIAGNOSTIC,
+                        time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                        time_interval=ctx.dt,
+                        timestamp=ctx.time,
+                        spatial_support=SpatialSupport.LAYER_AVERAGE,
+                        dimensions=("layer",),
+                        provenance=provenance,
+                    )
+                }
+                if self.diagnose_convective_recycling
+                else {}
+            ),
         }
 
     def report_transfers(self) -> tuple[list[Transfer], list[Transfer]]:
@@ -1231,6 +1312,11 @@ class WaterModule(Module):
                 }
                 if self.eddy_diffusivity > 0.0
                 else {"vapour_transport": "none"}
+            ),
+            **(
+                {"diagnoses_convective_recycling": True}
+                if self.diagnose_convective_recycling
+                else {}
             ),
         }
 

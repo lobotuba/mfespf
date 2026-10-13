@@ -77,6 +77,8 @@ from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.equations import EQUATION_IDS
 from mfespf.physics.mass_flux import (
     CAPE_TRIGGER_J_KG,
+    CLOUD_WATER_CONVERSION_PER_M,
+    CONDENSATE_PATHWAYS,
     CONVECTIVE_ADJUSTMENT_TIME_S,
     DETRAINED_STATES,
     PLUME_ENTRAINMENT_PER_M,
@@ -220,6 +222,31 @@ MASS_FLUX_DECOMPOSITION: dict[str, tuple[str, str, str]] = {
         "the most each layer could evaporate, step-mean of each substep's limit",
         "kg m^-2",
     ),
+    "convective_condensate_formation_rate": (
+        "formation_gross",
+        "convective condensate formed in each layer, gross (C_form)",
+        "kg m^-2 s^-1",
+    ),
+    "convective_cloud_evaporation_rate": (
+        "cloud_evaporation",
+        "convective cloud condensate evaporated before conversion (E_cloud)",
+        "kg m^-2 s^-1",
+    ),
+    "convective_rain_evaporation_rate": (
+        "rain_evaporation",
+        "convective precipitation evaporated (E_precip)",
+        "kg m^-2 s^-1",
+    ),
+    "convective_precipitation_formation_rate": (
+        "precipitation_formed",
+        "convective precipitation formed in each layer (C_precip)",
+        "kg m^-2 s^-1",
+    ),
+    "detrained_cloud_water_rate": (
+        "detrained_cloud",
+        "cloud water detrained into each layer",
+        "kg m^-2 s^-1",
+    ),
 }
 
 
@@ -251,6 +278,8 @@ class ConvectiveAdjustmentModule(Module):
         evaporating_fraction: float = EVAPORATING_CONDENSATE_FRACTION,
         detrained_state: str = "plume",
         precipitation_evaporation: str = "cascade",
+        condensate_pathway: str = "immediate",
+        cloud_water_conversion_rate: float = CLOUD_WATER_CONVERSION_PER_M,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         relaxed = relaxation_timescale > 0.0
@@ -268,6 +297,19 @@ class ConvectiveAdjustmentModule(Module):
         if precipitation_evaporation != "cascade" and not mass_flux:
             raise ConfigurationError(
                 "precipitation_evaporation applies only to mass-flux convection"
+            )
+        if condensate_pathway not in CONDENSATE_PATHWAYS:
+            raise ConfigurationError(
+                f"condensate_pathway {condensate_pathway!r} is not one of {CONDENSATE_PATHWAYS}"
+            )
+        if condensate_pathway == "carried" and not (
+            mass_flux
+            and detrained_state == "plume"
+            and precipitation_evaporation in ("none", "rate_law_only")
+        ):
+            raise ConfigurationError(
+                "carried cloud water needs mass-flux convection, the plume's own detrained "
+                "state, and precipitation_evaporation 'none' or 'rate_law_only'"
             )
         # Mass-flux convection (mass-flux-moisture-transport.md) replaces the moist
         # adjustment, so it composes only with the dry one, and only where the
@@ -578,6 +620,8 @@ class ConvectiveAdjustmentModule(Module):
         self.evaporating_fraction = evaporating_fraction
         self.detrained_state = detrained_state
         self.precipitation_evaporation = precipitation_evaporation
+        self.condensate_pathway = condensate_pathway
+        self.cloud_water_conversion_rate = cloud_water_conversion_rate
         self._mass_flux_parts: dict[str, np.ndarray] = {}
         self._mass_flux_tendency: np.ndarray | None = None
         self._convective_condensation: np.ndarray | None = None
@@ -1064,6 +1108,8 @@ class ConvectiveAdjustmentModule(Module):
             trigger=self.cape_trigger,
             detrained_state=self.detrained_state,
             precipitation_evaporation=self.precipitation_evaporation,
+            condensate_pathway=self.condensate_pathway,
+            conversion_rate=self.cloud_water_conversion_rate,
             **common,
         )
         step = result.step
@@ -1437,13 +1483,19 @@ class ConvectiveAdjustmentModule(Module):
                     "evaporating_fraction": self.evaporating_fraction,
                     "detrained_state": self.detrained_state,
                     "precipitation_evaporation": self.precipitation_evaporation,
+                    "condensate_pathway": self.condensate_pathway,
+                    **(
+                        {"cloud_water_conversion_rate_per_m": self.cloud_water_conversion_rate}
+                        if self.condensate_pathway == "carried"
+                        else {}
+                    ),
                     **(
                         {
                             "precipitation_evaporation_efficiency": (
                                 PRECIPITATION_EVAPORATION_EFFICIENCY
                             )
                         }
-                        if self.precipitation_evaporation == "falling_rate_law"
+                        if self.precipitation_evaporation in ("falling_rate_law", "rate_law_only")
                         else {}
                     ),
                 }

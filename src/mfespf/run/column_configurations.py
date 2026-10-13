@@ -40,7 +40,11 @@ from mfespf.physics.convection import ConvectiveAdjustmentModule
 from mfespf.physics.equations import EQUATION_IDS, build_equation_registry
 from mfespf.physics.gravity import GravityField
 from mfespf.physics.greenhouse import CALIBRATION_N_LAYERS
-from mfespf.physics.mass_flux import CONVECTIVE_ADJUSTMENT_TIME_S, PLUME_ENTRAINMENT_PER_M
+from mfespf.physics.mass_flux import (
+    CLOUD_WATER_CONVERSION_PER_M,
+    CONVECTIVE_ADJUSTMENT_TIME_S,
+    PLUME_ENTRAINMENT_PER_M,
+)
 from mfespf.physics.ocean import (
     OCEAN_DEEP_STATE,
     DeepOceanModule,
@@ -669,6 +673,9 @@ def radiating_column(
     convective_adjustment_time: float | None = None,
     detrained_state: str = "plume",
     precipitation_evaporation: str = "cascade",
+    condensate_pathway: str = "immediate",
+    cloud_water_conversion_rate: float | None = None,
+    diagnose_convective_recycling: bool = False,
     prescribed_humidity: float | None = None,
     plume_humidity: bool = False,
     plume_vertical_structure: bool = False,
@@ -1035,6 +1042,7 @@ def radiating_column(
                     receives_convective_transport=condense_after_convection,
                     end_of_step_saturation=end_of_step_saturation,
                     receives_convective_condensation=mass_flux_convection,
+                    diagnose_convective_recycling=diagnose_convective_recycling,
                 ),
                 step_multiple=1,
             )
@@ -1070,6 +1078,12 @@ def radiating_column(
                     ),
                     detrained_state=detrained_state,
                     precipitation_evaporation=precipitation_evaporation,
+                    condensate_pathway=condensate_pathway,
+                    cloud_water_conversion_rate=(
+                        cloud_water_conversion_rate
+                        if cloud_water_conversion_rate is not None
+                        else CLOUD_WATER_CONVERSION_PER_M
+                    ),
                 ),
                 step_multiple=1,
             )

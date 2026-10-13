@@ -1013,6 +1013,13 @@ def build_equation_registry() -> EquationRegistry:
                 "e = ke (1 - q/q_s) sqrt(F) on the flux from above, ke = 1e-6 "
                 "(CAM5 zm_conv_evap); 'below_cloud_base' only below the lowest "
                 "condensing layer. alpha is the most that may evaporate.",
+                "The condensate pathway is declared (convective-condensate-ledger.md): "
+                "'immediate' leaves the plume where it forms; 'carried' carries cloud "
+                "water, brings each layer's mixture to equilibrium, converts "
+                "ql / (1 + c0 dz) of it (CAM5 ZM cldprp, c0 = 0.045 m^-1 ocean, 0.0059 "
+                "land, from its WRF port), loads the buoyancy with the rest and detrains "
+                "it; detrained cloud water evaporates to the receiving layer's wet-bulb "
+                "capacity and the remainder precipitates there.",
             ),
             validity_domain=ValidityDomain(
                 ranges=(("T", 170.0, 340.0, "K"),),
@@ -1040,6 +1047,8 @@ def build_equation_registry() -> EquationRegistry:
                 "test_wet_bulb_capacity_leaves_no_layer_above_saturation",
                 "test_the_falling_rate_law_follows_its_closed_form",
                 "test_below_cloud_base_evaporates_nothing_at_or_above_cloud_base",
+                "test_the_carried_plume_conserves_its_cloud_water",
+                "test_the_condensate_ledger_closes",
             ),
             known_failure_modes=(
                 "a single plume cannot represent a spectrum of cloud depths",

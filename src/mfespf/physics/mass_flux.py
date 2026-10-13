@@ -36,7 +36,7 @@ precipitation rate.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -46,6 +46,9 @@ from mfespf.physics.thermodynamics import saturation_specific_humidity
 
 __all__ = [
     "CAPE_TRIGGER_J_KG",
+    "CLOUD_WATER_CONVERSION_LAND_PER_M",
+    "CLOUD_WATER_CONVERSION_PER_M",
+    "CONDENSATE_PATHWAYS",
     "CONVECTIVE_ADJUSTMENT_TIME_S",
     "DETRAINED_STATES",
     "MAX_SUBSTEPS",
@@ -114,7 +117,28 @@ PRECIPITATION_EVAPORATIONS = (
     "wet_bulb_cascade",
     "falling_rate_law",
     "below_cloud_base",
+    "none",
+    "rate_law_only",
 )
+# ``"none"`` evaporates no precipitation, and ``"rate_law_only"`` is
+# ``"falling_rate_law"`` with no evaporating-fraction cap
+# (``docs/protocols/convective-condensate-ledger.md``).
+
+#: What becomes of the plume's condensate (convective-condensate-ledger.md):
+#:
+#: - ``"immediate"``: it leaves the plume in the layer it forms (the original);
+#: - ``"carried"``: the plume carries it as cloud water, converts it to
+#:   precipitation at ``c0`` per metre and detrains the rest, as CAM5
+#:   Zhang-McFarlane's ``cldprp``.
+CONDENSATE_PATHWAYS = ("immediate", "carried")
+
+#: c0, m^-1: cloud water converted to precipitation per metre of ascent,
+#: ``rprd = c0 M ql`` with ``ql = ql1 / (1 + dz c0)``, CAM5 Zhang-McFarlane
+#: ``cldprp`` at the values its WRF port sets (``c0_ocn = 0.0450``,
+#: ``c0_lnd = 0.0059``). The ocean value is nominal for a column over ocean;
+#: the land value is the other end of the declared range.
+CLOUD_WATER_CONVERSION_PER_M = 0.045
+CLOUD_WATER_CONVERSION_LAND_PER_M = 0.0059
 
 #: ke in e = ke (1 - q/q_s) sqrt(F), (kg m^-2 s^-1)^-1/2 s^-1: the evaporation
 #: of convective precipitation in CAM5's Zhang-McFarlane scheme
@@ -135,6 +159,14 @@ class Plume:
     ``condensate`` is the water it condenses in each layer, per unit cloud-base
     flux. Its ``buoyancy`` includes the loading of that condensate before it
     falls out.
+
+    Carrying cloud water (``condensate_pathway="carried"``), ``condensate`` is
+    the net condensation in each layer, which can be negative where entrained
+    air evaporates carried water. ``liquid`` is the cloud water the plume leaves
+    each layer with, per unit mass; ``conversion`` the precipitation it forms,
+    ``formation`` the condensate it forms and ``cloud_evaporation`` the carried
+    water it evaporates, each per unit cloud-base flux. ``None`` when the
+    condensate leaves at once.
     """
 
     source: int
@@ -149,6 +181,10 @@ class Plume:
     condensate: np.ndarray
     buoyancy: np.ndarray
     cape: float
+    liquid: np.ndarray | None = field(default=None)
+    conversion: np.ndarray | None = field(default=None)
+    formation: np.ndarray | None = field(default=None)
+    cloud_evaporation: np.ndarray | None = field(default=None)
 
     @property
     def active(self) -> bool:
@@ -214,6 +250,8 @@ def entraining_plume(
     gravity: float,
     gas_constant: float,
     source_floor: float = SOURCE_LAYER_FLOOR_PA,
+    condensate_pathway: str = "immediate",
+    conversion_rate: float = CLOUD_WATER_CONVERSION_PER_M,
 ) -> Plume:
     """The plume of mass-flux-moisture-transport.md and its second erratum.
 
@@ -224,7 +262,17 @@ def entraining_plume(
     convection first returns to zero or below after its level of neutral
     buoyancy. CAPE_d is the positive area between the level of free convection
     and the level of neutral buoyancy.
+
+    ``condensate_pathway="carried"`` carries the condensate as cloud water,
+    brings each layer's mixture of moist static energy and total water to
+    equilibrium, converts ``ql / (1 + c0 dz)`` of it implicitly and loads the
+    buoyancy with what it carries on.
     """
+    if condensate_pathway not in CONDENSATE_PATHWAYS:
+        raise ConfigurationError(
+            f"condensate_pathway {condensate_pathway!r} is not one of {CONDENSATE_PATHWAYS}"
+        )
+    carried = condensate_pathway == "carried"
     latent = latent_heat
     T = np.asarray(temperature, dtype=float)
     m = np.asarray(layer_mass, dtype=float)
@@ -263,18 +311,36 @@ def entraining_plume(
     condensate = np.zeros(n)
     buoyancy = nan.copy()
     entrained = np.zeros(n)
+    liquid = nan.copy()
+    conversion = np.zeros(n)
+    formation = np.zeros(n)
+    cloud_evaporation = np.zeros(n)
 
-    def leave(k: int, h_mix: float, q_mix: float, mass: float) -> None:
+    def leave(k: int, h_mix: float, q_mix: float, mass: float, carried_in: float = 0.0) -> None:
         t, qv = _saturate(h_mix, q_mix, z[k], p[k], cp[k], latent, gravity)
         t_u[k], q_u[k] = t, qv
         s_u[k] = h_mix - latent * qv
         condensed = q_mix - qv
-        condensate[k] = mass * condensed
-        buoyancy[k] = gravity * ((t - T[k]) / T[k] + 0.61 * (qv - q[k]) - condensed)
+        if not carried:
+            condensate[k] = mass * condensed
+            buoyancy[k] = gravity * ((t - T[k]) / T[k] + 0.61 * (qv - q[k]) - condensed)
+            return
+        # ``condensed`` is the equilibrium cloud water of the mixture, whose
+        # total water includes what was carried in, diluted.
+        net = condensed - carried_in
+        formation[k] = mass * max(net, 0.0)
+        cloud_evaporation[k] = mass * max(-net, 0.0)
+        kept = condensed / (1.0 + conversion_rate * dz[k])
+        conversion[k] = mass * (condensed - kept)
+        liquid[k] = kept
+        condensate[k] = mass * net
+        buoyancy[k] = gravity * ((t - T[k]) / T[k] + 0.61 * (qv - q[k]) - kept)
 
     entrained[source] = 1.0
     leave(source, h_e[source], q[source], 1.0)
     h_u, q_t = h_e[source], q_u[source]
+    if carried:
+        q_t = q_u[source] + liquid[source]
     lfc = lnb = top = -1
     work = 0.0
     cape = 0.0
@@ -283,8 +349,12 @@ def entraining_plume(
         h_mix = (h_u + e * h_e[k]) / (1.0 + e)
         q_mix = (q_t + e * q[k]) / (1.0 + e)
         entrained[k] = e
-        leave(k, h_mix, q_mix, 1.0 + e)
-        h_u, q_t = h_mix, q_u[k]
+        if carried:
+            leave(k, h_mix, q_mix, 1.0 + e, liquid[k - 1] / (1.0 + e))
+            h_u, q_t = h_mix, q_u[k] + liquid[k]
+        else:
+            leave(k, h_mix, q_mix, 1.0 + e)
+            h_u, q_t = h_mix, q_u[k]
         b = buoyancy[k]
         if lfc < 0:
             if b > 0.0:
@@ -305,10 +375,10 @@ def entraining_plume(
     if top < 0:
         top = n - 1
     # Above the termination layer the plume does not exist.
-    for arr in (s_u, q_u, t_u, buoyancy):
+    for arr in (s_u, q_u, t_u, buoyancy, liquid):
         arr[top + 1 :] = np.nan
-    condensate[top + 1 :] = 0.0
-    entrained[top + 1 :] = 0.0
+    for arr in (condensate, entrained, conversion, formation, cloud_evaporation):
+        arr[top + 1 :] = 0.0
 
     flux = np.zeros(n + 1)
     flux[source + 1 : top + 1] = 1.0
@@ -328,6 +398,16 @@ def entraining_plume(
         condensate=condensate,
         buoyancy=buoyancy,
         cape=float(cape),
+        **(
+            {
+                "liquid": liquid,
+                "conversion": conversion,
+                "formation": formation,
+                "cloud_evaporation": cloud_evaporation,
+            }
+            if carried
+            else {}
+        ),
     )
 
 
@@ -498,6 +578,11 @@ class MassFluxStep:
     post_detrainment_excess: np.ndarray
     precipitation_entering: np.ndarray
     evaporation_limit_time: np.ndarray
+    formation_gross: np.ndarray
+    cloud_evaporation: np.ndarray
+    rain_evaporation: np.ndarray
+    precipitation_formed: np.ndarray
+    detrained_cloud: np.ndarray
 
 
 #: The decomposition fields, summed over substeps. ``precipitation_entering``
@@ -515,7 +600,17 @@ _PARTS = (
     "post_detrainment_excess",
     "precipitation_entering",
     "evaporation_limit_time",
+    "formation_gross",
+    "cloud_evaporation",
+    "rain_evaporation",
+    "precipitation_formed",
+    "detrained_cloud",
 )
+# The ledger (convective-condensate-ledger.md), kg m^-2 over the step:
+# ``formation_gross`` is C_form; ``cloud_evaporation`` E_cloud (in the plume and
+# on detrainment, or, when condensate leaves at once, the local-first share of
+# the cascade); ``rain_evaporation`` E_precip; ``precipitation_formed`` C_precip
+# where it forms; ``detrained_cloud`` the cloud water detrained.
 
 
 def apply_mass_flux(
@@ -552,6 +647,14 @@ def apply_mass_flux(
         raise ConfigurationError(
             f"precipitation_evaporation {precipitation_evaporation!r} is not one of "
             f"{PRECIPITATION_EVAPORATIONS}"
+        )
+    carried = plume.liquid is not None
+    if carried and (
+        detrained_state != "plume" or precipitation_evaporation not in ("none", "rate_law_only")
+    ):
+        raise ConfigurationError(
+            "carried cloud water detrains with the plume's own state and evaporates its "
+            "precipitation by the rate law or not at all"
         )
     n = np.asarray(layer_mass).size
     zero = np.zeros(n)
@@ -621,7 +724,51 @@ def apply_mass_flux(
     t_after = (s - gravity * z) / cp
     saturation = saturation_specific_humidity(t_after, p)
     deficits = saturation * m - q * m
-    if precipitation_evaporation == "cascade":
+    detrained_cloud = np.zeros(n)
+    if carried:
+        # Cloud water detrains into the receiving layer and evaporates there up
+        # to its wet-bulb capacity; what it cannot take becomes precipitation in
+        # that layer, as there is no prognostic cloud water to hold it.
+        assert plume.liquid is not None and plume.conversion is not None
+        assert plume.formation is not None
+        assert plume.cloud_evaporation is not None
+        limit = evaporation_capacity(t_after, q, p, cp, latent_heat) * m
+        detrained_cloud = scale * D * np.nan_to_num(plume.liquid)
+        taken = np.minimum(detrained_cloud, limit)
+        precipitation_formed = scale * plume.conversion + (detrained_cloud - taken)
+        if precipitation_evaporation == "rate_law_only":
+            moistened = q + taken / m
+            cooled = t_after - latent_heat * taken / (cp * m)
+            rain, _ = fall_and_evaporate(
+                precipitation_formed,
+                potential=1.0,
+                capacity=limit - taken,
+                specific_humidity=moistened,
+                saturation=saturation_specific_humidity(cooled, p),
+                layer_mass=m,
+                dt=dt,
+            )
+        else:
+            rain = np.zeros(n)
+        evaporated = taken + rain
+        formation_gross = scale * plume.formation
+        cloud_evaporation = scale * plume.cloud_evaporation + taken
+        rain_evaporation = rain
+    elif precipitation_evaporation == "none":
+        limit = np.zeros(n)
+        evaporated = np.zeros(n)
+    elif precipitation_evaporation == "rate_law_only":
+        limit = evaporation_capacity(t_after, q, p, cp, latent_heat) * m
+        evaporated, _ = fall_and_evaporate(
+            formed,
+            potential=1.0,
+            capacity=limit,
+            specific_humidity=q,
+            saturation=saturation,
+            layer_mass=m,
+            dt=dt,
+        )
+    elif precipitation_evaporation == "cascade":
         limit = deficits
         evaporated, _ = deposit_evaporation(evaporating_fraction * formed, limit)
     elif precipitation_evaporation == "below_cloud_base":
@@ -643,8 +790,17 @@ def apply_mass_flux(
                 layer_mass=m,
                 dt=dt,
             )
-    net = formed - evaporated
-    entering = np.concatenate((np.cumsum(net[::-1])[::-1][1:], [0.0]))
+    if not carried:
+        formation_gross = formed
+        if precipitation_evaporation in ("cascade", "wet_bulb_cascade", "below_cloud_base"):
+            # Local first: a layer's own share evaporates before what fell into it.
+            cloud_evaporation = np.minimum(evaporating_fraction * formed, np.maximum(limit, 0.0))
+        else:
+            cloud_evaporation = np.zeros(n)
+        rain_evaporation = evaporated - cloud_evaporation
+        precipitation_formed = formed - cloud_evaporation
+    falling = precipitation_formed - rain_evaporation
+    entering = np.concatenate((np.cumsum(falling[::-1])[::-1][1:], [0.0]))
     condensation = formed - evaporated
     vapour_change = (q - q0) * m + evaporated
     energy_change = (s - s0) * m - latent_heat * evaporated
@@ -665,6 +821,11 @@ def apply_mass_flux(
         post_detrainment_excess=post,
         precipitation_entering=entering,
         evaporation_limit_time=np.maximum(limit, 0.0) * dt,
+        formation_gross=formation_gross,
+        cloud_evaporation=cloud_evaporation,
+        rain_evaporation=rain_evaporation,
+        precipitation_formed=precipitation_formed,
+        detrained_cloud=detrained_cloud,
     )
 
 
@@ -687,6 +848,8 @@ def cloud_base_mass_flux(
     residual: float = 0.0,
     detrained_state: str = "plume",
     precipitation_evaporation: str = "cascade",
+    condensate_pathway: str = "immediate",
+    conversion_rate: float = CLOUD_WATER_CONVERSION_PER_M,
 ) -> tuple[float, float]:
     """M_b = max[0, (CAPE_d - C_residual) / (τ_c Γ_M)], and Γ_M.
 
@@ -734,6 +897,8 @@ def cloud_base_mass_flux(
         latent_heat=latent_heat,
         gravity=gravity,
         gas_constant=gas_constant,
+        condensate_pathway=condensate_pathway,
+        conversion_rate=conversion_rate,
     )
     rate = -(displaced.cape - plume.cape) / displacement
     if rate <= 0.0:
@@ -775,6 +940,8 @@ def convect(
     trigger: float = CAPE_TRIGGER_J_KG,
     detrained_state: str = "plume",
     precipitation_evaporation: str = "cascade",
+    condensate_pathway: str = "immediate",
+    conversion_rate: float = CLOUD_WATER_CONVERSION_PER_M,
 ) -> Convection:
     """Integrate the closure over ``dt`` as the rate law it is (third erratum).
 
@@ -803,7 +970,12 @@ def convect(
     first: tuple[Plume, float, float] | None = None
     while elapsed < dt * (1.0 - 1.0e-12):
         plume = entraining_plume(
-            temperature=T, vapour=w, entrainment_rate=entrainment_rate, **fixed
+            temperature=T,
+            vapour=w,
+            entrainment_rate=entrainment_rate,
+            condensate_pathway=condensate_pathway,
+            conversion_rate=conversion_rate,
+            **fixed,
         )
         flux, removal = cloud_base_mass_flux(
             plume,
@@ -815,6 +987,8 @@ def convect(
             trigger=trigger,
             detrained_state=detrained_state,
             precipitation_evaporation=precipitation_evaporation,
+            condensate_pathway=condensate_pathway,
+            conversion_rate=conversion_rate,
             **fixed,
         )
         if first is None:

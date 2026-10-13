@@ -17,6 +17,8 @@ import pytest
 from mfespf.core.constants import value_of
 from mfespf.core.errors import ConfigurationError
 from mfespf.physics.mass_flux import (
+    CLOUD_WATER_CONVERSION_LAND_PER_M,
+    CLOUD_WATER_CONVERSION_PER_M,
     DETRAINED_STATES,
     PRECIPITATION_EVAPORATION_EFFICIENCY,
     PRECIPITATION_EVAPORATIONS,
@@ -93,7 +95,7 @@ def test_the_plume_conserves_mass_water_and_moist_static_energy():
 @pytest.mark.parametrize(
     ("state", "evaporation"),
     [(state, "cascade") for state in DETRAINED_STATES]
-    + [("plume", evaporation) for evaporation in PRECIPITATION_EVAPORATIONS[1:]],
+    + [("plume", evaporation) for evaporation in PRECIPITATION_EVAPORATIONS[1:4]],
 )
 def test_the_operator_redistributes_energy_and_removes_only_precipitation(
     alpha, state, evaporation
@@ -127,7 +129,7 @@ def test_the_operator_redistributes_energy_and_removes_only_precipitation(
 @pytest.mark.parametrize(
     ("state", "evaporation"),
     [(state, "cascade") for state in DETRAINED_STATES]
-    + [("plume", evaporation) for evaporation in PRECIPITATION_EVAPORATIONS[1:]],
+    + [("plume", evaporation) for evaporation in PRECIPITATION_EVAPORATIONS[1:4]],
 )
 def test_subsidence_dries_and_warms_a_column_without_destroying_water(state, evaporation):
     """A4: one hour of the closure's mass flux on a moist, conditionally unstable
@@ -167,7 +169,7 @@ def test_no_cape_means_no_convection():
     flux, _ = cloud_base_mass_flux(plume, entrainment_rate=1.0e-3, evaporating_fraction=0.67, **c)
     assert flux == 0.0
     for state, evaporation in [(state, "cascade") for state in DETRAINED_STATES] + [
-        ("plume", evaporation) for evaporation in PRECIPITATION_EVAPORATIONS
+        ("plume", evaporation) for evaporation in PRECIPITATION_EVAPORATIONS[:4]
     ]:
         step = apply_mass_flux(
             plume,
@@ -328,6 +330,98 @@ def test_below_cloud_base_evaporates_nothing_at_or_above_cloud_base():
     assert float(np.sum(step.formed)) > 0.0
 
 
+@pytest.mark.req("CON-001", "EQR-002")
+@pytest.mark.parametrize("c0", [CLOUD_WATER_CONVERSION_PER_M, CLOUD_WATER_CONVERSION_LAND_PER_M])
+def test_the_carried_plume_conserves_its_cloud_water(c0):
+    """convective-condensate-ledger.md: carrying cloud water, the plume's net
+    condensation is what it converts plus what it detrains; its moist static
+    energy and vapour budgets hold as before; and a slower conversion carries
+    more water up."""
+    c = _column()
+    plume = entraining_plume(
+        entrainment_rate=1.0e-3, condensate_pathway="carried", conversion_rate=c0, **c
+    )
+    assert plume.active and plume.liquid is not None and plume.conversion is not None
+    assert plume.formation is not None and plume.cloud_evaporation is not None
+    detrained = plume.detrainment * np.nan_to_num(plume.liquid)
+    net = float(np.sum(plume.condensate))
+    assert net == pytest.approx(float(np.sum(plume.conversion) + np.sum(detrained)), rel=1e-12)
+    np.testing.assert_allclose(
+        plume.condensate, plume.formation - plume.cloud_evaporation, atol=1e-15
+    )
+    h_e, q_e = _h_and_q(c)
+    reached = ~np.isnan(plume.s_u)
+    h_u = np.where(reached, plume.s_u + LATENT * np.nan_to_num(plume.q_u), 0.0)
+    E, D = plume.entrainment, plume.detrainment
+    scale = float(np.max(np.abs(h_e)))
+    assert abs(float(np.sum(E * h_e - D * h_u))) < 1e-12 * scale * np.sum(E)
+    assert float(np.sum(E * q_e - D * np.nan_to_num(plume.q_u))) == pytest.approx(net, rel=1e-12)
+
+
+@pytest.mark.req("CON-001", "CON-004", "EQR-002")
+@pytest.mark.parametrize(
+    ("pathway", "evaporation"),
+    [("immediate", evaporation) for evaporation in PRECIPITATION_EVAPORATIONS]
+    + [("carried", "none"), ("carried", "rate_law_only")],
+)
+def test_the_condensate_ledger_closes(pathway, evaporation):
+    """Every unit of condensate formed is evaporated as cloud, evaporated as
+    rain, or reaches the surface: C_form = E_cloud + E_precip + P_surface. The
+    redistribution still sums to zero and the water leaves only as
+    precipitation."""
+    c = _column()
+    result = convect(
+        dt=3600.0,
+        entrainment_rate=1.0e-3,
+        evaporating_fraction=0.67,
+        precipitation_evaporation=evaporation,
+        condensate_pathway=pathway,
+        **c,
+    )
+    step = result.step
+    assert result.mean_cloud_base_flux > 0.0
+    formed = float(np.sum(step.formation_gross))
+    destinations = (
+        float(np.sum(step.cloud_evaporation))
+        + float(np.sum(step.rain_evaporation))
+        + step.surface_precipitation
+    )
+    assert destinations == pytest.approx(formed, rel=1e-12)
+    assert float(np.sum(step.precipitation_formed)) == pytest.approx(
+        formed - float(np.sum(step.cloud_evaporation)), rel=1e-12
+    )
+    typical = float(np.max(np.abs(step.energy)))
+    assert abs(float(np.sum(step.energy))) < 1e-10 * typical
+    assert abs(float(np.sum(step.transport))) < 1e-12 * float(np.sum(c["vapour"]))
+    assert float(np.sum(step.condensation)) == pytest.approx(step.surface_precipitation, rel=1e-12)
+    if evaporation == "none":
+        assert not np.any(step.rain_evaporation)
+    if pathway == "carried":
+        assert float(np.sum(step.detrained_cloud)) > 0.0
+
+
+@pytest.mark.req("CON-004", "KER-005")
+@pytest.mark.parametrize("evaporation", ["none", "cascade"])
+def test_the_recycling_counterfactual(evaporation):
+    """convective-condensate-ledger.md: the water module's re-condensation of
+    convection's evaporation, as a counterfactual. With no evaporation it is
+    exactly zero. With the cascade's evaporation, limited by the deficit before
+    its own cooling, some is re-condensed, and never more than was evaporated."""
+    run = _warm_moist_column(
+        precipitation_evaporation=evaporation, diagnose_convective_recycling=True
+    ).run(4)
+    assert run.may_support_a_claim, run.manifest.invalidation_reasons + run.manifest.warnings
+    recycled = np.array(
+        [s.outputs["convective_evaporation_recondensation_rate"].values for s in run.steps]
+    )
+    evaporated = np.array([s.outputs["convective_evaporation_rate"].values for s in run.steps])
+    if evaporation == "none":
+        assert not np.any(recycled)
+    else:
+        assert float(np.sum(recycled)) > 0.0
+        assert np.all(recycled <= evaporated * (1.0 + 1e-9) + 1e-18)
+
+
 def _warm_moist_column(**overrides):
     n = 30
     options = dict(
@@ -345,7 +439,13 @@ def _warm_moist_column(**overrides):
     )
     options.update(overrides)
     probe = reference_column(
-        **{**options, "mass_flux_convection": False, "convective_target": "entraining_plume"}
+        **{
+            **options,
+            "mass_flux_convection": False,
+            "convective_target": "entraining_plume",
+            "precipitation_evaporation": "cascade",
+            "diagnose_convective_recycling": False,
+        }
     )
     atmosphere = next(s.module for s in probe.schedule.ordered() if s.module_id == "atmosphere")
     pressure = np.asarray(atmosphere.layer_pressure, dtype=float)

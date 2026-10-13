@@ -375,3 +375,227 @@ the surface precipitation. It is not classified.
 - **Stage B's replay** is diagnostic code in the run script. It wraps
   `convect` the way the common radiation wraps radiation, and is not a
   module option.
+
+---
+
+## Result (appended; nothing above this line changed)
+
+**Checks.**
+
+- **The default pathway is bit-for-bit the previous code.** The digest of
+  `convect` and six coupled steps matched the E-state code.
+- **All 14 runs that completed** closed water and energy to 4.9-6.3e-16.
+  They are invalid on the validity-domain gate only, as every run in this
+  branch has been. The conservation gate passed, and the radiation replay
+  was identical at every step.
+- **The ledger closes** at every step of every Stage A run, worst 3.9e-16
+  relative.
+- **Aα0 reproduces E0:** RH 0.93720.
+- **The recording run reproduces Aα0,** and B1-Pα0 reproduces the recording
+  run's RH series to every digit. That checks the replay.
+- **Pα2 never needed its fallback.**
+
+### Stage A: what each pathway realises (days 10-20, column)
+
+| | α_total | E_cloud/C_form | E_precip/C_form | α_rain = 1 − SE | PE | C_recycle, kg m^-2 | α_net | RH 300-700 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Aα0, E0 | 0.670 | 0.655 | 0.015 | 0.044 | 0.330 | 3.40 | 0.642 | 0.937 |
+| Aα1, rain law only | 0.062 | 0 | 0.062 | 0.062 | 0.938 | 0 | 0.062 | 0.711 |
+| Aα2, cloud only, c0 0.045 | 0.014 | 0.014 | 0 | 0 | 0.986 | 0 | 0.014 | 0.705 |
+| Aα2, cloud only, c0 0.0059 | 0.098 | 0.098 | 0 | 0 | 0.902 | 0 | 0.098 | 0.726 |
+| Aα3, combined, c0 0.045 | 0.077 | 0.014 | 0.063 | 0.064 | 0.923 | 0 | 0.077 | 0.711 |
+| Aα3, combined, c0 0.0059 | 0.152 | 0.098 | 0.054 | 0.059 | 0.848 | 0 | 0.152 | 0.735 |
+| source (REF-MOIST), band ±0.05 | 0.62-0.67 | 0.31-0.46 | 0.21-0.31 | 0.38-0.45 | 0.33-0.38 | | | |
+
+**In Aα1-Aα3, convection runs as in E2:**
+
+- duty cycle 0.40-0.47;
+- CAPE 118-142;
+- surface 313.4-313.9 K.
+
+**Verdict as frozen: not operationally defined in this model.**
+
+- Aα3's α_total is 0.077 and 0.152, not within [0.57, 0.72].
+- Aα1's is 0.062, not ≥ 0.57.
+- So 0.67 is not used as a coefficient in this column.
+
+**The pathways against their bands:**
+
+- **Cloud,** Aα2's E_cloud/C_form: 0.014 and 0.098 against [0.26, 0.51].
+  **Below.**
+- **Rain,** E_precip/C_form: Aα1 0.062, Aα3 0.063 and 0.054, against
+  [0.16, 0.36]. **Below.**
+- **α_rain per unit of precipitation formed:** 0.06 against the source's
+  0.38-0.45, which carries no band.
+
+**Aα3 as the candidate, against the acceptance list:**
+
+| requirement | status |
+|---|---|
+| conserves tagged and total water | met (6e-16; ledger 4e-16) |
+| conserves energy | met |
+| respects local condensate availability | met: evaporation never exceeds what falls in or is detrained |
+| respects local thermodynamic capacity | met: the wet-bulb limit |
+| emergent, defined α | met: 0.077 or 0.152 |
+| no forced evaporation-recondensation | met: C_recycle = 0 |
+| timestep convergence | **not tested** |
+| radiation not upper-atmosphere-invalid | **not met** under the frozen radiation |
+
+### Stage B: placement at a fixed amount
+
+**B1, matched total.** E_gross is 80.287 kg m^-2 in every profile, with
+identical convection: duty cycle 0.908 and mass transport 7207.
+
+| | RH 300-700 | C_recycle | E_retained | evaporation mean p | surface P | T_s | budget sum / actual |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Pα0, E0's profile | 0.9372 | 3.40 | 76.88 | 550 hPa | 43.32 | 311.09 | 0.037 / 0.038 |
+| Pα1, formation level | 0.9344 | 3.47 | 76.82 | 547 | 43.36 | 311.09 | 0.032 / 0.034 |
+| **Pα2, falling path** | **0.7421** | 0.06 | 80.23 | 581 | 39.77 | 309.66 | 0.032 / 0.035 |
+| Pα3, below 850 hPa | refused at step 87 | | | | | | |
+
+**B2, capacity-limited:**
+
+| | RH 300-700 | C_recycle | E_retained |
+|---|---:|---:|---:|
+| Pα0 | 0.9871 | 0.20 | 80.08 |
+| Pα1 | 0.9871 (identical to Pα0 to every digit) | 0.20 | 80.08 |
+| Pα2 | 0.7432 | 0.002 | 80.29 |
+| Pα3 | refused at step 87 | | |
+
+**Pα3 was refused, as the protocol provides.**
+
+- **The refusal:** "ConfigurationError raised by water at step 87:
+  convection's condensation drew a layer's vapour below zero."
+- **The cause:** the replayed condensate formation in the upper layers was
+  computed on E0's state. There it was offset in the same layers by local
+  evaporation. With the evaporation moved below 850 hPa, those layers could
+  no longer supply it.
+- **It is reported, not repaired.** Pα3 has no result.
+
+**Verdict as frozen: placement independently supported, by B1-Pα2.**
+
+- **The size:** RH differs from Pα0's by 0.195, with identical E_gross,
+  identical L·E_gross and identical convection.
+- **Pα1 does not differ materially** (-0.003).
+
+**Attribution.**
+
+- **Convection** is identical by construction.
+- **Recondensation** falls from 3.40 to 0.06 kg m^-2.
+- **Both budgets reconstruct.** They are balances, so their terms describe
+  how each equilibrium is held, not why the two differ:
+  - re-evaporation's vapour +3.27 against +2.98, and its cooling +2.46
+    against +2.68;
+  - subsidence -7.96 against -7.03;
+  - detrainment +1.04 against +0.74;
+  - large-scale condensation 0.00 against -0.57.
+- **What differs is where.**
+  - Pα0 and Pα1 put most of the evaporation into layers that sit at
+    saturation: 355-455 hPa, at RH 0.98-1.0. There 3.4 kg m^-2 of it
+    re-condenses and rains out, and the upper half of the band stays
+    saturated.
+  - Pα2's weights are zero in saturated layers. They place the same water
+    lower and in drier air, and 322-423 hPa falls to RH 0.61-0.68.
+
+**B2 is reported, not classified.**
+
+- **Pα0 and Pα1 coincide to every digit.** The capacity-limited cascade
+  fills each layer to its wet-bulb capacity from the top down. Both profiles
+  put enough into the upper layers that the outcome depends only on the
+  step's total and the capacities. That is an inference from the identity,
+  not measured apart.
+- **Both are wetter than B1-Pα0** (0.987). Without the overshoot, there is no
+  recondensation raining water out, as E1 found.
+- **Pα2 under the capacity limit** (0.743) matches B1-Pα2.
+
+### What the result says, and what it does not
+
+**1. The measured 0.67 is total condensate return,** by its source's
+definition. In this column, at CAM5 Zhang-McFarlane's own constants, the
+model's physical pathways realise 0.08-0.15 of it.
+
+- **Each pathway falls short of the source's split:**
+  - cloud evaporation by a factor of 3-30. c0 converts the cloud water
+    within a layer: an e-folding of 22 m at the ocean value, against layers
+    hundreds of metres deep.
+  - rain evaporation by a factor of 3-6, at ke = 1e-6.
+- **The working hypothesis, "a category mismatch rather than a coefficient
+  mismatch", holds in part.**
+  - The category mismatch is real: 0.67 is total, and E2 was measuring rain
+    alone.
+  - But both categories are also under-realised here. That remains a
+    coefficient or structure question.
+- **E0 implements 0.67 as cloud return at the formation level.** Its
+  local-first share is 0.655, larger than the source's 0.31-0.46. Its rain
+  share is 0.015, far below the source's 0.21-0.31.
+
+**2. Placement controls the humidity on its own, at a fixed amount.**
+
+- Moving the same evaporated water, with the same cooling and the same
+  convection, from saturated formation layers into subsaturated layers
+  along the fall path lowers RH 300-700 from 0.937 to 0.742. It also ends
+  the recycling.
+- **This is the isolation E2 and E3 could not give.**
+- **The RH of about 0.71 in E2, E3 and Aα1-Aα3 is therefore both amount
+  and placement.** At the full amount, placement alone gives 0.742.
+
+**3. Recycling is placement-driven.**
+
+- It is 3.4 kg m^-2 where the evaporation goes into saturated layers.
+- It is near zero where the evaporation follows subsaturation, at either
+  limit.
+
+**Not concluded:**
+
+- no production adoption, no default changed, no constant tuned;
+- **what amount is right:**
+  - the source is cumulus congestus LES, and the counting differs;
+  - CAM's c0 and ke are tuned values whose meaning against FE and SE is
+    not established here;
+- timestep convergence and interactive or valid radiation are untested;
+- the stratospheric protocol is still unopened.
+
+### Addendum: the user's disposition (2026-10-13)
+
+**α, recorded as the user worded it:**
+
+> The externally measured α = 0.67 represents total condensate return,
+> 1 − FE × SE, in cumulus-congestus LES. It is not operationally realizable
+> as a direct coefficient in the present column model. At the existing CAM5 ZM
+> constants, the modeled cloud and rain pathways produce a combined
+> condensate return of 0.077–0.152. Therefore, α = 0.67 shall not be imposed,
+> tuned to, or used as an acceptance target.
+
+**c0 and ke are not fitted.** The current constants are a baseline
+hypothesis, not validated parameters. An amount protocol is deferred until
+there are:
+
+- regime-matched observations or LES targets; or
+- several independent constraints beyond total condensate return.
+
+**Placement, as the user records it:** "Vertical placement independently
+controls free-tropospheric RH." RH 0.742 is not the model's accepted answer.
+The placement effect is causal and large.
+
+**Pα3, kept as a valid failed diagnostic:**
+
+> Relocating all matched evaporation below 850 hPa was incompatible with the
+> replayed upper-level water tendencies and produced negative vapor at step
+> 87. The prescribed profile was therefore physically inadmissible under the
+> protocol.
+
+It is not repaired or rerun under this freeze.
+
+**The identical capacity-limited results:**
+
+> The capacity-limited E0 and formation-level profiles produced identical
+> states. A top-down capacity-filling cascade is a candidate explanation, but
+> was not instrumented in this protocol.
+
+**The sequence that follows:**
+
+1. F0, the fall-path candidate, under frozen radiation, with a timestep
+   study.
+2. The stratospheric protocol.
+3. F0 with interactive radiation.
+4. Reconsidering P1-P3, which stay blocked until then.
