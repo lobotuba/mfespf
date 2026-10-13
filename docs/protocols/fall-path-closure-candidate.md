@@ -425,3 +425,94 @@ All three runs completed:
     changed.
 - **The stratospheric protocol and the interactive-radiation run** follow
   only once these are settled.
+
+### Addendum: the user's disposition (2026-10-13)
+
+> F0 remains not qualified as a closure candidate. F4 is a substantive
+> timestep-dependent plume-top equilibrium failure and requires a bounded
+> temporal-coupling protocol. F6 failed its frozen criterion, but the failure
+> is numerical conditioning rather than demonstrated water-path topology loss.
+> A prospective mixed absolute/local-scale criterion shall replace the
+> relative-only criterion in subsequent protocols. The provenance tracer is
+> retained because its column inventories, milestone ordering, recycling
+> test, option-off identity, and efficiency identity all pass.
+
+**F4, as recorded:**
+
+> F4 failed. The failure is confined primarily to the 254–288 hPa plume-top
+> region. Lower-tropospheric RH and precipitation are approximately
+> converged, but the vertical RH profile, convective duty cycle, CAPE and
+> event structure remain timestep dependent. F0 is therefore not a closure
+> candidate under the frozen gates.
+
+**F6, as recorded:**
+
+> F6 failed as frozen. The failure is attributable to an ill-conditioned
+> per-layer relative class-sum test in strongly depleted layers. Absolute
+> discrepancies are at floating-point roundoff, while column inventory
+> closure and pathway identities pass. This does not reclassify frozen F6 as
+> passed.
+
+### The successor to F6, frozen here for subsequent protocols
+
+It does not apply to the result above. It asks whether the class-sum residual
+is larger than floating-point accumulation on the scale the calculation was
+performed at, not whether it is small against the nearly empty state left
+afterwards.
+
+**The quantities:**
+
+- r_k = Σ_classes − q_v,k, per layer and step.
+- Q_scale,k is the largest vapour layer k has held up to that step, since the
+  run began.
+- ε = 2.22e-16, double precision.
+- K = 16·N, with N the number of host steps so far.
+  - 16 is the operations each class value undergoes per step: the operator,
+    detrainment, the evaporation of detrained cloud, the fall, diffusion and
+    condensation, with margin.
+  - The factor N is linear accumulation, the conservative bound for a
+    residual that persists across steps.
+- Q_min = 1e-30 kg m^-2. A layer that has never held vapour must hold no
+  class water.
+
+**The gates:**
+
+- **F6a, local:** |r_k| ≤ K·ε·max(Q_scale,k, Q_min), at every layer and step.
+- **F6b, column:** the same with column sums.
+  |Σ_k Σ_classes − Σ_k q_v,k| ≤ K·ε·max(Σ_k Q_scale,k, Q_min).
+- **F6c, pathway topology:**
+  - 0 ≤ P_surface,unique ≤ C_precip,unique ≤ C_unique;
+  - PE = FE·SE to 1e-14 relative;
+  - both inventory closures to 1e-12 of throughput;
+  - the recycling-invariance unit test.
+
+**Σ_k |r_k| / throughput** is retained as a cumulative ledger-quality
+diagnostic. It is not a gate.
+
+**Read against run 2, for information only.** It does not change the frozen
+F6 result:
+
+- the worst residual was 4.1e-16 kg m^-2 at 900 s;
+- the layer's Q_scale is at least 2.9e-3 kg m^-2;
+- K·ε·Q_scale = 16 × 1920 × 2.22e-16 × 2.9e-3 = 2.0e-14 kg m^-2;
+- so the residual sits 50 times inside.
+
+**No exact reconciliation of a designated class is introduced.** If one is
+used later, it follows the user's sequence:
+
+1. record the unreconciled residual;
+2. fail it against F6a;
+3. assign it to the largest class;
+4. verify that no class goes negative;
+5. record the reconciliation's magnitude.
+
+### The sequence that follows
+
+1. The stratospheric protocol, now, independently.
+2. A plume-top temporal-coupling protocol:
+   - T1, instrument events;
+   - T2, a common internal convective step;
+   - T3, the distribution of termination levels, and only then a frozen
+     fractional-terminal-layer variant.
+3. F0 qualification rerun.
+4. F0 with interactive radiation, which stays blocked until then.
