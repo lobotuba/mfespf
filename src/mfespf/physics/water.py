@@ -218,9 +218,15 @@ class WaterModule(Module):
         eddy_diffusivity: float = 0.0,
         receives_convective_transport: bool = False,
         end_of_step_saturation: bool = False,
+        receives_convective_condensation: bool = False,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         diffusing = eddy_diffusivity > 0.0
+        if receives_convective_condensation and not receives_convective_transport:
+            raise ConfigurationError(
+                "convective condensation arrives with convection's transport; it needs "
+                "receives_convective_transport"
+            )
         if end_of_step_saturation and not receives_convective_transport:
             raise ConfigurationError(
                 "the end-of-step temperature is only formed after every other heating "
@@ -308,6 +314,10 @@ class WaterModule(Module):
                 # (docs/protocols/convective-condensation-order.md): what it lifts
                 # above saturation condenses here, in the same step.
                 *(("convective_vapour_transport_rate",) if receives_convective_transport else ()),
+                # Mass-flux convection's net condensation, formed less evaporated
+                # (mass-flux-moisture-transport.md, erratum 2): this module books
+                # its precipitation and its latent heat, as it books its own.
+                *(("convective_condensation_rate",) if receives_convective_condensation else ()),
                 # Every other heating of the layers this step, to form the
                 # temperature the step ends at (docs/protocols/end-of-step-saturation.md).
                 *(
@@ -429,6 +439,8 @@ class WaterModule(Module):
         self.receives_advection = receives_advection
         self.receives_convective_transport = receives_convective_transport
         self.end_of_step_saturation = end_of_step_saturation
+        self.receives_convective_condensation = receives_convective_condensation
+        self._convective_condensation = np.zeros(0)
         self.eddy_diffusivity = float(eddy_diffusivity)
         self._diffusion_rate = np.zeros(n_layers)
         self.initial_relative_humidity = initial_relative_humidity
@@ -567,6 +579,20 @@ class WaterModule(Module):
                 convective.time_interval or ctx.dt
             )
             provisional = np.array(self.vapour) + advected
+        # The plume's net condensation leaves the vapour here and enters this
+        # module's condensation below: the same precipitation, latent heat and
+        # fusion excess as condensation this module forms itself.
+        self._convective_condensation = np.zeros_like(provisional)
+        if self.receives_convective_condensation:
+            rate = self.input_field("convective_condensation_rate").require_units("kg m^-2 s^-1")
+            self._convective_condensation = np.asarray(rate.values, dtype=float) * float(
+                rate.time_interval or ctx.dt
+            )
+            provisional = provisional - self._convective_condensation
+            if np.any(provisional < 0.0):
+                raise ConfigurationError(
+                    "convection's condensation drew a layer's vapour below zero"
+                )
         # Eddy diffusion is this module's own transport, so it is in the
         # provisional profile the saturation adjustment acts on: whatever
         # diffuses into a layer colder than the air below it condenses there.
@@ -594,6 +620,7 @@ class WaterModule(Module):
             saturation, self._condensation = self._end_of_step_adjustment(
                 provisional, np.asarray(pressure, dtype=float), np.asarray(heat_capacity), ctx.dt
             )
+        self._condensation = self._condensation + self._convective_condensation
         self._precipitation = float(np.sum(self._condensation)) / ctx.dt
         # Where the layer is below the triple point the vapour deposits as ice
         # rather than condensing as liquid, so it releases the latent heat of
@@ -605,7 +632,9 @@ class WaterModule(Module):
         self._fusion_heating = excess * self._condensation / ctx.dt
         self._latent_heating = self.latent_heat * self._condensation / ctx.dt + self._fusion_heating
 
-        final = provisional - self._condensation
+        # Convection's condensation already left the provisional profile above;
+        # only this module's own leaves it here.
+        final = provisional - (self._condensation - self._convective_condensation)
         self._specific_humidity = final / self._layer_mass
         self._relative_humidity = np.divide(
             self._specific_humidity,
@@ -687,6 +716,15 @@ class WaterModule(Module):
         heating[0] += float(
             self.input_field("surface_sensible_heat_flux").require_units("W m^-2").scalar()
         )
+        # The latent heat of convection's net condensation is this module's to
+        # add, so the temperature the step ends at has to include it.
+        if self._convective_condensation.size:
+            heating = (
+                heating
+                + (self.latent_heat + deposition_latent_heat_excess(self._layer_temperature))
+                * self._convective_condensation
+                / dt
+            )
         t_star = (
             self._layer_temperature
             + heating / heat_capacity * dt

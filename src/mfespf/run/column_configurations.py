@@ -40,6 +40,7 @@ from mfespf.physics.convection import ConvectiveAdjustmentModule
 from mfespf.physics.equations import EQUATION_IDS, build_equation_registry
 from mfespf.physics.gravity import GravityField
 from mfespf.physics.greenhouse import CALIBRATION_N_LAYERS
+from mfespf.physics.mass_flux import CONVECTIVE_ADJUSTMENT_TIME_S, PLUME_ENTRAINMENT_PER_M
 from mfespf.physics.ocean import (
     OCEAN_DEEP_STATE,
     DeepOceanModule,
@@ -663,6 +664,9 @@ def radiating_column(
     vapour_transport: bool = False,
     surface_based_convection: bool = False,
     convective_target: str = "dry_adiabat",
+    mass_flux_convection: bool = False,
+    plume_entrainment_rate: float | None = None,
+    convective_adjustment_time: float | None = None,
     prescribed_humidity: float | None = None,
     plume_humidity: bool = False,
     plume_vertical_structure: bool = False,
@@ -1028,6 +1032,7 @@ def radiating_column(
                     eddy_diffusivity=eddy_diffusivity,
                     receives_convective_transport=condense_after_convection,
                     end_of_step_saturation=end_of_step_saturation,
+                    receives_convective_condensation=mass_flux_convection,
                 ),
                 step_multiple=1,
             )
@@ -1050,6 +1055,17 @@ def radiating_column(
                     fractional_top=convective_fractional_top,
                     receives_advection=receives_advection,
                     condensation_follows=condense_after_convection,
+                    mass_flux=mass_flux_convection,
+                    plume_entrainment_rate=(
+                        plume_entrainment_rate
+                        if plume_entrainment_rate is not None
+                        else PLUME_ENTRAINMENT_PER_M
+                    ),
+                    convective_adjustment_time=(
+                        convective_adjustment_time
+                        if convective_adjustment_time is not None
+                        else CONVECTIVE_ADJUSTMENT_TIME_S
+                    ),
                 ),
                 step_multiple=1,
             )

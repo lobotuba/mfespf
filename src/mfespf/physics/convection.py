@@ -75,8 +75,15 @@ from mfespf.core.versioning import (
 )
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.equations import EQUATION_IDS
+from mfespf.physics.mass_flux import (
+    CAPE_TRIGGER_J_KG,
+    CONVECTIVE_ADJUSTMENT_TIME_S,
+    PLUME_ENTRAINMENT_PER_M,
+    convect,
+)
 from mfespf.physics.plume import (
     BULK_PLUME_PARAMETER,
+    EVAPORATING_CONDENSATE_FRACTION,
     bulk_plume_declaration,
     entraining_lapse_rate,
 )
@@ -177,9 +184,26 @@ class ConvectiveAdjustmentModule(Module):
         fractional_top: bool = False,
         receives_advection: bool = False,
         condensation_follows: bool = False,
+        mass_flux: bool = False,
+        plume_entrainment_rate: float = PLUME_ENTRAINMENT_PER_M,
+        convective_adjustment_time: float = CONVECTIVE_ADJUSTMENT_TIME_S,
+        cape_trigger: float = CAPE_TRIGGER_J_KG,
+        evaporating_fraction: float = EVAPORATING_CONDENSATE_FRACTION,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         relaxed = relaxation_timescale > 0.0
+        # Mass-flux convection (mass-flux-moisture-transport.md) replaces the moist
+        # adjustment, so it composes only with the dry one, and only where the
+        # water module condenses after it, because the plume's condensation is
+        # handed to the water module to book.
+        if mass_flux and not (
+            condensation_follows and transport_vapour and target == "dry_adiabat" and not relaxed
+        ):
+            raise ConfigurationError(
+                "mass-flux convection replaces the entraining-plume adjustment: it needs "
+                "target='dry_adiabat', vapour transport, condensation after convection, "
+                "and no relaxation timescale"
+            )
         if condensation_follows and not transport_vapour:
             raise ConfigurationError(
                 "condensation can only follow convection's vapour transport when "
@@ -208,6 +232,11 @@ class ConvectiveAdjustmentModule(Module):
                 ),
                 EQUATION_IDS["sensible_heat"],
                 *((EQUATION_IDS["entraining_lapse_rate"],) if target == "entraining_plume" else ()),
+                *(
+                    (EQUATION_IDS["mass_flux_convection"], EQUATION_IDS["clausius_clapeyron"])
+                    if mass_flux
+                    else ()
+                ),
             ),
             assumptions=(
                 "the surface exchange coefficient absorbs wind speed and stability",
@@ -269,6 +298,8 @@ class ConvectiveAdjustmentModule(Module):
                     if receives_advection
                     else ()
                 ),
+                # The plume's layer thicknesses.
+                *(("atmosphere_interface_pressure",) if mass_flux else ()),
             ),
             produced_outputs=(
                 "convective_temperature_tendency",
@@ -278,6 +309,21 @@ class ConvectiveAdjustmentModule(Module):
                 "surface_sensible_heat_flux",
                 *(("surface_convective_heat_flux",) if surface_based else ()),
                 *(("convective_vapour_transport_rate",) if condensation_follows else ()),
+                *(
+                    (
+                        "convective_condensation_rate",
+                        "cloud_base_mass_flux",
+                        "dilute_cape",
+                        "cape_removal_per_unit_mass_flux",
+                        "convective_surface_precipitation",
+                        "plume_temperature",
+                        "plume_buoyancy",
+                        "plume_top_pressure",
+                        "mass_flux_substeps",
+                    )
+                    if mass_flux
+                    else ()
+                ),
             ),
             conserved_quantities=("energy",),
             internal_sources_and_sinks=(),
@@ -337,6 +383,15 @@ class ConvectiveAdjustmentModule(Module):
                         ("T", "convectively_mixed_layer_temperature", "K"),
                         ("a", "bulk_plume_parameter", "1"),
                     ),
+                ),
+                # The plume saturates at its own temperature, where it exists.
+                *(
+                    (
+                        (EQUATION_IDS["clausius_clapeyron"], (("T", "plume_temperature", "K"),)),
+                        (EQUATION_IDS["mass_flux_convection"], (("T", "plume_temperature", "K"),)),
+                    )
+                    if mass_flux
+                    else ()
                 ),
             ),
             uncertainty_outputs=(
@@ -438,6 +493,19 @@ class ConvectiveAdjustmentModule(Module):
         self.fractional_top = fractional_top
         self.receives_advection = receives_advection
         self.condensation_follows = condensation_follows
+        self.mass_flux = mass_flux
+        self.plume_entrainment_rate = plume_entrainment_rate
+        self.convective_adjustment_time = convective_adjustment_time
+        self.cape_trigger = cape_trigger
+        self.evaporating_fraction = evaporating_fraction
+        self._mass_flux_tendency: np.ndarray | None = None
+        self._convective_condensation: np.ndarray | None = None
+        self._plume: Any = None
+        self._cloud_base_flux = 0.0
+        self._cape_removal = 0.0
+        self._surface_precipitation = 0.0
+        self._mass_flux_substeps = 0
+        self._vapour_base: np.ndarray | None = None
         self._vapour_change: np.ndarray | None = None
         self._partial_tops: dict[int, float] = {}
         self._held_rate: np.ndarray | None = None
@@ -585,6 +653,7 @@ class ConvectiveAdjustmentModule(Module):
             w = w + np.asarray(advection.require_units("kg m^-2 s^-1").values, dtype=float) * float(
                 advection.time_interval or self._vapour_dt
             )
+        self._vapour_base = np.array(w)
         mixed = np.array(w)
         for low, high in groups:
             span = slice(low, high + 1)
@@ -778,6 +847,16 @@ class ConvectiveAdjustmentModule(Module):
             # A redistribution, so it sums to zero by construction. Anything
             # else would be convection creating or destroying water.
             self._vapour_moved = float(np.sum(np.abs(vapour_change)) / 2.0)
+        self._mass_flux_tendency = None
+        self._convective_condensation = None
+        if self.mass_flux:
+            vapour_change = self._apply_mass_flux(
+                np.asarray(adjusted, dtype=float),
+                heat_capacity,
+                pressure,
+                layer_mass,
+                vapour_change,
+            )
         self._vapour_change = vapour_change
 
         # The sensible flux is submitted separately from the mixing so the two
@@ -828,6 +907,20 @@ class ConvectiveAdjustmentModule(Module):
             *(
                 (
                     TendencyContribution(
+                        state_id=ATMOSPHERE_TEMPERATURE_STATE,
+                        provider_module_id=self.module_id,
+                        label="mass_flux_transport",
+                        value=self._mass_flux_tendency,
+                        units="K s^-1",
+                        equation_id=EQUATION_IDS["mass_flux_convection"],
+                    ),
+                )
+                if self._mass_flux_tendency is not None
+                else ()
+            ),
+            *(
+                (
+                    TendencyContribution(
                         state_id=VAPOUR_STATE,
                         provider_module_id=self.module_id,
                         label="convective_vapour_transport",
@@ -844,17 +937,196 @@ class ConvectiveAdjustmentModule(Module):
             ),
         ]
 
+    def _apply_mass_flux(
+        self,
+        adjusted: np.ndarray,
+        heat_capacity: np.ndarray,
+        pressure: np.ndarray,
+        layer_mass: np.ndarray,
+        vapour_change: np.ndarray | None,
+    ) -> np.ndarray:
+        """The plume, its closure and its transport on the dry-adjusted profile.
+
+        Returns the step's whole vapour redistribution (the dry groups' mixing
+        plus the plume's transport), and keeps the plume's temperature tendency
+        and its net condensation for the water module (the protocol's erratum 2).
+        """
+        ctx = self.context
+        base = self._vapour_base
+        if base is None or vapour_change is None:
+            raise ConfigurationError("mass-flux convection needs the vapour")
+        if abs(self._vapour_dt - ctx.dt) > 1.0e-9 * ctx.dt:
+            raise ConfigurationError(
+                "mass-flux convection composes with the water module over one interval"
+            )
+        vapour = base + vapour_change
+        interfaces = np.asarray(
+            self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
+            dtype=float,
+        )
+        common = dict(
+            temperature=adjusted,
+            vapour=vapour,
+            layer_mass=layer_mass,
+            heat_capacity=np.asarray(heat_capacity, dtype=float),
+            pressure=np.asarray(pressure, dtype=float),
+            interface_pressure=interfaces,
+            latent_heat=value_of("water_latent_heat_vaporization_273"),
+            gravity=value_of("earth_standard_gravity"),
+            gas_constant=value_of("gas_constant_dry_air"),
+        )
+        result = convect(
+            dt=ctx.dt,
+            entrainment_rate=self.plume_entrainment_rate,
+            evaporating_fraction=self.evaporating_fraction,
+            adjustment_time=self.convective_adjustment_time,
+            trigger=self.cape_trigger,
+            **common,
+        )
+        step = result.step
+        self._plume = result.plume
+        self._cloud_base_flux = result.mean_cloud_base_flux
+        self._cape_removal = result.cape_removal
+        self._surface_precipitation = step.surface_precipitation / ctx.dt
+        self._mass_flux_substeps = step.substeps
+        self._mass_flux_tendency = step.energy / np.asarray(heat_capacity, dtype=float) / ctx.dt
+        self._convective_condensation = step.condensation / ctx.dt
+        return vapour_change + step.transport
+
+    def _mass_flux_outputs(self, ctx: Any) -> dict[str, Field]:
+        if not self.mass_flux:
+            return {}
+        provenance = Provenance(
+            producer=self.module_id, derivation=EQUATION_IDS["mass_flux_convection"]
+        )
+        n = np.asarray(self._adjusted).size
+        plume = self._plume
+        pressure = np.asarray(self._inputs["atmosphere_layer_pressure"].values, dtype=float)
+
+        def layer(name: str, physical: str, values: np.ndarray, units: str) -> Field:
+            return Field(
+                field_id=name,
+                physical_name=physical,
+                values=np.asarray(values, dtype=float),
+                units=units,
+                quantity_kind=QuantityKind.DIAGNOSTIC,
+                time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                time_interval=ctx.dt,
+                timestamp=ctx.time,
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                missing_value_policy=MissingValuePolicy.MASKED,
+                provenance=provenance,
+            )
+
+        def scalar(name: str, physical: str, value: float, units: str) -> Field:
+            return Field(
+                field_id=name,
+                physical_name=physical,
+                values=np.array(float(value)),
+                units=units,
+                quantity_kind=QuantityKind.DIAGNOSTIC,
+                time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                time_interval=ctx.dt,
+                timestamp=ctx.time,
+                spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                # NaN only where the plume does not exist this step, and then it
+                # says so: "no plume", not a missing number.
+                missing_value_policy=(
+                    MissingValuePolicy.MASKED
+                    if not np.isfinite(value)
+                    else MissingValuePolicy.NOT_PERMITTED
+                ),
+                provenance=provenance,
+            )
+
+        nan = np.full(n, np.nan)
+        active = plume is not None and plume.active
+        condensation = (
+            self._convective_condensation
+            if self._convective_condensation is not None
+            else np.zeros(n)
+        )
+        return {
+            "convective_condensation_rate": Field(
+                field_id="convective_condensation_rate",
+                physical_name="net convective condensation, formed less evaporated",
+                values=np.asarray(condensation, dtype=float),
+                units="kg m^-2 s^-1",
+                quantity_kind=QuantityKind.TENDENCY,
+                time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                time_interval=ctx.dt,
+                timestamp=ctx.time,
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                provenance=provenance,
+            ),
+            "cloud_base_mass_flux": scalar(
+                "cloud_base_mass_flux",
+                "plume mass flux at cloud base",
+                self._cloud_base_flux,
+                "kg m^-2 s^-1",
+            ),
+            "dilute_cape": scalar(
+                "dilute_cape",
+                "the entraining plume's CAPE",
+                plume.cape if plume else 0.0,
+                "J kg^-1",
+            ),
+            "cape_removal_per_unit_mass_flux": scalar(
+                "cape_removal_per_unit_mass_flux",
+                "dilute CAPE removed per unit of cloud-base mass moved",
+                self._cape_removal,
+                "J m^2 kg^-2",
+            ),
+            "convective_surface_precipitation": scalar(
+                "convective_surface_precipitation",
+                "convective condensate reaching the surface",
+                self._surface_precipitation,
+                "kg m^-2 s^-1",
+            ),
+            "plume_temperature": layer(
+                "plume_temperature",
+                "the plume's temperature where it exists",
+                plume.temperature if active else nan,
+                "K",
+            ),
+            "plume_buoyancy": layer(
+                "plume_buoyancy",
+                "the plume's buoyancy with condensate loading",
+                plume.buoyancy if active else nan,
+                "m s^-2",
+            ),
+            "plume_top_pressure": scalar(
+                "plume_top_pressure",
+                "pressure of the plume's termination layer",
+                float(pressure[plume.top]) if active else float("nan"),
+                "Pa",
+            ),
+            "mass_flux_substeps": scalar(
+                "mass_flux_substeps",
+                "substeps the transport took",
+                self._mass_flux_substeps,
+                "1",
+            ),
+        }
+
     def emit_outputs(self) -> dict[str, Field]:
         ctx = self.context
         provenance = Provenance(
             producer=self.module_id, derivation=EQUATION_IDS["convective_adjustment"]
         )
         return {
+            **self._mass_flux_outputs(ctx),
             "convective_temperature_tendency": Field(
                 field_id="convective_temperature_tendency",
                 physical_name="temperature tendency from convective mixing",
                 symbol="dT/dt|conv",
-                values=np.array(self._tendency),
+                values=np.array(
+                    self._tendency
+                    if self._mass_flux_tendency is None
+                    else self._tendency + self._mass_flux_tendency
+                ),
                 units="K s^-1",
                 quantity_kind=QuantityKind.TENDENCY,
                 time_semantics=TimeSemantics.INTERVAL_AVERAGE,
@@ -1053,6 +1325,17 @@ class ConvectiveAdjustmentModule(Module):
             "reference_pressure_Pa": self.reference_pressure,
             "relaxation_timescale_s": self.relaxation_timescale,
             "fractional_top": self.fractional_top,
+            **(
+                {
+                    "mass_flux": True,
+                    "plume_entrainment_rate_per_m": self.plume_entrainment_rate,
+                    "convective_adjustment_time_s": self.convective_adjustment_time,
+                    "cape_trigger_J_kg": self.cape_trigger,
+                    "evaporating_fraction": self.evaporating_fraction,
+                }
+                if self.mass_flux
+                else {}
+            ),
             "mixing": (
                 "relaxed_toward_complete_within_unstable_groups"
                 if self.relaxation_timescale > 0.0

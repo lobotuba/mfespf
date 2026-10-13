@@ -237,6 +237,9 @@ _register("J K^-1", Dimension.of(mass=1, length=2, time=-2, temperature=-1))
 _register("kg m^-3", Dimension.of(mass=1, length=-3))
 _register("m^3 kg^-1 s^-2", Dimension.of(mass=-1, length=3, time=-2))
 _register("rad", DIMENSIONLESS)
+# The dilute CAPE a unit of cloud-base mass removes: J kg^-1 per kg m^-2
+# (mass-flux-moisture-transport.md, Gamma_M).
+_register("J m^2 kg^-2", Dimension.of(mass=-1, length=4, time=-2))
 
 # --- Accepted non-coherent units, converted only at boundaries (DAT-004) -----
 _register("km", LENGTH, scale=1.0e3)

@@ -49,6 +49,7 @@ EQUATION_IDS = {
     "observed_cloud_field": "EQ-ISCCP-CLOUD-FIELD",
     "wtg_circulation": "EQ-WTG-OVERTURNING-CIRCULATION",
     "ocean_heat_transport": "EQ-OCEAN-HEAT-TRANSPORT",
+    "mass_flux_convection": "EQ-MASS-FLUX-CONVECTION",
     "area_weighted_mean": "EQ-AREA-WEIGHTED-GLOBAL-MEAN",
     "vapour_eddy_diffusion": "EQ-VAPOUR-EDDY-DIFFUSION",
     "ozone_solar_absorption": "EQ-OZONE-SOLAR-ABSORPTION",
@@ -951,6 +952,85 @@ def build_equation_registry() -> EquationRegistry:
                 "Herman and Raymond 2014, doi:10.1002/2014MS000359; Raymond and Zeng "
                 "2005; Cohen et al. 2024, doi:10.1029/2023MS003866; Sobel and "
                 "Bretherton 2000; Nilsson and Emanuel 1999"
+            ),
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["mass_flux_convection"],
+            version=V1,
+            name="Entraining-plume mass-flux convection with compensating subsidence",
+            category=EquationCategory.CLOSURE_OR_PARAMETERIZATION,
+            mathematical_form=(
+                "plume: dM/dz = (eps - delta) M, delta = eps, all mass detrained at "
+                "termination; m_k dphi_k/dt = M_(k+1) phi_(k+1) - M_k phi_k - E_k phi_k "
+                "+ D_k phi_u,k for phi in (s, q); M_e = -M_u at every interface; "
+                "M_b = max[0, (CAPE_d - C_res) / (tau_c Gamma_M)] when CAPE_d > C_min; "
+                "a fraction alpha of the condensate evaporates where formed, limited by "
+                "subsaturation, the rest precipitates"
+            ),
+            physical_basis=(
+                "Convection rises in narrow entraining plumes and the rest of the column "
+                "sinks to compensate, drying as it descends; detrainment and evaporating "
+                "condensate re-moisten it (Yanai et al. 1973; Arakawa & Schubert 1974). "
+                "The amplitude removes the plume's dilute CAPE over a declared time "
+                "(Zhang & McFarlane 1995; Neale et al. 2008)."
+            ),
+            variables=(
+                ("M", "plume mass flux", "kg m^-2 s^-1"),
+                ("eps", "fractional entrainment rate", "m^-1"),
+                ("CAPE_d", "dilute convective available potential energy", "J kg^-1"),
+                ("T", "plume temperature", "K"),
+            ),
+            parameters=(
+                ("eps", "measured", "1 km^-1, Romps (2010) LES; declared range 0.5-2 km^-1"),
+                ("tau_c", "parameterized", "3600 s, CAM5 zm_conv.F90; swept 1800-14400 s"),
+                ("C_min", "parameterized", "70 J kg^-1, CAM5 zm_conv.F90 capelmt"),
+                ("alpha", "measured", "0.67, EVAPORATING_CONDENSATE_FRACTION"),
+            ),
+            assumptions=(
+                "one plume per step, launched from the layer of largest moist static energy "
+                "below 850 hPa, which is its cloud base",
+                "no downdrafts",
+                "condensate leaves the plume in the layer it forms",
+            ),
+            approximations=(
+                "Termination where the integrated buoyancy work from the level of free "
+                "convection first returns to zero; no kinetic-energy equation.",
+                "Constant latent heat of vaporisation in the plume; the fusion excess is "
+                "booked by the water module on the net condensation.",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T", 170.0, 340.0, "K"),),
+                conditions=(
+                    "the transport subcycles so no layer loses half its mass in a substep",
+                ),
+            ),
+            limiting_cases=(
+                "CAPE_d at or below the trigger gives no mass flux and no change",
+                "the column's water changes only by what precipitates; its enthalpy is "
+                "redistributed exactly",
+                "the subsiding environment warms and dries",
+            ),
+            conserved_quantities=("energy", "water", "mass"),
+            permitted_discretizations=("flux-form upwind, subcycled",),
+            correctness_tests=(
+                "test_the_plume_conserves_mass_water_and_moist_static_energy",
+                "test_the_operator_redistributes_energy_and_removes_only_precipitation",
+                "test_subsidence_dries_and_warms_a_column_without_destroying_water",
+                "test_no_cape_means_no_convection",
+                "test_the_option_off_leaves_the_column_unchanged",
+            ),
+            known_failure_modes=(
+                "a single plume cannot represent a spectrum of cloud depths",
+                "the closure's adjustment time is a hypothesis, swept rather than fitted; CAPE "
+                "closures are reported to be weaker for shallow cumulus",
+            ),
+            source=(
+                "Zhang & McFarlane 1995, Atmos.-Ocean 33, 407; Neale et al. 2008, J. Climate 21, "
+                "5904; Romps 2010, J. Atmos. Sci. 67, 1908; Tiedtke 1989, Mon. Wea. Rev. 117, "
+                "1779; Yanai et al. 1973; Arakawa & Schubert 1974"
             ),
         )
     )

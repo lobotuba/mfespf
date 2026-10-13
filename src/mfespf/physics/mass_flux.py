@@ -1,0 +1,601 @@
+"""Mass-flux convection: an entraining plume and the environment's compensating subsidence.
+
+Why this exists
+---------------
+
+The column's free troposphere sat at RH 0.89 to 0.95 because convection only
+mixed water upward and nothing in the column descended
+(``docs/protocols/free-troposphere-moisture-budget.md``): the moist convection
+was a lapse-rate adjustment with uniform vapour mixing. Real convection rises in
+narrow plumes, and the rest of the column sinks to compensate, carrying drier air
+down from above. Only the plume's detrainment and its evaporating condensate
+re-moisten it (Yanai et al. 1973; Arakawa & Schubert 1974).
+
+The physics (``docs/protocols/mass-flux-moisture-transport.md``)
+------------------------------------------------------------------
+
+One entraining plume per step, launched from the layer of largest moist static
+energy below 850 hPa, which is also its cloud base (Zhang & McFarlane 1995). It
+takes all its mass from that layer, rises at constant mass flux entraining and
+detraining at the same fractional rate (Tiedtke 1989; Romps 2010 for the rate),
+and detrains everything in the layer where its integrated buoyancy work runs out.
+Within each layer it mixes its inflow with entrained air, conserving moist static
+energy and total water exactly, then condenses to saturation. The condensate leaves
+it, and a measured fraction evaporates back into the environment.
+
+The environment sinks at exactly the plume's mass flux at every interface, so
+subsidence has no amplitude of its own. Dry static energy and vapour move by one
+flux-form operator, upwind. Entrainment draws the start-of-step environment, so
+the plume's budget identities hold exactly under subcycling.
+
+The amplitude is a dilute-CAPE closure. The cloud-base mass flux removes the
+plume's own CAPE over a declared time, at the rate the same operator removes it
+per unit mass flux. Nothing in it reads a humidity, a water amount or a
+precipitation rate.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+import numpy as np
+
+from mfespf.core.errors import ConfigurationError
+from mfespf.physics.thermodynamics import saturation_specific_humidity
+
+__all__ = [
+    "CAPE_TRIGGER_J_KG",
+    "CONVECTIVE_ADJUSTMENT_TIME_S",
+    "MAX_SUBSTEPS",
+    "PLUME_ENTRAINMENT_PER_M",
+    "SOURCE_LAYER_FLOOR_PA",
+    "Convection",
+    "MassFluxStep",
+    "Plume",
+    "apply_mass_flux",
+    "cloud_base_mass_flux",
+    "convect",
+    "deposit_evaporation",
+    "entraining_plume",
+    "unit_rates",
+]
+
+#: The plume's fractional entrainment rate, m^-1: Romps (2010, J. Atmos. Sci.
+#: 67, 1908), measured directly in LES of deep convection, "~1 km^-1 throughout
+#: the depth of the troposphere". Declared range 0.5-2 km^-1: Romps finds bulk
+#: methods underestimate it by about a factor of 2.
+PLUME_ENTRAINMENT_PER_M = 1.0e-3
+
+#: Deep convection's trigger, J kg^-1: CAM5 ``zm_conv.F90`` ``capelmt``.
+CAPE_TRIGGER_J_KG = 70.0
+
+#: The time the closure removes dilute CAPE over, s: CAM5 ``zm_conv.F90``
+#: ``tau``. A closure hypothesis, swept over 1800-14400 s in the protocol.
+CONVECTIVE_ADJUSTMENT_TIME_S = 3600.0
+
+#: The source layer is sought among layers centred below this pressure, Pa.
+SOURCE_LAYER_FLOOR_PA = 85000.0
+
+
+@dataclass(frozen=True)
+class Plume:
+    """One entraining plume, per unit cloud-base mass flux.
+
+    Layers run from the surface (0) up; interfaces from the surface (0) to the
+    top (n). ``flux`` is the plume's mass flux at each interface, and
+    ``entrainment`` and ``detrainment`` are each layer's exchange, all per unit
+    cloud-base flux. ``s_u`` and ``q_u`` are the dry static energy and vapour
+    of the air the plume leaves each layer with, NaN where it does not reach.
+    ``condensate`` is the water it condenses in each layer, per unit cloud-base
+    flux. Its ``buoyancy`` includes the loading of that condensate before it
+    falls out.
+    """
+
+    source: int
+    lfc: int
+    top: int
+    flux: np.ndarray
+    entrainment: np.ndarray
+    detrainment: np.ndarray
+    s_u: np.ndarray
+    q_u: np.ndarray
+    temperature: np.ndarray
+    condensate: np.ndarray
+    buoyancy: np.ndarray
+    cape: float
+
+    @property
+    def active(self) -> bool:
+        return self.top >= 0
+
+
+def _layer_thickness(
+    temperature: np.ndarray, interface_pressure: np.ndarray, gas_constant: float, gravity: float
+) -> np.ndarray:
+    return (
+        gas_constant
+        * temperature
+        / gravity
+        * np.log(interface_pressure[:-1] / interface_pressure[1:])
+    )
+
+
+def _saturate(
+    h: float, q_total: float, z: float, p: float, cp: float, latent: float, gravity: float
+) -> tuple[float, float]:
+    """The temperature and vapour of air with moist static energy ``h`` and total
+    water ``q_total`` at height ``z`` and pressure ``p``, after condensing to
+    saturation if it is above it. ``h`` is conserved: the condensate takes no
+    energy with it."""
+    temperature = (h - gravity * z - latent * q_total) / cp
+    saturation = float(saturation_specific_humidity(np.array([temperature]), np.array([p]))[0])
+    if q_total <= saturation:
+        return temperature, q_total
+    # Newton on cp T + L q_s(T) = h - g z, bracketed between the unsaturated
+    # temperature (too cold: condensing warms it) and the temperature with all
+    # the water condensed.
+    target = h - gravity * z
+    low, high = temperature, (target) / cp
+    t = temperature
+    for _ in range(60):
+        qs = float(saturation_specific_humidity(np.array([t]), np.array([p]))[0])
+        f = cp * t + latent * qs - target
+        if abs(f) < 1.0e-9 * abs(target):
+            break
+        dq = (
+            float(saturation_specific_humidity(np.array([t + 1.0e-3]), np.array([p]))[0]) - qs
+        ) / 1.0e-3
+        step = t - f / (cp + latent * dq)
+        if f > 0.0:
+            high = t
+        else:
+            low = t
+        t = step if low < step < high else 0.5 * (low + high)
+    qs = float(saturation_specific_humidity(np.array([t]), np.array([p]))[0])
+    return t, min(qs, q_total)
+
+
+def entraining_plume(
+    *,
+    temperature: np.ndarray,
+    vapour: np.ndarray,
+    layer_mass: np.ndarray,
+    heat_capacity: np.ndarray,
+    pressure: np.ndarray,
+    interface_pressure: np.ndarray,
+    entrainment_rate: float,
+    latent_heat: float,
+    gravity: float,
+    gas_constant: float,
+    source_floor: float = SOURCE_LAYER_FLOOR_PA,
+) -> Plume:
+    """The plume of mass-flux-moisture-transport.md and its second erratum.
+
+    Launched from the layer of largest moist static energy below
+    ``source_floor``, which is its cloud base: it takes its whole mass from that
+    layer. It rises at constant mass flux with δ = ε, and detrains everything in
+    the layer where its integrated buoyancy work from the level of free
+    convection first returns to zero or below after its level of neutral
+    buoyancy. CAPE_d is the positive area between the level of free convection
+    and the level of neutral buoyancy.
+    """
+    latent = latent_heat
+    T = np.asarray(temperature, dtype=float)
+    m = np.asarray(layer_mass, dtype=float)
+    q = np.asarray(vapour, dtype=float) / m
+    cp = np.asarray(heat_capacity, dtype=float) / m
+    p = np.asarray(pressure, dtype=float)
+    pi = np.asarray(interface_pressure, dtype=float)
+    n = T.size
+    dz = _layer_thickness(T, pi, gas_constant, gravity)
+    z = np.concatenate(([0.0], np.cumsum(dz)))[:-1] + 0.5 * dz
+    s_e = cp * T + gravity * z
+    h_e = s_e + latent * q
+
+    nan = np.full(n, np.nan)
+    empty = Plume(
+        source=-1,
+        lfc=-1,
+        top=-1,
+        flux=np.zeros(n + 1),
+        entrainment=np.zeros(n),
+        detrainment=np.zeros(n),
+        s_u=nan.copy(),
+        q_u=nan.copy(),
+        temperature=nan.copy(),
+        condensate=np.zeros(n),
+        buoyancy=nan.copy(),
+        cape=0.0,
+    )
+    candidates = np.flatnonzero(p > source_floor)
+    if candidates.size == 0:
+        return empty
+    source = int(candidates[np.argmax(h_e[candidates])])
+
+    # The plume's properties layer by layer, per unit cloud-base flux.
+    s_u, q_u, t_u = nan.copy(), nan.copy(), nan.copy()
+    condensate = np.zeros(n)
+    buoyancy = nan.copy()
+    entrained = np.zeros(n)
+
+    def leave(k: int, h_mix: float, q_mix: float, mass: float) -> None:
+        t, qv = _saturate(h_mix, q_mix, z[k], p[k], cp[k], latent, gravity)
+        t_u[k], q_u[k] = t, qv
+        s_u[k] = h_mix - latent * qv
+        condensed = q_mix - qv
+        condensate[k] = mass * condensed
+        buoyancy[k] = gravity * ((t - T[k]) / T[k] + 0.61 * (qv - q[k]) - condensed)
+
+    entrained[source] = 1.0
+    leave(source, h_e[source], q[source], 1.0)
+    h_u, q_t = h_e[source], q_u[source]
+    lfc = lnb = top = -1
+    work = 0.0
+    cape = 0.0
+    for k in range(source + 1, n):
+        e = entrainment_rate * dz[k]
+        h_mix = (h_u + e * h_e[k]) / (1.0 + e)
+        q_mix = (q_t + e * q[k]) / (1.0 + e)
+        entrained[k] = e
+        leave(k, h_mix, q_mix, 1.0 + e)
+        h_u, q_t = h_mix, q_u[k]
+        b = buoyancy[k]
+        if lfc < 0:
+            if b > 0.0:
+                lfc = k
+            else:
+                continue
+        work += b * dz[k]
+        if lnb < 0:
+            if b > 0.0:
+                cape += b * dz[k]
+                continue
+            lnb = k
+        if work <= 0.0:
+            top = k
+            break
+    if lfc < 0:
+        return empty
+    if top < 0:
+        top = n - 1
+    # Above the termination layer the plume does not exist.
+    for arr in (s_u, q_u, t_u, buoyancy):
+        arr[top + 1 :] = np.nan
+    condensate[top + 1 :] = 0.0
+    entrained[top + 1 :] = 0.0
+
+    flux = np.zeros(n + 1)
+    flux[source + 1 : top + 1] = 1.0
+    detrained = np.zeros(n)
+    detrained[source + 1 : top] = entrained[source + 1 : top]
+    detrained[top] = 1.0 + entrained[top]
+    return Plume(
+        source=source,
+        lfc=lfc,
+        top=top,
+        flux=flux,
+        entrainment=entrained,
+        detrainment=detrained,
+        s_u=s_u,
+        q_u=q_u,
+        temperature=t_u,
+        condensate=condensate,
+        buoyancy=buoyancy,
+        cape=float(cape),
+    )
+
+
+def deposit_evaporation(amounts: np.ndarray, deficits: np.ndarray) -> tuple[np.ndarray, float]:
+    """Evaporate ``amounts`` (kg m^-2 per layer) where they formed, up to each
+    layer's saturation deficit; what exceeds it falls to the next layer below and
+    evaporates there under the same limit. Returns the evaporation per layer and
+    what reaches the surface."""
+    evaporated = np.zeros_like(np.asarray(amounts, dtype=float))
+    falling = 0.0
+    for k in range(evaporated.size - 1, -1, -1):
+        falling += float(amounts[k])
+        take = min(falling, max(float(deficits[k]), 0.0))
+        evaporated[k] = take
+        falling -= take
+    return evaporated, falling
+
+
+def _operator(plume: Plume, s: np.ndarray, q: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """m dphi/dt per unit cloud-base flux for phi = s and q: subsidence upwind, and
+    the exchange with a plume launched into this same environment, so the plume's
+    budget identities hold exactly (the protocol's third erratum)."""
+    M = plume.flux
+    E, D = plume.entrainment, plume.detrainment
+    s_u = np.nan_to_num(plume.s_u)
+    q_u = np.nan_to_num(plume.q_u)
+    rate_s = np.zeros_like(s)
+    rate_q = np.zeros_like(q)
+    rate_s[:-1] += M[1:-1] * s[1:]
+    rate_s -= M[:-1] * s
+    rate_q[:-1] += M[1:-1] * q[1:]
+    rate_q -= M[:-1] * q
+    rate_s += -E * s + D * s_u
+    rate_q += -E * q + D * q_u
+    return rate_s, rate_q
+
+
+def unit_rates(plume: Plume, s: np.ndarray, q: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """The environment's m ds/dt and m dq/dt at unit cloud-base flux, now."""
+    return _operator(plume, s, q)
+
+
+@dataclass(frozen=True)
+class MassFluxStep:
+    """One step's convective change, as the protocol's erratum divides it.
+
+    ``energy`` is each layer's change in m s (J m^-2) less the latent heat of
+    its net condensation: a redistribution, summing to zero. ``transport`` is
+    the vapour moved (kg m^-2), also summing to zero. ``condensation`` is the
+    net condensation c = P - e in each layer (kg m^-2), which the water module
+    turns into precipitation and latent heat; its column sum is the surface
+    precipitation.
+    """
+
+    energy: np.ndarray
+    transport: np.ndarray
+    condensation: np.ndarray
+    evaporation: np.ndarray
+    formed: np.ndarray
+    surface_precipitation: float
+    substeps: int
+
+
+def apply_mass_flux(
+    plume: Plume,
+    *,
+    cloud_base_flux: float,
+    dt: float,
+    temperature: np.ndarray,
+    vapour: np.ndarray,
+    layer_mass: np.ndarray,
+    heat_capacity: np.ndarray,
+    pressure: np.ndarray,
+    interface_pressure: np.ndarray,
+    latent_heat: float,
+    gravity: float,
+    gas_constant: float,
+    evaporating_fraction: float,
+) -> MassFluxStep:
+    """One exact, conservative step of the plume's transport at a fixed mass flux,
+    then the measured fraction of its condensate evaporated where it formed and
+    below. Refused if any layer would lose more than half its mass: the
+    integrator (``convect``) chooses the step so that it never does."""
+    n = np.asarray(layer_mass).size
+    zero = np.zeros(n)
+    if not plume.active or cloud_base_flux <= 0.0 or dt <= 0.0:
+        return MassFluxStep(zero, zero.copy(), zero.copy(), zero.copy(), zero.copy(), 0.0, 0)
+    T = np.asarray(temperature, dtype=float)
+    m = np.asarray(layer_mass, dtype=float)
+    C = np.asarray(heat_capacity, dtype=float)
+    cp = C / m
+    pi = np.asarray(interface_pressure, dtype=float)
+    dz = _layer_thickness(T, pi, gas_constant, gravity)
+    z = np.concatenate(([0.0], np.cumsum(dz)))[:-1] + 0.5 * dz
+    s0 = cp * T + gravity * z
+    q0 = np.asarray(vapour, dtype=float) / m
+    outflow = cloud_base_flux * (plume.flux[:-1] + plume.entrainment) * dt
+    if np.any(outflow > 0.5 * m * (1.0 + 1.0e-12)):
+        raise ConfigurationError(
+            "a mass-flux step would take more than half of a layer's mass; the "
+            "integrator must shorten it"
+        )
+    rate_s, rate_q = _operator(plume, s0, q0)
+    s = s0 + cloud_base_flux * dt * rate_s / m
+    q = q0 + cloud_base_flux * dt * rate_q / m
+    if np.any(q < 0.0):
+        raise ConfigurationError("mass-flux transport drew a layer's vapour below zero")
+    formed = cloud_base_flux * dt * plume.condensate
+    t_after = (s - gravity * z) / cp
+    deficits = saturation_specific_humidity(t_after, np.asarray(pressure, dtype=float)) * m - q * m
+    evaporated, _ = deposit_evaporation(evaporating_fraction * formed, deficits)
+    condensation = formed - evaporated
+    vapour_change = (q - q0) * m + evaporated
+    energy_change = (s - s0) * m - latent_heat * evaporated
+    return MassFluxStep(
+        energy=energy_change - latent_heat * condensation,
+        transport=vapour_change + condensation,
+        condensation=condensation,
+        evaporation=evaporated,
+        formed=formed,
+        surface_precipitation=float(np.sum(formed) - np.sum(evaporated)),
+        substeps=1,
+    )
+
+
+def cloud_base_mass_flux(
+    plume: Plume,
+    *,
+    temperature: np.ndarray,
+    vapour: np.ndarray,
+    layer_mass: np.ndarray,
+    heat_capacity: np.ndarray,
+    pressure: np.ndarray,
+    interface_pressure: np.ndarray,
+    entrainment_rate: float,
+    latent_heat: float,
+    gravity: float,
+    gas_constant: float,
+    evaporating_fraction: float,
+    adjustment_time: float = CONVECTIVE_ADJUSTMENT_TIME_S,
+    trigger: float = CAPE_TRIGGER_J_KG,
+    residual: float = 0.0,
+) -> tuple[float, float]:
+    """M_b = max[0, (CAPE_d - C_residual) / (τ_c Γ_M)], and Γ_M.
+
+    Γ_M is the rate unit cloud-base flux removes CAPE_d (erratum 1): the state is
+    advanced along the operator's tendencies at M_b = 1 by M_b Δt = 1 kg m^-2,
+    including the latent heat of what condenses and evaporates, and CAPE_d is
+    re-evaluated on the plume launched into the result. Zero below the trigger,
+    and zero if convection would not reduce CAPE_d.
+    """
+    if not plume.active or plume.cape <= trigger:
+        return 0.0, 0.0
+    displacement = 1.0  # kg m^-2 of cloud-base mass, M_b dt at M_b = 1 for 1 s
+    step = apply_mass_flux(
+        plume,
+        cloud_base_flux=1.0,
+        dt=displacement,
+        temperature=temperature,
+        vapour=vapour,
+        layer_mass=layer_mass,
+        heat_capacity=heat_capacity,
+        pressure=pressure,
+        interface_pressure=interface_pressure,
+        latent_heat=latent_heat,
+        gravity=gravity,
+        gas_constant=gas_constant,
+        evaporating_fraction=evaporating_fraction,
+    )
+    C = np.asarray(heat_capacity, dtype=float)
+    # The full change the environment sees: the redistribution and the latent
+    # heat the water module will add for the net condensation.
+    t_new = (
+        np.asarray(temperature, dtype=float) + (step.energy + latent_heat * step.condensation) / C
+    )
+    w_new = np.asarray(vapour, dtype=float) + step.transport - step.condensation
+    displaced = entraining_plume(
+        temperature=t_new,
+        vapour=w_new,
+        layer_mass=layer_mass,
+        heat_capacity=heat_capacity,
+        pressure=pressure,
+        interface_pressure=interface_pressure,
+        entrainment_rate=entrainment_rate,
+        latent_heat=latent_heat,
+        gravity=gravity,
+        gas_constant=gas_constant,
+    )
+    rate = -(displaced.cape - plume.cape) / displacement
+    if rate <= 0.0:
+        return 0.0, rate
+    return max(0.0, (plume.cape - residual) / (adjustment_time * rate)), rate
+
+
+#: A step needing more substeps than this is refused, not limited (third erratum).
+MAX_SUBSTEPS = 500
+
+
+@dataclass(frozen=True)
+class Convection:
+    """What one step of mass-flux convection did, and how it got there."""
+
+    step: MassFluxStep
+    plume: Plume
+    cape: float
+    cape_removal: float
+    first_cloud_base_flux: float
+    mean_cloud_base_flux: float
+
+
+def convect(
+    *,
+    dt: float,
+    temperature: np.ndarray,
+    vapour: np.ndarray,
+    layer_mass: np.ndarray,
+    heat_capacity: np.ndarray,
+    pressure: np.ndarray,
+    interface_pressure: np.ndarray,
+    entrainment_rate: float,
+    latent_heat: float,
+    gravity: float,
+    gas_constant: float,
+    evaporating_fraction: float,
+    adjustment_time: float = CONVECTIVE_ADJUSTMENT_TIME_S,
+    trigger: float = CAPE_TRIGGER_J_KG,
+) -> Convection:
+    """Integrate the closure over ``dt`` as the rate law it is (third erratum).
+
+    Each substep launches the plume into the current state, closes its mass flux
+    on its own CAPE, and takes one exact step of the operator, as long as no
+    layer loses more than half its mass. It stops when CAPE falls to the
+    trigger or convection stops removing it.
+    """
+    T = np.array(temperature, dtype=float)
+    w = np.array(vapour, dtype=float)
+    m = np.asarray(layer_mass, dtype=float)
+    C = np.asarray(heat_capacity, dtype=float)
+    n = m.size
+    keys = ("energy", "transport", "condensation", "evaporation", "formed")
+    totals = {k: np.zeros(n) for k in keys}
+    fixed: dict[str, Any] = dict(
+        layer_mass=m,
+        heat_capacity=C,
+        pressure=pressure,
+        interface_pressure=interface_pressure,
+        latent_heat=latent_heat,
+        gravity=gravity,
+        gas_constant=gas_constant,
+    )
+    elapsed, substeps, moved = 0.0, 0, 0.0
+    first: tuple[Plume, float, float] | None = None
+    while elapsed < dt * (1.0 - 1.0e-12):
+        plume = entraining_plume(
+            temperature=T, vapour=w, entrainment_rate=entrainment_rate, **fixed
+        )
+        flux, removal = cloud_base_mass_flux(
+            plume,
+            temperature=T,
+            vapour=w,
+            entrainment_rate=entrainment_rate,
+            evaporating_fraction=evaporating_fraction,
+            adjustment_time=adjustment_time,
+            trigger=trigger,
+            **fixed,
+        )
+        if first is None:
+            first = (plume, removal, flux)
+        if flux <= 0.0:
+            break
+        outflow = flux * (plume.flux[:-1] + plume.entrainment)
+        active = outflow > 0.0
+        limit = float(np.min(0.5 * m[active] / outflow[active])) if np.any(active) else dt
+        h = min(dt - elapsed, limit)
+        step = apply_mass_flux(
+            plume,
+            cloud_base_flux=flux,
+            dt=h,
+            temperature=T,
+            vapour=w,
+            evaporating_fraction=evaporating_fraction,
+            **fixed,
+        )
+        T = T + (step.energy + latent_heat * step.condensation) / C
+        w = w + step.transport - step.condensation
+        for key in keys:
+            totals[key] += getattr(step, key)
+        moved += flux * h
+        elapsed += h
+        substeps += 1
+        if substeps > MAX_SUBSTEPS:
+            raise ConfigurationError(
+                f"mass-flux convection needed more than {MAX_SUBSTEPS} substeps in one step "
+                f"(cloud-base flux {flux:.3g} kg m^-2 s^-1, CAPE {plume.cape:.3g} J kg^-1, "
+                f"removal {removal:.3g} J m^2 kg^-2); refused, not limited"
+            )
+    if first is None:
+        raise ConfigurationError("mass-flux convection was asked to integrate no time")
+    plume0, removal0, flux0 = first
+    result = MassFluxStep(
+        energy=totals["energy"],
+        transport=totals["transport"],
+        condensation=totals["condensation"],
+        evaporation=totals["evaporation"],
+        formed=totals["formed"],
+        surface_precipitation=float(np.sum(totals["formed"]) - np.sum(totals["evaporation"])),
+        substeps=substeps,
+    )
+    return Convection(
+        step=result,
+        plume=plume0,
+        cape=plume0.cape,
+        cape_removal=removal0,
+        first_cloud_base_flux=flux0,
+        mean_cloud_base_flux=moved / dt,
+    )
