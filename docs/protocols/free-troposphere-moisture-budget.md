@@ -106,3 +106,27 @@ protocol would come next, as the user decides.
 **If H fails,** the drying term that exists is examined first.
 
 ---
+
+## Erratum, before Db's result (nothing above this line changed)
+
+**Db as frozen cannot be built.**
+
+- **What was frozen:** `vapour_transport = False` with
+  `condense_after_convection = False`.
+- **What the configuration does:** it refuses, because `end_of_step_saturation`
+  needs the water module to run after convection, which
+  `condense_after_convection` arranges.
+- **What the protocol missed:** that dependency, which it did not check.
+
+**The two readings:**
+
+1. **Drop Db.** That loses the denial of the process M2 already shows
+   supplies 96 percent of the moistening.
+2. **Db also sets `end_of_step_saturation = False`,** taken.
+   - That is the only configuration in which convection does not carry
+     vapour.
+   - The saturation adjustment still runs, at the start-of-step temperature.
+   - The change of two switches is declared, and Db's response is read with
+     it.
+
+B0 and Da are unaffected and already complete.
