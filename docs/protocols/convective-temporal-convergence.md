@@ -410,3 +410,16 @@ T4 is therefore not frozen here. Whether to pursue it is the user's decision.
 - no default changed;
 - no substep length chosen;
 - T2 not run.
+
+## Disposition after `convective-cape-sampling.md` (2026-10-13), appended
+
+**G3 on T1 remains failed as frozen.** The follow-on protocol showed why:
+
+- start-of-host-step CAPE carries a first-order sampling bias, CAPE_d ≈
+  46 + 0.0310·Δt J/kg;
+- it was predicted out of sample at 1200, 600 and 300 s;
+- time-mean and post-convection CAPE converge.
+
+**T2 is authorised by the user as a documented deviation from the tree
+above.** It is frozen in `convective-substep-convergence.md` with successor
+gates. The tree above is not edited.

@@ -335,3 +335,44 @@ explain the result. It stays a separate, module-coupling question.
     That would be a successor criterion applied prospectively, as with F6.
 - **Not done:** no default changed, no substep length chosen, F0 not
   qualified.
+
+## User disposition (2026-10-13), appended
+
+**Recorded as the user worded it:**
+
+> Frozen G3 remains failed. The CAPE follow-on protocol demonstrated that
+> start-of-host-step CAPE contains a first-order sampling bias proportional to
+> host timestep. Future convergence protocols shall use time-mean CAPE
+> measured on a common physical timestep. Host-start CAPE remains a disclosed
+> operator-splitting diagnostic.
+
+**The successor CAPE criterion, applied prospectively.** As with the successor
+F6, nothing frozen earlier is re-graded.
+
+- **The convergence quantity is CAPE averaged over time:** (1/T)·Σ_n
+  CAPE_n·Δt_n, over convection's substeps on the common convective clock.
+  Each substep contributes its starting CAPE times its length, and the idle
+  remainder of a host step contributes the CAPE convection left.
+- **No unqualified CAPE in a convergence protocol.** The labelled outputs
+  frozen in `convective-substep-convergence.md` are used instead.
+  `dilute_cape` keeps its meaning for every other configuration.
+- **Event behaviour:**
+  - binary event counts and the host-step duty cycle are not required to
+    converge;
+  - the physical active-time fraction D_t, the time with M_b > 0 over the
+    evaluation time, and 𝓜 = ∫M_b dt are used instead.
+
+**The deviation from F4's tree, authorised.** T2 runs although frozen G3
+failed. The basis is this protocol's result: G3's failure is a sampling bias
+in CAPE, demonstrated and predicted out of sample. T2 is frozen in its own
+protocol with successor gates.
+
+**The sequence:**
+
+1. T2;
+2. select the converged substep;
+3. a new F0 qualification under successor gates. The old F0 run is not
+   reinterpreted as passed.
+4. F0 is called a closure candidate only after that.
+5. Interactive-radiation F0 only if both F0 and the model top qualify.
+6. P1-P3 reconsidered afterwards.
