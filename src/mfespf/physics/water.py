@@ -620,7 +620,10 @@ class WaterModule(Module):
             saturation, self._condensation = self._end_of_step_adjustment(
                 provisional, np.asarray(pressure, dtype=float), np.asarray(heat_capacity), ctx.dt
             )
-        self._condensation = self._condensation + self._convective_condensation
+        # Kept apart: (own + c) - c is not own in floating point, and a layer
+        # condensed to exactly nothing would come out a rounding below it.
+        own_condensation = self._condensation
+        self._condensation = own_condensation + self._convective_condensation
         self._precipitation = float(np.sum(self._condensation)) / ctx.dt
         # Where the layer is below the triple point the vapour deposits as ice
         # rather than condensing as liquid, so it releases the latent heat of
@@ -634,7 +637,7 @@ class WaterModule(Module):
 
         # Convection's condensation already left the provisional profile above;
         # only this module's own leaves it here.
-        final = provisional - (self._condensation - self._convective_condensation)
+        final = provisional - own_condensation
         self._specific_humidity = final / self._layer_mass
         self._relative_humidity = np.divide(
             self._specific_humidity,
