@@ -84,6 +84,7 @@ from mfespf.physics.mass_flux import (
     PLUME_ENTRAINMENT_PER_M,
     PRECIPITATION_EVAPORATION_EFFICIENCY,
     PRECIPITATION_EVAPORATIONS,
+    WINDOW_CONTINUATIONS,
     convect,
 )
 from mfespf.physics.plume import (
@@ -292,6 +293,7 @@ class ConvectiveAdjustmentModule(Module):
         cloud_water_conversion_rate: float = CLOUD_WATER_CONVERSION_PER_M,
         track_water_provenance: bool = False,
         convective_substep: float | None = None,
+        convective_window_continuation: str = "stop",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         relaxed = relaxation_timescale > 0.0
@@ -309,6 +311,11 @@ class ConvectiveAdjustmentModule(Module):
         if precipitation_evaporation != "cascade" and not mass_flux:
             raise ConfigurationError(
                 "precipitation_evaporation applies only to mass-flux convection"
+            )
+        if convective_window_continuation not in WINDOW_CONTINUATIONS:
+            raise ConfigurationError(
+                f"convective_window_continuation {convective_window_continuation!r} is not one "
+                f"of {WINDOW_CONTINUATIONS}"
             )
         if condensate_pathway not in CONDENSATE_PATHWAYS:
             raise ConfigurationError(
@@ -463,6 +470,10 @@ class ConvectiveAdjustmentModule(Module):
                         "cape_post_convection",
                         "cape_host_end",
                         "cape_window_start",
+                        "cape_window_end",
+                        "convective_window_evaluated",
+                        "convective_window_status",
+                        "convective_window_mass",
                         "convective_active_time_fraction",
                         "requested_cloud_base_mass_flux",
                         "plume_top_pressure_continuous",
@@ -656,6 +667,8 @@ class ConvectiveAdjustmentModule(Module):
         self.cloud_water_conversion_rate = cloud_water_conversion_rate
         self.track_water_provenance = track_water_provenance
         self.convective_substep = convective_substep
+        self.convective_window_continuation = convective_window_continuation
+        self._window_arrays: dict[str, np.ndarray] = {}
         self._cape_after = 0.0
         self._cape_time_mean = 0.0
         self._cape_host_start = 0.0
@@ -1188,6 +1201,7 @@ class ConvectiveAdjustmentModule(Module):
             conversion_rate=self.cloud_water_conversion_rate,
             provenance=classes,
             substep=self.convective_substep,
+            continuation=self.convective_window_continuation,
             **common,
         )
         step = result.step
@@ -1203,6 +1217,16 @@ class ConvectiveAdjustmentModule(Module):
         self._cape_post = result.cape_post_convection
         if result.cape_window_start is not None:
             self._cape_window_start = np.array(result.cape_window_start)
+        self._window_arrays = {
+            name: np.array(values, dtype=float)
+            for name, values in (
+                ("cape_window_end", result.cape_window_end),
+                ("convective_window_evaluated", result.window_evaluated),
+                ("convective_window_status", result.window_status),
+                ("convective_window_mass", result.window_mass),
+            )
+            if values is not None
+        }
         self._active_fraction = result.active_time_fraction
         self._requested_flux = result.first_cloud_base_flux
         self._top_continuous = (
@@ -1383,6 +1407,51 @@ class ConvectiveAdjustmentModule(Module):
                 dimensions=("convective_window",),
                 provenance=provenance,
             ),
+            **{
+                name: Field(
+                    field_id=name,
+                    physical_name=physical,
+                    values=np.asarray(
+                        self._window_arrays.get(name, np.zeros_like(self._cape_window_start)),
+                        dtype=float,
+                    ),
+                    units=units,
+                    quantity_kind=QuantityKind.DIAGNOSTIC,
+                    time_semantics=semantics,
+                    time_interval=ctx.dt,
+                    timestamp=ctx.time,
+                    spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                    dimensions=("convective_window",),
+                    provenance=provenance,
+                )
+                for name, physical, units, semantics in (
+                    (
+                        "cape_window_end",
+                        "the plume's CAPE at the end of each convective window",
+                        "J kg^-1",
+                        TimeSemantics.INSTANTANEOUS,
+                    ),
+                    (
+                        "convective_window_evaluated",
+                        "1 where the closure was evaluated at the window's start, 0 where skipped",
+                        "1",
+                        TimeSemantics.INSTANTANEOUS,
+                    ),
+                    (
+                        "convective_window_status",
+                        "each window's outcome: 0 active, 1 stopped within, 2 below the "
+                        "trigger, 3 no plume, 4 no CAPE removal, 5 skipped",
+                        "1",
+                        TimeSemantics.INSTANTANEOUS,
+                    ),
+                    (
+                        "convective_window_mass",
+                        "the cloud-base mass each window moved",
+                        "kg m^-2",
+                        TimeSemantics.INTERVAL_ACCUMULATION,
+                    ),
+                )
+            },
             "convective_active_time_fraction": scalar(
                 "convective_active_time_fraction",
                 "the share of the step convection integrated with a positive mass flux",
@@ -1690,6 +1759,11 @@ class ConvectiveAdjustmentModule(Module):
                     **(
                         {"convective_substep_s": self.convective_substep}
                         if self.convective_substep is not None
+                        else {}
+                    ),
+                    **(
+                        {"convective_window_continuation": self.convective_window_continuation}
+                        if self.convective_window_continuation != "stop"
                         else {}
                     ),
                     **(

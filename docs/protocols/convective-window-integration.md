@@ -202,3 +202,157 @@ under "evaluate", skipped windows become evaluated, with status 2, 3 or 4.
 **Everything here uses the frozen radiation.**
 
 ---
+
+## Result (appended; nothing above this line changed)
+
+**All sixteen runs completed** 20 days: eight with "stop" (I0), eight with
+"evaluate" (I1).
+
+- Residuals are ≤ 7.5e-16.
+- Every run is invalid on the validity-domain gate only, as all the
+  frozen-radiation runs are.
+- F6a and F6b have no failing cells or steps in any run.
+
+### I0: identity, passes
+
+The five reruns reproduce their earlier runs in every shared printed value:
+
+| run | earlier result | shared values | differences |
+|---|---|---:|---:|
+| 3600/300 | `c_3600` | 709 | 0 |
+| 1800/150 | `u_150` | 822 | 0 |
+| 1800/300 | `c_1800` | 709 | 0 |
+| 900/300 | `c_900` | 709 | 0 |
+| 1800/600 | `u_600` | 822 | 0 |
+
+### I0: the decisive check is confirmed
+
+In every run, every window after a host step's first stop was skipped
+(status 5), and none was evaluated.
+
+| run | active (0) | stopped within (1) | below trigger (2) | skipped (5) | windows after the first stop, all skipped |
+|---|---:|---:|---:|---:|---|
+| 3600/300 | 334 | 15 | 223 | 2308 | 2308 of 2308 |
+| 1800/150 | 928 | 0 | 458 | 4374 | 4374 of 4374 |
+| 900/75 | 2888 | 0 | 827 | 7805 | 7805 of 7805 |
+| 3600/600 | 160 | 57 | 177 | 1046 | 1046 of 1046 |
+| 1800/300 | 402 | 12 | 452 | 2014 | 2014 of 2014 |
+| 900/150 | 981 | 0 | 900 | 3879 | 3879 of 3879 |
+| 900/300 | 415 | 12 | 911 | 1542 | 1542 of 1542 |
+| 1800/600 | 146 | 56 | 415 | 823 | 823 of 823 |
+
+- **No status 3 or 4 occurs.** Every stop is CAPE falling to the trigger,
+  either at a window start or within a window.
+- **Convection seldom runs past a host step's second window.** It averaged
+  0.42-3.0 active windows per host step.
+
+### The crossed matrix: mixed
+
+| quantity | grouped by N | by Δt_conv | by Δt_host |
+|---|:---:|:---:|:---:|
+| host-start CAPE | **yes** | no | no |
+| D_t | no | yes | yes |
+| events per day | no | no | no |
+| event duration | no | **yes** | no |
+| time-mean CAPE | no | **yes** | no |
+| post-convection CAPE | no | **yes** | no |
+| daily 𝓜 | yes | yes | yes |
+| daily subsidence | yes | yes | yes |
+| precipitation | yes | yes | yes |
+| temperature profile | no | **yes** | no |
+| RH profile | no | yes | yes |
+
+**The classification is mixed.** No single factor groups every quantity, so
+no default is selected.
+
+**How the quantities divide:**
+
+- **Host-start CAPE groups by N alone,** as T2 indicated.
+- **The state and the CAPE the column holds group by the substep length:**
+  time-mean and post-convection CAPE, the temperature profile and event
+  duration.
+- **𝓜, subsidence and precipitation agree across all eight runs.** No
+  factor resolves any dependence in them.
+
+**Where N and the host step fail to group the temperature profile,** the
+failure is at 557.7 hPa: layer 8, whose daily SE is about 0.02 K. That is
+the layer-by-layer cost disclosed above.
+
+| run (host/conv) | N | host-start CAPE | time-mean CAPE | post-convection CAPE | D_t | events/day | event duration, s |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 3600/600 | 6 | 140.4 ± 20.4 | 49.5 | 38.3 | 0.135 | 16.5 | 805 |
+| 1800/600 | 3 | 86.0 ± 5.7 | 47.3 | 36.3 | 0.125 | 17.3 | 721 |
+| 3600/300 | 12 | 156.9 ± 24.4 | 48.6 | 38.8 | 0.121 | 19.4 | 513 |
+| 1800/300 | 6 | 102.0 ± 8.5 | 51.8 | 41.6 | 0.143 | 28.3 | 449 |
+| 900/300 | 3 | 73.8 ± 3.4 | 52.6 | 42.1 | 0.148 | 31.2 | 431 |
+| 1800/150 | 12 | 154.4 ± 25.1 | 57.1 | 48.0 | 0.161 | 37.4 | 364 |
+| 900/150 | 6 | 103.9 ± 9.8 | 57.9 | 48.5 | 0.170 | 54.9 | 281 |
+| 900/75 | 12 | 171.5 ± 31.9 | **79.0** | **70.5** | **0.251** | 71.0 | 339 |
+
+**Time-mean CAPE rises as the substep shrinks:**
+
+- 47-50 J/kg at 600 s;
+- 49-53 at 300 s;
+- 57-58 at 150 s;
+- 79 at 75 s.
+
+**At 75 s, post-convection CAPE is 70.5 J/kg.** That is the trigger, 70 J/kg.
+
+### I1: independent window evaluation, as predicted
+
+**Run because I0 confirmed the stop skips the remaining windows.**
+
+**Every state and physical output is identical to its "stop" run,** to every
+printed digit, in all eight runs. Shared values: 845-881 per run.
+
+**Every skipped window, once evaluated, is below the trigger (status 2).**
+
+**The only other differing values are `first_below_trigger_hist[1]`.** That
+counter is derived from the status codes, so it falls under the frozen
+exception. It differs in five runs by exactly the number of within-window
+stops: 15, 57, 12, 12 and 56. Each such stop's next window is now evaluated
+and found below the trigger.
+
+The comparison script's skip list missed the derived counter; it is named
+here.
+
+**Outcome, as frozen:** window termination is not the source of the
+N-dependence.
+
+### What the result says, and what it does not
+
+**1. The control flow is exonerated, and the closure's integration is not.**
+
+- Skipping and evaluating the remaining windows are identical. Nothing within
+  convection's call changes the state while it is idle.
+- The state and the CAPE the column holds follow the substep length.
+- Host-start CAPE alone follows N.
+
+**2. A reading for the next protocol, not measured here.**
+
+- **The pattern at 75 s:** post-convection CAPE is 70.5 J/kg, at the
+  trigger, with D_t 0.25 and time-mean CAPE 79.
+- **What it suggests about the limit:** as the substep shrinks, convection
+  stops closer to the trigger. The closure's continuous-time behaviour would
+  then hold CAPE at the trigger while active.
+- **What it suggests about coarse substeps:** each window's explicit step,
+  M_b closed at the window's start and applied over h, carries CAPE well
+  below the trigger (36-42 J/kg).
+- **On that reading,** the substep dependence is the explicit step
+  overshooting the trigger threshold.
+- **The rise is steep and has not levelled off by 75 s.** Whether a limit
+  exists, and where, is not shown.
+
+**3. Why host-start CAPE follows N is not explained.** It is the state each
+host step's first window sees: the previous host step's end, plus the host
+step's forcing.
+
+**4. Transport is robust across all eight runs:** 𝓜, subsidence and
+precipitation.
+
+**Not done:**
+
+- no default changed;
+- no substep selected;
+- F0 not qualified;
+- no module reordered.

@@ -539,6 +539,61 @@ def test_the_labelled_cape_samples_follow_the_convective_windows():
     assert idle.cape_pre_convection == idle.cape_post_convection == idle.cape
 
 
+def _window_options():
+    # A trigger the test column's CAPE falls through within an hour, so the step
+    # stops part-way and has windows after the stop.
+    return dict(
+        trigger=250.0,
+        entrainment_rate=1.0e-3,
+        evaporating_fraction=0.67,
+        condensate_pathway="carried",
+        precipitation_evaporation="rate_law_only",
+        **_column(),
+    )
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_the_window_record_accounts_for_every_window_and_all_the_mass():
+    """convective-window-integration.md, I0: every window is either evaluated or
+    skipped after a stop; the windows' mass sums to the step's; a stop at a
+    window start is below the trigger, and every window after it is skipped."""
+    r = convect(dt=3600.0, substep=300.0, **_window_options())
+    status, evaluated, mass = r.window_status, r.window_evaluated, r.window_mass
+    assert status is not None and evaluated is not None and mass is not None
+    assert status.size == evaluated.size == mass.size == 12
+    assert float(np.sum(mass)) == pytest.approx(r.mean_cloud_base_flux * 3600.0, rel=1e-12)
+    assert np.all((evaluated == 1.0) == (status != 5.0))
+    stops = np.flatnonzero(np.isin(status, (1.0, 2.0, 3.0, 4.0)))
+    assert stops.size >= 1, "the column must stop within the step for the record to be tested"
+    first_stop = int(stops[0])
+    assert np.all(status[first_stop + 1 :] == 5.0) and np.all(mass[first_stop + 1 :] == 0.0)
+    assert np.all(status[:first_stop] == 0.0) and np.all(mass[:first_stop] > 0.0)
+    assert r.cape_window_end is not None and r.cape_window_end[-1] == r.cape_after
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_evaluating_the_windows_after_a_stop_changes_nothing_but_the_record():
+    """convective-window-integration.md, I1's reading: nothing else acts within
+    convection's call, so windows evaluated after a stop see the state the stop
+    saw and stay idle -- the step is bit-identical, and only the skipped
+    windows' status changes."""
+    options = _window_options()
+    stop = convect(dt=3600.0, substep=300.0, **options)
+    evaluate = convect(dt=3600.0, substep=300.0, continuation="evaluate", **options)
+    assert stop.window_status is not None and evaluate.window_status is not None
+    assert np.any(stop.window_status == 5.0)
+    for key in ("energy", "transport", "condensation", "evaporation", "formed"):
+        assert np.array_equal(getattr(stop.step, key), getattr(evaluate.step, key))
+    assert stop.cape_after == evaluate.cape_after
+    assert stop.cape_time_mean == evaluate.cape_time_mean
+    assert stop.active_time_fraction == evaluate.active_time_fraction
+    skipped = stop.window_status == 5.0
+    assert np.all(np.isin(evaluate.window_status[skipped], (2.0, 3.0, 4.0)))
+    assert np.array_equal(stop.window_status[~skipped], evaluate.window_status[~skipped])
+    with pytest.raises(ConfigurationError, match="continuation"):
+        convect(dt=3600.0, substep=300.0, continuation="resume", **options)
+
+
 @pytest.mark.req("EQR-002", "VAL-001")
 def test_the_continuous_plume_top_lies_between_its_bracketing_layers():
     """T0: the buoyancy work's zero crossing, interpolated between the last layer

@@ -1024,6 +1024,19 @@ def provenance_substep(
 #: A step needing more substeps than this is refused, not limited (third erratum).
 MAX_SUBSTEPS = 500
 
+#: What follows a window whose closure finds no mass flux
+#: (convective-window-integration.md): "stop" ends convection for the rest of
+#: the host step, "evaluate" ends only that window (I1).
+WINDOW_CONTINUATIONS = ("stop", "evaluate")
+
+#: A convective window's status (convective-window-integration.md, I0).
+WINDOW_ACTIVE = 0.0
+WINDOW_STOPPED_WITHIN = 1.0
+WINDOW_BELOW_TRIGGER = 2.0
+WINDOW_NO_PLUME = 3.0
+WINDOW_NO_REMOVAL = 4.0
+WINDOW_SKIPPED = 5.0
+
 
 @dataclass(frozen=True)
 class Convection:
@@ -1041,6 +1054,17 @@ class Convection:
     cape_time_mean: float = float("nan")
     cape_window_start: np.ndarray | None = None
     active_time_fraction: float = float("nan")
+    window_evaluated: np.ndarray | None = None
+    window_status: np.ndarray | None = None
+    window_mass: np.ndarray | None = None
+
+    @property
+    def cape_window_end(self) -> np.ndarray | None:
+        """CAPE at each window's end: the next window's start, the last the
+        CAPE convection leaves (convective-window-integration.md)."""
+        if self.cape_window_start is None:
+            return None
+        return np.append(self.cape_window_start[1:], self.cape_after)
 
     @property
     def cape_pre_convection(self) -> float:
@@ -1082,6 +1106,7 @@ def convect(
     conversion_rate: float = CLOUD_WATER_CONVERSION_PER_M,
     provenance: np.ndarray | None = None,
     substep: float | None = None,
+    continuation: str = "stop",
 ) -> Convection:
     """Integrate the closure over ``dt`` as the rate law it is (third erratum).
 
@@ -1116,6 +1141,18 @@ def convect(
     window_start = np.full(windows, np.nan)
     window, fresh = 0, True
     active_time = 0.0
+    # Per window (convective-window-integration.md, I0): whether the closure
+    # was evaluated at its start, what it found, and the mass it moved.
+    window_evaluated = np.zeros(windows)
+    window_status = np.full(windows, WINDOW_SKIPPED)
+    window_mass = np.zeros(windows)
+    if continuation not in WINDOW_CONTINUATIONS:
+        raise ConfigurationError(
+            f"unknown convective window continuation {continuation!r}; "
+            f"expected one of {WINDOW_CONTINUATIONS}"
+        )
+    idle_from: float | None = None
+    idle_cape = 0.0
     first: tuple[Plume, float, float] | None = None
     # A common convective step (convective-temporal-convergence.md, T1): the
     # host step is integrated in windows of ``substep``, every substep ending at
@@ -1166,8 +1203,33 @@ def convect(
         if fresh and window < windows:
             window_start[window] = plume.cape
             fresh = False
+            window_evaluated[window] = 1.0
+            if flux > 0.0:
+                window_status[window] = WINDOW_ACTIVE
+            elif not plume.active:
+                window_status[window] = WINDOW_NO_PLUME
+            elif plume.cape <= trigger:
+                window_status[window] = WINDOW_BELOW_TRIGGER
+            else:
+                window_status[window] = WINDOW_NO_REMOVAL
+        elif flux <= 0.0 and window < windows:
+            window_status[window] = WINDOW_STOPPED_WITHIN
         if flux <= 0.0:
+            # "stop" ends convection for the rest of the host step; "evaluate"
+            # ends only this window, and the next is closed on the state as it
+            # stands (convective-window-integration.md, I1). Nothing else acts
+            # within this call, so the idle time holds this CAPE.
+            if continuation == "evaluate" and substep is not None and window_end < dt:
+                if idle_from is None:
+                    idle_from, idle_cape = elapsed, plume.cape
+                elapsed = window_end
+                window_end = min(dt, window_end + substep)
+                window, fresh = window + 1, True
+                continue
             break
+        if idle_from is not None:
+            cape_time += (elapsed - idle_from) * idle_cape
+            idle_from = None
         outflow = flux * (plume.flux[:-1] + plume.entrainment)
         active = outflow > 0.0
         limit = float(np.min(0.5 * m[active] / outflow[active])) if np.any(active) else dt
@@ -1176,6 +1238,8 @@ def convect(
             h = min(h, window_end - elapsed)
         cape_time += plume.cape * h
         active_time += h
+        if window < windows:
+            window_mass[window] += flux * h
         step = apply_mass_flux(
             plume,
             cloud_base_flux=flux,
@@ -1241,8 +1305,14 @@ def convect(
         milestones=milestones,
         cape_after=cape_after,
         # The idle remainder of the step holds the CAPE convection left.
-        cape_time_mean=(cape_time + max(dt - elapsed, 0.0) * cape_after) / dt,
+        cape_time_mean=(
+            cape_time + max(dt - (elapsed if idle_from is None else idle_from), 0.0) * cape_after
+        )
+        / dt,
         # Windows after convection stopped start, and end, where it left CAPE.
         cape_window_start=np.where(np.isnan(window_start), cape_after, window_start),
         active_time_fraction=active_time / dt,
+        window_evaluated=window_evaluated,
+        window_status=window_status,
+        window_mass=window_mass,
     )

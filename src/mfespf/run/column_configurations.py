@@ -678,6 +678,7 @@ def radiating_column(
     diagnose_convective_recycling: bool = False,
     track_water_provenance: bool = False,
     convective_substep: float | None = None,
+    convective_window_continuation: str = "stop",
     prescribed_humidity: float | None = None,
     plume_humidity: bool = False,
     plume_vertical_structure: bool = False,
@@ -1086,6 +1087,7 @@ def radiating_column(
                     condensate_pathway=condensate_pathway,
                     track_water_provenance=track_water_provenance,
                     convective_substep=convective_substep,
+                    convective_window_continuation=convective_window_continuation,
                     cloud_water_conversion_rate=(
                         cloud_water_conversion_rate
                         if cloud_water_conversion_rate is not None
