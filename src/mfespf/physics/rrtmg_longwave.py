@@ -56,12 +56,15 @@ __all__ = [
     "G_POINTS_PER_BAND",
     "RRTMGColumn",
     "RRTMGLongwave",
+    "RRTMGOptics",
     "dry_air_column",
     "rrtmg_fixed_fractions",
     "rrtmg_gas_optics",
     "rrtmg_longwave_grid",
     "rrtmg_optical_depth",
+    "rrtmg_optics",
     "rrtmg_planck_fractions",
+    "rrtmg_reference_departure",
     "rrtmg_tables",
 ]
 
@@ -783,7 +786,23 @@ class RRTMGLongwave:
         )
 
 
-def rrtmg_optical_depth(
+@dataclass(frozen=True)
+class RRTMGOptics:
+    """RRTMG's optics on the grid, and what its zero-floor did to them.
+
+    ``floored`` counts the layer-bin pairs whose optical depth came out
+    negative and were set to zero, as RRTMG's own transfer does (``rtrnmr``:
+    ``if (odepth .lt. 0.0) odepth = 0.0``); ``most_negative`` is the lowest
+    value before flooring, zero when none was.
+    """
+
+    tau: np.ndarray
+    fractions: np.ndarray
+    floored: int
+    most_negative: float
+
+
+def rrtmg_optics(
     spec: RRTMGLongwave,
     *,
     vapour: np.ndarray,
@@ -791,16 +810,18 @@ def rrtmg_optical_depth(
     pressure: np.ndarray,
     temperature: np.ndarray,
     ozone_path: np.ndarray,
-    with_fractions: bool = False,
-) -> Any:
-    """Vertical gaseous optical depth on the grid, shaped (layers, bins).
-
-    With ``with_fractions``, also RRTMG's Planck fraction per layer and bin.
+) -> RRTMGOptics:
+    """Vertical gaseous optical depth and Planck fractions on the grid, (layers, bins).
 
     ``vapour`` and ``layer_mass`` in kg m^-2 (the layer mass includes the
     vapour), ``pressure`` in Pa, ``temperature`` in K, ``ozone_path`` in cm-atm.
     The dry-air column is the dry mass, the same quantity RRTMG's driver forms
     from the pressure thickness.
+
+    The interpolation in the binary species parameter can give a g-point a
+    small negative optical depth for water-rich mixtures, on RRTMG's own
+    reference profile included. RRTMG's transfer sets those to zero, and so
+    does this, counted (rrtmg-domain-and-refusals.md).
     """
     w = np.asarray(vapour, dtype=float)
     m = np.asarray(layer_mass, dtype=float)
@@ -827,11 +848,55 @@ def rrtmg_optical_depth(
     lw = spec.gpoint >= 0
     tau = np.zeros((m.size, spec.gpoint.size))
     tau[:, lw] = taug[:, spec.gpoint[lw]]
-    if not with_fractions:
-        return tau
+    negative = tau < 0.0
+    most_negative = float(tau.min()) if np.any(negative) else 0.0
+    tau = np.where(negative, 0.0, tau)
     fractions = np.zeros_like(tau)
     fractions[:, lw] = fracs[:, spec.gpoint[lw]]
-    return tau, fractions
+    return RRTMGOptics(
+        tau=tau,
+        fractions=fractions,
+        floored=int(np.count_nonzero(negative)),
+        most_negative=most_negative,
+    )
+
+
+def rrtmg_optical_depth(
+    spec: RRTMGLongwave,
+    *,
+    vapour: np.ndarray,
+    layer_mass: np.ndarray,
+    pressure: np.ndarray,
+    temperature: np.ndarray,
+    ozone_path: np.ndarray,
+    with_fractions: bool = False,
+) -> Any:
+    """``rrtmg_optics``'s optical depth, and with ``with_fractions`` its fractions."""
+    optics = rrtmg_optics(
+        spec,
+        vapour=vapour,
+        layer_mass=layer_mass,
+        pressure=pressure,
+        temperature=temperature,
+        ozone_path=ozone_path,
+    )
+    if with_fractions:
+        return optics.tau, optics.fractions
+    return optics.tau
+
+
+def rrtmg_reference_departure(pressure: np.ndarray, temperature: np.ndarray) -> np.ndarray:
+    """Each layer's departure from RRTMG's reference temperature at its pressure, K.
+
+    The k-tables are tabulated at T_ref(p) and +/-15 and +/-30 K; ``setcoef``
+    extrapolates outside that. T_ref is interpolated linearly in log pressure
+    between the tables' levels, as ``setcoef`` places a layer.
+    """
+    t = rrtmg_tables()
+    plog = np.log(np.asarray(pressure, dtype=float) / 100.0)
+    # preflog descends; np.interp needs ascending abscissae.
+    reference = np.interp(-plog, -t["preflog"], t["tref"])
+    return np.asarray(temperature, dtype=float) - reference
 
 
 def rrtmg_planck_fractions(spec: RRTMGLongwave, layer_fractions: np.ndarray) -> PlanckFractions:

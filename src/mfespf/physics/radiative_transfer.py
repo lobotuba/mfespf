@@ -490,7 +490,9 @@ def solve_column_radiation(
                 f"cloud optical property has shape {array.shape}, expected {shape}"
             )
         if np.any(array < 0.0):
-            raise ConfigurationError("cloud optical depths cannot be negative")
+            # Every absorber and scatterer arrives here, gases included, so the
+            # refusal names the quantity rather than guessing its source.
+            raise ConfigurationError("absorption and scattering optical depths cannot be negative")
         return array
 
     cloud_absorption = _optional(absorption_optical_depth)
@@ -752,6 +754,18 @@ class SpectralRadiationModule(Module):
                 ),
             ),
             equation_variables=(
+                # RRTMG's tables are tabulated at T_ref(p) and +/-15, +/-30 K; the
+                # departure is what its domain bounds (rrtmg-domain-and-refusals.md).
+                *(
+                    (
+                        (
+                            EQUATION_IDS["rrtmg_longwave"],
+                            (("dT_ref", "rrtmg_reference_temperature_departure", "K"),),
+                        ),
+                    )
+                    if use_rrtmg
+                    else ()
+                ),
                 # The cloud field's optical thickness is the cloud's, published
                 # by the cloud field. Inferred, it matched this module's total
                 # layer optical depth, saturated vapour bands and all.
@@ -890,6 +904,15 @@ class SpectralRadiationModule(Module):
                 ),
             ),
             produced_outputs=(
+                *(
+                    (
+                        "rrtmg_reference_temperature_departure",
+                        "rrtmg_negative_optical_depths_floored",
+                        "rrtmg_most_negative_optical_depth",
+                    )
+                    if use_rrtmg
+                    else ()
+                ),
                 "layer_radiative_heating",
                 "layer_optical_depth_extent",
                 "layer_single_scattering_albedo_extent",
@@ -1082,6 +1105,8 @@ class SpectralRadiationModule(Module):
             )
         self.k_distribution_source = k_distribution_source
         self.linear_in_tau_source = linear_in_tau_source
+        self._rrtmg_floor: tuple[int, float] = (0, 0.0)
+        self._rrtmg_departure: np.ndarray | None = None
         self.water_module_id = water_module_id
         self.vapour_optical_depth: np.ndarray | None = None
         self.volcanic_optics: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
@@ -1239,7 +1264,7 @@ class SpectralRadiationModule(Module):
             contributions.append((self.vapour_optical_depth, zeros, zeros))
 
         if self.rrtmg is not None:
-            from mfespf.physics.rrtmg_longwave import rrtmg_optical_depth
+            from mfespf.physics.rrtmg_longwave import rrtmg_optics, rrtmg_reference_departure
             from mfespf.physics.solar_absorption import ozone_layer_path
 
             pressure = self.input_field("atmosphere_layer_pressure").require_units("Pa").values
@@ -1249,15 +1274,17 @@ class SpectralRadiationModule(Module):
                     self.input_field("atmosphere_interface_pressure").require_units("Pa").values,
                     mass.values,
                 )
-            gas_tau, fractions = rrtmg_optical_depth(
+            rrtmg_optics_now = rrtmg_optics(
                 self.rrtmg,
                 vapour=self.input_field("atmosphere_water_vapour").require_units("kg m^-2").values,
                 layer_mass=mass.values,
                 pressure=pressure,
                 temperature=temperature.values,
                 ozone_path=self.ozone_path,
-                with_fractions=True,
             )
+            gas_tau, fractions = rrtmg_optics_now.tau, rrtmg_optics_now.fractions
+            self._rrtmg_floor = (rrtmg_optics_now.floored, rrtmg_optics_now.most_negative)
+            self._rrtmg_departure = rrtmg_reference_departure(pressure, temperature.values)
             if self.k_distribution_source:
                 from mfespf.physics.rrtmg_longwave import rrtmg_planck_fractions
 
@@ -1596,6 +1623,47 @@ class SpectralRadiationModule(Module):
                         values=np.array(effect_sw + effect_lw),
                         sign_convention=SignConvention.POSITIVE_DOWNWARD,
                         **flux,  # type: ignore[arg-type]
+                    ),
+                }
+            )
+        if self.rrtmg is not None and self._rrtmg_departure is not None:
+            # What RRTMG's tables were asked for, and what its zero-floor did:
+            # the floor is the published scheme's own, and it is counted, not hidden.
+            diagnostic = {
+                "quantity_kind": QuantityKind.DIAGNOSTIC,
+                "time_semantics": TimeSemantics.INSTANTANEOUS,
+                "timestamp": ctx.time,
+                "provenance": Provenance(
+                    producer=self.module_id, derivation=EQUATION_IDS["rrtmg_longwave"]
+                ),
+            }
+            outputs.update(
+                {
+                    "rrtmg_reference_temperature_departure": Field(
+                        field_id="rrtmg_reference_temperature_departure",
+                        physical_name="layer temperature minus RRTMG's reference at its pressure",
+                        symbol="dT_ref",
+                        values=np.array(self._rrtmg_departure),
+                        units="K",
+                        spatial_support=SpatialSupport.LAYER_AVERAGE,
+                        dimensions=("layer",),
+                        **diagnostic,  # type: ignore[arg-type]
+                    ),
+                    "rrtmg_negative_optical_depths_floored": Field(
+                        field_id="rrtmg_negative_optical_depths_floored",
+                        physical_name="layer-bin optical depths RRTMG's zero-floor raised to zero",
+                        values=np.array(float(self._rrtmg_floor[0])),
+                        units="1",
+                        spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                        **diagnostic,  # type: ignore[arg-type]
+                    ),
+                    "rrtmg_most_negative_optical_depth": Field(
+                        field_id="rrtmg_most_negative_optical_depth",
+                        physical_name="lowest RRTMG optical depth before its zero-floor",
+                        values=np.array(self._rrtmg_floor[1]),
+                        units="1",
+                        spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                        **diagnostic,  # type: ignore[arg-type]
                     ),
                 }
             )

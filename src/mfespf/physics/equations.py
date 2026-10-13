@@ -1543,6 +1543,7 @@ def build_equation_registry() -> EquationRegistry:
                 ("w", "layer vapour amount", "kg m^-2"),
                 ("p", "layer pressure", "Pa"),
                 ("T", "layer temperature", "K"),
+                ("dT_ref", "layer temperature minus RRTMG's reference at its pressure", "K"),
             ),
             parameters=(
                 (
@@ -1558,6 +1559,8 @@ def build_equation_registry() -> EquationRegistry:
                 "CH4 808.2 ppb, N2O 273.0 ppb and O2 0.209 are well mixed; CFCs and CO absent",
             ),
             approximations=(
+                "Negative g-point optical depths, which the binary-species interpolation gives "
+                "for water-rich mixtures, are set to zero as RRTMG's rtrnmr does, and counted.",
                 "Each g-point emits the Planck flux of a fixed wavelength sub-interval rather "
                 "than its fraction of the band's: -0.9 to -2.4 W m^-2 of OLR on AER's "
                 "atmospheres (rrtmg-longwave.md P1, (p)).",
@@ -1565,8 +1568,13 @@ def build_equation_registry() -> EquationRegistry:
                 "shortwave boundary.",
             ),
             validity_domain=ValidityDomain(
-                ranges=(("T", 160.0, 340.0, "K"),),
-                conditions=("the integrated Planck tables' range, 160 to 340 K",),
+                ranges=(("T", 160.0, 340.0, "K"), ("dT_ref", -30.0, 30.0, "K")),
+                conditions=(
+                    "the integrated Planck tables' range, 160 to 340 K",
+                    "within the k-tables: AER tabulates them at T_ref(p) and +/-15, +/-30 K and "
+                    "setcoef extrapolates linearly beyond; a runaway tropical column left them by "
+                    "50 K and the extrapolation went negative (rrtmg-domain-and-refusals.md)",
+                ),
             ),
             limiting_cases=(
                 "more water vapour raises every g-point's optical depth in the pure-water bands",

@@ -85,3 +85,36 @@ even on RRTMG's own reference profile.
 - N0's tail is 50.5 K.
 
 ---
+
+## Result (appended; nothing above this line changed)
+
+**The three changes are built, and every test passes.**
+
+- **T1:** on RRTMG's reference profile at RH 0.5, below 100 hPa, nothing
+  remains negative after the floor. The floor count equals the raw optics'
+  negatives on the grid's g-points, and is positive. The most negative value
+  matches to 1e-12.
+- **T2:**
+  - the published departure equals T - T_ref(p) to 1e-12;
+  - a layer started 35 K above the reference fails the validity gate, naming
+    `dT_ref` and RRTMG;
+  - 25 K above passes.
+- **T3:**
+  - a `ConfigurationError` on the radiation module's third step fails
+    `run_completed` with "ConfigurationError raised by radiation at step 2",
+    and `conservation_reconciliation` is not failed;
+  - a `ConservationError` still fails `conservation_reconciliation`.
+- **T4:**
+  - 200 steps of the R4 configuration give all 12400 field values identical
+    to the code before the change, to the bit, with masked NaNs compared as
+    equal;
+  - the floor count is 0 over all 200 steps, and the largest departure is
+    27.5 K;
+  - P0 and P2 pass unchanged.
+- **The full gate passes.**
+
+**Reported.** R3's one layer at +30.3 K (1.1 hPa) and N0's 50.5 K stand as
+recorded. Neither is rerun.
+
+**`docs/todo.md`.** The item "A configuration refusal is reported as a
+failed conservation gate" is resolved and removed.

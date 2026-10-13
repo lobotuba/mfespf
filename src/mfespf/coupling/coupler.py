@@ -220,6 +220,8 @@ class Coupler:
         self._interval_start = start_time
         self.reports: list[ConservationReport] = []
         self.step_reports: list[StepReport] = []
+        # The module whose method is running, so a refusal can be named by its source.
+        self.active_module = "(none)"
 
     # --- setup ------------------------------------------------------------
     def validate_configuration(self) -> None:
@@ -324,6 +326,7 @@ class Coupler:
                 continue
 
             ran.append(module.module_id)
+            self.active_module = module.module_id
             module_dt = self.schedule.module_dt(module.module_id)
             context = StepContext(
                 time=t0,
@@ -352,6 +355,7 @@ class Coupler:
             module = s.module
             if module.module_id not in ran or not module.status.evolves_state:
                 continue
+            self.active_module = module.module_id
             owned_ids = {qualify(s.region, x) for x in module.contract.owned_state_ids}
             owned = [
                 replace(c, state_id=c.state_id.split(REGION_SEPARATOR, 1)[-1]) if s.region else c

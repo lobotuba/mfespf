@@ -205,14 +205,6 @@ These are the items where the framework fails to do the thing it exists to do.
 They come before the physics, because the physics is what they are supposed to
 be protecting.
 
-### A configuration refusal is reported as a failed conservation gate
-
-A module raising `ConfigurationError` mid-run -- measured with the vapour eddy
-diffusion refusing an unstable step at K = 11 m^2 s^-1 -- leaves a run with zero
-steps whose manifest says "mandatory gate 'conservation_reconciliation'
-failed". Nothing failed to conserve. The manifest should name the refusal and
-its module, or a reader chasing a conservation bug will find none.
-
 ### `initial_relative_humidity` is validated and hashed but never applied
 
 `WaterModule` accepts it, checks it lies in [0, 1] and puts it in

@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from mfespf.contracts.cost import CostEstimate, ResourceBudget
-from mfespf.core.errors import MFESPFError
+from mfespf.core.errors import ConservationError, MFESPFError
 from mfespf.core.versioning import MigrationAdapter
 from mfespf.coupling.conservation import ConservationReport
 from mfespf.coupling.coupler import Coupler, CouplingSchedule, StepReport, region_view
@@ -292,9 +292,20 @@ class Kernel:
         try:
             steps = coupler.run(n_steps, assert_conservation=assert_conservation)
         except MFESPFError as exc:
-            manifest.record_gate("conservation_reconciliation", False)
+            # Only a failed reconciliation is a conservation failure. Anything else
+            # raised mid-run is a refusal, and it is named with its module and step:
+            # filed as conservation, it sent a reader looking for a leak that did
+            # not exist (rrtmg-domain-and-refusals.md).
+            if isinstance(exc, ConservationError):
+                manifest.record_gate("conservation_reconciliation", False)
+                manifest.warnings.append(str(exc))
+            else:
+                manifest.record_gate("run_completed", False)
+                manifest.warnings.append(
+                    f"{type(exc).__name__} raised by {coupler.active_module} at step "
+                    f"{coupler.step_index}: {exc}"
+                )
             manifest.status = RunStatus.FAILED
-            manifest.warnings.append(str(exc))
             coupler.finalize()
             # The steps completed before the failure are kept. They are not
             # evidence -- the manifest marks the run unusable -- but discarding
