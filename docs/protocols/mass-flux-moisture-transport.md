@@ -339,3 +339,47 @@ only M:
 
 Each substep keeps their sum, times the substep, at no more than half the
 layer's mass. M_b is still never limited.
+
+## Second erratum, before any code (nothing above this line changed)
+
+**What was frozen:** M_u = M_b at the level of free convection z_b, ramping
+linearly in pressure from zero at the source layer's base.
+
+**Why it cannot stand.** The plume's composition below z_b would then depend
+on the ramp's shape, which depends on where z_b is. z_b depends on the
+plume's buoyancy, which depends on its composition. That is circular. The
+exact discrete budgets also need one plume that both sets CAPE_d (section 1)
+and carries the transport (section 4). A ramped plume and the dilute CAPE
+parcel are two different plumes.
+
+**The readings:**
+
+1. **The ramp, iterated to a fixed point over z_b.** That needs a further
+   numerical rule nobody declared, and may not converge.
+2. **Cloud base at the launch level, as ZM has it,** taken (Zhang & McFarlane
+   1995).
+   - The plume takes all its mass, M_b, from the source layer: E = M_b and
+     D = 0 there.
+   - From the source layer's top it rises at constant M_b, with δ = ε above.
+   - The whole mass detrains in the termination layer.
+   - The dilute CAPE parcel and the transported plume are then the same
+     plume, layer for layer. CAPE_d is integrated from z_b, the first
+     positively buoyant layer above the source, as frozen.
+
+**The plume's discrete form, exact for conservation:**
+
+- **Within a layer,** the plume mixes its inflow with entrained air,
+  conserving moist static energy and total water exactly.
+- **Above saturation,** it then condenses at the layer's pressure:
+  - h is unchanged;
+  - the condensate formed is P_k;
+  - it leaves the plume at the layer's top.
+- **The environment's operator,** per unit M_b:
+
+  m_k dφ_k/dt = M_(k+1) φ_(k+1) - M_k φ_k - E_k φ_k + D_k φ_u,k
+
+  for φ = s (dry static energy) and q. The first two terms are the
+  compensating subsidence, upwind.
+- **Exactness.** Entrainment draws the start-of-step environment, so the
+  plume's budget identities, Σ(E h_e - D h_u) = 0 and Σ(E q_e - D q_u) = ΣP,
+  hold exactly under subcycling.
