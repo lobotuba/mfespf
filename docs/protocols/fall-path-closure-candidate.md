@@ -516,3 +516,19 @@ used later, it follows the user's sequence:
      fractional-terminal-layer variant.
 3. F0 qualification rerun.
 4. F0 with interactive radiation, which stays blocked until then.
+
+### Erratum to the result's wording (appended after `convective-temporal-convergence.md` T0)
+
+**Both readings kept.**
+
+- **Reading 1 (above):** F4's RH-profile failure is "in the layers near the
+  plume top, 254-288 hPa". The disposition repeats it as "the 254-288 hPa
+  plume-top region".
+- **Reading 2, measured in T0** (which reproduces F0 to every digit):
+  - the plume terminates at 57-126 hPa;
+  - the continuous top is near 100 hPa.
+  - So 254-288 hPa is the upper troposphere about 150 hPa below the tops,
+    where the plume detrains continuously (δ = ε), not where it terminates.
+- **The label was mine, and wrong.** F0 published no plume-top measurement
+  when it was written.
+- **The numbers stand,** and the failure is unchanged.

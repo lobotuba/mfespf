@@ -190,6 +190,7 @@ class Plume:
     buoyancy: np.ndarray
     cape: float
     liquid: np.ndarray | None = field(default=None)
+    top_pressure_continuous: float = field(default=float("nan"))
     conversion: np.ndarray | None = field(default=None)
     formation: np.ndarray | None = field(default=None)
     cloud_evaporation: np.ndarray | None = field(default=None)
@@ -351,6 +352,7 @@ def entraining_plume(
         q_t = q_u[source] + liquid[source]
     lfc = lnb = top = -1
     work = 0.0
+    before = 0.0
     cape = 0.0
     for k in range(source + 1, n):
         e = entrainment_rate * dz[k]
@@ -369,6 +371,7 @@ def entraining_plume(
                 lfc = k
             else:
                 continue
+        before = work
         work += b * dz[k]
         if lnb < 0:
             if b > 0.0:
@@ -380,6 +383,15 @@ def entraining_plume(
             break
     if lfc < 0:
         return empty
+    # Where the buoyancy work crosses zero between the last layer it was
+    # positive in and the terminal layer, interpolated in pressure between
+    # their centres (convective-temporal-convergence.md, T0). A diagnostic:
+    # the detrainment is still deposited in the terminal layer.
+    if top >= 0 and before > 0.0:
+        crossing = before / (before - work)
+        top_continuous = float(p[top - 1] + crossing * (p[top] - p[top - 1]))
+    else:
+        top_continuous = float(p[top]) if top >= 0 else float(p[n - 1])
     if top < 0:
         top = n - 1
     # Above the termination layer the plume does not exist.
@@ -406,6 +418,7 @@ def entraining_plume(
         condensate=condensate,
         buoyancy=buoyancy,
         cape=float(cape),
+        top_pressure_continuous=top_continuous,
         **(
             {
                 "liquid": liquid,
@@ -591,6 +604,8 @@ class MassFluxStep:
     rain_evaporation: np.ndarray
     precipitation_formed: np.ndarray
     detrained_cloud: np.ndarray
+    detrained_mass: np.ndarray
+    plume_mass: np.ndarray
 
 
 #: The decomposition fields, summed over substeps. ``precipitation_entering``
@@ -613,6 +628,8 @@ _PARTS = (
     "rain_evaporation",
     "precipitation_formed",
     "detrained_cloud",
+    "detrained_mass",
+    "plume_mass",
 )
 # The ledger (convective-condensate-ledger.md), kg m^-2 over the step:
 # ``formation_gross`` is C_form; ``cloud_evaporation`` E_cloud (in the plume and
@@ -834,6 +851,8 @@ def apply_mass_flux(
         rain_evaporation=rain_evaporation,
         precipitation_formed=precipitation_formed,
         detrained_cloud=detrained_cloud,
+        detrained_mass=scale * D,
+        plume_mass=scale * plume.flux[:-1],
     )
 
 
@@ -1018,6 +1037,7 @@ class Convection:
     mean_cloud_base_flux: float
     provenance: np.ndarray | None = None
     milestones: Milestones | None = None
+    cape_after: float = float("nan")
 
 
 def convect(
@@ -1041,6 +1061,7 @@ def convect(
     condensate_pathway: str = "immediate",
     conversion_rate: float = CLOUD_WATER_CONVERSION_PER_M,
     provenance: np.ndarray | None = None,
+    substep: float | None = None,
 ) -> Convection:
     """Integrate the closure over ``dt`` as the rate law it is (third erratum).
 
@@ -1067,6 +1088,16 @@ def convect(
     )
     elapsed, substeps, moved = 0.0, 0, 0.0
     first: tuple[Plume, float, float] | None = None
+    # A common convective step (convective-temporal-convergence.md, T1): the
+    # host step is integrated in windows of ``substep``, every substep ending at
+    # the next window boundary at the latest, so the closure is re-evaluated at
+    # least that often whatever the host step.
+    if substep is not None:
+        if not substep > 0.0 or abs(dt / substep - round(dt / substep)) > 1.0e-9:
+            raise ConfigurationError(
+                f"the convective substep {substep:g} s must divide the step {dt:g} s exactly"
+            )
+    window_end = dt if substep is None else min(dt, substep)
     classes = None if provenance is None else np.array(provenance, dtype=float)
     milestones = None if provenance is None else Milestones.zeros(n)
     if classes is not None and (
@@ -1109,6 +1140,8 @@ def convect(
         active = outflow > 0.0
         limit = float(np.min(0.5 * m[active] / outflow[active])) if np.any(active) else dt
         h = min(dt - elapsed, limit)
+        if substep is not None:
+            h = min(h, window_end - elapsed)
         step = apply_mass_flux(
             plume,
             cloud_base_flux=flux,
@@ -1132,6 +1165,9 @@ def convect(
         moved += flux * h
         elapsed += h
         substeps += 1
+        if substep is not None and elapsed >= window_end * (1.0 - 1.0e-12):
+            elapsed = window_end
+            window_end = min(dt, window_end + substep)
         if substeps > MAX_SUBSTEPS:
             raise ConfigurationError(
                 f"mass-flux convection needed more than {MAX_SUBSTEPS} substeps in one step "
@@ -1160,4 +1196,12 @@ def convect(
         mean_cloud_base_flux=moved / dt,
         provenance=classes,
         milestones=milestones,
+        cape_after=entraining_plume(
+            temperature=T,
+            vapour=w,
+            entrainment_rate=entrainment_rate,
+            condensate_pathway=condensate_pathway,
+            conversion_rate=conversion_rate,
+            **fixed,
+        ).cape,
     )

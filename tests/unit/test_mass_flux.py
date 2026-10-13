@@ -466,6 +466,43 @@ def test_the_provenance_classes_follow_the_vapour():
     )
 
 
+@pytest.mark.req("CON-001", "CON-004", "EQR-002")
+def test_a_common_convective_substep_reevaluates_the_closure_in_every_window():
+    """convective-temporal-convergence.md, T1: integrated in 300 s windows, a
+    900 s step closes the mass flux at least once per window, and the step still
+    redistributes its energy and removes water only as precipitation. A
+    substep that does not divide the step is refused."""
+    c = _column()
+    options = dict(
+        entrainment_rate=1.0e-3,
+        evaporating_fraction=0.67,
+        condensate_pathway="carried",
+        precipitation_evaporation="rate_law_only",
+        **c,
+    )
+    whole = convect(dt=900.0, **options)
+    windows = convect(dt=900.0, substep=300.0, **options)
+    assert windows.step.substeps >= 3 and windows.step.substeps >= whole.step.substeps
+    step = windows.step
+    assert abs(float(np.sum(step.energy))) < 1e-10 * float(np.max(np.abs(step.energy)))
+    assert float(np.sum(step.condensation)) == pytest.approx(step.surface_precipitation, rel=1e-12)
+    assert np.isfinite(windows.cape_after) and windows.cape_after < windows.cape
+    with pytest.raises(ConfigurationError, match="divide the step"):
+        convect(dt=900.0, substep=400.0, **options)
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_the_continuous_plume_top_lies_between_its_bracketing_layers():
+    """T0: the buoyancy work's zero crossing, interpolated between the last layer
+    it was positive in and the terminal layer, lies between their pressures."""
+    c = _column()
+    plume = entraining_plume(entrainment_rate=1.0e-3, **c)
+    assert plume.active
+    k = plume.top
+    p = c["pressure"]
+    assert p[k] <= plume.top_pressure_continuous <= p[k - 1]
+
+
 def _warm_moist_column(**overrides):
     n = 30
     options = dict(

@@ -247,6 +247,16 @@ MASS_FLUX_DECOMPOSITION: dict[str, tuple[str, str, str]] = {
         "cloud water detrained into each layer",
         "kg m^-2 s^-1",
     ),
+    "detrained_mass_rate": (
+        "detrained_mass",
+        "air detrained into each layer by the plume",
+        "kg m^-2 s^-1",
+    ),
+    "plume_mass_flux_rate": (
+        "plume_mass",
+        "the plume's mass flux at each layer's lower interface, the subsidence above it",
+        "kg m^-2 s^-1",
+    ),
 }
 
 
@@ -281,6 +291,7 @@ class ConvectiveAdjustmentModule(Module):
         condensate_pathway: str = "immediate",
         cloud_water_conversion_rate: float = CLOUD_WATER_CONVERSION_PER_M,
         track_water_provenance: bool = False,
+        convective_substep: float | None = None,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         relaxed = relaxation_timescale > 0.0
@@ -446,6 +457,9 @@ class ConvectiveAdjustmentModule(Module):
                         "plume_buoyancy",
                         "plume_top_pressure",
                         "mass_flux_substeps",
+                        "dilute_cape_after_convection",
+                        "requested_cloud_base_mass_flux",
+                        "plume_top_pressure_continuous",
                         *MASS_FLUX_DECOMPOSITION,
                         *(
                             ("water_provenance_change_rate", "convective_provenance_milestones")
@@ -635,6 +649,10 @@ class ConvectiveAdjustmentModule(Module):
         self.condensate_pathway = condensate_pathway
         self.cloud_water_conversion_rate = cloud_water_conversion_rate
         self.track_water_provenance = track_water_provenance
+        self.convective_substep = convective_substep
+        self._cape_after = 0.0
+        self._requested_flux = 0.0
+        self._top_continuous = float("nan")
         self._provenance_change: np.ndarray | None = None
         self._provenance_milestones: np.ndarray | None = None
         self._mass_flux_parts: dict[str, np.ndarray] = {}
@@ -1157,6 +1175,7 @@ class ConvectiveAdjustmentModule(Module):
             condensate_pathway=self.condensate_pathway,
             conversion_rate=self.cloud_water_conversion_rate,
             provenance=classes,
+            substep=self.convective_substep,
             **common,
         )
         step = result.step
@@ -1165,6 +1184,11 @@ class ConvectiveAdjustmentModule(Module):
         self._cape_removal = result.cape_removal
         self._surface_precipitation = step.surface_precipitation / ctx.dt
         self._mass_flux_substeps = step.substeps
+        self._cape_after = result.cape_after
+        self._requested_flux = result.first_cloud_base_flux
+        self._top_continuous = (
+            result.plume.top_pressure_continuous if result.plume.active else float("nan")
+        )
         if start is not None:
             if result.provenance is None or result.milestones is None:
                 raise ConfigurationError("mass-flux convection lost the provenance classes")
@@ -1293,6 +1317,24 @@ class ConvectiveAdjustmentModule(Module):
                 "substeps the transport took",
                 self._mass_flux_substeps,
                 "1",
+            ),
+            "dilute_cape_after_convection": scalar(
+                "dilute_cape_after_convection",
+                "the plume's CAPE on the state convection leaves",
+                self._cape_after,
+                "J kg^-1",
+            ),
+            "requested_cloud_base_mass_flux": scalar(
+                "requested_cloud_base_mass_flux",
+                "the closure's cloud-base mass flux at the step's first substep",
+                self._requested_flux,
+                "kg m^-2 s^-1",
+            ),
+            "plume_top_pressure_continuous": scalar(
+                "plume_top_pressure_continuous",
+                "where the plume's buoyancy work crosses zero, interpolated between layers",
+                self._top_continuous,
+                "Pa",
             ),
             **{
                 name: Field(
@@ -1580,6 +1622,11 @@ class ConvectiveAdjustmentModule(Module):
                     "precipitation_evaporation": self.precipitation_evaporation,
                     "condensate_pathway": self.condensate_pathway,
                     **({"tracks_water_provenance": True} if self.track_water_provenance else {}),
+                    **(
+                        {"convective_substep_s": self.convective_substep}
+                        if self.convective_substep is not None
+                        else {}
+                    ),
                     **(
                         {"cloud_water_conversion_rate_per_m": self.cloud_water_conversion_rate}
                         if self.condensate_pathway == "carried"
