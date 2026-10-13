@@ -105,3 +105,29 @@ rises, between two states inside the tables.
   free troposphere must be to stay stable.
 
 ---
+
+## Erratum, before any verdict (nothing above this line changed)
+
+**The prescribed stratosphere is outside RRTMG's tables in every state.**
+
+- **The cause.** The protocol holds the air isothermal at 197.5 K from the
+  tropopause to the 1 hPa top. The real stratosphere, and RRTMG's reference
+  profile, warm to about 270 K at 1 hPa.
+- **The first run.** Every state's largest departure from RRTMG's reference
+  is the same 78 K, at the top. Every state was refused by the solver, as a
+  negative optical depth in the cold upper stratosphere.
+- **No verdict was read.** K0 passed (N = 49.53 against N0's 48.90), so the
+  method stands.
+
+**The two readings:**
+
+1. **As frozen:** every state is excluded, K1 passes vacuously and K2 fails
+   vacuously. That measures the prescription, not the column.
+2. **Above the tropopause, the larger of 197.5 K and the AFGL tropical
+   temperature at that pressure,** taken.
+   - The source is Anderson et al. (1986) Table 1a, as AER's
+     `input_rrtm_TROP-clr` carries it (already in `tests/data/aer_rrtmg_lw/`
+     and checksummed in `data/sources.yaml`), interpolated in log pressure.
+   - Its cold point is 196.35 K at 109.6 hPa, and it is 268.8 K at 1 hPa.
+   - The troposphere, the humidity, the tests and their tolerances are
+     unchanged.
