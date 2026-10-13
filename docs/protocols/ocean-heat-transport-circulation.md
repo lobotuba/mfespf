@@ -240,3 +240,68 @@ That is a prediction, not a criterion. The criteria above stand as written.
   this does not represent.
 
 ---
+
+## The symmetry check and N0 (appended; nothing above this line changed)
+
+**The symmetry check passes.** Two columns with ΔQ = 0, 2000 steps:
+
+- **Identical:** bit-for-bit, surface and profiles alike;
+- **No circulation:** omega500 0.0;
+- **Closed:** residual 6.6e-16.
+
+So N0 stands for the null exactly, as frozen.
+
+**N0 is invalid. The single tropical column runs away.**
+
+- **The run.** It stopped at step 45050 of 100000, refused by the solver:
+  "cloud optical depths cannot be negative". The run is recorded as a failed
+  conservation gate.
+  - The message is the solver's check on the absorption optical depth it is
+    handed, which includes the gas optics; no cloud was negative.
+  - The gate attribution is the open item in `docs/todo.md`: a refusal is
+    reported as a conservation failure.
+  - A deterministic rerun, with the full warnings captured, reproduced it at
+    the same step.
+- **The state it had reached:** means over steps 36041-45050, still warming.
+
+  | | N0 | observed ±20° |
+  |---|---:|---:|
+  | surface | 314.0 K | 299.6 K |
+  | RH 300-700 hPa | 0.95 | 0.43 |
+  | precipitable water to 300 hPa | 256 kg m^-2 | 38.0 |
+  | the moist layer reaches | about 25 hPa | 100-150 hPa |
+  | water, 100-68 hPa | about 3000 ppmv | 3.5 |
+  | net TOA, against an export of 42.51 | 48.9 W m^-2 | |
+
+**Why the solver refused: RRTMG was evaluated outside its tables.**
+
+- **The tables.** AER's k-tables are tabulated at five temperatures, the
+  reference profile T_ref(p) and ±15 and ±30 K. Outside that, `setcoef`
+  extrapolates linearly.
+- **N0's departure.** On N0's tail-mean state, 15 layers lie more than 30 K
+  from T_ref(p), the most 50.5 K at 187 hPa (268.8 K).
+- **Where the extrapolation goes negative.** A scan of the port over
+  saturated-or-drier states gives negative optical depths in band 8 at
+  290-340 K between 96 and 172 hPa, among others. That is where the runaway
+  was taking the upper troposphere.
+- **The global runs.** R4 stays within 27.6 K of T_ref(p) everywhere. R3
+  exceeds 30 K in one layer, by 0.3 K at 1.1 hPa.
+
+**Two consequences, recorded and not acted on here.**
+
+1. **`EQ-RRTMG-LW-GAS-OPTICS` declares T 160-340 K.** That domain is wrong.
+   The tables bound the departure from the reference profile, not the
+   temperature. A domain the validity gate can check would have invalidated
+   N0 by name, rather than as a conservation failure 45050 steps in. This is
+   recorded for the user's decision.
+2. **The null is physically a runaway.** A moist tropical column alone,
+   under the tropics' sunlight, warms without bound. Pierrehumbert (1995,
+   *J. Atmos. Sci.* 52, 1784, "Thermostats, radiator fins, and the local
+   runaway greenhouse") gives exactly this result. In that analysis the dry
+   subsiding regions stabilise the tropics: they are the radiator fins.
+   - That makes W1 the test of whether the overturning supplies them, beyond
+     what D1-D3 judge.
+   - The "reported" comparison of W1's surface against N0's has no valid N0
+     to stand on.
+
+**W1 runs as frozen,** started when N0 exited.
