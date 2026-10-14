@@ -339,3 +339,64 @@ substeps resolve the switching more often rather than less (rates 0.32 →
 Those are physics choices for the user. The continuous top
 (`plume_top_pressure_continuous`) already exists as a diagnostic. It is not
 used for deposition.
+
+## User disposition (2026-10-14): the branch is closed, appended
+
+**Option 3:** stop this branch, and record binary plume termination as a
+known limitation. **Recorded as the user worded it:**
+
+> The CAPE-definition branch is closed without adoption. D1 and D2 eliminate
+> the first-neutral-layer discontinuity in D0 and therefore confirm that the
+> historical CAPE definition is inconsistent with the modeled plume's
+> dynamical extent. Neither alternative qualifies when used to drive the
+> closure. The remaining CAPE discontinuities arise from binary switching of
+> the single bulk plume between shallow and deep termination states. The
+> switching is intrinsic to the plume trajectory: plume-geometry changes
+> account for approximately 96% of each diagnosed jump, while host-step
+> environmental changes act only as the perturbation selecting the
+> trajectory. Finer temporal resolution increases the resolved switching
+> frequency rather than removing the discontinuity.
+>
+> No interpolation correction is adopted. Distributing tendencies between the
+> shallow and deep tops would require an unmeasured population weight and
+> would constitute a new closure.
+>
+> No plume spectrum is implemented in this branch. A plume-population
+> formulation is retained as a possible successor architecture but requires
+> independent constraints on population statistics, mass-flux partition,
+> entrainment, termination probabilities and convective memory.
+>
+> The current bulk-plume scheme remains unqualified. No CAPE definition,
+> convective substep or trigger threshold is selected. F0,
+> interactive-radiation F0 and P1-P3 remain blocked.
+
+**The three definitions:**
+
+| definition | disposition |
+|---|---|
+| D0 `first_lnb` | retained as the bit-identical default only. It has a measured first-neutral-layer discontinuity. |
+| D1 `positive_area` | retained as an experimental diagnostic. It removes D0's discontinuity but inherits the shallow/deep switching, and did not pass the driven-closure gates. |
+| D2 `maximum_work` | retained as an experimental diagnostic, consistent with the plume's running work. It did not converge in driven CAPE or D_t. |
+| 70 J/kg trigger | a legacy control for the historical configuration only, not calibrated or validated for D1 or D2 |
+
+**Kept as research diagnostics, all with their defaults unchanged:**
+
+- the three definitions;
+- the census instrumentation;
+- the window record;
+- the fractional crossing;
+- the window continuation.
+
+**The single-column route is not called disproven.** The user lists what this
+branch established:
+
+- compensating subsidence can dry the free troposphere;
+- condensate-return placement strongly controls humidity;
+- fall-path evaporation avoids the forced evaporation-recondensation loop;
+- molecule-once precipitation efficiencies can be measured exactly;
+- D0's CAPE geometry is defective;
+- a single deterministic plume can switch between shallow and deep states
+  under tiny perturbations.
+
+**But this mass-flux closure cannot supply a unique, timestep-independent
+convective response.** So it is no longer treated as the path to P1-P3.

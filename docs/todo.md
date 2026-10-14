@@ -332,6 +332,34 @@ worth more than not climbing it.
 
 ## Convection and the vapour pathway
 
+### A single bulk plume has no unique response: a population would need constraints first
+
+**Measured** (`convective-cape-jump-census.md`):
+
+- the entraining bulk plume switches between shallow and deep terminations
+  about 330-360 hPa apart;
+- a 0.08 K host-step perturbation selects the state;
+- the plume's geometry carries about 96 percent of each 240 J/kg change in
+  CAPE;
+- the switching rate rises with finer substeps: 0.32 to 0.83 per host step,
+  from 300 s to 75 s.
+
+**What follows from that:** no CAPE definition, substep or trigger makes this
+closure timestep-independent. The branch is closed.
+
+**The successor, if one is wanted, is a plume population** (a spectrum or
+stochastic ensemble of entraining plumes). It is not to be built until there
+are independent constraints on:
+
+- the population variable and its distribution;
+- the partition of the cloud-base mass flux among members;
+- entrainment;
+- termination or shallow/deep probabilities;
+- memory between steps;
+- how the members' tendencies combine conservatively.
+
+A 70 J/kg trigger, or any CAPE metric, would need its own protocol under it.
+
 ### The global-mean column itself
 
 **It is a ceiling, not a bug.** The subsiding-branch mechanism works and the

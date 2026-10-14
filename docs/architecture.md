@@ -691,6 +691,51 @@ the previous mechanism is gone, no number from the coupled column is quotable
 until the evaporating fraction is constrained, and the column contradicts its
 own closure until the lapse rate is wired in.
 
+### The mass-flux plume branch, closed without adoption
+
+The entraining mass-flux plume (branch `recalibrate-co2-band`, from
+`mass-flux-diagnostic-branch.md` through `convective-cape-jump-census.md`)
+was pursued as the convection that would carry water aloft and dry the free
+troposphere by compensating subsidence. It is closed without adoption, by
+the user's decision of 2026-10-14. The negative result is kept here under
+charter §3.5.
+
+**What it established:**
+
+- compensating subsidence dries the free troposphere;
+- where condensate is returned controls the humidity;
+- a fall-path evaporation law avoids the forced
+  evaporation-recondensation loop;
+- precipitation efficiencies can be measured molecule by molecule, with a
+  provenance tracer.
+
+**Why it was not adopted: the closure has no timestep-independent response.**
+
+1. **The sampled CAPE was step-dependent.** It was traced first to the number
+   of convective windows per host step. Then it was traced to the explicit
+   step jumping a discontinuity in the CAPE definition.
+2. **The historical CAPE ends at the first non-buoyant layer.** The plume
+   itself rises through about 5 km of such layers on accumulated work, so
+   CAPE can drop 300 J/kg on a 1e-12 change in one layer's buoyancy.
+3. **Two definitions that follow the plume's own extent remove that defect**
+   (the positive area, and the maximum running work). Neither passes the
+   driven-closure gates.
+4. **The discontinuity that remains is the plume's own.** A single
+   deterministic plume switches between shallow and deep termination states
+   about 350 hPa apart:
+   - a 0.08 K perturbation from the host step selects which one;
+   - the plume's geometry carries about 96 percent of each 240 J/kg CAPE
+     change;
+   - finer substeps resolve the switching more often, not less.
+
+**What was declined:**
+
+- **Interpolating between the two tops.** It would need an unmeasured
+  population weight, which is a new closure.
+- **A plume spectrum.** It needs independent constraints on the
+  population's statistics, partition, termination probabilities and memory,
+  and is left as a possible successor architecture (`todo.md`).
+
 ## The first registered claim
 
 ```
