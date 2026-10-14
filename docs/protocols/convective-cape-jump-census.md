@@ -201,3 +201,141 @@ satisfy only the frozen rule for D1's limit. **Selecting a definition, and
 any trigger protocol, remain the user's decisions.**
 
 ---
+
+## Result (appended; nothing above this line changed)
+
+**Both census runs reproduce their S2 runs to every printed digit:**
+`s2_positive_area_300` (890 shared values) and `s2_positive_area_75` (956).
+The wrappers changed nothing. The recomputed C(E_n, P_n) and C(E_n+1, P_n+1)
+match the plumes' own D1 exactly: residual 0.
+
+### The 300 s census: two-state termination switching
+
+**1188 transitions over days 10-20,** 480 host and 708 convective. **304 are
+large (|ΔD1| > 25 J/kg),** and they split exactly in half:
+
+| | count | labels | median \|J\| | where |
+|---|---:|---|---:|---|
+| **positive** | 152 | J1 + J2, every one | 236 J/kg | every one at a host transition, step n's end launch to step n+1's first launch |
+| **negative** | 152 | J1, every one | 241 J/kg | every one within convection, typically at the second window (300 s into the host step) |
+
+**No J3, J4 or J5.** The source and LFC never changed. No J1 is index-only:
+every termination change is ≥ 10 hPa. In the examples the termination rises
+329-335 hPa at the host transition and falls 358-361 hPa one window later.
+
+**The host forcing behind a positive jump is small.** The environment changes
+by at most 0.08-0.084 K in any layer. The largest labelled contributions are:
+
+- convection's mass-flux transport and dry adjustment;
+- radiation, about 0.15 K per step;
+- the water module's latent heat.
+
+**D2, on the same plumes:** 304 large jumps, 152 each sign, labelled
+identically, median 208 and 215 J/kg.
+
+### Counterfactuals (300 s)
+
+| | all large | positive (host) | negative (convective) |
+|---|---:|---:|---:|
+| median \|J\| | 238 | 236 | 241 |
+| environment term / J, median | 0.015 | 0.003 | 0.136 |
+| plume term / J, median | 0.958 | 0.941 | 0.986 |
+| fixed-extent change (C_ext), median | 85.5 | **2.6** | 240.9 (truncated) |
+| C_ext truncated | 152 | 0 | **152** |
+
+- **Positive jumps:** holding the old extent removes 99 percent of the jump.
+- **Negative jumps:** the frozen C_ext cannot be evaluated. In all 152 the
+  new plume terminates below the old extent, so its parcel does not exist
+  over it. This is the limitation documented above, and the median 240.9
+  is that truncation, not a measurement.
+
+**A post-hoc mirror, not frozen, labelled as such.** The old plume's own
+buoyancy over the new, lower extent: defined in all 152 negative jumps (none
+truncated). It reproduces the new CAPE to within a median 7.7 J/kg of a
+median 241 J/kg jump.
+
+### The 75 s census, reported
+
+**3187 transitions, 798 large:** 399 positive (all J1 + J2) and 399 negative
+(all J1). Medians are 256 and 256 J/kg.
+
+- **Rates:** large jumps occur at 0.83 per host transition, against 0.15 per
+  convective one.
+- **J1 among non-jump transitions:** 0.058.
+- **Counterfactuals,** as at 300 s:
+  - environment term / J 0.015;
+  - plume term / J 0.988;
+  - positive-jump C_ext change 2.2 J/kg;
+  - negative C_ext truncated in all 399.
+
+### Verdicts, as frozen
+
+**Termination: (i) and (iii) hold.**
+
+- (i) J1 is 100 percent of large jumps.
+- (iii) J1 occurs in 24 percent of non-jump transitions, against 100
+  percent.
+
+**(ii) holds overall:** the fixed-extent change has a median of 85.5 J/kg,
+against the 119 J/kg limit.
+
+**(iv), per sign, does not:**
+
+- (ii) holds for positive jumps: 2.6 against 118.
+- It cannot be shown for negative ones by the frozen counterfactual: 152 of
+  152 truncated.
+
+**So the verdict is reported per sign:**
+
+- **Positive jumps: termination supported,** at host transitions. The host
+  forcing is the trigger, and the CAPE change is carried by the termination
+  (plume term 0.94, environment term 0.003).
+- **Negative jumps:** termination supported by (i) and (iii) and by the
+  post-hoc mirror. Not by the frozen (ii), which cannot be evaluated.
+
+**Host forcing: not supported.**
+
+- The positive jumps all occur at host transitions, and J2 is 50 percent of
+  large jumps.
+- But the large-jump rate per host transition (0.32) is not more than twice
+  the convective one (0.21).
+- The environment term carries a median of 1.5 percent of J.
+
+**Mixed: no.** The environment term is not material.
+
+### The D1 extension, as frozen: not run
+
+Condition (b) needs the large-jump magnitude per day at 75 s to be no larger
+than at 300 s. It is 20806 against 7704 J/kg per day, 2.7 times larger.
+Condition (a), a host-forcing verdict, does not hold. **The 18.75 and 9.375 s
+D1 runs are not run.**
+
+### What the result says, and what it does not
+
+**1. The remaining jumps are the plume's own termination switching between
+two states.**
+
+- **The cycle:** a deep state and a shallow one about 330-360 hPa apart. A
+  0.08 K host-step change flips the plume deep; one convective window flips
+  it back.
+- **The size:** each flip moves D1 by about 240 J/kg.
+- **What D1 and D2 are doing:** they follow the plume, as designed. The
+  discontinuity is now the plume's own.
+
+**2. A reading, not measured here.** For the termination to switch on a
+0.08 K change, the plume's running work must have an interior minimum within
+a hair of zero. The plume either carries through it, or stops there, by the
+sign of W at that layer. The scheme's binary penetrate-or-stop at a marginal
+work minimum is then the discontinuity left in the closure, and finer
+substeps resolve the switching more often rather than less (rates 0.32 →
+0.83 per host transition at 300 → 75 s).
+
+**3. Not concluded:**
+
+- whether the termination rule is the right physics;
+- whether a plume that partly penetrates a marginal layer (a distribution of
+  tops, or a continuous top) is the right representation.
+
+Those are physics choices for the user. The continuous top
+(`plume_top_pressure_continuous`) already exists as a diagnostic. It is not
+used for deposition.
