@@ -104,3 +104,89 @@ Those are physics choices for the user. They would be tested in their own
 protocol, against the closure's two predictions.
 
 ---
+
+## Result (appended; nothing above this line changed)
+
+**D1's run reproduces `of_300`** in all 848 shared printed values. The
+wrappers recorded and changed nothing.
+
+### D1: every unresolved crossing is LNB truncation
+
+| class | count |
+|---|---:|
+| **HL, LNB truncation** | **301** |
+| HF, LFC change | 0 |
+| HS, source change | 0 |
+| HI, plume inactive | 0 |
+| Other | 0 |
+
+**HL supported: 301 of 301, 100 percent.**
+
+**In every crossing:**
+
+- **The source and the LFC are unchanged.** Source layer 0, LFC layer 1.
+- **The plume's termination is unchanged:** layer 27 on both sides.
+- **The LNB moves down,** and the CAPE lost equals the positive area between
+  the two LNBs within 1e-6 relative.
+- **The truncating layer's buoyancy goes from about +1e-15 to −1e-12 m s⁻².**
+  It is an intermediate layer at neutral buoyancy, tipping to zero.
+
+### D2: where, and how much
+
+**The LNB moves, in layers:**
+
+| move | count |
+|---|---:|
+| 24 → 8 | 102 |
+| 14 → 9 | 72 |
+| 24 → 3 | 68 |
+| 24 → 6 | 55 |
+| 24 → 14 | 4 |
+
+**The truncating layer's pressure:**
+
+| pressure | count |
+|---:|---:|
+| 895 hPa | 68 |
+| 794 hPa | 55 |
+| 726 hPa | 102 |
+| 693 hPa | 72 |
+| 524 hPa | 4 |
+
+**The jump:**
+
+- 28.1 to 427.1 J/kg, median 328.2;
+- the positive region dropped is a median 9.3 km deep.
+
+**The jump the O-protocol showed (about 28 J/kg) is the smallest case.**
+Most crossings drop most of the column's CAPE. The plume above the
+truncating layer is still buoyant, and still rising to the same top.
+
+### What the result says, and what it does not
+
+**1. The closure and the plume disagree about where the convection ends.**
+
+- **The plume** rises to where its integrated work returns to zero.
+- **The CAPE that closes its mass flux and tests its trigger** stops at the
+  first neutral layer.
+- **When a mid-tropospheric layer is neutral,** CAPE_d omits the buoyant
+  ascent above it, up to 9 km of it. That ascent is still happening.
+
+**2. This is consistent with the earlier substep dependence (an inference, not measured crossing by crossing).**
+
+- **At coarse substeps,** one explicit step crosses a neutral layer.
+- **What the crossing does:** CAPE collapses by hundreds of J/kg, the trigger
+  fails, and convection stops for the host step.
+- **That is the overshoot regime** behind the low CAPE (36-52 J/kg) and the
+  dependence on N and the substep seen in F4, T1, T2, C and the matrix.
+- **At fine substeps, and in the fractional runs,** convection stops at the
+  neutral layer instead, and the column holds CAPE near 213-215 J/kg.
+
+**3. Not concluded:**
+
+- **Whether CAPE_d should end at the first neutral layer.** That is a physics
+  choice.
+- **What an alternative would do.** For example, the positive area up to the
+  plume's own termination, or net work to it.
+- These are for the user, in their own protocol, against the closure's two
+  predictions.
