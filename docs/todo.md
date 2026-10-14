@@ -362,6 +362,14 @@ A 70 J/kg trigger, or any CAPE metric, would need its own protocol under it.
 
 ### The global-mean column itself
 
+**Not internally closable (user disposition, 2026-10-14).** Free-tropospheric
+humidity is not considered internally closable in the global-mean single
+column. The experiments indicate that the missing physics is a drying
+pathway associated with spatial circulation, not another local humidity
+adjustment. No tuned free-tropospheric drying or humidity relaxation will be
+introduced solely to stabilize the single column. The tropical runaway is the
+same problem (`tropical-runaway-ceiling.md`, `tropical-runaway-trajectory.md`).
+
 **It is a ceiling, not a bug.** The subsiding-branch mechanism works and the
 parameters it needs are not obtainable: the two parameter-free limits are 0.015
 and 0.725 against an observed 0.4 to 0.5, so they bracket nothing, and what sets
