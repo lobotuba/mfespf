@@ -195,6 +195,14 @@ class Plume:
     conversion: np.ndarray | None = field(default=None)
     formation: np.ndarray | None = field(default=None)
     cloud_evaporation: np.ndarray | None = field(default=None)
+    # The three CAPE definitions, from the same plume (convective-cape-definition.md).
+    cape_first_lnb: float = field(default=0.0)
+    cape_positive_area: float = field(default=0.0)
+    cape_maximum_work: float = field(default=0.0)
+    first_neutral_layer: int = field(default=-1)
+    maximum_work_layer: int = field(default=-1)
+    internal_neutral_layers: int = field(default=0)
+    internal_neutral_depth: float = field(default=0.0)
 
     @property
     def active(self) -> bool:
@@ -262,6 +270,7 @@ def entraining_plume(
     source_floor: float = SOURCE_LAYER_FLOOR_PA,
     condensate_pathway: str = "immediate",
     conversion_rate: float = CLOUD_WATER_CONVERSION_PER_M,
+    cape_definition: str = "first_lnb",
 ) -> Plume:
     """The plume of mass-flux-moisture-transport.md and its second erratum.
 
@@ -273,6 +282,13 @@ def entraining_plume(
     buoyancy. CAPE_d is the positive area between the level of free convection
     and the level of neutral buoyancy.
 
+    ``cape_definition`` chooses which CAPE the plume reports as ``cape``
+    (convective-cape-definition.md): "first_lnb", that positive area, ends at
+    the first layer with b <= 0; "positive_area" is the positive area over the
+    plume's whole extent; "maximum_work" is the largest value its integrated
+    work W reaches -- the same W whose return to zero ends the plume. All three
+    are computed every time.
+
     ``condensate_pathway="carried"`` carries the condensate as cloud water,
     brings each layer's mixture of moist static energy and total water to
     equilibrium, converts ``ql / (1 + c0 dz)`` of it implicitly and loads the
@@ -281,6 +297,10 @@ def entraining_plume(
     if condensate_pathway not in CONDENSATE_PATHWAYS:
         raise ConfigurationError(
             f"condensate_pathway {condensate_pathway!r} is not one of {CONDENSATE_PATHWAYS}"
+        )
+    if cape_definition not in CAPE_DEFINITIONS:
+        raise ConfigurationError(
+            f"cape_definition {cape_definition!r} is not one of {CAPE_DEFINITIONS}"
         )
     carried = condensate_pathway == "carried"
     latent = latent_heat
@@ -355,6 +375,7 @@ def entraining_plume(
     work = 0.0
     before = 0.0
     cape = 0.0
+    max_work, max_layer = 0.0, -1
     for k in range(source + 1, n):
         e = entrainment_rate * dz[k]
         h_mix = (h_u + e * h_e[k]) / (1.0 + e)
@@ -374,6 +395,8 @@ def entraining_plume(
                 continue
         before = work
         work += b * dz[k]
+        if work > max_work:
+            max_work, max_layer = work, k
         if lnb < 0:
             if b > 0.0:
                 cape += b * dz[k]
@@ -395,6 +418,19 @@ def entraining_plume(
         top_continuous = float(p[top]) if top >= 0 else float(p[n - 1])
     if top < 0:
         top = n - 1
+    # The positive area over the plume's whole extent, and the layers inside it
+    # where it is not buoyant (convective-cape-definition.md).
+    positive = 0.0
+    neutral_layers, neutral_depth = 0, 0.0
+    for k in range(lfc, top + 1):
+        if buoyancy[k] > 0.0:
+            positive += buoyancy[k] * dz[k]
+        elif k < top:
+            neutral_layers += 1
+            neutral_depth += dz[k]
+    chosen = {"first_lnb": cape, "positive_area": positive, "maximum_work": max_work}[
+        cape_definition
+    ]
     # Above the termination layer the plume does not exist.
     for arr in (s_u, q_u, t_u, buoyancy, liquid):
         arr[top + 1 :] = np.nan
@@ -418,8 +454,15 @@ def entraining_plume(
         temperature=t_u,
         condensate=condensate,
         buoyancy=buoyancy,
-        cape=float(cape),
+        cape=float(chosen),
         top_pressure_continuous=top_continuous,
+        cape_first_lnb=float(cape),
+        cape_positive_area=float(positive),
+        cape_maximum_work=float(max_work),
+        first_neutral_layer=lnb,
+        maximum_work_layer=max_layer,
+        internal_neutral_layers=neutral_layers,
+        internal_neutral_depth=float(neutral_depth),
         **(
             {
                 "liquid": liquid,
@@ -878,6 +921,7 @@ def cloud_base_mass_flux(
     precipitation_evaporation: str = "cascade",
     condensate_pathway: str = "immediate",
     conversion_rate: float = CLOUD_WATER_CONVERSION_PER_M,
+    cape_definition: str = "first_lnb",
 ) -> tuple[float, float]:
     """M_b = max[0, (CAPE_d - C_residual) / (τ_c Γ_M)], and Γ_M.
 
@@ -927,6 +971,7 @@ def cloud_base_mass_flux(
         gas_constant=gas_constant,
         condensate_pathway=condensate_pathway,
         conversion_rate=conversion_rate,
+        cape_definition=cape_definition,
     )
     rate = -(displaced.cape - plume.cape) / displacement
     if rate <= 0.0:
@@ -1044,6 +1089,11 @@ WINDOW_LIMITED = 6.0
 #: "fractional" only the fraction that brings CAPE to the trigger (O2).
 TRIGGER_CROSSINGS = ("explicit", "fractional")
 
+#: The CAPE the plume reports and the closure reads
+#: (convective-cape-definition.md): D0 "first_lnb", D1 "positive_area" and D2
+#: "maximum_work".
+CAPE_DEFINITIONS = ("first_lnb", "positive_area", "maximum_work")
+
 #: How close to the trigger a fractional substep must bring CAPE (O-G3).
 TRIGGER_CAPE_TOLERANCE_J_KG = 1.0e-3
 
@@ -1116,6 +1166,8 @@ class Convection:
     window_mass: np.ndarray | None = None
     window_fraction: np.ndarray | None = None
     unresolved_crossings: int = 0
+    window_start_positive_area: np.ndarray | None = None
+    window_start_maximum_work: np.ndarray | None = None
 
     @property
     def cape_window_end(self) -> np.ndarray | None:
@@ -1167,6 +1219,7 @@ def convect(
     substep: float | None = None,
     continuation: str = "stop",
     crossing: str = "explicit",
+    cape_definition: str = "first_lnb",
 ) -> Convection:
     """Integrate the closure over ``dt`` as the rate law it is (third erratum).
 
@@ -1199,6 +1252,8 @@ def convect(
     # (convective-substep-convergence.md): diagnostics, never fed back.
     windows = 1 if substep is None else round(dt / substep)
     window_start = np.full(windows, np.nan)
+    window_start_positive = np.full(windows, np.nan)
+    window_start_work = np.full(windows, np.nan)
     window, fresh = 0, True
     active_time = 0.0
     # Per window (convective-window-integration.md, I0): whether the closure
@@ -1248,6 +1303,7 @@ def convect(
             entrainment_rate=entrainment_rate,
             condensate_pathway=condensate_pathway,
             conversion_rate=conversion_rate,
+            cape_definition=cape_definition,
             **fixed,
         )
         flux, removal = cloud_base_mass_flux(
@@ -1262,12 +1318,15 @@ def convect(
             precipitation_evaporation=precipitation_evaporation,
             condensate_pathway=condensate_pathway,
             conversion_rate=conversion_rate,
+            cape_definition=cape_definition,
             **fixed,
         )
         if first is None:
             first = (plume, removal, flux)
         if fresh and window < windows:
             window_start[window] = plume.cape
+            window_start_positive[window] = plume.cape_positive_area
+            window_start_work[window] = plume.cape_maximum_work
             fresh = False
             window_evaluated[window] = 1.0
             if flux > 0.0:
@@ -1335,6 +1394,7 @@ def convect(
                     entrainment_rate=entrainment_rate,
                     condensate_pathway=condensate_pathway,
                     conversion_rate=conversion_rate,
+                    cape_definition=cape_definition,
                     **fixed,
                 ).cape
 
@@ -1389,14 +1449,16 @@ def convect(
     if first is None:
         raise ConfigurationError("mass-flux convection was asked to integrate no time")
     plume0, removal0, flux0 = first
-    cape_after = entraining_plume(
+    after_plume = entraining_plume(
         temperature=T,
         vapour=w,
         entrainment_rate=entrainment_rate,
         condensate_pathway=condensate_pathway,
         conversion_rate=conversion_rate,
+        cape_definition=cape_definition,
         **fixed,
-    ).cape
+    )
+    cape_after = after_plume.cape
     result = MassFluxStep(
         energy=totals["energy"],
         transport=totals["transport"],
@@ -1430,4 +1492,10 @@ def convect(
         window_mass=window_mass,
         window_fraction=window_fraction,
         unresolved_crossings=unresolved,
+        window_start_positive_area=np.where(
+            np.isnan(window_start_positive), after_plume.cape_positive_area, window_start_positive
+        ),
+        window_start_maximum_work=np.where(
+            np.isnan(window_start_work), after_plume.cape_maximum_work, window_start_work
+        ),
     )

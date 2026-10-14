@@ -212,3 +212,163 @@ transport change there together, which is consistent. None of these appeared
 among the 301 crossings, and the S1b census reports how often each occurs.
 
 ---
+
+## Result (appended; nothing above this line changed)
+
+### S1: passes for D1 and D2
+
+**S1a, identity.** With "first_lnb", the reruns reproduce `ox_300` (881
+shared values) and `ox_150` (905) with no difference. S2's five D0 runs
+reproduce `ox_600` to `ox_37.5`, 869-1015 values each, likewise.
+
+**S1b, the census.** 1576 plume launches in the late half of the 1800/300 s
+run.
+
+| | D0 | D1 | D2 |
+|---|---:|---:|---:|
+| mean CAPE, J/kg | 85.4 | 310.8 | 304.1 |
+
+**Every one of the 1576 launches has internal non-buoyant layers** between
+its LFC and its top:
+
+- 6.3 layers on average, with a median total depth of 5.5 km;
+- each crossed with a median −31 J/kg of work, the least favourable −126;
+- the work accumulated below them has a median of 151 J/kg.
+
+**The plume normally rises through 5 km of non-buoyant air, on accumulated
+work.** D0 ends at the first such layer.
+
+**Changes between consecutive launches:**
+
+| what changed | count |
+|---|---:|
+| source | 0 |
+| LFC | 0 |
+| LNB | 659 |
+| top | 198 |
+| maximum-work layer | 52 |
+
+**Window to window, |ΔC| over 25 J/kg:**
+
+| | D0 | D1 | D2 |
+|---|---:|---:|---:|
+| windows | 337 | 52 | 89 |
+
+The largest |ΔC| is 429 J/kg under all three.
+
+**S1c, continuity at the 301 crossings:**
+
+| | continuous | largest step across 1e-9 of f |
+|---|---|---:|
+| D0 | 0 of 301 | 427 J/kg |
+| D1 | **301 of 301** | 3.1e-8 J/kg |
+| D2 | **301 of 301** | 3.3e-8 J/kg |
+
+The crossing run reproduces `of_300` in all 848 values.
+
+**S1d holds at every census launch:**
+
+- D2 equals the maximum of the independently recomputed running work,
+  exactly;
+- the maximum-work layer lies between the LFC and the layer below the top;
+- W at the top is ≤ 0.
+
+**S1e passes at 30 and 60 layers.** It is the unit test
+`test_maximum_work_and_positive_area_are_continuous_through_a_neutral_layer`:
+
+- D0 jumps by more than 10 J/kg across a 2e-6 K nudge through neutral;
+- D1 and D2 move by at most 1e-3 J/kg;
+- the source, LFC and top are unchanged.
+
+**Both D1 and D2 pass S1 and were driven in S2.**
+
+### S2: neither supported, as frozen
+
+**All fifteen runs completed** 20 days and pass U1. Residuals are ≤ 7.5e-16,
+F6a and F6b have no failures, there are no ordering violations and no
+negative class. Each is invalid on the validity-domain gate only, as every
+frozen-radiation run is.
+
+| Δt_conv | | D0 | D1 | D2 |
+|---:|---|---:|---:|---:|
+| 600 s | time-mean CAPE | 47.3 | 33.7 | 37.7 |
+| 300 s | | 51.8 | 37.8 | 44.2 |
+| 150 s | | 57.1 | 46.9 | 54.2 |
+| 75 s | | 75.1 | 70.9 | 74.2 |
+| 37.5 s | | 93.5 | 78.9 | 118.3 |
+| 600 s | D_t | 0.125 | 0.070 | 0.101 |
+| 150 s | | 0.161 | 0.115 | 0.172 |
+| 37.5 s | | 0.317 | 0.240 | 0.462 |
+| 150 s | RH 300-700 | 0.711 | 0.701 | 0.699 |
+| 150 s | lapse rate 850-400, K/km | 7.125 | 7.102 | 7.088 |
+| 150 s | 𝓜, kg m⁻²/day | 427.1 | 447.6 | 452.9 |
+| 150 s | precipitation, mm/day | 4.172 | 4.259 | 4.261 |
+| 150 s | PE | 0.961 | 0.973 | 0.967 |
+
+**Failing quantities on either ladder (600/300/150, 150/75/37.5) or by
+non-monotonicity:**
+
+| | failing |
+|---|---|
+| **D0** | time-mean and post-convection CAPE and D_t (fine ladder); the temperature profile (coarse ladder) |
+| **D1** | **D_t on the coarse ladder only:** 0.070, 0.0815, 0.115, a changed equilibrium |
+| **D2** | time-mean and post-convection CAPE and D_t, on both ladders. CAPE's fine-ladder differences grow: 19.9, then 44.1 J/kg. |
+
+- **D1 on the fine ladder:** every quantity converges or is phase-sensitive.
+  That is the first fine ladder to do so under any definition. CAPE's
+  differences shrink, 24.0 then 7.96 J/kg.
+- **D2:** every state, transport and water-path quantity converges or is
+  phase-sensitive on both ladders. That includes the temperature and RH
+  profiles, RH 300-700, the lapse rate, 𝓜, subsidence, 𝓓, precipitation and
+  FE/SE/PE. Its CAPE and D_t do not.
+- **Window-to-window jumps above 25 J/kg remain under every definition.**
+  Hundreds per run, largest about 380-430 J/kg. In the census they fell from
+  337 under D0 to 52 under D1 and 89 under D2.
+
+**Verdict, as frozen: neither supported.**
+
+- D2 fails on its own CAPE and D_t.
+- D1 fails on D_t on the coarse ladder.
+- D0 is kept only as historical behaviour. It is not restored as a
+  preference: its discontinuity at an exactly neutral layer is a measured
+  defect, confirmed again (0 of 301 continuous).
+
+### What the result says, and what it does not
+
+**1. D1 and D2 remove the first-neutral-layer discontinuity,** as designed:
+301 of 301 continuous.
+
+**2. Both change the state, by about the same amount:**
+
+- RH 300-700 0.70 against 0.71;
+- the 850-400 hPa lapse rate 7.09-7.10 against 7.13 K/km;
+- mass transport 5 percent larger;
+- precipitation 2 percent larger.
+
+**3. CAPE still depends on the substep under D2,** and D_t under both.
+
+- **The large window-to-window changes that remain** are not this
+  discontinuity: D1 and D2 are continuous through it.
+- **The candidates, from the census (not measured window by window):**
+  - the plume's termination, which changed between 198 consecutive launches
+    in S1b. W crosses zero, the top moves, and D2's maximum is taken over a
+    different range;
+  - each host step's forcing impulse at the window that follows it.
+- **This is a reading, not a result.**
+
+**4. On the fine ladder, D1 converges in everything listed.**
+
+- This suggests D1 may have a fine-step limit that D2 does not.
+- A ladder below 37.5 s (18.75 and 9.375 s) would test it.
+- The decision rule as frozen needs both ladders, so this is recorded and
+  not acted on.
+
+**5. The 70 J/kg trigger was held fixed as a control.** It is not validated
+for D1 or D2. Under D1 and D2 the column's mean CAPE is 3.5 times D0's for the
+same state, so the same 70 J/kg is a different, lower relative threshold.
+
+**Not done:**
+
+- no default changed;
+- no definition adopted;
+- F0 not qualified.

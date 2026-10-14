@@ -76,6 +76,7 @@ from mfespf.core.versioning import (
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.equations import EQUATION_IDS
 from mfespf.physics.mass_flux import (
+    CAPE_DEFINITIONS,
     CAPE_TRIGGER_J_KG,
     CLOUD_WATER_CONVERSION_PER_M,
     CONDENSATE_PATHWAYS,
@@ -296,6 +297,7 @@ class ConvectiveAdjustmentModule(Module):
         convective_substep: float | None = None,
         convective_window_continuation: str = "stop",
         convective_trigger_crossing: str = "explicit",
+        convective_cape_definition: str = "first_lnb",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         relaxed = relaxation_timescale > 0.0
@@ -313,6 +315,11 @@ class ConvectiveAdjustmentModule(Module):
         if precipitation_evaporation != "cascade" and not mass_flux:
             raise ConfigurationError(
                 "precipitation_evaporation applies only to mass-flux convection"
+            )
+        if convective_cape_definition not in CAPE_DEFINITIONS:
+            raise ConfigurationError(
+                f"convective_cape_definition {convective_cape_definition!r} is not one of "
+                f"{CAPE_DEFINITIONS}"
             )
         if convective_trigger_crossing not in TRIGGER_CROSSINGS:
             raise ConfigurationError(
@@ -483,6 +490,8 @@ class ConvectiveAdjustmentModule(Module):
                         "convective_window_mass",
                         "convective_window_fraction",
                         "convective_trigger_unresolved_crossings",
+                        "cape_window_start_positive_area",
+                        "cape_window_start_maximum_work",
                         "convective_active_time_fraction",
                         "requested_cloud_base_mass_flux",
                         "plume_top_pressure_continuous",
@@ -678,6 +687,7 @@ class ConvectiveAdjustmentModule(Module):
         self.convective_substep = convective_substep
         self.convective_window_continuation = convective_window_continuation
         self.convective_trigger_crossing = convective_trigger_crossing
+        self.convective_cape_definition = convective_cape_definition
         self._unresolved_crossings = 0
         self._window_arrays: dict[str, np.ndarray] = {}
         self._cape_after = 0.0
@@ -1214,6 +1224,7 @@ class ConvectiveAdjustmentModule(Module):
             substep=self.convective_substep,
             continuation=self.convective_window_continuation,
             crossing=self.convective_trigger_crossing,
+            cape_definition=self.convective_cape_definition,
             **common,
         )
         step = result.step
@@ -1237,6 +1248,8 @@ class ConvectiveAdjustmentModule(Module):
                 ("convective_window_status", result.window_status),
                 ("convective_window_mass", result.window_mass),
                 ("convective_window_fraction", result.window_fraction),
+                ("cape_window_start_positive_area", result.window_start_positive_area),
+                ("cape_window_start_maximum_work", result.window_start_maximum_work),
             )
             if values is not None
         }
@@ -1463,6 +1476,20 @@ class ConvectiveAdjustmentModule(Module):
                         "the cloud-base mass each window moved",
                         "kg m^-2",
                         TimeSemantics.INTERVAL_ACCUMULATION,
+                    ),
+                    (
+                        "cape_window_start_positive_area",
+                        "the plume's positive buoyant area over its whole extent at each "
+                        "window's start (D1)",
+                        "J kg^-1",
+                        TimeSemantics.INSTANTANEOUS,
+                    ),
+                    (
+                        "cape_window_start_maximum_work",
+                        "the largest integrated buoyancy work the plume reaches, at each "
+                        "window's start (D2)",
+                        "J kg^-1",
+                        TimeSemantics.INSTANTANEOUS,
                     ),
                     (
                         "convective_window_fraction",
@@ -1797,6 +1824,11 @@ class ConvectiveAdjustmentModule(Module):
                     **(
                         {"convective_trigger_crossing": self.convective_trigger_crossing}
                         if self.convective_trigger_crossing != "explicit"
+                        else {}
+                    ),
+                    **(
+                        {"convective_cape_definition": self.convective_cape_definition}
+                        if self.convective_cape_definition != "first_lnb"
                         else {}
                     ),
                     **(

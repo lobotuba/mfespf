@@ -736,3 +736,80 @@ def test_the_trigger_fraction_is_bracketed_and_never_overshoots():
     assert not resolved and f < 0.4 and abs(f - 0.4) < 1e-9 and step == f
     with pytest.raises(ConfigurationError, match="either side"):
         fraction_to_trigger(smooth, start=60.0, full=40.0, trigger=70.0)
+
+
+def _neutral_layer_plumes(n, epsilon=1.0e-6, definition="first_lnb"):
+    """The test sounding at n layers, with the layer nearest 500 hPa warmed until
+    the plume's buoyancy there is zero, then nudged ``epsilon`` K either side."""
+    c = _column(n=n)
+    k = int(np.argmin(np.abs(c["pressure"] - 5.0e4)))
+
+    def plume_at(dT):
+        T = np.array(c["temperature"])
+        T[k] += dT
+        return entraining_plume(
+            entrainment_rate=1.0e-3, cape_definition=definition, **{**c, "temperature": T}
+        )
+
+    low, high = 0.0, 30.0
+    assert plume_at(low).buoyancy[k] > 0.0 > plume_at(high).buoyancy[k]
+    for _ in range(100):
+        mid = 0.5 * (low + high)
+        if plume_at(mid).buoyancy[k] > 0.0:
+            low = mid
+        else:
+            high = mid
+    return k, plume_at(low - epsilon), plume_at(high + epsilon)
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+@pytest.mark.parametrize("n", [30, 60])
+def test_maximum_work_and_positive_area_are_continuous_through_a_neutral_layer(n):
+    """convective-cape-definition.md, S1e: a layer inside the buoyant column tipped
+    through neutral by 2e-6 K ends today's CAPE there (D0 jumps), while the
+    positive area over the plume (D1) and its maximum work (D2) barely move --
+    at the base resolution and at twice it, and without any test of b == 0."""
+    k, before, after = _neutral_layer_plumes(n)
+    assert before.top == after.top and before.lfc == after.lfc and before.source == after.source
+    assert before.first_neutral_layer > k and after.first_neutral_layer == k
+    assert before.cape_first_lnb - after.cape_first_lnb > 10.0
+    assert abs(before.cape_positive_area - after.cape_positive_area) <= 1.0e-3
+    assert abs(before.cape_maximum_work - after.cape_maximum_work) <= 1.0e-3
+    assert after.internal_neutral_layers >= 1
+
+
+@pytest.mark.req("EQR-002")
+def test_each_cape_definition_is_the_plumes_own_quantity():
+    """convective-cape-definition.md, S1a/S1d: "first_lnb" is the default and
+    today's CAPE; the chosen definition is what the plume reports; maximum work
+    is the largest value of the plume's own running work, reached between its
+    LFC and the layer below its termination, where that work is non-positive."""
+    c = _column()
+    plumes = {
+        d: entraining_plume(entrainment_rate=1.0e-3, cape_definition=d, **c)
+        for d in ("first_lnb", "positive_area", "maximum_work")
+    }
+    default = entraining_plume(entrainment_rate=1.0e-3, **c)
+    assert default.cape == plumes["first_lnb"].cape == default.cape_first_lnb
+    for d, field_name in (
+        ("positive_area", "cape_positive_area"),
+        ("maximum_work", "cape_maximum_work"),
+    ):
+        assert plumes[d].cape == getattr(default, field_name)
+    p = default
+    dz = (
+        R
+        * c["temperature"]
+        / G
+        * np.log(c["interface_pressure"][:-1] / c["interface_pressure"][1:])
+    )
+    work, running = 0.0, []
+    for k in range(p.lfc, p.top + 1):
+        work += p.buoyancy[k] * dz[k]
+        running.append(work)
+    assert p.cape_maximum_work == max(running)
+    assert p.lfc <= p.maximum_work_layer < p.top
+    assert running[-1] <= 0.0 or p.top == c["temperature"].size - 1
+    assert p.cape_positive_area >= p.cape_first_lnb
+    with pytest.raises(ConfigurationError, match="cape_definition"):
+        entraining_plume(entrainment_rate=1.0e-3, cape_definition="net_work", **c)
