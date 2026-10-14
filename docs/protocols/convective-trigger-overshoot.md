@@ -236,3 +236,189 @@ decision.
 - **Everything uses the frozen radiation.**
 
 ---
+
+## Result (appended; nothing above this line changed)
+
+**Ten runs, all at host step 1800 s:**
+
+- **"Explicit":** Δt_conv = 600, 300, 150, 75, 37.5 and 18.75 s;
+- **"fractional":** Δt_conv = 600, 300, 150 and 75 s.
+
+**Procedural note.** The first O1 launch used the run script before the
+undershoot diagnostics were added. Two of its three runs finished in about a
+minute, and the third was stopped. All three were rerun with the script the
+protocol needs, on code whose explicit mode the unit tests and O-G1 show to
+be unchanged.
+
+### O-G1: identity, passes
+
+"Explicit" reruns at 150, 300 and 600 s reproduce I0's runs in every shared
+printed value: 893, 869 and 857 values, 0 different.
+
+### O-G2: conservation, passes
+
+**All ten runs completed** 20 days.
+
+- Residuals are ≤ 7.5e-16.
+- F6a and F6b have no failing cells or steps.
+- There are no ordering violations and no negative class.
+- R_recycle ≤ 4e-7.
+- Each run is invalid on the validity-domain gate only, as every
+  frozen-radiation run is.
+
+### O1: no demonstrated limit
+
+**The undershoot does vanish as the substep shrinks:**
+
+| Δt_conv | mean undershoot, active windows | maximum | active windows ending below 70 | event-end mean |
+|---:|---:|---:|---:|---:|
+| 600 s | 30.6 J/kg | 67.9 | 0.87 | 35.6 |
+| 300 s | 16.7 | 67.9 | 0.69 | 24.2 |
+| 150 s | 10.4 | 67.5 | 0.41 | 25.9 |
+| 75 s | 4.4 | 66.9 | 0.16 | 28.2 |
+| 37.5 s | 1.5 | 66.6 | 0.057 | 26.4 |
+| 18.75 s | 0.39 | 66.4 | 0.016 | 23.9 |
+
+**But the state does not settle,** judged by A6's rule and F4's
+classification on 75/37.5/18.75 s:
+
+| quantity | 75 s | 37.5 s | 18.75 s | class |
+|---|---:|---:|---:|---|
+| **time-mean CAPE**, J/kg | 75.1 | 93.5 | 127.2 | **changed equilibrium** |
+| **post-convection CAPE**, J/kg | 68.6 | 90.5 | 126.0 | **changed equilibrium** |
+| **D_t** | 0.236 | 0.317 | 0.447 | **changed equilibrium** |
+| temperature profile (largest layer difference), K | | 0.051 | 0.049 | phase-sensitive |
+| RH profile (largest layer difference) | | 0.029 | 0.0072 | converged |
+| daily 𝓜, kg m⁻² | 427.7 | 430.9 | 430.7 | converged |
+| daily subsidence | 1.711e7 | 1.723e7 | 1.723e7 | converged |
+| precipitation, mm/day | 4.164 | 4.181 | 4.160 | phase-sensitive |
+| 𝓓(p) | | 9.8 | 5.1 | phase-sensitive |
+| FE | 0.99534 | 0.99530 | 0.99532 | converged |
+| SE | 0.9629 | 0.9604 | 0.9565 | phase-sensitive |
+| PE, α_total,unique | 0.9584, 0.0416 | 0.9559, 0.0441 | 0.9521, 0.0479 | phase-sensitive |
+
+**No quantity is non-monotonic over 150-18.75 s.**
+
+**The CAPE differences grow as the substep halves:** 18.4 then 33.7 J/kg
+for time-mean CAPE, so there is no reduction.
+
+**Post-convection CAPE at 18.75 s is 126.0 ± 21.3 J/kg, above the trigger.**
+
+**Why convection stops above the trigger at fine substeps:** convection runs
+through most of each host step.
+
+| Δt_conv | active windows per host step | host steps with a stop (of 480) |
+|---:|---:|---:|
+| 75 s | 5.7 of 24 | 424 |
+| 37.5 s | 15.2 of 48 | 414 |
+| 18.75 s | 42.9 of 96 | 335 |
+
+**O1 verdict: no demonstrated limit.** O-G4 records that there is no fine-step
+reference.
+
+### O2: O-G3 fails
+
+**Unresolved crossings, per run:**
+
+| Δt_conv | limited windows | unresolved crossings | largest deviation of C_after from 70, J/kg | mean f |
+|---:|---:|---:|---:|---:|
+| 600 s | 480 | 314 | 355.2 | 0.35 |
+| 300 s | 472 | 301 | 360.8 | 0.43 |
+| 150 s | 471 | 305 | 353.8 | 0.53 |
+| 75 s | 438 | 275 | 358.0 | 0.40 |
+
+**Where the crossing resolved,** CAPE met the tolerance: undershoot ≤ 8.6e-4
+J/kg. But about two-thirds of limited windows could not reach 70 J/kg. The
+bracket collapsed with CAPE still above the trigger, and the frozen rule
+accepted that end. O-G3 fails as frozen.
+
+**A post-hoc diagnostic, not frozen** (`o_jump.py`, a 20-day fractional run
+at 300 s with the root finder wrapped). CAPE(f) at the unresolved crossings
+falls smoothly, then jumps:
+
+| C₀ | C(f = 1) | f at the jump | CAPE just below the jump | just above (f + 1e-9) |
+|---:|---:|---:|---:|---:|
+| 105.1 | 68.9 | 0.862 | 97.8 | 69.7 |
+| 105.0 | 68.7 | 0.899 | 97.4 | 69.2 |
+| 104.6 | 68.2 | 0.904 | 97.0 | 68.8 |
+
+- **The jump is about 28 J/kg, and it straddles the trigger.** No fraction
+  gives 70 J/kg.
+- **Over the run, 301 of 755 crossings** were unresolved this way.
+- **The dilute CAPE is discontinuous in the state.**
+- **A candidate cause, not verified:** the plume terminates at the first
+  layer where its integrated buoyancy work turns non-positive, so a small
+  change can drop the positive area above a stable layer out of CAPE all at
+  once.
+
+**What the fractional runs then do.** Convection stops at the jump, above the
+trigger, and CAPE accumulates.
+
+| quantity | 600 s | 300 s | 150 s | class |
+|---|---:|---:|---:|---|
+| time-mean CAPE, J/kg | 212.3 | 211.5 | 213.1 | phase-sensitive |
+| post-convection CAPE, J/kg | 211.4 | 210.6 | 212.4 | phase-sensitive |
+| D_t | 0.103 | 0.128 | 0.131 | converged |
+| temperature profile | | 0.028 | 0.064 | phase-sensitive |
+| RH profile | | 0.015 | 0.029 | phase-sensitive |
+| 𝓜, kg m⁻² | 423.2 | 423.6 | 424.4 | phase-sensitive |
+| precipitation, mm/day | 4.145 | 4.155 | 4.153 | converged |
+
+- **No quantity in the fractional ladder is a changed equilibrium,** and none
+  is non-monotonic over 600-75 s. So O-G5 to O-G7 pass on their own terms.
+- **But they describe the variant with O-G3 failed:** convection stops at a
+  discontinuity, not at the trigger.
+
+### R1-R3: reported, not judged (no reference)
+
+**The reference was to be the 18.75 s run, and O1 found no limit.** So R1-R3
+cannot support or reject anything. Computed against that run anyway:
+
+- **R1 holds only for the temperature and RH profiles.** Fractional is closer
+  to the 18.75 s run than explicit at every substep: temperature 0.066-0.097
+  K against 0.13-0.23 K.
+- **R2 holds for everything except D_t.**
+- **R3 holds:**
+  - time-mean CAPE spans 0.73 J/kg over 600-150 s fractional, against 9.7
+    explicit;
+  - the temperature profile spans 0.087 K against 0.143 K.
+
+### Verdict, as frozen
+
+**Diagnostic only: no demonstrated limit.** Also, O-G3 fails. Nothing is
+adopted.
+
+### What the result says, and what it does not
+
+**1. The overshoot exists, and removing it does not give a limit.**
+
+- **The undershoot falls toward zero** with the substep: 30.6 to 0.39 J/kg.
+  So the explicit closure's coarse steps do carry CAPE through the trigger.
+- **But as they stop doing so,** the column holds more and more CAPE: 75,
+  then 93, then 127 J/kg. Convection runs longer, and stops ever further above
+  the trigger.
+
+**2. CAPE as diagnosed is discontinuous.** A jump of about 28 J/kg across the
+trigger means "integrate until CAPE reaches the trigger" is not always
+attainable. The frozen fractional rule then stops convection above it.
+
+**3. A reading for the user, not measured.**
+
+- **What the coarse-substep CAPE may reflect.** The explicit closure's low
+  coarse-substep CAPE, 36-52 J/kg, may be the step jumping across this
+  discontinuity. That would make its removal far faster than τ_c = 3600 s
+  implies.
+- **Where the fine-substep sequence might be heading.** It rises toward
+  values like the fractional runs' substep-independent ~212 J/kg. Those runs
+  never cross the jump.
+- **Two tests would separate this:**
+  - **(a) a further explicit ladder,** 9.375 and 4.6875 s. Does CAPE approach
+    a limit, and is it near 212?
+  - **(b) the cause of the discontinuity in the plume's termination,** which
+    is plume physics and its own question.
+
+**Not done:**
+
+- no default changed;
+- no substep or crossing rule selected;
+- F0 not qualified.

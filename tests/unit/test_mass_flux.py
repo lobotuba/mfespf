@@ -22,6 +22,7 @@ from mfespf.physics.mass_flux import (
     DETRAINED_STATES,
     PRECIPITATION_EVAPORATION_EFFICIENCY,
     PRECIPITATION_EVAPORATIONS,
+    TRIGGER_CAPE_TOLERANCE_J_KG,
     apply_mass_flux,
     cloud_base_mass_flux,
     convect,
@@ -29,6 +30,7 @@ from mfespf.physics.mass_flux import (
     entraining_plume,
     evaporation_capacity,
     fall_and_evaporate,
+    fraction_to_trigger,
 )
 from mfespf.physics.thermodynamics import saturation_specific_humidity
 from mfespf.run.column_configurations import column_grid, reference_column
@@ -670,3 +672,67 @@ def test_the_option_refuses_the_moist_adjustment_it_replaces():
             condense_after_convection=True,
             mass_flux_convection=True,
         )
+
+
+@pytest.mark.req("EQR-002", "CON-001", "CON-004")
+def test_a_fractional_substep_brings_cape_to_the_trigger_and_conserves():
+    """convective-trigger-overshoot.md, O2: where the explicit substep would carry
+    CAPE below the trigger, the fraction f of it that brings CAPE to the
+    trigger is applied -- the whole operator over f h, from the substep's
+    start -- and convection then stops for the step. The update still
+    redistributes its energy and removes water only as precipitation."""
+    options = _window_options()
+    explicit = convect(dt=3600.0, substep=300.0, **options)
+    fractional = convect(dt=3600.0, substep=300.0, crossing="fractional", **options)
+    status, f = fractional.window_status, fractional.window_fraction
+    assert status is not None and f is not None
+    limited = np.flatnonzero(status == 6.0)
+    assert limited.size == 1 and fractional.unresolved_crossings == 0
+    k = int(limited[0])
+    assert 0.0 < f[k] < 1.0
+    assert np.all(status[k + 1 :] == 5.0)
+    assert abs(fractional.cape_after - 250.0) <= TRIGGER_CAPE_TOLERANCE_J_KG
+    assert explicit.cape_after < 250.0 - TRIGGER_CAPE_TOLERANCE_J_KG
+    step = fractional.step
+    assert abs(float(np.sum(step.energy))) < 1e-10 * float(np.max(np.abs(step.energy)))
+    assert float(np.sum(step.condensation)) == pytest.approx(step.surface_precipitation, rel=1e-12)
+    assert float(np.sum(step.transport)) == pytest.approx(
+        0.0, abs=1e-12 * float(np.max(np.abs(step.transport)))
+    )
+    # Before the limited window the two integrations are the same substeps.
+    assert explicit.window_mass is not None and fractional.window_mass is not None
+    assert np.array_equal(explicit.window_mass[:k], fractional.window_mass[:k])
+
+
+@pytest.mark.req("EQR-002", "VAL-001")
+def test_a_fractional_crossing_that_never_crosses_is_the_explicit_one():
+    """With the trigger never reached within the step, "fractional" applies every
+    substep whole and is the explicit integration bit for bit; "explicit" is
+    the default."""
+    options = {**_window_options(), "trigger": 10.0}
+    default = convect(dt=3600.0, substep=300.0, **options)
+    explicit = convect(dt=3600.0, substep=300.0, crossing="explicit", **options)
+    fractional = convect(dt=3600.0, substep=300.0, crossing="fractional", **options)
+    for a, b in ((default, explicit), (explicit, fractional)):
+        for key in ("energy", "transport", "condensation", "evaporation", "formed"):
+            assert np.array_equal(getattr(a.step, key), getattr(b.step, key))
+        assert a.cape_after == b.cape_after and a.cape_time_mean == b.cape_time_mean
+    assert fractional.window_fraction is not None and np.all(fractional.window_fraction == 1.0)
+    with pytest.raises(ConfigurationError, match="trigger crossing"):
+        convect(dt=3600.0, substep=300.0, crossing="clip", **options)
+
+
+@pytest.mark.req("EQR-002")
+def test_the_trigger_fraction_is_bracketed_and_never_overshoots():
+    """The root finder on a nonlinear CAPE(f) meets the tolerance; on one with a
+    jump across the trigger it reports the crossing unresolved and returns the
+    end above the trigger, never one below it."""
+    smooth = lambda f: (f, 300.0 - 260.0 * f**2)  # noqa: E731
+    f, step, resolved = fraction_to_trigger(smooth, start=300.0, full=40.0, trigger=70.0)
+    assert resolved and abs(300.0 - 260.0 * f**2 - 70.0) <= TRIGGER_CAPE_TOLERANCE_J_KG
+    assert step == f
+    jump = lambda f: (f, 90.0 if f < 0.4 else 50.0)  # noqa: E731
+    f, step, resolved = fraction_to_trigger(jump, start=100.0, full=50.0, trigger=70.0)
+    assert not resolved and f < 0.4 and abs(f - 0.4) < 1e-9 and step == f
+    with pytest.raises(ConfigurationError, match="either side"):
+        fraction_to_trigger(smooth, start=60.0, full=40.0, trigger=70.0)

@@ -36,6 +36,7 @@ precipitation rate.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -1036,6 +1037,62 @@ WINDOW_BELOW_TRIGGER = 2.0
 WINDOW_NO_PLUME = 3.0
 WINDOW_NO_REMOVAL = 4.0
 WINDOW_SKIPPED = 5.0
+WINDOW_LIMITED = 6.0
+
+#: How an explicit substep crosses the CAPE trigger
+#: (convective-trigger-overshoot.md): "explicit" applies the whole substep,
+#: "fractional" only the fraction that brings CAPE to the trigger (O2).
+TRIGGER_CROSSINGS = ("explicit", "fractional")
+
+#: How close to the trigger a fractional substep must bring CAPE (O-G3).
+TRIGGER_CAPE_TOLERANCE_J_KG = 1.0e-3
+
+
+def fraction_to_trigger(
+    at: Callable[[float], tuple[MassFluxStep, float]],
+    *,
+    start: float,
+    full: float,
+    trigger: float,
+    tolerance: float = TRIGGER_CAPE_TOLERANCE_J_KG,
+) -> tuple[float, MassFluxStep | None, bool]:
+    """The fraction f of a substep whose update brings CAPE to the trigger
+    (convective-trigger-overshoot.md, O2).
+
+    ``at(f)`` returns the operator's update over f of the substep, taken from
+    the substep's starting state, and the CAPE on the state it leaves; ``start``
+    and ``full`` are the CAPE at f = 0 and f = 1, either side of ``trigger``.
+    Bracketed: the linear estimate first, then Illinois false position,
+    keeping a sign change. Returns f, its update, and whether the tolerance was
+    met; if the bracket collapses first, CAPE is discontinuous at the crossing
+    and the end above the trigger is taken, so that it is never overshot.
+    """
+    if not start > trigger > full:
+        raise ConfigurationError(
+            f"a fractional substep needs CAPE either side of the trigger "
+            f"({start:.6g} > {trigger:.6g} > {full:.6g})"
+        )
+    lo, hi = 0.0, 1.0
+    g_lo, g_hi = start - trigger, full - trigger
+    lo_step: MassFluxStep | None = None
+    side = 0
+    for _ in range(200):
+        f = (lo * g_hi - hi * g_lo) / (g_hi - g_lo)
+        step, cape = at(f)
+        g = cape - trigger
+        if abs(g) <= tolerance:
+            return f, step, True
+        if g > 0.0:
+            if side == -1:
+                g_hi /= 2.0
+            lo, g_lo, lo_step, side = f, g, step, -1
+        else:
+            if side == 1:
+                g_lo /= 2.0
+            hi, g_hi, side = f, g, 1
+        if hi - lo <= 1.0e-12:
+            break
+    return lo, lo_step, False
 
 
 @dataclass(frozen=True)
@@ -1057,6 +1114,8 @@ class Convection:
     window_evaluated: np.ndarray | None = None
     window_status: np.ndarray | None = None
     window_mass: np.ndarray | None = None
+    window_fraction: np.ndarray | None = None
+    unresolved_crossings: int = 0
 
     @property
     def cape_window_end(self) -> np.ndarray | None:
@@ -1107,6 +1166,7 @@ def convect(
     provenance: np.ndarray | None = None,
     substep: float | None = None,
     continuation: str = "stop",
+    crossing: str = "explicit",
 ) -> Convection:
     """Integrate the closure over ``dt`` as the rate law it is (third erratum).
 
@@ -1146,6 +1206,12 @@ def convect(
     window_evaluated = np.zeros(windows)
     window_status = np.full(windows, WINDOW_SKIPPED)
     window_mass = np.zeros(windows)
+    window_fraction = np.zeros(windows)
+    unresolved = 0
+    if crossing not in TRIGGER_CROSSINGS:
+        raise ConfigurationError(
+            f"unknown trigger crossing {crossing!r}; expected one of {TRIGGER_CROSSINGS}"
+        )
     if continuation not in WINDOW_CONTINUATIONS:
         raise ConfigurationError(
             f"unknown convective window continuation {continuation!r}; "
@@ -1236,21 +1302,64 @@ def convect(
         h = min(dt - elapsed, limit)
         if substep is not None:
             h = min(h, window_end - elapsed)
+
+        def trial(
+            length: float,
+            plume: Plume = plume,
+            flux: float = flux,
+            T: np.ndarray = T,
+            w: np.ndarray = w,
+        ) -> MassFluxStep:
+            return apply_mass_flux(
+                plume,
+                cloud_base_flux=flux,
+                dt=length,
+                temperature=T,
+                vapour=w,
+                evaporating_fraction=evaporating_fraction,
+                detrained_state=detrained_state,
+                precipitation_evaporation=precipitation_evaporation,
+                **fixed,
+            )
+
+        step: MassFluxStep | None = trial(h)
+        limited, fraction = False, 1.0
+        if crossing == "fractional" and step is not None:
+            # Convection acts for the fraction of the substep that brings CAPE
+            # to the trigger (convective-trigger-overshoot.md, O2): every trial
+            # reruns the whole operator from the substep's starting state.
+            def cape_of(trial_step: MassFluxStep, T: np.ndarray = T, w: np.ndarray = w) -> float:
+                return entraining_plume(
+                    temperature=T + (trial_step.energy + latent_heat * trial_step.condensation) / C,
+                    vapour=w + trial_step.transport - trial_step.condensation,
+                    entrainment_rate=entrainment_rate,
+                    condensate_pathway=condensate_pathway,
+                    conversion_rate=conversion_rate,
+                    **fixed,
+                ).cape
+
+            full_cape = cape_of(step)
+            if full_cape < trigger:
+
+                def at(f: float, h: float = h) -> tuple[MassFluxStep, float]:
+                    trial_step = trial(f * h)
+                    return trial_step, cape_of(trial_step)
+
+                fraction, step, resolved = fraction_to_trigger(
+                    at, start=plume.cape, full=full_cape, trigger=trigger
+                )
+                unresolved += 0 if resolved else 1
+                limited = True
+                h = fraction * h
         cape_time += plume.cape * h
         active_time += h
         if window < windows:
             window_mass[window] += flux * h
-        step = apply_mass_flux(
-            plume,
-            cloud_base_flux=flux,
-            dt=h,
-            temperature=T,
-            vapour=w,
-            evaporating_fraction=evaporating_fraction,
-            detrained_state=detrained_state,
-            precipitation_evaporation=precipitation_evaporation,
-            **fixed,
-        )
+            window_fraction[window] = fraction
+            if limited:
+                window_status[window] = WINDOW_LIMITED
+        if step is None:
+            break
         if classes is not None and milestones is not None:
             classes, crossed = provenance_substep(
                 plume, step, scale=flux * h, classes=classes, layer_mass=m
@@ -1263,6 +1372,10 @@ def convect(
         moved += flux * h
         elapsed += h
         substeps += 1
+        if limited:
+            # The trigger is reached: convection ends for the rest of the host
+            # step, as for any stop.
+            break
         if substep is not None and elapsed >= window_end * (1.0 - 1.0e-12):
             elapsed = window_end
             window_end = min(dt, window_end + substep)
@@ -1315,4 +1428,6 @@ def convect(
         window_evaluated=window_evaluated,
         window_status=window_status,
         window_mass=window_mass,
+        window_fraction=window_fraction,
+        unresolved_crossings=unresolved,
     )

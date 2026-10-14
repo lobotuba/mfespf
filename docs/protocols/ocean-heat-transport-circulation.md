@@ -354,3 +354,49 @@ mechanism is not tested by W1. It cannot be tested while the column it acts
 on runs away.
 
 **As frozen, W2 and W3 run now,** two at a time, and W4 after them.
+
+## W2-W4 (appended; nothing above this line changed)
+
+**All three are invalid. They show the same runaway as W1,** and the
+mechanism is tested in none of them.
+
+| | W2 (ΔQ 4.67) | W3 (L 367 km) | W4 (L 1468 km) |
+|---|---:|---:|---:|
+| steps completed | 41296 | 41754 | 100000 |
+| status | failed: conservation gate (the solver refusal, as N0 and W1) | the same | invalid: validity domains |
+| surface, rising / sinking | 313.84 / 313.86 K | 313.83 / 313.81 K | 320.04 / 320.11 K |
+| RH 300-700, rising / sinking | 0.951 / 0.947 | 0.952 / 0.941 | 0.896 / 0.876 |
+| band precipitable water to 300 hPa | 252.3 | 251.5 | 355.9 kg m⁻² |
+| omega500, sinking | +0.23 | +0.92 | +0.48 hPa/day |
+| surface contrast, rising − sinking | −0.017 K | +0.026 K | −0.068 K |
+| T500 contrast | −0.002 K | +0.002 K | −0.040 K |
+| band net TOA against export 42.51 | 49.4 | 49.2 | 43.6 W m⁻² |
+| equilibrated | no | no | no |
+
+**W2 and W3 stopped where N0 and W1 did.** The solver refused with "cloud
+optical depths cannot be negative", recorded as a failed conservation gate.
+
+**W4 ran the whole 100000 steps,** past the point where the others were
+refused.
+
+- **It is invalid by name.** The validity gate now checks RRTMG's reference
+  departure (`rrtmg-domain-and-refusals.md`). W4's dT_ref spans −47 to +65 K
+  against the declared ±30 K.
+- **Its state has run further:**
+  - surface 320 K;
+  - precipitable water 356 kg m⁻²;
+  - water at 100-68 hPa near 2 × 10⁴ ppmv;
+  - still gaining 1.1 W m⁻² beyond the export.
+
+**The sensitivity reading the protocol asks for.** All four two-column runs
+reach the same outcome whatever ΔQ or L is used:
+
+- the ocean's contrast is carried away by evaporation;
+- the surfaces end within 0.07 K of each other;
+- the overturning stays below 1 hPa/day.
+
+The runaway base state is what decides it, not the parameters varied.
+
+**The mechanism remains untested:** there is no valid run. W1's reading
+stands for all four: the mechanism cannot be tested while the column it acts
+on runs away.

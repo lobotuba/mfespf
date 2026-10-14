@@ -84,6 +84,7 @@ from mfespf.physics.mass_flux import (
     PLUME_ENTRAINMENT_PER_M,
     PRECIPITATION_EVAPORATION_EFFICIENCY,
     PRECIPITATION_EVAPORATIONS,
+    TRIGGER_CROSSINGS,
     WINDOW_CONTINUATIONS,
     convect,
 )
@@ -294,6 +295,7 @@ class ConvectiveAdjustmentModule(Module):
         track_water_provenance: bool = False,
         convective_substep: float | None = None,
         convective_window_continuation: str = "stop",
+        convective_trigger_crossing: str = "explicit",
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         relaxed = relaxation_timescale > 0.0
@@ -311,6 +313,11 @@ class ConvectiveAdjustmentModule(Module):
         if precipitation_evaporation != "cascade" and not mass_flux:
             raise ConfigurationError(
                 "precipitation_evaporation applies only to mass-flux convection"
+            )
+        if convective_trigger_crossing not in TRIGGER_CROSSINGS:
+            raise ConfigurationError(
+                f"convective_trigger_crossing {convective_trigger_crossing!r} is not one of "
+                f"{TRIGGER_CROSSINGS}"
             )
         if convective_window_continuation not in WINDOW_CONTINUATIONS:
             raise ConfigurationError(
@@ -474,6 +481,8 @@ class ConvectiveAdjustmentModule(Module):
                         "convective_window_evaluated",
                         "convective_window_status",
                         "convective_window_mass",
+                        "convective_window_fraction",
+                        "convective_trigger_unresolved_crossings",
                         "convective_active_time_fraction",
                         "requested_cloud_base_mass_flux",
                         "plume_top_pressure_continuous",
@@ -668,6 +677,8 @@ class ConvectiveAdjustmentModule(Module):
         self.track_water_provenance = track_water_provenance
         self.convective_substep = convective_substep
         self.convective_window_continuation = convective_window_continuation
+        self.convective_trigger_crossing = convective_trigger_crossing
+        self._unresolved_crossings = 0
         self._window_arrays: dict[str, np.ndarray] = {}
         self._cape_after = 0.0
         self._cape_time_mean = 0.0
@@ -1202,6 +1213,7 @@ class ConvectiveAdjustmentModule(Module):
             provenance=classes,
             substep=self.convective_substep,
             continuation=self.convective_window_continuation,
+            crossing=self.convective_trigger_crossing,
             **common,
         )
         step = result.step
@@ -1224,10 +1236,12 @@ class ConvectiveAdjustmentModule(Module):
                 ("convective_window_evaluated", result.window_evaluated),
                 ("convective_window_status", result.window_status),
                 ("convective_window_mass", result.window_mass),
+                ("convective_window_fraction", result.window_fraction),
             )
             if values is not None
         }
         self._active_fraction = result.active_time_fraction
+        self._unresolved_crossings = result.unresolved_crossings
         self._requested_flux = result.first_cloud_base_flux
         self._top_continuous = (
             result.plume.top_pressure_continuous if result.plume.active else float("nan")
@@ -1450,8 +1464,22 @@ class ConvectiveAdjustmentModule(Module):
                         "kg m^-2",
                         TimeSemantics.INTERVAL_ACCUMULATION,
                     ),
+                    (
+                        "convective_window_fraction",
+                        "the fraction of its substep a window convected for: f where limited to "
+                        "the trigger, 1 where unlimited, 0 where it did not convect",
+                        "1",
+                        TimeSemantics.INSTANTANEOUS,
+                    ),
                 )
             },
+            "convective_trigger_unresolved_crossings": scalar(
+                "convective_trigger_unresolved_crossings",
+                "fractional substeps whose CAPE could not be brought to the trigger within "
+                "tolerance, the crossing being discontinuous",
+                float(self._unresolved_crossings),
+                "1",
+            ),
             "convective_active_time_fraction": scalar(
                 "convective_active_time_fraction",
                 "the share of the step convection integrated with a positive mass flux",
@@ -1764,6 +1792,11 @@ class ConvectiveAdjustmentModule(Module):
                     **(
                         {"convective_window_continuation": self.convective_window_continuation}
                         if self.convective_window_continuation != "stop"
+                        else {}
+                    ),
+                    **(
+                        {"convective_trigger_crossing": self.convective_trigger_crossing}
+                        if self.convective_trigger_crossing != "explicit"
                         else {}
                     ),
                     **(
