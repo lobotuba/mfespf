@@ -372,3 +372,44 @@ same state, so the same 70 J/kg is a different, lower relative threshold.
 - no default changed;
 - no definition adopted;
 - F0 not qualified.
+
+## User disposition (2026-10-14), appended
+
+**Recorded as the user worded it:**
+
+> D1 and D2 successfully remove the first-neutral-layer discontinuity,
+> confirming that D0 is discontinuous and geometrically inconsistent with the
+> modeled plume extent. Neither alternative qualifies under the frozen closure
+> gates. The remaining CAPE jumps are not caused by internal neutral layers
+> and require separate attribution before further definition or trigger
+> changes.
+
+**The trigger, recorded as the user worded it:**
+
+> The 70 J/kg threshold is defined only for the historical first-LNB CAPE
+> metric. It is retained unchanged in D1/D2 experiments solely to isolate
+> CAPE-definition effects. It is neither adopted nor validated for either
+> alternative definition.
+
+**No mapping such as 3.6 × 70 is adopted.** The D1/D2-to-D0 ratio is a
+distribution, not a constant.
+
+**The current state:**
+
+| item | state |
+|---|---|
+| D0 | the default, retained for identity only. Its discontinuity is a measured defect. |
+| D1 | the most promising experimental definition, but not supported |
+| D2 | dynamically consistent, but its own CAPE and D_t are unresolved |
+| 70 J/kg | a legacy control value under D1/D2 |
+| F0 | not qualified |
+| interactive radiation, P1-P3 | blocked |
+| next | the jump census (`convective-cape-jump-census.md`) |
+| D1 extension | conditional on the census |
+
+**The sequence:** jump census and counterfactual attribution → conditional D1
+fine-ladder extension → definition selection → a separate trigger protocol.
+
+**The later trigger protocol** sets any new threshold from a
+definition-independent physical event. It is never fitted to RH, the lapse
+rate, precipitation, surface temperature or D_t.
