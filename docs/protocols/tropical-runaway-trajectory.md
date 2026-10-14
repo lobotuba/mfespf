@@ -185,3 +185,50 @@ reopens the diagnosis.
 > column.
 
 ---
+
+## Erratum, before the run (nothing above this line changed)
+
+Found in a 72-step smoke test of the analysis, before N0 was run. Both
+readings are kept, and the verdicts are reported under both.
+
+### 1. The export the column actually loses is about 45.5 W m⁻², not 42.51
+
+**What the code does.** The tropical exchange's `lateral_energy_export` is
+the prescribed band heat export, 42.51 W m⁻², plus the Brewer-Dobson
+upwelling's net export of dry static energy (`tropical_exchange.py`). That is
+45.53 W m⁻² in the smoke test. The latent counterpart,
+`lateral_latent_energy_export`, is negligible there.
+
+**The two readings:**
+
+- **As frozen:** N_res = N − 42.51.
+- **Reading 2, energy-consistent:** N_res,applied = N −
+  (`lateral_energy_export` + `lateral_latent_energy_export`). The column
+  equilibrates where this is zero.
+
+t_N and verdict items 2 and 3 are evaluated under both.
+
+**What this means for `tropical-runaway-ceiling.md`.** Its criterion N =
+42.51 understated the column's sink by about 3 W m⁻². It does not change its
+K1: H95's N stayed at 52.1 or above. Its HOBS crossing would move down by
+about one 2.5 K step. It is recorded here and not re-run.
+
+### 2. The frozen storage reconstruction does not close
+
+**The formula.** d/dt[`atmosphere_column_energy` + C_s·T_s +
+L·`atmosphere_precipitable_water`] misses N − export by 1.5-20 W m⁻² in the
+smoke test's daily means. The likely causes are a missing store or the
+outputs' differing time semantics. It would make B(i) fire falsely.
+
+**The two readings:**
+
+- **As frozen:** reported, as computed.
+- **Reading 2:** the storage rate is the sum of the conservation reconciler's
+  own interior energy stores, (stored_final − stored_initial)/dt for every
+  energy budget except the system boundaries (orbit, space, lateral). In the
+  smoke test it matches N − export to 2e-11 W m⁻².
+
+B(i) is evaluated under both.
+
+**Nothing else changes:** the run, the times, the thresholds and the verdict
+rules.
