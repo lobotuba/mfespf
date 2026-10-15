@@ -232,3 +232,139 @@ B(i) is evaluated under both.
 
 **Nothing else changes:** the run, the times, the thresholds and the verdict
 rules.
+
+## Result (appended; nothing above this line changed)
+
+**The run.** N0 rerun exactly (`oht_run.py n0`).
+
+- **It completed all 100000 steps.** Status: invalid on the validity-domain
+  gate.
+- **Worst relative residual:** 7.8e-16.
+- **No refusal.** At step 45050, where the original N0 was refused, the
+  current code floors and counts a negative optical depth
+  (`rrtmg-domain-and-refusals.md`). The first floored step is 45050 exactly.
+
+### G0: fails as frozen
+
+The run did not stop at 45050, so its tail means (the last fifth of 100000
+steps) are not the original's (steps 36041-45050). Of 199 shared printed
+values, 139 differ.
+
+- **Why it is likely the same trajectory to step 45050:** the first negative
+  optical depth falls at exactly the original refusal step.
+- **A supplementary check, not frozen:** a 45050-step rerun, whose tail is
+  exactly the original's window, has been started. It is reported when it
+  completes.
+- **What the verdict uses:** only days 0-457 (steps up to about 10968), far
+  before either.
+
+### R2: the chronology (daily means)
+
+| time | day | T_s | what happens |
+|---|---:|---:|---|
+| t_N, all three readings | **0** | 263.8 K, the cold start | R is positive from the start and stays positive through every valid day |
+| t_RH | **197** | 298.8 K | RH 300-700 ≥ 0.80 on every later day. It first reaches 0.82 by day 50 and stays 0.81-0.93. |
+| t_run | **308** | 301.7 K | T_s passes 301.61 K, and 10-day means rise thereafter |
+| t_invalid | **457** | 303.9 K | the first \|dT_ref\| > 30 K |
+| the first floored optical depth | step 45050, day 1877 | 315.2 K | |
+
+**Order: t_N (0) ≤ t_RH (197) < t_run (308) < t_invalid (457).**
+
+### The residual, three readings
+
+| reading | sink | lowest daily value while valid | positive from |
+|---|---|---:|---|
+| **R_applied** (interprets) | N − applied export: 45.19-45.97 W m⁻², latent part ≤ 0.003 | +4.01 W m⁻² (day 1) | day 0 |
+| R_45.5 | N − 45.5 | +4.05 | day 0 |
+| R_frozen | N − 42.51 | +7.04 | day 0 |
+
+**R_applied never reaches zero while the run is valid.** It falls as the
+column warms but stays positive:
+
+| day | T_s | RH 300-700 | ASR | OLR | R_applied |
+|---:|---:|---:|---:|---:|---:|
+| 10 | 282.8 K | 0.68 | 295.4 | 219.1 | 30.6 |
+| 100 | 294.5 K | 0.83 | 301.2 | 234.3 | 20.9 |
+| 197 | 298.8 K | 0.87 | 303.8 | 244.5 | 13.5 |
+| 308 | 301.7 K | 0.88 | 305.6 | 250.1 | 9.9 |
+| 457 | 303.9 K | 0.88 | 307.3 | 255.8 | 6.3 |
+
+**After t_invalid it continues the same way, outside RRTMG's tables:**
+
+| day | T_s | RH 300-700 | R_applied |
+|---:|---:|---:|---:|
+| 1000 | 309.4 K | 0.95 | 4.3 |
+| 1877 | 315.2 K | 0.94 | 3.8 |
+| 4165, the last | 320.1 K | 0.89 | **0.27** |
+
+### B, C and D
+
+**B: not supported under reading 2.**
+
+- **The reconciler-store reconstruction** matches N − export to 6.1e-11
+  W m⁻² on every valid day.
+- **No 10-day period with R ≤ 0:** B(ii) does not fire.
+- **The surface is near balance after spin-up.** Surface storage is about
+  0-10 W m⁻². The latent flux rises from 68 to 160 W m⁻² as the column warms.
+
+**The frozen reconstruction,** as the erratum anticipated:
+
+- it misses by up to 20.5 W m⁻²;
+- it exceeds 0.5 W m⁻² on 49 percent of valid days;
+- so under the frozen reading B fires.
+
+**C: not supported.**
+
+- **Worst reconciliation residual:** 7.8e-16.
+- **The dry adjustment and its surface counterpart together:** a net of at
+  most 6.2e-11 W m⁻².
+- **The dry adjustment's +37 W m⁻² into the air** (a mean over valid days)
+  is the surface's convective exchange: redistribution, not creation.
+- **The latent heat release, +143 W m⁻²,** converts the surface latent flux.
+
+**D: not supported.** t_invalid (457) comes after t_N (0) and after t_run
+(308). The departure from RRTMG's domain is a consequence of the warming, not
+its cause.
+
+### Verdicts
+
+| reading | confirmed | B | C | D |
+|---|---|---|---|---|
+| as frozen | no | yes | no | no |
+| erratum reading 2 | **yes** | no | no | no |
+
+**As frozen,** the attribution is not confirmed, solely because B fires on
+the reconstruction the erratum found defective before the run. Items 1-3
+hold under the frozen R.
+
+**Under the erratum's reading, the existing radiative-moisture attribution
+is confirmed on N0's own trajectory:**
+
+- **The humidity:** the free troposphere reaches the high-RH regime and stays
+  in it, RH 300-700 ≥ 0.80 from day 197 and 0.81-0.93 from day 50.
+- **The residual:** R_applied is positive from the start and never reaches
+  zero while the radiation is valid.
+- **The order:** the positive residual precedes the runaway (day 308), which
+  precedes the domain departure (day 457).
+- **No other source:** no surface, adjustment or domain process supplies
+  the energy. The reconciler's stores account for all of it.
+
+### What the result adds
+
+**N0 is not an unbounded runaway.**
+
+- **It warms slowly toward a hot equilibrium.** R_applied falls from 30 to
+  0.27 W m⁻² by day 4165, at T_s = 320.1 K.
+- **That equilibrium lies outside RRTMG's tables.**
+- **It agrees with the ceiling's prescribed-state result.** There the H95
+  column's N was 45.1 at an extrapolated 317.5 K, against the applied sink of
+  about 45.5. That puts its crossing near 318-320 K, as N0's trajectory
+  finds.
+
+**The chain on the prognostic trajectory:** no free-tropospheric drying → RH
+about 0.85-0.95 → OLR too small for the absorbed sunlight → R_applied > 0 →
+warming toward an equilibrium near 320 K, beyond the radiation domain.
+
+**What follows, as frozen:** no isolated tropical-column correction. The next
+question is architectural, the user's decision: ascent and subsidence
+developing together from the start.
