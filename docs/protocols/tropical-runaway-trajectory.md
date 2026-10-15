@@ -368,3 +368,23 @@ warming toward an equilibrium near 320 K, beyond the radiation domain.
 **What follows, as frozen:** no isolated tropical-column correction. The next
 question is architectural, the user's decision: ascent and subsidence
 developing together from the start.
+
+### Supplementary identity check (not frozen), appended
+
+**The run:** `oht_run.py n0 45050`, whose tail is exactly the original N0's
+window, steps 36041-45050.
+
+**It reproduces `oht_n0b.json` in every physical value.** Of 199 shared
+printed values, the 5 that differ are metadata:
+
+- the status and reason: the validity-domain gate now, against the original's
+  refusal recorded as a conservation failure;
+- the elapsed seconds;
+- the requested step count;
+- the refusal warning.
+
+T_s 314.0345024638714 K and N 48.90104705973374 W m⁻² are identical, as are
+the profiles and every flux.
+
+**So the trajectory is the original N0's to step 45050.** G0's frozen failure
+was the current code continuing past the old refusal, not a different run.
