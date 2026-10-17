@@ -255,3 +255,31 @@ W m⁻² of its applied export.
   literature's other forms (strict, or damped gravity wave).
 
 ---
+
+## Erratum to the code section, before any code (nothing above this line changed)
+
+**Reading 1 (above).** The holding energy goes to a boundary reservoir
+module, `fixed_surface_reservoir`, per region, in the deep-ocean exchange's
+pattern.
+
+**Reading 2, from the coupler's lifecycle, read before writing it.**
+
+- **Why reading 1 cannot work as written.** Every module's tendencies are
+  computed and published first, then each owner commits, then transfers and
+  budgets are reported. The holding power F_hold is the sum of every
+  contribution to the surface temperature, so it is known only at the
+  surface's commit. A separate reservoir module would have to read it in the
+  tendency pass, before it exists.
+- **The established pattern for energy that crosses the system boundary** is
+  the orbit's: the Sun's input is a declared source in the module's own
+  budget (`solar_input_across_system_boundary`).
+- **So:** `fixed_surface_boundary_transfer` is a declared source or sink in
+  the slab's own energy budget (`add_source` or `add_sink`, by its sign),
+  named in its contract's sources and sinks.
+- **What is unchanged:**
+  - it is published per region;
+  - the reconciler closes the system including it;
+  - G2's requirement that it captures all the holding energy.
+- **No reservoir module is added.**
+
+Everything else in the protocol is unchanged.
