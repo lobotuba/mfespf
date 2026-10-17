@@ -82,6 +82,7 @@ def two_column(
     run_id: str = "TWO-COLUMN",
     tropical_latitude: float | None = None,
     ocean_heat_contrast: float | None = None,
+    prescribed_surface_temperatures: tuple[float, float] | None = None,
     **column: Any,
 ) -> Kernel:
     """Two columns and the circulation between them.
@@ -89,7 +90,9 @@ def two_column(
     ``tropical_latitude`` makes each region the tropical column of that band
     (its sunlight, export and upwelling); ``ocean_heat_contrast`` adds the
     ocean's heat transport between their surfaces, in W m^-2, rising minus
-    sinking (ocean-heat-transport-circulation.md).
+    sinking (ocean-heat-transport-circulation.md). ``prescribed_surface_temperatures``
+    holds the rising and sinking surfaces at those temperatures, in K, the energy
+    that holds them declared as a boundary transfer (coupled-ascent-subsidence.md).
     """
     circulation = WeakTemperatureGradientCirculation(
         ascent_fraction=ascent_fraction, relaxation_distance=relaxation_distance
@@ -100,9 +103,17 @@ def two_column(
         else None
     )
     regions = []
+    held = (
+        dict(zip((_ASCENT, _DESCENT), prescribed_surface_temperatures, strict=True))
+        if (prescribed_surface_temperatures is not None)
+        else {}
+    )
     for region in (_ASCENT, _DESCENT):
+        settings = dict(column)
+        if region in held:
+            settings["prescribed_surface_temperature"] = held[region]
         kernel = _authorize(
-            regionalize(_column(tropical_latitude, dict(column)), region),
+            regionalize(_column(tropical_latitude, settings), region),
             circulation.module_id,
         )
         if ocean is not None:

@@ -56,7 +56,11 @@ from mfespf.physics.surface import (
 )
 from mfespf.registries.states import StateBudget, TendencyContribution
 
-__all__ = ["ColumnSurfaceModule"]
+__all__ = ["FIXED_SURFACE_TRANSFER", "ColumnSurfaceModule"]
+
+#: The energy that holds a prescribed surface temperature, crossing the system
+#: boundary (coupled-ascent-subsidence.md).
+FIXED_SURFACE_TRANSFER = "fixed_surface_boundary_transfer"
 
 
 class ColumnSurfaceModule(Module):
@@ -82,6 +86,7 @@ class ColumnSurfaceModule(Module):
         latent_heat: float | None = None,
         couple_deep_ocean: bool = False,
         ocean_module_id: str = "ocean",
+        prescribed_temperature: float | None = None,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         # The contract genuinely differs between a dry and a moist configuration:
@@ -160,6 +165,7 @@ class ColumnSurfaceModule(Module):
                 "surface_heat_capacity",
                 "surface_net_radiative_flux",
                 *((SURFACE_WATER_STATE, "surface_energy_balance") if couple_water else ()),
+                *((FIXED_SURFACE_TRANSFER,) if prescribed_temperature is not None else ()),
             ),
             imported_transfers=(
                 "radiation_down_surface",
@@ -183,6 +189,12 @@ class ColumnSurfaceModule(Module):
                 *(("deep_ocean_heat",) if couple_deep_ocean else ()),
             ),
             conserved_quantities=("energy", "water") if couple_water else ("energy",),
+            # A held temperature is a boundary condition: the energy that holds it
+            # crosses the system boundary, declared as the orbit declares the Sun's
+            # (coupled-ascent-subsidence.md, erratum).
+            internal_sources_and_sinks=(
+                (FIXED_SURFACE_TRANSFER,) if prescribed_temperature is not None else ()
+            ),
             provided_interfaces=(SURFACE_INTERFACE,),
             required_interfaces=(
                 RequiredInterface(
@@ -212,6 +224,11 @@ class ColumnSurfaceModule(Module):
                         "test_evaporation_conserves_water_and_carries_its_latent_energy",
                     )
                     if couple_water
+                    else ()
+                ),
+                *(
+                    ("test_a_held_surface_stays_put_and_declares_the_energy_that_holds_it",)
+                    if prescribed_temperature is not None
                     else ()
                 ),
             ),
@@ -275,6 +292,10 @@ class ColumnSurfaceModule(Module):
         self.ocean_module_id = ocean_module_id
         self._deep_ocean_flux = 0.0
 
+        self.prescribed_temperature = prescribed_temperature
+        self._holding_power = 0.0
+        self._holding_dt = 0.0
+
         self.couple_water = couple_water
         self.water_module_id = water_module_id
         self.initial_water_store = initial_water_store
@@ -316,11 +337,19 @@ class ColumnSurfaceModule(Module):
             )
         if self.initial_temperature <= 0.0:
             raise ConfigurationError("initial temperature must be positive")
+        if self.prescribed_temperature is not None and not self.prescribed_temperature > 0.0:
+            raise ConfigurationError("a prescribed surface temperature must be positive")
 
     def initialize(self, initial_state: dict[str, Any], boundary_state: dict[str, Any]) -> None:
         self.temperature = float(
             initial_state.get(SURFACE_TEMPERATURE_STATE, self.initial_temperature)
         )
+        if self.prescribed_temperature is not None:
+            if self.temperature != self.prescribed_temperature:
+                raise ConfigurationError(
+                    f"the surface is held at {self.prescribed_temperature} K but would "
+                    f"start at {self.temperature} K; start it where it is held"
+                )
         self.water_store = float(initial_state.get(SURFACE_WATER_STATE, self.initial_water_store))
         if self.water_store < 0.0:
             raise ConfigurationError("the surface water store cannot start negative")
@@ -442,7 +471,30 @@ class ColumnSurfaceModule(Module):
     def advance_state(self, dt: float, contributions: list[TendencyContribution]) -> None:
         thermal = [c for c in contributions if c.state_id == SURFACE_TEMPERATURE_STATE]
         initial = np.asarray(self.temperature, dtype=float)
-        self.temperature = float(initial + sum(float(np.asarray(c.value)) for c in thermal) * dt)
+        if self.prescribed_temperature is not None:
+            # Held: one labelled contribution cancels everything else this step,
+            # and the energy it represents crosses the system boundary
+            # (coupled-ascent-subsidence.md). The temperature is the prescribed
+            # value exactly, not a sum that rounds near it.
+            rate = -sum(float(np.asarray(c.value)) for c in thermal)
+            thermal = [
+                *thermal,
+                TendencyContribution(
+                    state_id=SURFACE_TEMPERATURE_STATE,
+                    provider_module_id=self.module_id,
+                    label=FIXED_SURFACE_TRANSFER,
+                    value=rate,
+                    units="K s^-1",
+                    equation_id=EQUATION_IDS["slab"],
+                ),
+            ]
+            self._holding_power = rate * self.areal_heat_capacity
+            self._holding_dt = dt
+            self.temperature = float(self.prescribed_temperature)
+        else:
+            self.temperature = float(
+                initial + sum(float(np.asarray(c.value)) for c in thermal) * dt
+            )
         if self.temperature <= 0.0:
             raise ConfigurationError(
                 f"surface temperature reached {self.temperature:.4g} K, which is "
@@ -545,6 +597,29 @@ class ColumnSurfaceModule(Module):
                 spatial_support=SpatialSupport.GLOBAL_SCALAR,
                 sign_convention=SignConvention.POSITIVE_DEFINITE,
                 provenance=provenance,
+            ),
+            **(
+                {
+                    FIXED_SURFACE_TRANSFER: Field(
+                        field_id=FIXED_SURFACE_TRANSFER,
+                        physical_name=(
+                            "energy into the surface across the system boundary that holds "
+                            "its temperature"
+                        ),
+                        values=np.array(self._holding_power),
+                        units="W m^-2",
+                        quantity_kind=QuantityKind.DIAGNOSTIC,
+                        time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                        time_interval=self._holding_dt,
+                        timestamp=timestamp,
+                        spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                        sign_convention=SignConvention.POSITIVE_DOWNWARD,
+                        provenance=provenance,
+                    )
+                }
+                # From the first commit: before it there is no interval to average over.
+                if self.prescribed_temperature is not None and self._holding_dt > 0.0
+                else {}
             ),
             "surface_spectral_albedo": Field(
                 field_id="surface_spectral_albedo",
@@ -744,15 +819,16 @@ class ColumnSurfaceModule(Module):
         return (exports, imports)
 
     def report_conservation(self) -> list[ModuleBudget]:
-        budgets = [
-            ModuleBudget(
-                module_id=self.module_id,
-                quantity=ConservedQuantity.ENERGY,
-                units="J m^-2",
-                stored_initial=self._stored_initial,
-                stored_final=self.stored_energy(),
-            )
-        ]
+        energy = ModuleBudget(
+            module_id=self.module_id,
+            quantity=ConservedQuantity.ENERGY,
+            units="J m^-2",
+            stored_initial=self._stored_initial,
+            stored_final=self.stored_energy(),
+        )
+        if self.prescribed_temperature is not None:
+            energy.add_source(FIXED_SURFACE_TRANSFER, self._holding_power * self._holding_dt)
+        budgets = [energy]
         if self.couple_water:
             budgets.append(
                 ModuleBudget(
@@ -790,6 +866,11 @@ class ColumnSurfaceModule(Module):
             "time_integration": "forward_euler",
             "couple_water": self.couple_water,
             "couple_deep_ocean": self.couple_deep_ocean,
+            **(
+                {"prescribed_temperature_K": self.prescribed_temperature}
+                if self.prescribed_temperature is not None
+                else {}
+            ),
             **(
                 {
                     "initial_water_store_kg_m2": self.initial_water_store,

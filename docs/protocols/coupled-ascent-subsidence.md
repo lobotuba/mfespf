@@ -283,3 +283,26 @@ pattern.
 - **No reservoir module is added.**
 
 Everything else in the protocol is unchanged.
+
+## Erratum 2 to the code section, before any run (nothing above this line changed)
+
+**Reading 1 (above).** `prescribed_temperature` goes on `SlabSurfaceModule`.
+
+**Reading 2, from the configuration.** The tropical column's surface is
+`ColumnSurfaceModule`, the slab beneath a radiating column; `SlabSurfaceModule`
+is the airless slab. So the option is on `ColumnSurfaceModule`, under the same
+name and with the same behaviour. It is passed through
+`reference_column(prescribed_surface_temperature=...)` and
+`two_column(prescribed_surface_temperatures=(rising, sinking))`. A held surface
+starts at its held temperature, and a start elsewhere is refused.
+
+**The tests are in `tests/integration/test_fixed_surface.py`:**
+
+- the held temperature, exactly, every step;
+- the holding contribution equal to minus the others;
+- the published power, and the declared budget source, matching it;
+- the reconciler passing;
+- option-off identity;
+- the refused start.
+
+**The full suite passes: 676 tests.**

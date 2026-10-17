@@ -654,6 +654,7 @@ def radiating_column(
     albedo: float | np.ndarray | None = None,
     areal_heat_capacity: float = _DEFAULT_AREAL_HEAT_CAPACITY,
     initial_surface_temperature: float = 250.0,
+    prescribed_surface_temperature: float | None = None,
     initial_air_temperature: float | np.ndarray = 250.0,
     total_irradiance: float | None = None,
     eccentricity: float = 0.0,
@@ -922,6 +923,9 @@ def radiating_column(
     # With a log-pressure cap the column has more layers than the reference
     # count that fixed its lower step; every module is sized by the real one.
     n_layers = atmosphere.n_layers
+    if prescribed_surface_temperature is not None:
+        # A held surface starts where it is held (coupled-ascent-subsidence.md).
+        initial_surface_temperature = float(prescribed_surface_temperature)
     surface = ColumnSurfaceModule(
         grid=working_grid,
         areal_heat_capacity=areal_heat_capacity,
@@ -930,6 +934,7 @@ def radiating_column(
         couple_water=water,
         initial_water_store=initial_water_store,
         couple_deep_ocean=deep_ocean,
+        prescribed_temperature=prescribed_surface_temperature,
     )
     space = SpaceBoundaryModule(
         sender_module_id="atmosphere",
