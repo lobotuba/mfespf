@@ -306,3 +306,155 @@ starts at its held temperature, and a start elsewhere is refused.
 - the refused start.
 
 **The full suite passes: 676 tests.**
+
+## S1 result (appended; nothing above this line changed)
+
+**Runs, as frozen.** 20000 steps did not meet the equilibrium criterion, so
+the run was extended in 20000-step increments: 40000, then 60000, the
+maximum. The verdict is read from the 60000-step run, over its last fifth.
+
+**The equilibrium criterion is narrowly unmet even at 60000.** The
+atmosphere's stored-energy rate is +0.104 W m⁻² in the rising column, just
+outside ±0.1, and −0.023 in the sinking one. The descent RH's ten 50-day means
+lie within 0.187-0.206 (range 0.019, within 0.02).
+
+**The state barely moved over the extensions:**
+
+| | 20000 steps | 40000 | 60000 |
+|---|---:|---:|---:|
+| descent omega500, hPa/day | 26.37 | 26.34 | 26.37 |
+| descent RH 300-700 | 0.187 | 0.186 | 0.185 |
+| band RH 300-700 | 0.607 | 0.606 | 0.606 |
+| ΔF, W m⁻² | 142.7 | 143.1 | 142.7 |
+
+### Gates
+
+| gate | result | detail |
+|---|---|---|
+| G1 conservation | **pass** | reconciler residual 1.0e-15; every report passes |
+| G2 the fixed temperature | **pass** | both surfaces exactly at 300.26 and 298.79 K at every step (deviation 0.0) |
+| G3 the WTG exchange | **pass** | area-weighted cancellation 6.7e-16 relative (dry static energy) and 1.6e-16 (vapour) |
+| G4 validity | pass | the largest \|dT_ref\| is 22.7 K, and the validity gate passes |
+| G4 boundedness (1 percent drift between 50-day means) | **fail** | descent precipitable water 2.9 percent, descent dry adjustment 7.7 percent, descent latent heat release 349 percent (intermittent), ascent latent heat release 1.5 percent. All other quantities are under 1 percent. |
+| G5 orientation | **pass** | descent omega500 positive on 100 percent of late days |
+
+### G6, the descent column's free-tropospheric vapour budget (kg m⁻² day⁻¹, 300-700 hPa)
+
+| label | late mean |
+|---|---:|
+| circulation (subsidence) | **−0.207** |
+| convective vapour transport | +0.188 |
+| eddy diffusion | +0.021 |
+| evaporation − condensation | −4e-17, no condensation |
+| Brewer-Dobson upwelling | 0 |
+
+**The circulation is the only drying term,** and it balances the convective
+and diffusive moistening.
+
+### G7, the frozen predictions
+
+| prediction | model | observed | passes if | |
+|---|---:|---:|---|---|
+| descent omega500 | 26.4 hPa/day | 14.3 | 7-29 | **pass** |
+| descent RH 300-700 | **0.185** | 0.35 | 0.25-0.45 | fail, too dry |
+| band RH 300-700 | **0.606** | 0.43 | 0.33-0.53 | fail, too wet |
+| C-shaped descent profile | minimum 0.097 at 300 hPa | 0.28 at 400-500 | minimum within 350-650 hPa | fail |
+| band precipitable water | 68.5 kg m⁻² | 38.0 | 28.5-47.5 | fail |
+| T500, rising − sinking | +0.25 K | +0.65 | +0.33 to +1.30 | fail |
+
+**The profiles at NCEP's levels:**
+
+| level, hPa | 1000 | 925 | 850 | 700 | 600 | 500 | 400 | 300 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| descent RH, model | 0.82 | 0.87 | 0.95 | 0.23 | 0.29 | 0.19 | 0.11 | 0.10 |
+| descent RH, observed | 0.75 | 0.69 | 0.57 | 0.39 | 0.32 | 0.28 | 0.28 | 0.50 |
+
+**The rising column's RH 300-700 is 0.94,** against 0.50 observed.
+
+### Reported, not gated
+
+**The implied surface-transfer contrast:**
+
+- ΔF = F_hold,rising − F_hold,sinking = **+142.7 W m⁻²** (+61.3 into the
+  rising surface, −81.4 out of the sinking one);
+- **about 10 times the observed ocean delivery contrast** (OAFlux 13.39, NCEP
+  4.67);
+- the sign agrees, the ocean delivering into the rising region.
+
+**The band mean of F_hold is −1.76 W m⁻²:** a small net, so the holding is
+almost all redistribution.
+
+**Each column's TOA flux against its export:**
+
+| | N | applied export |
+|---|---:|---:|
+| rising | 60.2 W m⁻² | 45.6 |
+| sinking | 31.3 W m⁻² | 45.6 |
+
+**The surfaces:**
+
+| | latent heat flux | clear-sky OLR | all-sky OLR | cloud LW effect |
+|---|---:|---:|---:|---:|
+| rising | 159.9 W m⁻² | 263.7 | 244.5 | 19.2 |
+| sinking | 93.5 W m⁻² | 298.0 | 269.1 | 29.0 |
+
+The sinking column's evaporation is 58 percent of the rising column's.
+
+### Verdict, as frozen: anything else, reported as found
+
+- **Not "drying pathway supported":** descent RH and band RH are outside
+  their ranges, and G4's boundedness fails.
+- **Not "local moistening blocker":** the descent column is dry, not ≥ 0.75.
+- **Not "surface contrast insufficient":** G5 holds and the subsidence is
+  26.4 hPa/day.
+- **Not "energetically unrealistic":** that verdict requires drying
+  supported. Its ΔF condition (above 26.8 W m⁻²) would be met.
+
+**S2 is therefore not opened,** as frozen.
+
+### What it says, and what it does not
+
+**1. The subsidence-drying pathway exists in this coupling.**
+
+- Under the observed 1.47 K contrast, the relaxed spectral WTG circulation
+  forms with the right orientation and realistic strength (26 hPa/day).
+- The circulation alone dries the descent column's free troposphere, against
+  convective moistening.
+- It makes a moist boundary layer (RH 0.82-0.97 up to 828 hPa) capped by a
+  sharp drop to 0.24 by 726 hPa: the shape of a trade-wind inversion.
+- That is the first dry subsiding branch this model has produced.
+
+**2. The partition is wrong in both columns.**
+
+- **The rising column saturates its free troposphere (0.94).** That is the
+  same convective vapour mixing `free-troposphere-moisture-budget.md`
+  measured.
+- **The sinking column overshoots dry (0.19 against 0.35).**
+- **Its moist layer is capped near 830 hPa and saturated at the cap (0.97),**
+  where the observed 850 hPa RH is 0.57. Nothing ventilates the boundary
+  layer upward the way trade cumulus do.
+- **Read with care:** the observed rising region's 0.50 mixes convecting and
+  non-convecting air at 2.5° and monthly means
+  (`ocean-heat-transport-circulation.md`). The rising column's comparison is
+  not like for like, though the band's is.
+
+**3. The observed contrast is not energetically sustainable here.**
+
+- Holding it needs a surface-energy redistribution 10 times the observed
+  ocean transport.
+- The sinking surface gains energy: its evaporation is low under a capped,
+  near-saturated boundary layer.
+- The rising surface loses it.
+- With prognostic surfaces under the observed 13.39 W m⁻², the contrast would
+  be expected to collapse. That is a prediction, and S2 was not run.
+
+**4. A declared limitation that bears on point 3.** Both columns carry the
+same prescribed ISCCP tropical-mean cloud field. In reality the subsiding
+regions' low clouds reflect sunlight and cool their surface. This protocol
+cannot represent that.
+
+**Not concluded:**
+
+- no adoption;
+- no default changed;
+- no S1 state taken as a coupled solution.
