@@ -83,6 +83,7 @@ def two_column(
     tropical_latitude: float | None = None,
     ocean_heat_contrast: float | None = None,
     prescribed_surface_temperatures: tuple[float, float] | None = None,
+    regional_settings: dict[str, dict[str, Any]] | None = None,
     **column: Any,
 ) -> Kernel:
     """Two columns and the circulation between them.
@@ -93,7 +94,12 @@ def two_column(
     sinking (ocean-heat-transport-circulation.md). ``prescribed_surface_temperatures``
     holds the rising and sinking surfaces at those temperatures, in K, the energy
     that holds them declared as a boundary transfer (coupled-ascent-subsidence.md).
+    ``regional_settings`` overrides column settings in one region only, by region name
+    (descending-boundary-layer-ventilation.md, V1).
     """
+    unknown = set(regional_settings or {}) - {_ASCENT, _DESCENT}
+    if unknown:
+        raise ValueError(f"regional settings for unknown regions {sorted(unknown)}")
     circulation = WeakTemperatureGradientCirculation(
         ascent_fraction=ascent_fraction, relaxation_distance=relaxation_distance
     )
@@ -109,7 +115,7 @@ def two_column(
         else {}
     )
     for region in (_ASCENT, _DESCENT):
-        settings = dict(column)
+        settings = {**column, **(regional_settings or {}).get(region, {})}
         if region in held:
             settings["prescribed_surface_temperature"] = held[region]
         kernel = _authorize(

@@ -288,3 +288,31 @@ printed thresholds are generated from them, never entered independently.
 - **Everything is under prescribed surface temperatures.**
 
 ---
+
+## Erratum before V1's code is used (nothing above this line changed)
+
+**Reading 1 (above).** V1b, O1 moving no vapour, "needs
+`condense_after_convection=False` for that column, a second change, declared."
+
+**Reading 2, from building it.** The configuration refuses each step short
+of three changes:
+
+- `vapour_transport=False` alone is refused: condensing after convection
+  composes with convection's vapour transport;
+- adding `condense_after_convection=False` is refused: the end-of-step
+  saturation needs the water module to run after convection;
+- adding `end_of_step_saturation=False` as well builds and runs.
+
+**So V1b changes three settings in the descending column,** all declared:
+
+- `vapour_transport=False`;
+- `condense_after_convection=False`;
+- `end_of_step_saturation=False`.
+
+**What this means for reading V1b.** The end-of-step saturation is the
+water module's removal of supersaturation left after convection, and it is
+switched off with the other two. A V1b result is therefore attributed to
+"O1's vapour transport off, with the condensation ordering that requires",
+not to O1's vapour transport alone.
+
+V1a and V1c are unchanged.

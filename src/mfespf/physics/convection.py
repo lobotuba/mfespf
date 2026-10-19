@@ -462,6 +462,7 @@ class ConvectiveAdjustmentModule(Module):
             produced_outputs=(
                 "convective_temperature_tendency",
                 "convective_layer_count",
+                *(("surface_mixed_layer_top",) if surface_based else ()),
                 "convectively_mixed_layer_temperature",
                 "atmosphere_potential_temperature",
                 "surface_sensible_heat_flux",
@@ -900,6 +901,16 @@ class ConvectiveAdjustmentModule(Module):
                     total_mass
                 )
         return mixed
+
+    def _surface_group_top(self) -> int:
+        """The top layer of this step's surface-containing group, or 0 when the
+        surface took no part in the mixing."""
+        if not self._surface_mixed:
+            return 0
+        for low, high in self._mixing_groups:
+            if low == 0:
+                return int(high)
+        return 0
 
     def relaxation_fraction(self, dt: float) -> float:
         """The share of the instantaneous adjustment applied over ``dt``.
@@ -1734,6 +1745,27 @@ class ConvectiveAdjustmentModule(Module):
                 timestamp=ctx.time,
                 spatial_support=SpatialSupport.DOMAIN_INTEGRAL,
                 provenance=provenance,
+            ),
+            **(
+                {
+                    # The top of the group the surface mixed with this step, as a
+                    # layer index; the lowest layer when the surface took no part
+                    # (descending-boundary-layer-ventilation.md). Output only.
+                    "surface_mixed_layer_top": Field(
+                        field_id="surface_mixed_layer_top",
+                        physical_name="top layer of the adjustment group containing the surface",
+                        values=np.array(float(self._surface_group_top())),
+                        units="1",
+                        quantity_kind=QuantityKind.DIAGNOSTIC,
+                        time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                        time_interval=ctx.dt,
+                        timestamp=ctx.time,
+                        spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                        provenance=provenance,
+                    )
+                }
+                if self.surface_based
+                else {}
             ),
         }
 
