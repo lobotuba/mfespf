@@ -181,6 +181,20 @@ def declare_explicit_cycles(
     return declared
 
 
+def _require_setting(kwargs: dict[str, Any], name: str, value: Any, configuration: str) -> None:
+    """Set a setting the configuration is defined by, refusing a caller who asked otherwise.
+
+    Overwriting the request would run a different column from the one asked
+    for and report it under the caller's name.
+    """
+    if name in kwargs and kwargs[name] != value:
+        raise ConfigurationError(
+            f"the {configuration} column is defined with {name}={value!r}; "
+            f"{name}={kwargs[name]!r} was asked for, which is a different configuration"
+        )
+    kwargs[name] = value
+
+
 def _build_state_registry(
     *,
     n_layers: int,
@@ -1348,7 +1362,7 @@ def radiative_convective(kappa: float = 1.0e-4, **kwargs: Any) -> Kernel:
         "Stage 3 radiative-convective equilibrium: a dry column whose lapse rate "
         "is limited by convective adjustment.",
     )
-    kwargs["convection"] = True
+    _require_setting(kwargs, "convection", True, "radiative-convective")
     return radiating_column(
         absorption_coefficient=window_absorption(grid, kappa_opaque=kappa),
         grid=grid,
@@ -1376,8 +1390,8 @@ def moist_radiative_convective(kappa: float = 1.0e-4, **kwargs: Any) -> Kernel:
         "Stage 3 moist radiative-convective column: simultaneous closure of the "
         "water and energy budgets across a phase change.",
     )
-    kwargs["convection"] = True
-    kwargs["water"] = True
+    _require_setting(kwargs, "convection", True, "moist radiative-convective")
+    _require_setting(kwargs, "water", True, "moist radiative-convective")
     return radiating_column(
         absorption_coefficient=window_absorption(grid, kappa_opaque=kappa),
         grid=grid,

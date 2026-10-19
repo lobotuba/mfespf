@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 
 from mfespf.core.constants import value_of
+from mfespf.core.errors import ConfigurationError
 from mfespf.coupling.transfers import ConservedQuantity
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.surface import SURFACE_TEMPERATURE_STATE, SURFACE_WATER_STATE
@@ -428,3 +429,17 @@ def test_moist_column_checkpoint_round_trips_both_stores():
     surface.restore(saved_surface)
     assert np.array_equal(water.vapour, saved_vapour[VAPOUR_STATE])
     assert surface.water_store == saved_surface[SURFACE_WATER_STATE]
+
+
+@pytest.mark.req("ATM-002")
+def test_a_configuration_refuses_a_setting_it_is_defined_without():
+    """Convection and water define these columns. Asking for either off is
+    refused rather than overwritten, which ran the baseline under the caller's
+    name; asking for what the column already is stays allowed."""
+    with pytest.raises(ConfigurationError, match="convection=False"):
+        moist_radiative_convective(convection=False)
+    with pytest.raises(ConfigurationError, match="water=False"):
+        moist_radiative_convective(water=False)
+    with pytest.raises(ConfigurationError, match="convection=False"):
+        radiative_convective(convection=False)
+    moist_radiative_convective(convection=True, water=True)
