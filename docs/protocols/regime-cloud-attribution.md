@@ -279,3 +279,93 @@ amounts of 0.207, 0.032, 0.135 and 0.212.
 **One artefact, noted.** Zero amounts unpack to −7.4e-7 percent, a
 consequence of the float32 scale factor. That makes the low and middle ice
 fractions read about −6e-8 instead of 0. It is negligible and left as unpacked.
+
+### C0: reproduces S1
+
+**The C0 run is S1's configuration, 60000 steps.** It reproduces
+`s1_60000.json` in all 969 shared printed values, with none different. It
+saved 50 late states, each with the state one step earlier: the
+start-of-step state the published fluxes were computed from.
+
+### C1: offline substitution on the 50 states
+
+**The method check passes.** The shared case reproduces C0's published OLR,
+reflected shortwave and net surface radiation to 1.5e-15 relative, against
+1e-9.
+
+**Means over the 50 states,** W m⁻²:
+
+| case | column | TOA absorbed SW | OLR | surface net SW | surface net LW | surface net |
+|---|---|---:|---:|---:|---:|---:|
+| shared | rising | 301.11 | 244.50 | 213.93 | −20.68 | 193.25 |
+| shared | sinking | 296.77 | 269.02 | 219.45 | −26.14 | 193.31 |
+| **regime** | rising | 282.43 | 226.87 | 200.91 | −21.70 | **179.21** |
+| **regime** | sinking | 300.30 | 275.58 | 222.02 | −26.76 | **195.26** |
+| swapped | rising | 304.80 | 248.44 | 216.45 | −21.09 | 195.36 |
+| swapped | sinking | 278.38 | 245.96 | 206.13 | −27.42 | 178.71 |
+| clear | rising | 353.43 | 263.76 | 261.58 | −27.23 | 234.35 |
+| clear | sinking | 351.82 | 298.00 | 268.32 | −38.02 | 230.30 |
+
+**Cloud radiative effects, shortwave and longwave separately:**
+
+| case | column | TOA SW | TOA LW | TOA net | surface SW | surface LW | surface net |
+|---|---|---:|---:|---:|---:|---:|---:|
+| shared | rising | −52.32 | +19.26 | −33.06 | −47.64 | +6.54 | −41.10 |
+| shared | sinking | −55.05 | +28.98 | −26.07 | −48.87 | +11.88 | −37.00 |
+| regime | rising | −71.00 | +36.89 | −34.11 | −60.67 | +5.53 | −55.14 |
+| regime | sinking | −51.53 | +22.42 | −29.11 | −46.30 | +11.26 | −35.04 |
+
+**The implied change in the holding transfer** (ΔF_hold = −ΔR_net,sfc, the
+other surface fluxes fixed):
+
+| column | ΔR_net,sfc | ΔF_hold |
+|---|---:|---:|
+| rising | −14.04 W m⁻² | +14.04 |
+| sinking | +1.96 W m⁻² | −1.96 |
+
+| quantity | value |
+|---|---:|
+| ΔF on the 50 states (shared) | 140.54 W m⁻² |
+| **ΔF_C1, regime clouds** | **156.53 W m⁻²**, up 16.0 |
+| ΔF, swapped (reported) | 123.84 W m⁻² |
+| reduction against the frozen 142.7 | **−9.7 percent** |
+
+### Verdict, as frozen: cloud confound rejected
+
+**ΔF increases with regime clouds: the wrong sign.** C2 is not run. The
+frozen next step is the descending boundary-layer ventilation protocol,
+immediately.
+
+### What the result says (reported, not gated)
+
+**1. Observed regime clouds make the needed redistribution larger, not
+smaller.**
+
+- **The rising regime's** extra high and deep cloud (0.30 and 0.052, against
+  the shared 0.21 and 0.027) cuts its surface sunlight by a further 13 W m⁻².
+- **The sinking regime's** extra low cloud (0.27 against 0.24) is offset by
+  less high cloud (0.13 against 0.21). Its surface sunlight barely changes.
+- **The direction agrees with the observed ocean transport** (into the
+  cloudier rising region), but it adds to the model's excess.
+
+**2. The 143 W m⁻² is not radiative.**
+
+- With the shared clouds, the two columns' net surface radiation is equal:
+  193.25 against 193.31 W m⁻².
+- Clear sky it is nearly equal too: 234.4 against 230.3.
+- **So the whole of ΔF is in the non-radiative surface exchange.** Since
+  F_hold = −R_net,sfc + LE + H + C_conv, with C_conv the convection's
+  surface-air exchange, the late means of C0's states give:
+
+  | | latent heat LE | sensible heat H | surface-air convective exchange C_conv |
+  |---|---:|---:|---:|
+  | rising | 159.9 W m⁻² | +1.8 | **90.6** (as the residual) |
+  | sinking | 93.5 W m⁻² | −0.7 | **19.1** |
+  | difference | **66.5** | | **71.5** |
+
+- **The two account for about 138 of the 140.5 W m⁻².** C_conv here is the
+  residual of the holding relation, computed from the published terms, not
+  a separately published field.
+- **The ventilation question therefore carries the energetics:**
+  - why the sinking column evaporates 58 percent as much;
+  - why convection exchanges a fifth as much heat with its surface.
