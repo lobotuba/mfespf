@@ -226,3 +226,56 @@ Opening it is then the user's decision.
   5's D-series. The composite check reports that difference.
 
 ---
+
+## Result (appended; nothing above this line changed)
+
+### The data and the regime composite
+
+**ISCCP-H HGM basic, v01r00,** 1991-01 to 2017-06.
+
+- **318 monthly files,** 1.3 GB, downloaded from NCEI's `isccp-basic/hgm/`
+  directory.
+- **Registered before any parse:** every file's SHA-256 is in
+  `data/sources.yaml` (`ISCCP-H-HGM-BASIC-YYYY-MM`). The composite script
+  re-verifies each checksum before reading.
+- **What the basic product supplies:** cloud amount, mean top pressure and
+  mean visible optical thickness for all 18 ISCCP types, split by phase. So
+  the composite is **complete**, with nothing backfilled.
+
+**Two deviations from the protocol's wording, recorded:**
+
+1. **The registry's provenance class is `observational`.** The protocol wrote
+   "observed", which is not a class the registry has.
+2. **The 1° rising area fraction is 0.576.** That is on ISCCP's 1° grid,
+   against 0.558 on NCEP's 2.5° grid: the same masks (omega500
+   interpolated bilinearly), a different grid.
+
+**Each level's amount, top pressure, visible optical thickness and ice
+fraction,** annual mean of the monthly climatology, cos-latitude weighted:
+
+| | rising | sinking | ±20° band |
+|---|---|---|---|
+| high | 0.299, 218 hPa, τ 3.56, ice 0.83 | 0.132, 204 hPa, τ 2.50, ice 0.84 | 0.228, 215 hPa, τ 3.30 |
+| deep convective | 0.052, 246 hPa, τ 48.1, ice 0.91 | 0.013, 270 hPa, τ 46.9, ice 0.84 | 0.036, 250 hPa, τ 47.9 |
+| middle | 0.151, 559 hPa, τ 6.16, ice 0.00 | 0.107, 584 hPa, τ 5.95, ice 0.00 | 0.132, 568 hPa, τ 6.09 |
+| low | 0.152, 809 hPa, τ 4.37, ice 0.00 | **0.267**, 806 hPa, τ 5.06, ice 0.00 | 0.201, 807 hPa, τ 4.76 |
+
+**The shared field S1 used** (ISCCP D-series Table 5, ±30°, with the global
+Table 4 top pressures and optical thicknesses), for comparison:
+
+| level | amount | top pressure | τ |
+|---|---:|---:|---:|
+| high | 0.211 | 267 hPa | 2.2 |
+| deep convective | 0.027 | 326 hPa | 35.6 |
+| middle | 0.128 | 557 hPa | 4.8 |
+| low | 0.238 | 826 hPa | 4.7 |
+
+**The check against Table 5 (reported):** the same procedure over ±30° gives
+amounts of 0.207, 0.032, 0.135 and 0.212.
+
+- The differences from Table 5 are −0.004, +0.005, +0.007 and −0.026.
+- **None exceeds the 0.05 flag.**
+
+**One artefact, noted.** Zero amounts unpack to −7.4e-7 percent, a
+consequence of the float32 scale factor. That makes the low and middle ice
+fractions read about −6e-8 instead of 0. It is negligible and left as unpacked.
