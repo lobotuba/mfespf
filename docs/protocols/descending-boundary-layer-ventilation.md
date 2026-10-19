@@ -469,3 +469,68 @@ neither of which V0 sums.
 
 **V1 is running** (branches a, b and c, 20000 steps each, from V0's final
 state). It reports the same budget per branch.
+
+## Interim disposition after V0/V2 (the user's, 2026-10-19, verbatim)
+
+> The sinking column's low evaporation is not caused by an unventilated
+> boundary layer. Eddy diffusion carries a material upward moisture flux
+> across the inversion, while subsidence produces a larger downward flux.
+> The inversion remains sharp because the net transport and local
+> thermodynamic response maintain it, not because all upward exchange is
+> absent. The remaining V1 switches test which existing operator controls
+> the moist boundary-layer state and the excessive fixed-surface
+> redistribution requirement.
+>
+> No protocol change is warranted from V0/V2.
+
+**A correction to the V2 wording above, recorded rather than edited.** V2
+says the unattributed 7 percent of the sinking surface evaporation "would
+sit in the circulation's lateral exchange within the boundary-layer layers
+and in storage". That was not measured. **It is unresolved** until the
+circulation's moisture exchange below the inversion is totalled.
+
+## The surface humidity deficit, from V0 (recorded before any V1 result)
+
+**The evaporation formula.** The model evaporates into the lowest layer
+only, E = k_E · (q_sat(T_s, p₁) − q₁) (`water.py`), with k_E shared by
+both columns.
+
+**Computed from V0's 50 saved late states** (every 240 steps over the last
+fifth, at the state each step's tendency was evaluated from):
+
+| | rising | sinking |
+|---|---:|---:|
+| T_s (held), K | 300.26 | 298.79 |
+| lowest-layer T, K | 300.08 | 298.86 |
+| q_sat(T_s), kg kg⁻¹ | 0.022693 | 0.020786 |
+| q₁ | 0.016303 | 0.017033 |
+| lowest-layer RH | 0.726 | 0.816 |
+| **deficit q_sat(T_s) − q₁** | **0.006389** | **0.003753** |
+| E, kg m⁻² s⁻¹ (late mean, all steps) | 6.39e-5 | 3.74e-5 |
+
+**Consistency check.** The deficit ratio is 0.587 and the evaporation ratio
+is 0.584. They agree to the sampling, and the implied k_E is 0.0100 and
+0.0100 in the two columns, as it must be.
+
+**Where the sinking column's smaller deficit comes from** (−0.002636):
+
+- **−0.001906 (72 percent) from the colder held surface,** through q_sat(T_s);
+- **−0.000730 (28 percent) from the moister lowest layer.**
+
+**So most of the evaporation gap comes from the prescribed SST contrast,
+through Clausius–Clapeyron, and is not reachable by any boundary-layer
+operator.** The lowest sinking layer is also 0.07 K warmer than its
+surface, which is why H is slightly negative there.
+
+**What a substantial exchange response through evaporation alone would
+need.** This is arithmetic from V0's numbers and the frozen threshold, not
+a new threshold. With C_conv unchanged:
+
+- raising X_sink by 61.01 W m⁻² needs E up by 2.44e-5 kg m⁻² s⁻¹ (L = 2.501e6 J kg⁻¹);
+- that is a deficit up by 0.00245;
+- that needs q₁ down to 0.01458, a lowest-layer RH of about 0.70.
+
+That is drier than the rising column's lowest layer (0.726). Making the
+sinking surface layer exactly as humid as the rising one would raise LE by
+about 18 W m⁻², under a third of the threshold. A V1 branch can still reach
+"substantial" through C_conv, which X includes, or through ΔF.
