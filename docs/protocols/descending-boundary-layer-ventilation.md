@@ -353,3 +353,119 @@ which is the definition above ("When O1 forms no surface group, it is the
 lowest layer").
 
 V1b and V1c are unchanged.
+
+## V0 result (2026-10-19)
+
+**Validity.**
+
+- **Reproduction (G0): passed.** All 80 numeric values that `v0_60000.json`
+  shares with `c0_60000.json` are identical, bit for bit. The run completed
+  60000 steps; conservation residual 1.0e-15.
+- **Holding-relation closure: passed.** The largest relative error over all
+  60000 steps is 1.6e-15 (rising) and 9.6e-15 (sinking), against the frozen
+  1e-9. The labelled LE and H agree with the published fluxes to 6e-14 W m⁻².
+- **A deviation from the frozen wording, recorded.** The relation as frozen,
+  F_hold = −R_net + H + C_conv + LE, omits one labelled surface term: the
+  surface also pays for melting frozen precipitation
+  (`melting_of_frozen_precipitation`). The closure above includes it, and it
+  is not small in the rising column (18.0 W m⁻²); in the sinking column it is
+  4e-4 W m⁻².
+- **A second deviation.** O5's moist-static-energy flux is reported as the
+  exchange M·(h_above − h_below) at the interface, because the circulation
+  also moves air sideways and a one-sided M·h depends on the reference of h.
+  Its water is reported both as the downward flux −M·q_above and as the net
+  exchange M·(q_above − q_below).
+
+**Late means (last fifth, 12000 steps).**
+
+| | rising | sinking |
+|---|---:|---:|
+| LE, W m⁻² | 159.93 | 93.46 |
+| H | 1.85 | −0.69 |
+| C_conv | 74.72 | 19.17 |
+| melt | 18.01 | 0.0004 |
+| R_net,sfc | 193.20 | 193.31 |
+| F_hold | 61.31 | −81.37 |
+| **X = LE + C_conv** | **234.65** | **112.62** |
+| LE + H + C_conv | 236.50 | 111.93 |
+| surface evaporation, kg m⁻² s⁻¹ | 6.39e-5 | 3.74e-5 |
+| precipitation, kg m⁻² s⁻¹ | 9.33e-5 | 1.2e-7 |
+
+**The thresholds, generated from these numbers:**
+
+| quantity | value |
+|---|---:|
+| G0 = X_rise − X_sink | 122.03 W m⁻² |
+| substantial exchange response: X_sink,test − 112.62 ≥ | 61.01 W m⁻² |
+| ΔF_V0 | 142.68 W m⁻² |
+| substantial redistribution response: ΔF_test ≤ | 71.34 W m⁻² |
+| material inversion transport: F_q,inv,up ≥ | 3.74e-6 kg m⁻² s⁻¹ |
+| negligible | below a tenth of the corresponding amount |
+
+**The two interface diagnoses.**
+
+| | rising | sinking |
+|---|---:|---:|
+| mixed-layer top, hPa (mean layer) | 732.7 (7.8) | 827.7 (5.0) |
+| steps with a surface group | 1.00 | 1.00 |
+| observational inversion, hPa | 701.5 | 810.8 |
+| inversion's interfaces in use | 1, 9, 10, 11 | 6 only |
+| inversion changes interface, fraction of steps | 0.34 | 0.00 |
+| coincide (inversion = top + 1) | 0.12 | **1.00** |
+| separation, layers / hPa | 0.42 / 14.3 | 0 / 0 |
+| RH jump at the inversion | 0.10 | **0.45** |
+| T jump at the inversion, K | 1.79 | 0.73 |
+
+**In the sinking column the two diagnoses never disagree.** O1's surface
+group ends at layer 5 on every late step, and the strongest moisture cap is
+the interface directly above it on every late step. The jumps at the mixed-
+layer top are therefore the jumps at the inversion. In the rising column the
+two coincide on 12 percent of steps; the jumps at its mixed-layer top were
+not computed separately, a gap in the V0 instrumentation.
+
+**Boundary-layer means (lowest layer to the mixed-layer top).**
+
+| | rising | sinking |
+|---|---:|---:|
+| T, K | 294.85 | 295.64 |
+| q, kg kg⁻¹ | 0.01567 | **0.01665** |
+| RH | 0.830 | **0.895** |
+| MSE, kJ kg⁻¹ | 349.36 | 347.81 |
+
+**The sinking boundary layer is moister than the rising one,** in specific
+and relative humidity, under a surface held 1.47 K colder.
+
+## V2 result: the labelled cross-inversion budget (from V0)
+
+**Sinking column, across each step's observational inversion, upward
+positive, late means:**
+
+| operator | water flux, kg m⁻² s⁻¹ | ratio to E_sink,V0 | MSE flux, W m⁻² |
+|---|---:|---:|---:|
+| O1, convective adjustment | 7.9e-20 | 2e-15 | 2.6e-12 |
+| O4, vapour eddy diffusion | 7.78e-6 | **0.208** | 19.45 |
+| O5, circulation, downward flux −M·q_above | −3.30e-5 | −0.884 | — |
+| O5, net exchange M·(q_above − q_below) | −2.70e-5 | −0.722 | −57.36 (exchange) |
+| O6, phase change above (not ventilation) | −1.2e-9 | | |
+
+**Verdict under the frozen rules:**
+
+- **O4 carries material upward inversion transport** (0.208 ≥ 0.10).
+- **O1 carries none.** Its water flux is zero to rounding, and so is its MSE
+  flux, so the ambiguous case (O1 MSE ≥ 0.10 · LE_sink = 9.35 W m⁻² without
+  the vapour) does not arise. V2 is not "mechanism unresolved".
+- **O5 carries water down, not up.** Its net exchange dries the layer below
+  the inversion at 0.72 of the surface evaporation.
+- **So V2 finds ventilation: V3's condition ("only if V2 finds no
+  ventilation") is not met, and V3 does not run.** The verdict "missing
+  ventilation" is not reachable.
+
+**What the budget does not decompose.** The terms above are measured across
+the inversion only. Of the surface evaporation (3.74e-5), O4's export (0.78e-5),
+O5's net exchange (2.70e-5) and precipitation (0.01e-5) account for 3.49e-5;
+the remaining 0.25e-5 (7 percent) is not attributed here. It would sit in the
+circulation's lateral exchange within the boundary-layer layers and in storage,
+neither of which V0 sums.
+
+**V1 is running** (branches a, b and c, 20000 steps each, from V0's final
+state). It reports the same budget per branch.
