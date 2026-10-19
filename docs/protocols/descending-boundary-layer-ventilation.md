@@ -316,3 +316,40 @@ switched off with the other two. A V1b result is therefore attributed to
 not to O1's vapour transport alone.
 
 V1a and V1c are unchanged.
+
+## Erratum 2 before V1 runs: V1a (nothing above this line changed)
+
+**Reading 1 (above).** V1a is "O1 without the surface
+(`surface_based=False`). The layers still adjust among themselves; the
+surface couples only through O2 and O3", run "as far as the column can run
+without O1".
+
+**Reading 2, from building it.** The configuration refuses
+`surface_based=False` on its own. O1's target is the entraining plume, a
+lapse rate measured upward from the ground, and `convection.py` refuses
+that target without a surface instead of anchoring it to the lowest
+layer. Turning convection off entirely is not available either: the moist
+column is defined with convection. Building it used to overwrite a
+caller's `convection=False` silently; it now refuses it (committed
+separately, with a test).
+
+**Decision (the user's, 2026-10-19): the dry-adiabat variant.** V1a
+changes two settings in the descending column, both declared:
+
+- `surface_based_convection=False`;
+- `convective_target="dry_adiabat"`.
+
+**What this means for reading V1a.** A V1a result is attributed to "O1's
+surface coupling and its moist target together", not to the surface
+coupling alone. The confound is expected to sit mainly in the boundary
+layer, because the weak-temperature-gradient balance largely sets the
+descending free troposphere from the ascending column. That is an
+expectation, not a result; V1a reports its free-tropospheric temperatures
+against V0's so the reading can be checked.
+
+**Analysis detail.** A column that is not surface-based publishes no
+mixed-layer top. The analysis takes the missing value as the lowest layer,
+which is the definition above ("When O1 forms no surface group, it is the
+lowest layer").
+
+V1b and V1c are unchanged.
