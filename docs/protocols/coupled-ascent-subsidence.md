@@ -458,3 +458,30 @@ cannot represent that.
 - no adoption;
 - no default changed;
 - no S1 state taken as a coupled solution.
+
+## User disposition of S1 (2026-10-18), appended
+
+**The frozen verdict stays "reported as found".** It is not reinterpreted as
+passing or failing another category.
+
+**The summary, as the user worded it:**
+
+> The prescribed-SST two-column experiment demonstrates the existence of the
+> missing subsidence-drying pathway. The descending column remains dry
+> because WTG subsidence removes approximately 0.21 kg m⁻² day⁻¹, slightly
+> exceeding its approximately 0.19 kg m⁻² day⁻¹ convective moistening.
+> However, the resulting atmospheric partition is unrealistic: the ascending
+> free troposphere remains nearly saturated, the descending boundary layer
+> remains moist and capped, and maintaining the observed 1.47 K
+> surface-temperature contrast requires approximately 143 W m⁻² of
+> surface-energy redistribution. S2 is therefore not opened.
+
+**The equilibrium miss stands.** The rising column's +0.104 W m⁻² storage
+residual remains a narrow frozen equilibrium miss. The unchanged state after
+step 20000 is context; it does not convert the gate into a pass.
+
+**The S1 state is not a valid S2 initializer.** Its energetic support is
+about an order of magnitude too large.
+
+**Next:** a diagnostic regime-cloud radiative attribution, before
+boundary-layer ventilation and before the rising column's saturation.
