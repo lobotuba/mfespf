@@ -534,3 +534,113 @@ That is drier than the rising column's lowest layer (0.726). Making the
 sinking surface layer exactly as humid as the rising one would raise LE by
 about 18 W m⁻², under a third of the threshold. A V1 branch can still reach
 "substantial" through C_conv, which X includes, or through ΔF.
+
+## V1 result (2026-10-19)
+
+**Validity.** All three branches completed 20000 steps from V0's final
+state.
+
+- **Conservation residual:** 8.9e-16 (a), 9.2e-16 (b), 8.4e-16 (c).
+- **Holding-relation closure:** 6.7e-16, 9.6e-16 and 1.3e-15.
+- **Restart check:** one step from V0's final state reproduces V0's water
+  store to within one step's evaporation (0.34 kg m⁻²), so the injected
+  vapour and water store are used. The only other prognostic states are
+  cumulative ledgers, which start at zero.
+- **Settling:** the sinking column's F_hold differs by under 0.4 W m⁻²
+  between the two halves of each late window.
+
+**Late means (last 4000 steps), against V0:**
+
+| | V0 | V1a | V1b | V1c |
+|---|---:|---:|---:|---:|
+| sinking LE, W m⁻² | 93.46 | 54.51 | 61.08 | 92.75 |
+| sinking C_conv | 19.17 | 0 | 13.87 | 19.52 |
+| sinking H | −0.69 | 4.91 | −0.40 | −0.67 |
+| sinking R_net,sfc | 193.31 | 183.10 | 180.58 | 193.17 |
+| **X_sink** | **112.62** | **54.51** | **74.95** | **112.26** |
+| **X_sink − X_sink,V0** (substantial ≥ +61.01) | | **−58.11** | **−37.67** | **−0.36** |
+| X_rise | 234.65 | 266.38 | 255.55 | 235.21 |
+| **ΔF** (substantial ≤ 71.34) | **142.68** | **218.94** | **189.60** | **143.37** |
+| sinking E, kg m⁻² s⁻¹ | 3.74e-5 | 2.18e-5 | 2.44e-5 | 3.71e-5 |
+| lowest-layer RH, sinking | 0.816 | 0.922 | 0.880 | 0.818 |
+| deficit q_sat(T_s) − q₁, sinking | 0.003753 | 0.002185 | 0.002454 | 0.003725 |
+| mixed-layer top, hPa | 827.7 | 996.4 (none) | 827.7 | 827.7 |
+| observational inversion, hPa | 810.8 | 979.5 | 979.5 | 810.8 |
+| the two coincide | 1.00 | 1.00 | 0.00 | 1.00 |
+| RH jump at the inversion | 0.45 | 0.31 | 0.32 | 0.59 |
+| boundary-layer mean RH (to the top) | 0.895 | 0.931 | 0.548 | 0.897 |
+
+**Sinking RH, layers 0–6 (late-state samples):**
+
+| | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| V0 | 0.816 | 0.829 | 0.863 | 0.902 | 0.945 | 0.973 | 0.538 |
+| V1a | 0.922 | 0.621 | 0.517 | 0.504 | 0.539 | 0.606 | 0.529 |
+| V1b | 0.880 | 0.562 | 0.461 | 0.444 | 0.456 | 0.473 | 0.424 |
+| V1c | 0.818 | 0.830 | 0.865 | 0.904 | 0.947 | 0.973 | 0.412 |
+
+**Cross-inversion budget, sinking, upward positive.** Each branch is measured
+across its own inversion. In V1a and V1b that inversion is interface 1, so
+these fluxes are not comparable with V0's at interface 6.
+
+| | Fq O1 | Fq O4 (ratio to E_sink,V0) | Fq O5, −M·q | O5 net exchange | Fh O4, W m⁻² | Fh O5 exchange |
+|---|---:|---:|---:|---:|---:|---:|
+| V1a | 3e-25 | 9.12e-6 (0.244) | −2.57e-5 | −1.27e-5 | 22.8 | −26.9 |
+| V1b | 0 | 1.05e-5 (0.281) | −2.23e-5 | −1.39e-5 | 26.2 | −31.5 |
+| V1c | 7e-20 | 0 | −2.44e-5 | −3.30e-5 | 0 | −72.4 |
+
+(The `material_ratio` the V1 script printed divides by each branch's own E.
+The frozen rule divides by V0's, which is what the parenthesis gives.)
+
+**V1a's declared confound, checked.** Its sinking free-troposphere
+temperature (700–200 hPa) differs from V0's by −0.03 K on average and
+1.0 K at most. The lowest three layers differ by −0.56, 0.00 and +0.48 K.
+The confound sits in the boundary layer, as the erratum expected.
+
+**Under the frozen thresholds:**
+
+- **No branch gives a substantial change.** Both thresholds are signed. V1a
+  and V1b move X_sink down and ΔF up, the opposite direction.
+- **V1a's magnitude is recorded as found:** |ΔX_sink| = 58.11, 95 percent
+  of the threshold amount, in the direction that widens the gap.
+- **V1c is negligible on both:** |ΔX_sink| = 0.36 < 6.10, and ΔF changes
+  by +0.69 < 7.13.
+
+**What the branches show.**
+
+- **O1 is what carries the surface's evaporation up into the boundary layer.**
+  With its surface coupling off (V1a), or its vapour transport off (V1b), the
+  water stays in the lowest layer, that layer moistens (RH 0.92 and 0.88), the
+  surface deficit falls by 35 to 42 percent, and evaporation falls with it.
+  The layers above dry to RH 0.44–0.62 and the observational inversion drops to
+  the top of the lowest layer.
+- **O1 crosses no inversion in any branch.** It ventilates the surface layer
+  into the boundary layer, not the boundary layer into the free troposphere.
+- **O4 is not what sets the sinking boundary layer's state.** Removing the
+  only material upward transport across the inversion (V1c) leaves the
+  lowest-layer RH at 0.818 against 0.816, and evaporation within 1 percent.
+  Subsidence's net exchange takes over (−3.30e-5 against −2.70e-5), and the
+  inversion's RH jump sharpens from 0.45 to 0.59.
+- **The rising column responds too.** X_rise rises by 32 and 21 W m⁻² in V1a
+  and V1b, through the circulation, so ΔF widens on both sides.
+
+**Taken with the deficit decomposition recorded before V1:** within these
+operators, the sinking column's evaporation is held up by O1, not
+suppressed by any of them. 72 percent of its deficit shortfall comes from
+the held SST contrast.
+
+**The decision logic: what the frozen text settles and what it leaves open.**
+
+- **Settled:** no V1 branch gives a substantial change, so "operator
+  artefact" is not reached. "Missing ventilation" was already excluded by V2.
+- **Left open:** V4 runs "only if V1 implicates the depth" and V5 "only if
+  V1 implicates O1". The protocol does not define "implicates". V1a and V1b
+  show large responses to O1, all in the direction that widens the gap.
+- **If neither runs:** the frozen verdict is **no attribution**.
+- **If V5 runs:** its question is largely answered already. O1's export
+  through the observational inversion is zero to rounding in V0 and every
+  branch, and V1b shows it redistributes the surface layer's vapour within
+  the boundary layer. That would meet the literal "convection redistribution
+  defect" condition. But V1b shows the redistribution raises the sinking
+  evaporation, so the name would not describe the result.
+- **This is left to the user.**
