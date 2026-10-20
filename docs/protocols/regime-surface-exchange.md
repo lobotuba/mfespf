@@ -1,0 +1,267 @@
+# Protocol: regime-dependent surface exchange (E0-E2)
+
+**Frozen before any code or run of this protocol.** Results are appended below
+a line at the end; nothing above it changes afterwards. The design is the
+user's (2026-10-20), mapped onto the exchange relation this model actually
+has. The user approved it to freeze with two decisions:
+
+1. **the wind source:** OAFlux v3 monthly 10 m wind speed;
+2. **the mapping:** both mappings, with the relative one primary. Only the
+   relative mapping enters the verdict and E2; the absolute one is reported
+   as a second, offline reading.
+
+**It follows from** `descending-boundary-layer-ventilation.md`, closed as no
+attribution (3abbd30):
+
+- **The sinking boundary layer is ventilated,** and none of the tested
+  ventilation operators explains its low evaporation.
+- **Convective mixing supports the sinking evaporation.** Removing it lowered
+  X_sink by 37.67–58.11 W m⁻².
+- **72 percent of the sinking column's smaller humidity deficit** comes from
+  the held SST contrast. That share is structural to S1's prescribed
+  boundary, not an identified model error.
+- **What the closed protocol could not separate:** "k_H, and k_E = k_H / c_p,
+  are shared by both columns. A wind-speed difference between the regimes is
+  not represented."
+
+## The question
+
+> Does representing the stronger near-surface winds of the subsiding
+> trade-wind regime increase sinking-column evaporation enough to materially
+> reduce the fixed-surface redistribution requirement, without changing the
+> atmospheric circulation or adding a humidity adjustment?
+
+## The exchange relation this model has
+
+**One coefficient carries both surface fluxes:**
+
+- H = k_H (T_s − T₁), applied by the convection module;
+- E = k_E (q_sat(T_s, p₁) − q₁), into the lowest layer only, applied by the
+  water module;
+- k_E = k_H / c_p exactly (the Reynolds analogy,
+  `evaporation_coefficient_for`), so the latent and sensible fluxes move
+  together;
+- k_H = ρ c_p C |U| = 10 W m⁻² K⁻¹, which gives k_E = 0.00996 kg m⁻² s⁻¹;
+- LE = L_v E, with L_v = 2.501e6 J kg⁻¹, constant.
+
+**Not represented separately:** ρ, C and |U| exist only inside the one
+product k_H. Its declared range, 6.0–14.5 W m⁻² K⁻¹, is the arithmetic of C
+from 1.0e-3 to 1.5e-3 and |U| from 5 to 8 m s⁻¹ at ρ c_p = 1205 J m⁻³ K⁻¹
+(`SENSIBLE_HEAT_COEFFICIENT_RANGE`). That range is asserted, not measured.
+At C = 1.2e-3, the nominal k_H = 10 corresponds to |U| ≈ 6.9 m s⁻¹.
+
+**So a regime wind enters as a per-column k_H,** and it moves H and LE
+together, in the same proportion. Changing LE alone would break the Reynolds
+analogy the model derives k_E from, and is not done.
+
+**No new physics code is needed.** `two_column(regional_settings=...)`
+already sets `sensible_heat_coefficient` per region, and k_E follows from it.
+
+## E0: the baseline and its decomposition
+
+**The baseline is V0** (`descending-boundary-layer-ventilation.md`), which
+reproduces C0 bit for bit.
+
+**The identity check.** The E2 code path, with the shared coefficient
+written explicitly in each region (`sensible_heat_coefficient=10.0` for both),
+runs C0's 60000-step configuration. Every shared printed value of
+`v0_60000.json` must be identical.
+
+**The decomposition, per column, from V0's late means and its 50 saved
+late states:**
+
+| factor | how it enters | rising | sinking |
+|---|---|---|---|
+| ρ, C, \|U\| | not represented separately | — | — |
+| k_E | shared | 0.00996 | 0.00996 |
+| q_sat(T_s, p₁) | held surface | (from V0) | (from V0) |
+| q₁ | lowest layer | (from V0) | (from V0) |
+| deficit | q_sat − q₁ | (from V0) | (from V0) |
+| L_v | constant | 2.501e6 | 2.501e6 |
+
+**What E0 can already state, from V0:** the coefficient contributes nothing
+to the evaporation contrast, because it is shared. The whole contrast is the
+deficit: −0.00191 from the colder surface and −0.00073 from the moister
+lowest layer. E0's table restates these with the identity check's
+numbers.
+
+## E1: the diagnostic observed-wind replay (offline, no feedback)
+
+**The data.** OAFlux v3 monthly 10 m wind speed, `ws` (Yu and Weller 2007,
+*BAMS* 88, 527–539; WHOI OAFlux project).
+
+- **Years:** 1991–2020, the masks' period.
+- **Source:** `https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_YYYY.nc.gz`.
+- **Registered before use:** each file in `data/sources.yaml` with its
+  SHA-256, verified before parsing. That is 30 `ws` files, plus the
+  evaluation fields below (`lh`, `sh`, `qa`, `ts`), 150 files in all.
+- **Provenance:** OAFlux's wind is an objective analysis that blends
+  satellite winds (SSM/I, QuikSCAT, ASCAT, WindSat and others) with
+  reanalysis. It is registered as such, with the blend stated in its notes.
+
+**The masks are the existing ones.** The ±20° annual-mean NCEP/NCAR R1
+1991–2020 ω500 masks:
+
+- rising, ω500 < 0, area fraction 0.558; sinking, the rest;
+- cos-latitude weighting;
+- the 1° OAFlux grid mapped onto the masks by the same bilinear
+  interpolation of ω500 the ISCCP composite used;
+- **ocean cells only.** OAFlux has no land. S1 treats the land fractions
+  (0.25 and 0.21) as ocean surface.
+
+**The composited quantity:** the annual mean of the monthly mean scalar wind
+speed in each regime, W_rise and W_sink. The ratio is R = W_sink / W_rise.
+
+**Mapping the winds onto the model, relative (primary).** The band's
+area-weighted coefficient stays at its current value, and only the regime
+contrast is imposed:
+
+- k_i = k_H · W_i / W̄, with W̄ = σ W_rise + (1 − σ) W_sink and σ = 0.558;
+- equivalently r_i = k_i / k_H, with σ r_rise + (1 − σ) r_sink = 1.
+
+**Why relative:** the band-mean level of k_H is an asserted value inside a
+declared range, and every recorded result sits on it. Moving the level and
+the contrast at once would mix two questions. This protocol asks only about
+the contrast.
+
+**The absolute mapping (second reading, offline only, never in the verdict
+or E2).** Each column's coefficient comes from its own observed wind and a
+published neutral bulk formula. Large and Yeager (2004), *Diurnal to decadal
+global forcing for ocean and sea-ice models: the data sets and flux
+climatologies*, NCAR/TN-460+STR, eq. (6a–b) and section 2:
+
+- 1000 C_D = 2.70 / U + 0.142 + U / 13.09, with U the 10 m neutral wind in
+  m s⁻¹;
+- 1000 C_E = 34.6 √C_D;
+- ρ_a = 1.22 kg m⁻³.
+
+So k_E,i = ρ_a C_E(W_i) W_i, and k_H,i = c_p k_E,i, with the model's c_p (the
+Reynolds analogy the model uses). The offline relations below then apply
+with r_i = k_E,i / 0.00996. The level and the contrast both change here, so
+this reading answers a different question: what the observed winds imply
+with a published coefficient, not what the regime contrast alone does.
+
+**Approximations in the absolute reading:**
+
+- the composited monthly-mean scalar wind goes into a formula that is
+  nonlinear in U;
+- the neutral 10 m coefficient is used without a stability correction;
+- OAFlux's wind is treated as the 10 m neutral wind.
+
+**The offline replay is exact at fixed state,** because E and H are linear in
+k at a given state. With V0's late means:
+
+- LE_i* = r_i · LE_i;
+- H_i* = r_i · H_i;
+- X_sink* = r_sink · LE_sink + C_conv,sink;
+- F_hold,i* = F_hold,i + (r_i − 1)(LE_i + H_i);
+- ΔF* = F_hold,rise* − F_hold,sink*.
+
+**Reported, for both mappings:** W_rise, W_sink, R, r_rise and r_sink;
+ΔLE_sink, ΔLE_rise, X_sink* − X_sink,V0, and ΔF*. For the absolute mapping
+also C_E(W_i), k_E,i and k_H,i.
+
+**Never done:** scaling the winds, or choosing years, cells or a mapping, to
+reach a threshold or the observed ocean-transport contrast.
+
+**Evaluation only, composited the same way, never fed back:** OAFlux `lh`,
+`sh`, `qa` and `ts` per regime. These give the observed regime LE and H, and
+the observed deficit q_sat(ts) − qa. OAFlux applies a 0.98 salinity factor to
+q_sat; the model uses pure water. These are reported beside the model's V0
+values.
+
+**What the result would have to be, recorded before any data is read.**
+Under the relative mapping, with V0's numbers:
+
+| outcome | needs r_sink | r_rise | R = W_sink / W_rise |
+|---|---:|---:|---:|
+| X_sink up by 61.01 (substantial) | 1.653 | 0.483 | 3.42 |
+| ΔF down to 71.34 (substantial) | 1.323 | 0.744 | 1.78 |
+| X_sink up by 6.10 (material) | 1.065 | 0.948 | 1.12 |
+| ΔF down by 7.13 (material) | 1.032 | 0.974 | 1.06 |
+
+The ΔF route is easier because it acts on both columns: the rising column's
+LE falls while the sinking one's rises.
+
+## E2: the interactive fixed-SST test (only if E1 is material)
+
+**Runs only if E1 predicts a material response in the improvement
+direction:** X_sink* − X_sink,V0 ≥ 0.1 × 61.01 = 6.10 W m⁻², or
+ΔF_V0 − ΔF* ≥ 0.1 × 71.34 = 7.13 W m⁻².
+
+**The only change:** `sensible_heat_coefficient` = k_rise and k_sink from
+E1, per region.
+
+**Held fixed:**
+
+- surface temperatures, 300.26 and 298.79 K;
+- WTG coupling, L = 734 km;
+- the area fractions;
+- the cloud fields;
+- all atmospheric physics, including convective mixing and eddy
+  diffusion;
+- the initial state.
+
+**Two runs, both from V0's final state, 20000 steps, read over the last
+fifth:**
+
+- **E2-null:** k = 10 in both regions. This is the matched reference for the
+  restart.
+- **E2:** k_rise and k_sink from E1.
+
+**Reported for both, against V0 and E2-null:**
+
+- sinking LE, H and C_conv, X_sink, and ΔF;
+- lowest-layer RH, q₁ and the deficit, in both columns;
+- the inversion and the mixed-layer top;
+- ω500 subsidence;
+- free-tropospheric RH;
+- precipitable water;
+- the circulation's orientation;
+- both fixed-surface boundary transfers;
+- boundedness and settling;
+- conservation and the holding-relation closure.
+
+## Thresholds, from V0, as frozen in the ventilation protocol
+
+| term | rule | value |
+|---|---|---:|
+| substantial exchange response | X_sink,test − X_sink,V0 ≥ 0.5 · G0 | ≥ 61.01 W m⁻² |
+| substantial redistribution response | ΔF_test ≤ 0.5 · ΔF_V0 | ≤ 71.34 W m⁻² |
+| material (E2's trigger) | at least 0.1 of either substantial amount, in the improvement direction | 6.10 / 7.13 W m⁻² |
+| negligible | below 0.1 of the corresponding substantial amount | |
+
+E2 is judged against E2-null and against V0. If the two references give
+different verdicts, both are recorded and the verdict is **unresolved**.
+
+## Decision rules
+
+| verdict | condition |
+|---|---|
+| **Surface-exchange explanation supported** | E2 raises X_sink by ≥ 61.01, or brings ΔF to ≤ 71.34, with a valid, settled circulation and exact accounting |
+| **Material but insufficient** | E2 moves X_sink or ΔF in the improvement direction by a material amount, but meets neither substantial threshold |
+| **Rejected** | E1 or E2 is negligible, or worsens ΔF |
+| **Atmospheric compensation** | E1 predicts a substantial response; E2's response is less than half of E1's prediction, with the sinking lowest-layer deficit lower than in E2-null |
+| **Invalid** | the identity check, conservation, the holding-relation closure, or settling fails |
+
+**If E1 is not material,** E2 does not run and the verdict is **rejected**,
+from E1.
+
+## What this cannot separate
+
+- **C is held equal in both regimes.** Stability is not represented: the
+  sinking surface is slightly colder than its lowest layer (H < 0), which
+  would lower C there, and the rising regime's convective gustiness would
+  raise its effective |U|. Both act against the sinking column.
+- **The mean scalar wind is not the flux-weighted wind.** The covariance of
+  |U| and the deficit within a month and within a regime is not represented.
+- **OAFlux's wind is a blended analysis,** not a direct measurement, and
+  satellite winds are sparse under heavy rain, which falls mostly in the
+  rising regime.
+- **The land in each mask** has no OAFlux wind.
+- **The band-mean level of k_H** stays at its asserted 10 W m⁻² K⁻¹. The
+  relative mapping holds it fixed on purpose. The absolute reading shows
+  what a published coefficient implies instead, offline only.
+- **Everything is under prescribed surface temperatures.**
+
+---
