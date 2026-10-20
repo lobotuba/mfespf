@@ -265,3 +265,97 @@ from E1.
 - **Everything is under prescribed surface temperatures.**
 
 ---
+
+## E1 result (2026-10-20)
+
+**Data validity.**
+
+- **Checksums:** all 150 OAFlux files and the ω500 file match
+  `data/sources.yaml`, verified before parsing.
+- **Two formats:** 1991–2015 are netCDF-3 (scaled integers); 2016–2020 are
+  netCDF-4 (unscaled, 1e36 missing, lh and sh named `lhflx` and `shflx`).
+  The registry's variable names for those ten files were corrected
+  (0efbdff).
+- **Grid:** identical across all years, which the script asserts per file.
+- **The masks on the 1° grid:** the rising fraction is 0.576 over all cells
+  and 0.565 over the ocean cells used (the masks' value on NCEP's 2.5° grid
+  is 0.558; σ = 0.558 is used in the mapping, as frozen). OAFlux covers
+  0.765 of the rising mask's area and 0.801 of the sinking mask's.
+
+**The regime winds (1991–2020 monthly climatology, annual mean,
+cos-latitude weighted, ocean cells):**
+
+| | rising | sinking |
+|---|---:|---:|
+| W, 10 m neutral wind, m s⁻¹ | **6.143** | **6.799** |
+| mean OAFlux error estimate, m s⁻¹ | 0.36 | 0.29 |
+
+**R = W_sink / W_rise = 1.107,** and W̄ = 6.433 m s⁻¹.
+
+**The offline replay of V0's late means:**
+
+| | V0 | relative (primary) | absolute (second reading) |
+|---|---:|---:|---:|
+| k_H rising, W m⁻² K⁻¹ | 10 | 9.550 | 8.445 |
+| k_H sinking | 10 | 10.569 | 9.380 |
+| r_rise / r_sink | 1 / 1 | 0.955 / 1.057 | 0.844 / 0.938 |
+| LE rising, W m⁻² | 159.93 | 152.73 | 135.06 |
+| LE sinking | 93.46 | 98.77 | 87.66 |
+| **X_sink − X_sink,V0** | | **+5.31** | **−5.79** |
+| **ΔF** | **142.68** | **130.12** | **123.27** |
+| **ΔF reduction** | | **12.56** | **19.41** |
+
+For the absolute reading, Large and Yeager's C_D and C_E are 1.05e-3 and
+1.12e-3 (rising), 1.06e-3 and 1.13e-3 (sinking).
+
+**Judged under the frozen rules (relative mapping):**
+
+- **Substantial: no.** X_sink + 5.31 < 61.01, and ΔF 130.12 > 71.34.
+- **Material: yes, through ΔF.** The reduction of 12.56 is at least 7.13.
+  The X_sink route, at 5.31, is below its material line of 6.10.
+- **So E2 runs,** with k_rise = 9.549530196129602 and
+  k_sink = 10.568692648325069.
+
+The observed R of 1.107 sits just under the 1.12 that the pre-registered
+table needed for material through X_sink, and above the 1.06 for ΔF. It is
+far below the 1.78 that ΔF needed for substantial.
+
+**The absolute reading** puts both coefficients below the model's 10,
+because the published C_E at these winds is about 1.12e-3. ΔF falls further
+(by 19.41), but most of the fall comes from the rising column's lower
+coefficient: X_sink drops by 5.79. It answers the level question, not the
+contrast question, and does not enter the verdict.
+
+**Evaluation only, never fed back.** OAFlux composited the same way, beside
+V0. OAFlux's q is at 2 m and its SST is ocean only, so it is warmer than the
+held NCEP skin temperatures, which include land.
+
+| | observed rising | observed sinking | V0 rising | V0 sinking |
+|---|---:|---:|---:|---:|
+| surface temperature, K | 301.50 (SST) | 299.05 (SST) | 300.26 (held) | 298.79 (held) |
+| near-surface q, kg kg⁻¹ | 0.01853 | 0.01616 | 0.01630 (q₁) | 0.01703 (q₁) |
+| deficit, pure-water q_sat at 996 hPa | 0.00593 | 0.00512 | 0.00639 | 0.00375 |
+| deficit with OAFlux's 0.98 factor | 0.00544 | 0.00470 | | |
+| LE, W m⁻² | 116.97 | 113.42 | 159.93 | 93.46 |
+| H, W m⁻² | 8.33 | 7.24 | 1.85 | −0.69 |
+
+**What the evaluation shows:**
+
+- **The observed latent heat flux is nearly equal in the two regimes,**
+  with a ratio of 0.970. The model's ratio is 0.584.
+- **The observed deficit ratio, sinking over rising, is 0.863.** The
+  model's is 0.587.
+- **Observed sinking near-surface air is drier than rising air,** by
+  0.0024 kg kg⁻¹. The model's sinking lowest layer is moister, by 0.0007.
+- **The bulk relation checks against the observed fluxes.** The observed
+  deficit ratio times the observed wind ratio gives 0.863 × 1.107 = 0.955,
+  against the observed LE ratio of 0.970.
+- **So most of the model's evaporation contrast, against observation,
+  lies in the deficit contrast,** not the wind contrast. The observed wind
+  contrast is 11 percent, while the model's deficit contrast exceeds the
+  observed one by a factor of 0.863 / 0.587 = 1.47.
+- **This is evaluation and is not judged.** The held surface temperatures
+  are not OAFlux's, and q at 2 m is not a layer mean.
+
+**E2 and E2-null are running** (20000 steps each, from V0's final state),
+together with E0's 60000-step identity run.
