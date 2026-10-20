@@ -8992,7 +8992,7 @@ sources:
   provider: 'Woods Hole Oceanographic Institution, OAFlux project'
   provenance_class: observational
   variables:
-  - lhtfl
+  - lhflx
   units:
   - 'W/m^2'
   temporal_coverage: '2016, monthly'
@@ -9000,7 +9000,7 @@ sources:
   uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
   licence: 'Open; cite on use (WHOI OAFlux project).'
   citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
-  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. A netCDF-4 file, unlike 1991-2015, with the variable named lhflx and no scale factor. Held outside the repository; the checksum identifies the file.'
   sha256: 586f8edd402ded48eed9d1b443d5b60a007593e1f4f4aafdcd640f10fc4bbda3
 - dataset_id: OAFLUX-V3-LH-2017
   loader: none
@@ -9010,7 +9010,7 @@ sources:
   provider: 'Woods Hole Oceanographic Institution, OAFlux project'
   provenance_class: observational
   variables:
-  - lhtfl
+  - lhflx
   units:
   - 'W/m^2'
   temporal_coverage: '2017, monthly'
@@ -9018,7 +9018,7 @@ sources:
   uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
   licence: 'Open; cite on use (WHOI OAFlux project).'
   citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
-  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. A netCDF-4 file, unlike 1991-2015, with the variable named lhflx and no scale factor. Held outside the repository; the checksum identifies the file.'
   sha256: bb9cb832a81e7734c1b86881ead83f928b653b3f547a16f2b1946805b8a35e23
 - dataset_id: OAFLUX-V3-LH-2018
   loader: none
@@ -9028,7 +9028,7 @@ sources:
   provider: 'Woods Hole Oceanographic Institution, OAFlux project'
   provenance_class: observational
   variables:
-  - lhtfl
+  - lhflx
   units:
   - 'W/m^2'
   temporal_coverage: '2018, monthly'
@@ -9036,7 +9036,7 @@ sources:
   uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
   licence: 'Open; cite on use (WHOI OAFlux project).'
   citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
-  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. A netCDF-4 file, unlike 1991-2015, with the variable named lhflx and no scale factor. Held outside the repository; the checksum identifies the file.'
   sha256: bd821e4a25ea9b2ec7ee31f8f9c8f4eb13106acd0e3418f1013c7eae0443d0a0
 - dataset_id: OAFLUX-V3-LH-2019
   loader: none
@@ -9046,7 +9046,7 @@ sources:
   provider: 'Woods Hole Oceanographic Institution, OAFlux project'
   provenance_class: observational
   variables:
-  - lhtfl
+  - lhflx
   units:
   - 'W/m^2'
   temporal_coverage: '2019, monthly'
@@ -9054,7 +9054,7 @@ sources:
   uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
   licence: 'Open; cite on use (WHOI OAFlux project).'
   citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
-  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. A netCDF-4 file, unlike 1991-2015, with the variable named lhflx and no scale factor. Held outside the repository; the checksum identifies the file.'
   sha256: 90904db37bf1c32e581ba6b5e42b1ec8f39998f154447586cdea0f9321307f3f
 - dataset_id: OAFLUX-V3-LH-2020
   loader: none
@@ -9064,7 +9064,7 @@ sources:
   provider: 'Woods Hole Oceanographic Institution, OAFlux project'
   provenance_class: observational
   variables:
-  - lhtfl
+  - lhflx
   units:
   - 'W/m^2'
   temporal_coverage: '2020, monthly'
@@ -9072,7 +9072,7 @@ sources:
   uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
   licence: 'Open; cite on use (WHOI OAFlux project).'
   citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
-  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. A netCDF-4 file, unlike 1991-2015, with the variable named lhflx and no scale factor. Held outside the repository; the checksum identifies the file.'
   sha256: 28fa8759be5fceee31e4ed84c01764acde4b40ecd706320a2911f6d2ceff7467
 - dataset_id: OAFLUX-V3-SH-1991
   loader: none
@@ -9532,7 +9532,7 @@ sources:
   provider: 'Woods Hole Oceanographic Institution, OAFlux project'
   provenance_class: observational
   variables:
-  - shtfl
+  - shflx
   units:
   - 'W/m^2'
   temporal_coverage: '2016, monthly'
@@ -9540,7 +9540,7 @@ sources:
   uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
   licence: 'Open; cite on use (WHOI OAFlux project).'
   citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
-  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. A netCDF-4 file, unlike 1991-2015, with the variable named shflx and no scale factor. Held outside the repository; the checksum identifies the file.'
   sha256: 0628094d02247de1e62ad7054859733d60508337ecb7bdef76ff18610295e9bc
 - dataset_id: OAFLUX-V3-SH-2017
   loader: none
@@ -9550,7 +9550,7 @@ sources:
   provider: 'Woods Hole Oceanographic Institution, OAFlux project'
   provenance_class: observational
   variables:
-  - shtfl
+  - shflx
   units:
   - 'W/m^2'
   temporal_coverage: '2017, monthly'
@@ -9558,7 +9558,7 @@ sources:
   uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
   licence: 'Open; cite on use (WHOI OAFlux project).'
   citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
-  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. A netCDF-4 file, unlike 1991-2015, with the variable named shflx and no scale factor. Held outside the repository; the checksum identifies the file.'
   sha256: f0320fbcf89a8e1a3e576ef0b0696d13a1b13852574e0bb763387732f5c8d4db
 - dataset_id: OAFLUX-V3-SH-2018
   loader: none
@@ -9568,7 +9568,7 @@ sources:
   provider: 'Woods Hole Oceanographic Institution, OAFlux project'
   provenance_class: observational
   variables:
-  - shtfl
+  - shflx
   units:
   - 'W/m^2'
   temporal_coverage: '2018, monthly'
@@ -9576,7 +9576,7 @@ sources:
   uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
   licence: 'Open; cite on use (WHOI OAFlux project).'
   citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
-  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. A netCDF-4 file, unlike 1991-2015, with the variable named shflx and no scale factor. Held outside the repository; the checksum identifies the file.'
   sha256: 1ff83ef93369c5c015e5939066749d930ef3df6d5bd497520c3fd8f940b4b34c
 - dataset_id: OAFLUX-V3-SH-2019
   loader: none
@@ -9586,7 +9586,7 @@ sources:
   provider: 'Woods Hole Oceanographic Institution, OAFlux project'
   provenance_class: observational
   variables:
-  - shtfl
+  - shflx
   units:
   - 'W/m^2'
   temporal_coverage: '2019, monthly'
@@ -9594,7 +9594,7 @@ sources:
   uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
   licence: 'Open; cite on use (WHOI OAFlux project).'
   citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
-  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. A netCDF-4 file, unlike 1991-2015, with the variable named shflx and no scale factor. Held outside the repository; the checksum identifies the file.'
   sha256: a2610b38e163285a655e7d86b6dece8308591475e05f247aa0d6c0dd1673683b
 - dataset_id: OAFLUX-V3-SH-2020
   loader: none
@@ -9604,7 +9604,7 @@ sources:
   provider: 'Woods Hole Oceanographic Institution, OAFlux project'
   provenance_class: observational
   variables:
-  - shtfl
+  - shflx
   units:
   - 'W/m^2'
   temporal_coverage: '2020, monthly'
@@ -9612,7 +9612,7 @@ sources:
   uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
   licence: 'Open; cite on use (WHOI OAFlux project).'
   citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
-  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. A netCDF-4 file, unlike 1991-2015, with the variable named shflx and no scale factor. Held outside the repository; the checksum identifies the file.'
   sha256: f8346b24a8335bcd458940fe55b4567c9728af4bee06624850aad8337acf746a
 - dataset_id: OAFLUX-V3-QA-1991
   loader: none
