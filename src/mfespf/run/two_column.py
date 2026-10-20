@@ -84,6 +84,7 @@ def two_column(
     ocean_heat_contrast: float | None = None,
     prescribed_surface_temperatures: tuple[float, float] | None = None,
     regional_settings: dict[str, dict[str, Any]] | None = None,
+    diagnose_lateral_exchange: bool = False,
     **column: Any,
 ) -> Kernel:
     """Two columns and the circulation between them.
@@ -95,13 +96,17 @@ def two_column(
     holds the rising and sinking surfaces at those temperatures, in K, the energy
     that holds them declared as a boundary transfer (coupled-ascent-subsidence.md).
     ``regional_settings`` overrides column settings in one region only, by region name
-    (descending-boundary-layer-ventilation.md, V1).
+    (descending-boundary-layer-ventilation.md, V1). ``diagnose_lateral_exchange``
+    publishes the circulation's lateral and vertical transport per layer, output
+    only (boundary-layer-lateral-exchange.md).
     """
     unknown = set(regional_settings or {}) - {_ASCENT, _DESCENT}
     if unknown:
         raise ValueError(f"regional settings for unknown regions {sorted(unknown)}")
     circulation = WeakTemperatureGradientCirculation(
-        ascent_fraction=ascent_fraction, relaxation_distance=relaxation_distance
+        ascent_fraction=ascent_fraction,
+        relaxation_distance=relaxation_distance,
+        diagnose_lateral_exchange=diagnose_lateral_exchange,
     )
     ocean = (
         OceanHeatTransport(ascent_fraction=ascent_fraction, heat_contrast=ocean_heat_contrast)

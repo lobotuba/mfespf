@@ -18,6 +18,7 @@ from mfespf.core.quantities import Field, Provenance, QuantityKind, SpatialSuppo
 from mfespf.physics.circulation import (
     AreaWeightedMeansModule,
     spectral_wtg_subsidence,
+    upwind_split,
     upwind_tendency,
 )
 from mfespf.run.column_configurations import column_grid
@@ -176,3 +177,53 @@ def test_the_global_mean_preserves_the_integral():
     module._context = _Context()
     out = module.emit_outputs()["outgoing_longwave_radiation"]
     assert float(out.values) == pytest.approx(0.3 * 200.0 + 0.7 * 280.0, rel=1e-15)
+
+
+@pytest.mark.req("CON-001", "EQR-002")
+def test_the_lateral_split_adds_back_to_the_transport_and_changes_nothing():
+    """The vertical part is its own flux sum, so it and the lateral part adding
+    back to ``upwind_tendency``'s total is a check, not a definition. In a run
+    the split is output only: the shared numbers are identical with it on, and
+    the lateral water and energy one column loses the other gains."""
+    rng = np.random.default_rng(11)
+    interfaces, _ = grid(12)
+    for _ in range(50):
+        flux = flux_for(rng.uniform(-1.0, 1.0, 12), interfaces)
+        own, other = rng.uniform(0.0, 0.02, 12), rng.uniform(0.0, 0.02, 12)
+        rate, lateral = upwind_tendency(flux, own, other)
+        parts = upwind_split(flux, own, other)
+        assert np.array_equal(parts["lateral"], lateral)
+        assert parts["vertical"] + parts["lateral"] == pytest.approx(
+            rate, abs=1e-15 * np.abs(rate).max()
+        )
+        assert np.array_equal(parts["inflow"], flux[:-1] - flux[1:])
+
+    def build(diagnose: bool):
+        return two_column(
+            grid=column_grid(16), areal_heat_capacity=1.0e6, diagnose_lateral_exchange=diagnose
+        )
+
+    plain, split = build(False).run(60), build(True).run(60)
+    sigma = next(
+        s.module for s in build(False).schedule.ordered() if s.module_id == "circulation"
+    ).ascent_fraction
+    for a, b in zip(plain.steps, split.steps, strict=True):
+        for name, field in a.outputs.items():
+            assert np.array_equal(
+                np.asarray(field.values), np.asarray(b.outputs[name].values), equal_nan=True
+            ), name
+        out = b.outputs
+        for region in ("ascent", "descent"):
+            total = np.asarray(out[f"{region}:vapour_advection_rate"].values)
+            vertical = np.asarray(out[f"{region}:vapour_vertical_rate"].values)
+            lateral = np.asarray(out[f"{region}:vapour_lateral_rate"].values)
+            assert vertical + lateral == pytest.approx(
+                total, abs=1e-12 * max(np.abs(total).max(), 1e-30)
+            )
+        for quantity in ("vapour_lateral_rate", "lateral_dry_static_energy_rate"):
+            up = np.asarray(out[f"ascent:{quantity}"].values)
+            down = np.asarray(out[f"descent:{quantity}"].values)
+            scale = (1.0 - sigma) * np.abs(down).sum()
+            assert sigma * up.sum() + (1.0 - sigma) * down.sum() == pytest.approx(
+                0.0, abs=1e-12 * max(scale, 1e-30)
+            )

@@ -78,6 +78,7 @@ __all__ = [
     "AreaWeightedMeansModule",
     "WeakTemperatureGradientCirculation",
     "spectral_wtg_subsidence",
+    "upwind_split",
     "upwind_tendency",
 ]
 
@@ -213,6 +214,52 @@ def upwind_tendency(
     return rate, lateral
 
 
+def upwind_split(flux: np.ndarray, own: np.ndarray, other: np.ndarray) -> dict[str, np.ndarray]:
+    """``upwind_tendency``'s two parts, each summed on its own.
+
+    Diagnostic only: the transport the module applies is ``upwind_tendency``'s
+    total. Here the vertical part is its own sum of the interface fluxes, not
+    the total less the lateral one, so the two adding back to the total is a
+    check rather than a definition. Also returned: the lateral mass inflow
+    ``flux[k] - flux[k + 1]`` and the value per kilogram the exchange carried,
+    the other column's where air comes in and the layer's own where it leaves.
+    """
+    f = np.asarray(flux, dtype=float)
+    phi = np.asarray(own, dtype=float)
+    far = np.asarray(other, dtype=float)
+    n = phi.size
+    vertical = np.zeros(n)
+    lateral = np.zeros(n)
+    inflow = np.zeros(n)
+    donor = np.zeros(n)
+    for k in range(n):
+        top, bottom = f[k + 1], f[k]
+        if top > 0.0:
+            vertical[k] += top * phi[k + 1]
+        elif top < 0.0:
+            vertical[k] += top * phi[k]
+        if bottom > 0.0:
+            vertical[k] -= bottom * phi[k]
+        elif bottom < 0.0:
+            vertical[k] -= bottom * phi[k - 1]
+        inflow[k] = bottom - top
+        donor[k] = far[k] if inflow[k] > 0.0 else phi[k]
+        lateral[k] = inflow[k] * donor[k]
+    return {"vertical": vertical, "lateral": lateral, "inflow": inflow, "donor": donor}
+
+
+#: The lateral-exchange diagnostics published per region when asked for
+#: (``boundary-layer-lateral-exchange.md``), with their units.
+LATERAL_DIAGNOSTICS = {
+    "lateral_mass_inflow": "kg m^-2 s^-1",
+    "lateral_donor_specific_humidity": "kg kg^-1",
+    "vapour_lateral_rate": "kg m^-2 s^-1",
+    "vapour_vertical_rate": "kg m^-2 s^-1",
+    "lateral_dry_static_energy_rate": "W m^-2",
+    "vertical_dry_static_energy_rate": "W m^-2",
+}
+
+
 class WeakTemperatureGradientCirculation(Module):
     """Couples a rising and a sinking column (EQ-WTG-OVERTURNING-CIRCULATION)."""
 
@@ -225,6 +272,7 @@ class WeakTemperatureGradientCirculation(Module):
         ascent_fraction: float = OBSERVED_ASCENT_FRACTION,
         relaxation_distance: float = OBSERVED_RELAXATION_DISTANCE_M,
         tropopause: float = TROPOPAUSE_PA,
+        diagnose_lateral_exchange: bool = False,
         status: ModuleStatus = ModuleStatus.ACTIVE,
     ) -> None:
         regions = (ascent_region, descent_region)
@@ -273,6 +321,13 @@ class WeakTemperatureGradientCirculation(Module):
                     for r in regions
                     for f in ("vapour_advection_rate", "advective_heating_rate")
                 ),
+                # Off by default: twelve layer fields a step, wanted only by
+                # the protocol that reads them.
+                *(
+                    f"{r}:{f}"
+                    for r in regions
+                    for f in (LATERAL_DIAGNOSTICS if diagnose_lateral_exchange else ())
+                ),
             ),
             conserved_quantities=("energy", "water"),
             internal_sources_and_sinks=(),
@@ -289,6 +344,7 @@ class WeakTemperatureGradientCirculation(Module):
                 "test_each_mode_relaxes_n_times_more_slowly",
                 "test_no_temperature_difference_means_no_circulation",
                 "test_the_two_columns_carry_equal_and_opposite_mass",
+                "test_the_lateral_split_adds_back_to_the_transport_and_changes_nothing",
             ),
             known_limitations=(
                 "Two regions only; no midlatitude dynamics.",
@@ -320,6 +376,8 @@ class WeakTemperatureGradientCirculation(Module):
         self.ascent_fraction = float(ascent_fraction)
         self.relaxation_distance = float(relaxation_distance)
         self.tropopause = float(tropopause)
+        self.diagnose_lateral_exchange = bool(diagnose_lateral_exchange)
+        self._lateral: dict[str, np.ndarray] = {}
         self.gas_constant = value_of("gas_constant_dry_air")
         self._relaxation_time = 0.0
         self.latent_heat = value_of("water_latent_heat_vaporization_273")
@@ -426,6 +484,25 @@ class WeakTemperatureGradientCirculation(Module):
         energy_up, _ = upwind_tendency(flux_up, up["s"], down["s"])
         water_down, lateral_q_down = upwind_tendency(flux_down, down["q"], up["q"])
         water_up, _ = upwind_tendency(flux_up, up["q"], down["q"])
+
+        if self.diagnose_lateral_exchange:
+            self._lateral = {}
+            for region, flux, column, far in (
+                (self.ascent_region, flux_up, up, down),
+                (self.descent_region, flux_down, down, up),
+            ):
+                water = upwind_split(flux, column["q"], far["q"])
+                energy = upwind_split(flux, column["s"], far["s"])
+                self._lateral.update(
+                    {
+                        f"{region}:lateral_mass_inflow": water["inflow"],
+                        f"{region}:lateral_donor_specific_humidity": water["donor"],
+                        f"{region}:vapour_lateral_rate": water["lateral"],
+                        f"{region}:vapour_vertical_rate": water["vertical"],
+                        f"{region}:lateral_dry_static_energy_rate": energy["lateral"],
+                        f"{region}:vertical_dry_static_energy_rate": energy["vertical"],
+                    }
+                )
 
         self._rates = {
             f"{self.ascent_region}:vapour_advection_rate": water_up,
@@ -547,8 +624,21 @@ class WeakTemperatureGradientCirculation(Module):
             )
             for name, value in self._rates.items()
         }
+        lateral = {
+            name: Field(
+                field_id=name,
+                physical_name=name.split(":", 1)[1].replace("_", " "),
+                values=np.array(value),
+                units=LATERAL_DIAGNOSTICS[name.split(":", 1)[1]],
+                spatial_support=SpatialSupport.LAYER_AVERAGE,
+                dimensions=("layer",),
+                **common,  # type: ignore[arg-type]
+            )
+            for name, value in self._lateral.items()
+        }
         return {
             **rates,
+            **lateral,
             "circulation_subsidence_mass_flux": Field(
                 field_id="circulation_subsidence_mass_flux",
                 physical_name="downward mass flux at the sinking column's interfaces",
