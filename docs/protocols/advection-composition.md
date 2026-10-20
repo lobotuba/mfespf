@@ -130,3 +130,87 @@ The erratum is appended to that protocol, recording both readings, before L0
 runs.
 
 ---
+
+## A0 result (2026-10-20)
+
+**The fix: ba42c7c.** The full gate passed: 684 tests, ruff, mypy and
+traceability.
+
+- **The single-transport configurations are unchanged.** Over 40 steps, the
+  non-tropical two-column and the single tropical column are bit-identical
+  to the code before the fix. All 7322 shared outputs match; the only
+  differences are the four renamed circulation fields.
+- **The old collision is refused,** naming the field and both producers.
+- **Both tropical columns now compose with both transports.** Their water
+  and convection modules compose with the exchange's rate plus the
+  circulation's.
+
+## A1 result (2026-10-20): the rebaseline
+
+**Validity.** It completed 60000 steps.
+
+- **Conservation residual:** 9.1e-16.
+- **Holding-relation closure:** 8.2e-15.
+- **S1's gates as V0:** G3 transport closure (dse 4.0e-13 W m⁻², vapour
+  2.0e-20) and G5 orientation pass. G4 boundedness fails, as it did in V0.
+  S1's verdict is "other (reported as found)", as in V0.
+
+**Late means against V0:**
+
+| | V0 (defect) | A1 (fixed) | A1 − V0 |
+|---|---:|---:|---:|
+| LE rising, W m⁻² | 159.93 | 159.66 | −0.27 |
+| LE sinking | 93.46 | 94.71 | +1.25 |
+| H rising / sinking | 1.85 / −0.69 | 1.74 / −0.48 | |
+| **C_conv rising** | **74.72** | **77.48** | **+2.76** |
+| **C_conv sinking** | **19.17** | **14.80** | **−4.37** |
+| R_net,sfc rising / sinking | 193.20 / 193.31 | 193.29 / 193.19 | |
+| X_rise | 234.65 | 237.14 | +2.49 |
+| X_sink | 112.62 | 109.51 | −3.11 |
+| **ΔF** | **142.68** | **147.84** | **+5.16** |
+| q₁ rising / sinking, kg kg⁻¹ | 0.01630 / 0.01703 | 0.01634 / 0.01699 | |
+| q₁,sink − q₁,rise | +0.00073 | +0.00065 | |
+| deficit rising / sinking | 0.00639 / 0.00375 | 0.00635 / 0.00380 | |
+| lowest-layer RH rising / sinking | 0.726 / 0.816 | 0.727 / 0.815 | |
+| free-tropospheric RH (300–700 hPa) rising / sinking | 0.937 / 0.193 | 0.928 / 0.198 | |
+| precipitable water rising / sinking, kg m⁻² | 85.16 / 49.19 | 84.94 / 49.64 | |
+| sinking ω500, hPa/day | 26.37 | 26.86 | +1.85% |
+| sinking mixed-layer top / inversion, hPa | 827.7 / 810.8 | 827.7 / 810.8 | |
+| sinking RH jump at the inversion | 0.453 | 0.444 | |
+| sinking boundary-layer q / RH | 0.01665 / 0.895 | 0.01664 / 0.891 | |
+| band RH 300–700, band precipitable water | 0.606, 68.48 | 0.604, 68.54 | |
+
+**Cross-inversion budget, sinking (V2's table), A1:**
+
+| term | V0 | A1 |
+|---|---:|---:|
+| O1, kg m⁻² s⁻¹ | 8e-20 | 9e-20 |
+| O4 | 7.78e-6 | 7.78e-6 |
+| O5 downward | −3.30e-5 | −3.57e-5 |
+| O5 net exchange | −2.70e-5 | −2.85e-5 |
+| O4 MSE flux, W m⁻² | 19.45 | 19.46 |
+
+**Thresholds regenerated from A1 by the same formulas:**
+
+| quantity | V0 | A1 |
+|---|---:|---:|
+| G0 | 122.03 | 127.63 W m⁻² |
+| substantial exchange | 61.01 | 63.81 W m⁻² |
+| ΔF baseline | 142.68 | 147.84 W m⁻² |
+| substantial ΔF | 71.34 | 73.92 W m⁻² |
+| material transport | 3.737e-6 | 3.787e-6 kg m⁻² s⁻¹ |
+
+**What the fix changed, recorded as found.**
+
+- **The humidity barely moved.** No lowest-layer q or deficit changed by more
+  than 1.3 percent, and the reversed near-surface contrast persists
+  (+0.00065 against +0.00073).
+- **What changed is convection's surface exchange.** Convection now sees the
+  circulation's in-step heating: subsidence warming above the sinking
+  boundary layer, and ascent cooling in the rising column. The sinking
+  column's C_conv fell by 4.37 W m⁻², and the rising column's rose by 2.76.
+- **So ΔF widened by 5.16 W m⁻²,** the wrong direction for the S1 problem.
+  The fix corrects the coupling; it does not reduce the redistribution.
+
+**A1 replaces V0 as the baseline.** L0 and L0-null are running from A1's
+final state.

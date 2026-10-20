@@ -500,3 +500,20 @@ The E2 code path, with k_H = 10 written explicitly in each region, ran C0's
 `e0_60000.json` are identical to `v0_60000.json`, bit for bit.** No value is
 in one and not the other. So E2 and E2-null's per-region coefficient setting
 is the baseline at k = 10, as the protocol required.
+
+## The E2 rerun condition, judged (2026-10-20)
+
+**A1 meets none of the frozen criteria, so E2 is not rerun, and its verdict
+(rejected) stands for the fixed code.**
+
+| criterion | A1 against V0 | triggers? |
+|---|---:|---|
+| sinking q₁ / deficit | −0.28% / +1.26% | no (≥ 10%) |
+| rising q₁ / deficit | +0.22% / −0.56% | no (≥ 10%) |
+| sinking LE | +1.25 W m⁻² | no (≥ 6.10) |
+| ΔF | +5.16 W m⁻² | no (≥ 7.13) |
+| G5 orientation | positive on every late day | no |
+| sinking inversion's modal interface | 6, as V0 | no |
+| sinking ω500 | +1.85% | no (≥ 10%) |
+
+This protocol takes no further runs.
