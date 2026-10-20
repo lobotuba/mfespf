@@ -730,6 +730,7 @@ def radiating_column(
     observed_cloud_field: bool = False,
     cloud_types: tuple[CloudType, ...] | None = None,
     receives_advection: bool = False,
+    advection_sources: tuple[str, ...] = ("",),
     eddy_diffusivity: float = 0.0,
     condense_after_convection: bool = False,
     end_of_step_saturation: bool = False,
@@ -1064,6 +1065,7 @@ def radiating_column(
                         "" if evaporation_coefficient is not None else "sensible_heat_coefficient"
                     ),
                     receives_advection=receives_advection,
+                    advection_sources=advection_sources,
                     eddy_diffusivity=eddy_diffusivity,
                     receives_convective_transport=condense_after_convection,
                     end_of_step_saturation=end_of_step_saturation,
@@ -1091,6 +1093,7 @@ def radiating_column(
                     relaxation_timescale=convective_relaxation_timescale,
                     fractional_top=convective_fractional_top,
                     receives_advection=receives_advection,
+                    advection_sources=advection_sources,
                     condensation_follows=condense_after_convection,
                     mass_flux=mass_flux_convection,
                     plume_entrainment_rate=(

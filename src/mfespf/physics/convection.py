@@ -73,6 +73,7 @@ from mfespf.core.versioning import (
     Version,
     VersionRange,
 )
+from mfespf.physics.advection import advection_field, composed_advection
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.equations import EQUATION_IDS
 from mfespf.physics.mass_flux import (
@@ -283,6 +284,7 @@ class ConvectiveAdjustmentModule(Module):
         relaxation_timescale: float = 0.0,
         fractional_top: bool = False,
         receives_advection: bool = False,
+        advection_sources: tuple[str, ...] = ("",),
         condensation_follows: bool = False,
         mass_flux: bool = False,
         plume_entrainment_rate: float = PLUME_ENTRAINMENT_PER_M,
@@ -451,7 +453,11 @@ class ConvectiveAdjustmentModule(Module):
                 # adjustment must see so that it adjusts the profile the
                 # circulation leaves rather than the one it found.
                 *(
-                    ("advective_heating_rate", "vapour_advection_rate")
+                    tuple(
+                        advection_field(s, kind)
+                        for s in advection_sources
+                        for kind in ("heating", "vapour")
+                    )
                     if receives_advection
                     else ()
                 ),
@@ -674,6 +680,7 @@ class ConvectiveAdjustmentModule(Module):
         # follows where the grid puts those edges.
         self.fractional_top = fractional_top
         self.receives_advection = receives_advection
+        self.advection_sources = tuple(advection_sources)
         self.condensation_follows = condensation_follows
         self.mass_flux = mass_flux
         self.plume_entrainment_rate = plume_entrainment_rate
@@ -853,11 +860,9 @@ class ConvectiveAdjustmentModule(Module):
                 + np.asarray(phase.require_units("kg m^-2 s^-1").values, dtype=float)
                 * self._vapour_dt
             )
-        advection = self._inputs.get("vapour_advection_rate")
+        advection, first = composed_advection(self._inputs, self.advection_sources, "vapour")
         if advection is not None:
-            w = w + np.asarray(advection.require_units("kg m^-2 s^-1").values, dtype=float) * float(
-                advection.time_interval or self._vapour_dt
-            )
+            w = w + advection * float(first.time_interval or self._vapour_dt)
         self._vapour_base = np.array(w)
         mixed = np.array(w)
         for low, high in groups:
@@ -976,9 +981,9 @@ class ConvectiveAdjustmentModule(Module):
         latent = None if self.condensation_follows else self._inputs.get("latent_heating_rate")
         if latent is not None:
             heating = heating + latent.require_units("W m^-2").values
-        advective = self._inputs.get("advective_heating_rate")
+        advective = composed_advection(self._inputs, self.advection_sources, "heating")[0]
         if advective is not None:
-            heating = heating + advective.require_units("W m^-2").values
+            heating = heating + advective
 
         # Sensible heat out of the surface and into the lowest layer. Without it
         # the surface and the air exchange energy only by radiation, the
@@ -1814,10 +1819,23 @@ class ConvectiveAdjustmentModule(Module):
             ),
         )
 
+    def advection_fields(self, kind: str) -> tuple[str, ...]:
+        """The fields this module composes with for one kind of rate."""
+        if not self.receives_advection:
+            return ()
+        return tuple(advection_field(s, kind) for s in self.advection_sources)
+
+    def advection_rate(self, kind: str) -> np.ndarray | None:
+        """This step's advected rate of one kind, every declared transport summed."""
+        if not self.receives_advection:
+            return None
+        return composed_advection(self._inputs, self.advection_sources, kind)[0]
+
     def parameters(self) -> dict[str, Any]:
         return {
             **dict(self.configuration),
             "target": self.target,
+            "advection_sources": self.advection_fields("vapour"),
             "bulk_plume_parameter": (
                 self.bulk_plume_parameter if self.target == "entraining_plume" else None
             ),

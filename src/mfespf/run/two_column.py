@@ -13,6 +13,7 @@ from typing import Any
 
 from mfespf.coupling.coupler import ModuleSchedule
 from mfespf.coupling.graph import Edge, EdgeType, Node, NodeType
+from mfespf.physics.advection import CIRCULATION_SOURCE
 from mfespf.physics.circulation import (
     OBSERVED_ASCENT_FRACTION,
     OBSERVED_RELAXATION_DISTANCE_M,
@@ -67,12 +68,20 @@ def _authorize(kernel: Kernel, provider: str, names: tuple[str, ...] = _STATES) 
 
 
 def _column(tropical_latitude: float | None, column: dict[str, Any]) -> Kernel:
-    """The column each region holds: the reference column, or the tropical one."""
+    """The column each region holds: the reference column, or the tropical one.
+
+    Each composes with every transport that advects it: the circulation, and
+    in the tropical column the exchange too (advection-composition.md).
+    """
     if tropical_latitude is None:
-        return reference_column(receives_advection=True, **column)
+        return reference_column(
+            receives_advection=True, advection_sources=(CIRCULATION_SOURCE,), **column
+        )
     from mfespf.run.tropical_column import tropical_column
 
-    return tropical_column(latitude_limit=tropical_latitude, **column)
+    return tropical_column(
+        latitude_limit=tropical_latitude, advection_sources=("", CIRCULATION_SOURCE), **column
+    )
 
 
 def two_column(

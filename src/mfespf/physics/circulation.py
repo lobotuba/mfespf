@@ -66,6 +66,7 @@ from mfespf.core.quantities import (
 from mfespf.core.versioning import InterfaceContract, Version
 from mfespf.coupling.conservation import ModuleBudget
 from mfespf.coupling.transfers import ConservedQuantity, Transfer
+from mfespf.physics.advection import CIRCULATION_SOURCE, advection_field
 from mfespf.physics.equations import EQUATION_IDS
 from mfespf.physics.thermodynamics import hydrostatic_heights
 from mfespf.registries.states import TendencyContribution
@@ -248,6 +249,11 @@ def upwind_split(flux: np.ndarray, own: np.ndarray, other: np.ndarray) -> dict[s
     return {"vertical": vertical, "lateral": lateral, "inflow": inflow, "donor": donor}
 
 
+#: What the circulation publishes its transport under, in each column: its own
+#: names, not the plain ones a column's exchange uses (advection-composition.md).
+_OWN_VAPOUR = advection_field(CIRCULATION_SOURCE, "vapour")
+_OWN_HEATING = advection_field(CIRCULATION_SOURCE, "heating")
+
 #: The lateral-exchange diagnostics published per region when asked for
 #: (``boundary-layer-lateral-exchange.md``), with their units.
 LATERAL_DIAGNOSTICS = {
@@ -316,11 +322,7 @@ class WeakTemperatureGradientCirculation(Module):
                 "circulation_relaxation_time",
                 # Published into each region, so the columns' water and
                 # convection modules compose with this step's transport.
-                *(
-                    f"{r}:{f}"
-                    for r in regions
-                    for f in ("vapour_advection_rate", "advective_heating_rate")
-                ),
+                *(f"{r}:{f}" for r in regions for f in (_OWN_VAPOUR, _OWN_HEATING)),
                 # Off by default: twelve layer fields a step, wanted only by
                 # the protocol that reads them.
                 *(
@@ -505,10 +507,10 @@ class WeakTemperatureGradientCirculation(Module):
                 )
 
         self._rates = {
-            f"{self.ascent_region}:vapour_advection_rate": water_up,
-            f"{self.descent_region}:vapour_advection_rate": water_down,
-            f"{self.ascent_region}:advective_heating_rate": energy_up,
-            f"{self.descent_region}:advective_heating_rate": energy_down,
+            f"{self.ascent_region}:{_OWN_VAPOUR}": water_up,
+            f"{self.descent_region}:{_OWN_VAPOUR}": water_down,
+            f"{self.ascent_region}:{_OWN_HEATING}": energy_up,
+            f"{self.descent_region}:{_OWN_HEATING}": energy_down,
         }
         # What crosses between the columns, per unit of global area over the step.
         energy_across = (1.0 - sigma) * float(np.sum(lateral_s_down)) * ctx.dt

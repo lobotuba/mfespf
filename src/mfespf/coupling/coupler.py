@@ -235,6 +235,25 @@ class Coupler:
         for s in self.schedule.ordered():
             s.module.validate_configuration()
 
+        # One producer per bus name. The bus is a mapping updated in splitting
+        # order, so a second producer would silently replace the first and every
+        # consumer would read whichever published later: the circulation and the
+        # tropical exchange once both published a column's advection rates, and
+        # the column composed with only one of them (advection-composition.md).
+        producers: dict[str, str] = {}
+        for s in self.schedule.ordered():
+            if not s.module.status.participates:
+                continue
+            for name in s.module.contract.produced_outputs:
+                filed = qualify(s.region, name)
+                first = producers.setdefault(filed, s.module_id)
+                if first != s.module_id:
+                    raise ConfigurationError(
+                        f"{filed} is produced by both {first} and {s.module_id}; two "
+                        "producers of one field is an ownership question, and the bus "
+                        "would keep whichever published later"
+                    )
+
         # VER-006: match every declared provider against every declared
         # consumer, before anything initialises. This module's own tests were
         # the only caller of `negotiate` for a long time, so eight provided

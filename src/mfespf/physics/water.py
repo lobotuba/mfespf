@@ -56,6 +56,7 @@ from mfespf.core.versioning import (
 )
 from mfespf.coupling.conservation import ModuleBudget
 from mfespf.coupling.transfers import ConservedQuantity, Transfer
+from mfespf.physics.advection import advection_field, composed_advection
 from mfespf.physics.atmosphere import ATMOSPHERE_TEMPERATURE_STATE
 from mfespf.physics.equations import EQUATION_IDS
 from mfespf.physics.plume import (
@@ -216,6 +217,7 @@ class WaterModule(Module):
         latent_heat: float | None = None,
         evaporation_coefficient_follows: str = "",
         receives_advection: bool = False,
+        advection_sources: tuple[str, ...] = ("",),
         eddy_diffusivity: float = 0.0,
         receives_convective_transport: bool = False,
         end_of_step_saturation: bool = False,
@@ -324,7 +326,11 @@ class WaterModule(Module):
                 # A circulation that carries vapour into and out of the layers
                 # this step: the saturation adjustment must act on the profile
                 # after it, or the two draw on one layer's water independently.
-                *(("vapour_advection_rate",) if receives_advection else ()),
+                *(
+                    tuple(advection_field(s, "vapour") for s in advection_sources)
+                    if receives_advection
+                    else ()
+                ),
                 # Convection's mixing this step, when convection runs first
                 # (docs/protocols/convective-condensation-order.md): what it lifts
                 # above saturation condenses here, in the same step.
@@ -344,7 +350,11 @@ class WaterModule(Module):
                         "layer_radiative_heating",
                         "convective_temperature_tendency",
                         "surface_sensible_heat_flux",
-                        *(("advective_heating_rate",) if receives_advection else ()),
+                        *(
+                            tuple(advection_field(s, "heating") for s in advection_sources)
+                            if receives_advection
+                            else ()
+                        ),
                     )
                     if end_of_step_saturation
                     else ()
@@ -466,6 +476,9 @@ class WaterModule(Module):
         # set directly and is independently uncertain.
         self.evaporation_coefficient_follows = evaporation_coefficient_follows
         self.receives_advection = receives_advection
+        # Every transport this column composes with, summed in this order
+        # (advection-composition.md): the plain name is the tropical exchange's.
+        self.advection_sources = tuple(advection_sources)
         self.receives_convective_transport = receives_convective_transport
         self.end_of_step_saturation = end_of_step_saturation
         self.receives_convective_condensation = receives_convective_condensation
@@ -604,12 +617,8 @@ class WaterModule(Module):
         # What a circulation carries in or out this step, composed rather than
         # added afterwards: the circulation commits it, and this module adjusts
         # the profile it leaves. Excluded from this module's own tendency below.
-        advection = self._inputs.get("vapour_advection_rate")
-        advected = (
-            np.asarray(advection.require_units("kg m^-2 s^-1").values, dtype=float) * ctx.dt
-            if advection is not None
-            else np.zeros_like(provisional)
-        )
+        advection = self.advection_rate("vapour")
+        advected = advection * ctx.dt if advection is not None else np.zeros_like(provisional)
         provisional += advected
         # Convection's mixing, composed the same way when convection runs first:
         # it commits its own redistribution, and this module condenses whatever
@@ -874,7 +883,13 @@ class WaterModule(Module):
 
         heating = rate("layer_radiative_heating", "W m^-2")
         if self.receives_advection:
-            heating = heating + rate("advective_heating_rate", "W m^-2")
+            advective = self.advection_rate("heating")
+            if advective is None:
+                raise ConfigurationError(
+                    "the end-of-step saturation needs this step's advective heating, and no "
+                    "declared transport published it"
+                )
+            heating = heating + advective
         heating = np.array(heating)
         heating[0] += float(
             self.input_field("surface_sensible_heat_flux").require_units("W m^-2").scalar()
@@ -1421,11 +1436,24 @@ class WaterModule(Module):
             ),
         )
 
+    def advection_fields(self, kind: str) -> tuple[str, ...]:
+        """The fields this module composes with for one kind of rate."""
+        if not self.receives_advection:
+            return ()
+        return tuple(advection_field(s, kind) for s in self.advection_sources)
+
+    def advection_rate(self, kind: str) -> np.ndarray | None:
+        """This step's advected rate of one kind, every declared transport summed."""
+        if not self.receives_advection:
+            return None
+        return composed_advection(self._inputs, self.advection_sources, kind)[0]
+
     def parameters(self) -> dict[str, Any]:
         return {
             **dict(self.configuration),
             "n_layers": self.n_layers,
             "evaporation_coefficient_kg_m2_s": self.evaporation_coefficient,
+            "advection_sources": self.advection_fields("vapour"),
             "latent_heat_J_kg": self.latent_heat,
             "initial_relative_humidity": self.initial_relative_humidity,
             "condensate_fate": "precipitates_immediately",

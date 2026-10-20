@@ -214,7 +214,7 @@ def test_the_lateral_split_adds_back_to_the_transport_and_changes_nothing():
             ), name
         out = b.outputs
         for region in ("ascent", "descent"):
-            total = np.asarray(out[f"{region}:vapour_advection_rate"].values)
+            total = np.asarray(out[f"{region}:circulation_vapour_advection_rate"].values)
             vertical = np.asarray(out[f"{region}:vapour_vertical_rate"].values)
             lateral = np.asarray(out[f"{region}:vapour_lateral_rate"].values)
             assert vertical + lateral == pytest.approx(
