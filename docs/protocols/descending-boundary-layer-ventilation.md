@@ -644,3 +644,73 @@ the held SST contrast.
   defect" condition. But V1b shows the redistribution raises the sinking
   evaporation, so the name would not describe the result.
 - **This is left to the user.**
+
+## Closure (the user's disposition, 2026-10-20, verbatim)
+
+**Closed as no attribution. V4 and V5 do not run.**
+
+> **The protocol closes with no attribution to the tested ventilation
+> operators.** The sinking-column boundary layer is ventilated across its
+> inversion by material upward eddy diffusion. Convective mixing does not
+> cross the inversion, but it redistributes evaporated water upward within
+> the boundary layer, lowers the lowest-layer relative humidity, enlarges
+> the surface humidity deficit, and thereby supports evaporation. Disabling
+> either convective surface coupling or convective vapor transport
+> decreases evaporation and increases the implied surface-energy
+> redistribution requirement. Disabling eddy diffusion has negligible
+> effect because subsidence assumes the inversion-drying role. None of the
+> three V1 branches meets the frozen substantial-response criteria in the
+> required direction.
+
+**Two findings kept distinct:**
+
+1. Ventilation exists.
+2. The tested ventilation operators do not explain the low evaporation.
+
+**"Implicates", resolved prospectively (it was undefined in the frozen
+text):**
+
+> An operator is implicated only if its removal produces a substantial
+> response in the frozen improvement direction, or if a frozen diagnostic
+> directly identifies an erroneous flux or transfer attributable to that
+> operator.
+
+Neither condition is met here.
+
+**Why V4 does not run.** V4 is conditional on V1 implicating the
+mixing-depth rule, and it did not. Removing convective mixing:
+
+- raised the lowest-layer RH from 0.816 to 0.880–0.922;
+- cut the surface humidity deficit by 35–42 percent;
+- lowered X_sink by 37.67–58.11 W m⁻²;
+- raised ΔF to 189.60–218.94 W m⁻².
+
+The inversion moving down once mixing is disabled does not mean the
+baseline mixing depth causes the evaporation problem. It means the mixing
+was distributing moisture through the boundary layer. A mixing-depth
+experiment would pursue a mechanism contradicted by V1's directional
+response.
+
+**Why V5 does not run, and why its literal label is not applied.** V5's
+question is already answered:
+
+- convective mixing carries no measurable water or energy across the
+  inversion;
+- within the boundary layer, its vapour redistribution enlarges the surface
+  humidity deficit and supports evaporation;
+- removing that redistribution worsens the energy contrast.
+
+Calling this a "convection redistribution defect" would invert the
+measured causal direction. **V4 and V5 stay closed because V1's directional
+results contradict their proposed mechanisms, not merely because V1 fails
+to support them.**
+
+**The 72 percent statement, scoped:**
+
+> The observed SST contrast strongly suppresses sinking-column evaporation
+> through the combined effects of a colder saturation humidity and a moist
+> lowest atmospheric layer. This contribution is structural to S1's
+> prescribed-boundary experiment, not an identified model error.
+
+**Next:** a regime-dependent surface-exchange protocol, under its own frozen
+text. The ventilation protocol takes no further runs.
