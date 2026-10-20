@@ -433,3 +433,62 @@ the offline gain:
 **Whether the composition fix changes this verdict is not known.** It would
 take an E2 rerun from the corrected baseline (A1). That, and closing this
 protocol, are the user's decisions.
+
+## Closure (the user's disposition, 2026-10-20, verbatim)
+
+**Closed as rejected, exactly as frozen. E2 is not rerun on the
+composition-fixed code by default.**
+
+> The regime-dependent surface-exchange explanation is rejected. The
+> observed 11% wind-speed contrast produces a material offline response but
+> a negligible coupled response. Relative to E2-null, sinking-column X_sink
+> increases by only 1.22 W m⁻², and ΔF decreases by only 1.43 W m⁻², both
+> below the frozen material thresholds of 6.10 and 7.13 W m⁻². The coupled
+> atmosphere compensates by moistening the sinking lowest layer and drying
+> the rising lowest layer, preserving the modeled near-surface humidity
+> contrast with the wrong sign. The dominant error is therefore not the
+> shared exchange coefficient or missing wind contrast, but the
+> boundary-layer humidity partition between the columns.
+
+**The central unresolved diagnostic:** q₁,sink − q₁,rise = +0.0011 kg kg⁻¹
+in the model, against −0.0024 observed.
+
+**"Atmospheric compensation" stays descriptive.** The formal verdict needed
+E1 to predict a substantial effect, and it did not. The verdict is
+**rejected, with coupled boundary-layer compensation observed**:
+
+- the sinking k_H rose 5.7 percent, but its evaporation rose only 2.8
+  percent, because the lowest layer moistened;
+- the rising k_H fell 4.5 percent, but its evaporation fell only 1.4
+  percent, because the lowest layer dried;
+- convective surface exchange opposed the latent-flux response by about
+  1.3 W m⁻² in each column.
+
+## The E2 rerun condition (frozen before any A1 result is read)
+
+**E2 is rerun on the fixed code only if A1** (`advection-composition.md`)
+**changes, relative to V0** (the baseline E2 restarted from), **at least one
+of the following.** The list is the user's; the numbers marked "reading" are
+added at freezing so that the condition can be judged mechanically.
+
+| criterion | rule |
+|---|---|
+| sinking lowest layer | q₁,sink or its deficit q_sat(T_s) − q₁ changes by ≥ 10 percent of V0's |
+| rising lowest layer | q₁,rise or its deficit changes by ≥ 10 percent of V0's |
+| sinking evaporation | \|LE_sink,A1 − LE_sink,V0\| ≥ 6.10 W m⁻² |
+| the redistribution | \|ΔF_A1 − ΔF_V0\| ≥ 7.13 W m⁻² |
+| orientation (reading) | S1's G5 fails in A1 |
+| inversion location (reading) | the sinking observational inversion's modal interface differs from V0's (interface 6, 810.8 hPa) |
+| subsidence (reading) | the late-mean sinking ω500 changes by ≥ 10 percent of V0's (26.37 hPa/day) |
+| quantities the fix uses (reading) | the fix acts on the exchange response only through the lowest-layer state and the surface fluxes, so this criterion is judged by the four rows above; no separate number |
+
+**The lowest-layer quantities are computed as in E2's result:** from the 50
+saved late states, at the state each step's tendency was evaluated from.
+
+**If none holds,** E2's frozen verdict stands for the fixed code as well,
+and this protocol takes no further runs. **If any holds,** E2 and E2-null
+are rerun from A1's final state under this protocol's frozen rules, and both
+results are recorded.
+
+**E0's identity run** is kept as the identity requirement for the
+pre-fix branch. It no longer affects this verdict.
