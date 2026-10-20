@@ -359,3 +359,77 @@ held NCEP skin temperatures, which include land.
 
 **E2 and E2-null are running** (20000 steps each, from V0's final state),
 together with E0's 60000-step identity run.
+
+## E2 result (2026-10-20): computed with the composition defect
+
+**Read this result with that in mind.** E2 and E2-null ran on the code
+before `advection-composition.md`'s fix (ba42c7c). In this configuration the
+water and convection modules did not compose with the circulation's
+in-step transport. The comparison is like for like (V0, E2-null and E2 all
+carry the defect), but the baseline itself does.
+
+**Validity.**
+
+- **Both runs** completed 20000 steps from V0's final state.
+- **Conservation residual:** 8.2e-16 (E2-null) and 7.5e-16 (E2).
+- **Holding-relation closure:** 1.9e-15 and 1.5e-15.
+- **Orientation (G5) held:** sinking ω500 positive on every late day (26.44
+  and 26.34 hPa/day).
+- **Restart offset:** E2-null against V0 is 0.28 W m⁻² in X_sink and 0.30
+  in ΔF, which shows how far a restart moves the late mean.
+- **Settling:** the sinking F_hold differs between the two halves of the
+  late window by 0.8 (E2-null) and 1.1 W m⁻² (E2).
+
+**Late means:**
+
+| | V0 | E2-null | E2 |
+|---|---:|---:|---:|
+| k_H rising / sinking | 10 / 10 | 10 / 10 | 9.550 / 10.569 |
+| LE rising, W m⁻² | 159.93 | 159.83 | 157.67 |
+| LE sinking | 93.46 | 93.67 | 96.26 |
+| H rising / sinking | 1.85 / −0.69 | 1.85 / −0.69 | 1.82 / −0.79 |
+| C_conv rising | 74.72 | 74.79 | 76.05 |
+| C_conv sinking | 19.17 | 19.24 | 17.86 |
+| X_sink | 112.62 | 112.91 | 114.13 |
+| ΔF | 142.68 | 142.38 | 140.95 |
+| q₁ rising / sinking, kg kg⁻¹ | 0.01630 / 0.01703 | 0.01625 / 0.01701 | 0.01600 / 0.01713 |
+| deficit rising / sinking | 0.00639 / 0.00375 | 0.00644 / 0.00377 | 0.00669 / 0.00366 |
+| lowest-layer RH rising / sinking | 0.726 / 0.816 | 0.724 / 0.815 | 0.713 / 0.820 |
+
+**Against the offline prediction:**
+
+| | E1 offline | E2 − E2-null | E2 − V0 |
+|---|---:|---:|---:|
+| X_sink change | +5.31 | **+1.22** | **+1.50** |
+| ΔF reduction | 12.56 | **1.43** | **1.73** |
+
+**Under the frozen rules:**
+
+- **Negligible against both references.** The material amounts are 6.10 for
+  X_sink and 7.13 for ΔF. E2 moves X_sink by 1.22–1.50 and ΔF by 1.43–1.73,
+  in the improvement direction.
+- **The two references agree,** so the verdict is not unresolved.
+- **"Atmospheric compensation" is not reachable,** because it needs E1 to
+  predict a substantial response, and E1 predicted a material one.
+- **Frozen verdict: rejected.**
+
+**What the interactive atmosphere did, recorded as found.** The coupled
+response was about an eighth of the offline one. Three things erased most of
+the offline gain:
+
+- **The sinking lowest layer moistened** (q₁ 0.01701 → 0.01713, RH 0.815 →
+  0.820), so its deficit fell (0.00377 → 0.00366) and evaporation rose by
+  2.8 percent where the coefficient rose 5.7 percent.
+- **The rising lowest layer dried** (q₁ 0.01625 → 0.01600), so its deficit
+  grew and its evaporation fell by 1.4 percent where the coefficient fell
+  4.5 percent.
+- **Convection's surface exchange moved against the latent heat change in
+  both columns:** C_conv fell by 1.37 W m⁻² in the sinking column and rose by
+  1.26 in the rising one.
+
+**The near-surface humidity contrast stayed reversed,** q₁,sink − q₁,rise =
++0.00113, against the observed −0.0024.
+
+**Whether the composition fix changes this verdict is not known.** It would
+take an E2 rerun from the corrected baseline (A1). That, and closing this
+protocol, are the user's decisions.
