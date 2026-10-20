@@ -7994,3 +7994,2703 @@ sources:
   citation: 'Young, A. H., Knapp, K. R., Inamdar, A., Hankins, W. and Rossow, W. B. (2018), The International Satellite Cloud Climatology Project H-Series climate data record product, Earth Syst. Sci. Data 10, 583-593, doi:10.5194/essd-10-583-2018. Dataset doi:10.7289/V5QZ281S, v01r00.'
   notes: 'Daytime cloud-type amounts, mean cloud-top pressure and optical thickness for the 18 ISCCP types, composited on the ±20° annual-mean NCEP omega500 masks in regime-cloud-attribution.md. Held outside the repository (1.4 GB in all); the checksum identifies the file.'
   sha256: a09a342f0f29ed5d457c794c3ee9ab703ac0f2349c50f14558283160a5d90843
+- dataset_id: OAFLUX-V3-WS-1991
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 1991'
+  filename: ws_oaflux_1991.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_1991.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '1991, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 3216b8e92bb57cebe942671a9031fecf27d5ddddabdd108b0332be05b2948cab
+- dataset_id: OAFLUX-V3-WS-1992
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 1992'
+  filename: ws_oaflux_1992.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_1992.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '1992, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 2f6e4039ba2c5bf893e00c736cb5370fd2252dd071ad3e909b120d6a7f70d9b9
+- dataset_id: OAFLUX-V3-WS-1993
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 1993'
+  filename: ws_oaflux_1993.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_1993.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '1993, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 425426410788d4cd25966e6c8ba4e656b1206c4ed9c2cdab61692bbd76630af8
+- dataset_id: OAFLUX-V3-WS-1994
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 1994'
+  filename: ws_oaflux_1994.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_1994.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '1994, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 95aa974144dfdf9bb7cb55316907b9ccfef44dc1ed06439c5fcd65b562092e24
+- dataset_id: OAFLUX-V3-WS-1995
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 1995'
+  filename: ws_oaflux_1995.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_1995.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '1995, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 74e787c3c735a5eea16360c30df960ed1dd4d1fcc4018cfb9a9b492d2784854a
+- dataset_id: OAFLUX-V3-WS-1996
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 1996'
+  filename: ws_oaflux_1996.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_1996.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '1996, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 9181e2dd2689110566ea6c37cd877293847346f617d8da2e55c55ac243b497cf
+- dataset_id: OAFLUX-V3-WS-1997
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 1997'
+  filename: ws_oaflux_1997.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_1997.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '1997, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: eb4dcb7b46262aed68d571c9c81daad8d5a7619bb228bc2c942434753639dca4
+- dataset_id: OAFLUX-V3-WS-1998
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 1998'
+  filename: ws_oaflux_1998.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_1998.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '1998, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: c6d9cf9e65cfa40feb047c4797f18aa9d4c994224ddd404a03be32961c4b5fbd
+- dataset_id: OAFLUX-V3-WS-1999
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 1999'
+  filename: ws_oaflux_1999.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_1999.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '1999, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: f6667b784a2cb577332b1cb8b6ec442bc15e5332391750ce676a7063d93f4afa
+- dataset_id: OAFLUX-V3-WS-2000
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2000'
+  filename: ws_oaflux_2000.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2000.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2000, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 9b3d6468ce0ca62f4cbba75b8f3af4c41192baf001b1044e0dc5646fe0e8072d
+- dataset_id: OAFLUX-V3-WS-2001
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2001'
+  filename: ws_oaflux_2001.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2001.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2001, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 56f7b162dc69068caf182b8474824dacf98bf17e762e5d29c1b63446f31bd9cf
+- dataset_id: OAFLUX-V3-WS-2002
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2002'
+  filename: ws_oaflux_2002.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2002.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2002, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: fb0c2c132d6c9e756bb3645e6a2e09fa3a0c9ecba24ffedd37b904bf3d401ba6
+- dataset_id: OAFLUX-V3-WS-2003
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2003'
+  filename: ws_oaflux_2003.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2003.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2003, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 2f6be4f5b27ec7f45cb4b8ad38946423f310ef5789bba9e34da0c599cbeb084b
+- dataset_id: OAFLUX-V3-WS-2004
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2004'
+  filename: ws_oaflux_2004.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2004.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2004, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: aa7c2c517480ed64948f109e87ef8f50f9aedcf8ea327e0a9d555274bfb92b73
+- dataset_id: OAFLUX-V3-WS-2005
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2005'
+  filename: ws_oaflux_2005.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2005.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2005, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: da8240daddcdda73986100ffa7effea66b9058029513bcfc675b7cb3f12db919
+- dataset_id: OAFLUX-V3-WS-2006
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2006'
+  filename: ws_oaflux_2006.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2006.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2006, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 3a371bd892887a3bc423750bf4334f96f956b79dc8b8c4659c144656cffa3a4a
+- dataset_id: OAFLUX-V3-WS-2007
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2007'
+  filename: ws_oaflux_2007.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2007.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2007, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 8ebdddb1cd47abe4e82105591226399ad25cf34dae1f9fc4f0d2ad7f9fddf764
+- dataset_id: OAFLUX-V3-WS-2008
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2008'
+  filename: ws_oaflux_2008.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2008.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2008, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: f84ebcfdac81053163a5b1a59dbbd06d89c2f1c575753db3c8515ecd753621f3
+- dataset_id: OAFLUX-V3-WS-2009
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2009'
+  filename: ws_oaflux_2009.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2009.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2009, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 8ca3467e3f17fe4c91a0bb561f3a14f45e1d62ed6c0a7ed847c150efa61a1901
+- dataset_id: OAFLUX-V3-WS-2010
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2010'
+  filename: ws_oaflux_2010.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2010.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2010, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 5cbd61f3329a180afe8f7898aefb7e293d0fc8238acee858ac8cee4766cf96bb
+- dataset_id: OAFLUX-V3-WS-2011
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2011'
+  filename: ws_oaflux_2011.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2011.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2011, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: b535f0243767c737913781aafb7a86ce4c0244d525084496b681f0ead117d5c3
+- dataset_id: OAFLUX-V3-WS-2012
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2012'
+  filename: ws_oaflux_2012.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2012.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2012, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 1ae9d376685b3f54c43e01d6991d2ae46d380ba9c94144ff27c5e5e5f2ecd7fe
+- dataset_id: OAFLUX-V3-WS-2013
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2013'
+  filename: ws_oaflux_2013.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2013.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2013, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: b53eb68889334cd9eb7139a91d847d49c00d7468aee1f227a3c44f0137b27180
+- dataset_id: OAFLUX-V3-WS-2014
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2014'
+  filename: ws_oaflux_2014.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2014.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2014, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: f6538ba720341d18868d443a06d27fb802dff86f5dda214ce0b1b43c781887fd
+- dataset_id: OAFLUX-V3-WS-2015
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2015'
+  filename: ws_oaflux_2015.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2015.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2015, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: ab9eb00b74ff0c892b4799a15bf8e69e844b378e37a445e1ff038ff8e67c4866
+- dataset_id: OAFLUX-V3-WS-2016
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2016'
+  filename: ws_oaflux_2016.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2016.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2016, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 6ce1430b00aaa92e9adffdf495f5f1d213a613922960e27385b3d1c1b064f25a
+- dataset_id: OAFLUX-V3-WS-2017
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2017'
+  filename: ws_oaflux_2017.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2017.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2017, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 40638de1906f26821a03a3c28f7c620c268f2b26b07b2696b434f4440796db09
+- dataset_id: OAFLUX-V3-WS-2018
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2018'
+  filename: ws_oaflux_2018.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2018.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2018, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 265d30b6d0a415bd479bdd76a900e4a41a2e29e5ebdb74f3220430cdfca12401
+- dataset_id: OAFLUX-V3-WS-2019
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2019'
+  filename: ws_oaflux_2019.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2019.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2019, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 68d798b48bb4a9ee73e57701afe14805b4afb3de673d73a631328e27f74a7843
+- dataset_id: OAFLUX-V3-WS-2020
+  loader: none
+  title: 'OAFlux v3 monthly 10 m neutral wind speed over the ocean, 2020'
+  filename: ws_oaflux_2020.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ws_oaflux_2020.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - wnd10
+  units:
+  - 'm/s'
+  temporal_coverage: '2020, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'The regime winds of regime-surface-exchange.md (E1): composited on the ±20° annual-mean NCEP omega500 masks, ocean cells only. An objective analysis blending satellite winds with reanalysis, not a direct measurement. Held outside the repository; the checksum identifies the file.'
+  sha256: 9dd870adf66cf44f0c2a499be6b1b0134fdf0dce50f1aff06e317b999af8c6e1
+- dataset_id: OAFLUX-V3-LH-1991
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 1991'
+  filename: lh_oaflux_1991.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_1991.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1991, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: e1dd6b89a04603a07ea0c682d9b82716a2763dba71257a897f56f61d5f2e1949
+- dataset_id: OAFLUX-V3-LH-1992
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 1992'
+  filename: lh_oaflux_1992.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_1992.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1992, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 18b1706f823eafef3fb95b8551519f4e55e3f06b4974eeb4f2a8c76728d7024f
+- dataset_id: OAFLUX-V3-LH-1993
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 1993'
+  filename: lh_oaflux_1993.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_1993.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1993, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 27105e096c7fa75b38b667620fa9f6f743f2db6cffb15e537e45595bbdbfd50d
+- dataset_id: OAFLUX-V3-LH-1994
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 1994'
+  filename: lh_oaflux_1994.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_1994.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1994, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 02392edeae85b7ea57f0c8d5b10e0e516b0dd8e5f71533f34eb7140d411918eb
+- dataset_id: OAFLUX-V3-LH-1995
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 1995'
+  filename: lh_oaflux_1995.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_1995.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1995, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 2d96ed88b7f984f078bf63c05eaacaca999d8ea0078fd1a3026d9f5619e307b9
+- dataset_id: OAFLUX-V3-LH-1996
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 1996'
+  filename: lh_oaflux_1996.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_1996.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1996, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: f6350e03e1291b5f1ef323aeef1d6fd35869060f36ab6814ac925f07e3f9ba7e
+- dataset_id: OAFLUX-V3-LH-1997
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 1997'
+  filename: lh_oaflux_1997.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_1997.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1997, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: bbf1f672a4f075eebce475e63e1a8674a6bd5af0388e4efd919383c42b013ed9
+- dataset_id: OAFLUX-V3-LH-1998
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 1998'
+  filename: lh_oaflux_1998.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_1998.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1998, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 4c14885177c1564fbb774f048ab37005fcf8edcf0c030ec3283ec5d851a2a5f4
+- dataset_id: OAFLUX-V3-LH-1999
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 1999'
+  filename: lh_oaflux_1999.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_1999.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1999, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: df1c6588c3b1d8dfa7ab522dc91e979d8f0308df893e037647d9f213030b9807
+- dataset_id: OAFLUX-V3-LH-2000
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2000'
+  filename: lh_oaflux_2000.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2000.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2000, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 6dc523ba8e38556047f6f2e657644018c646c69fcd9a1e2a12a7608468ea7468
+- dataset_id: OAFLUX-V3-LH-2001
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2001'
+  filename: lh_oaflux_2001.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2001.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2001, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 9528042aa5a040f631247aadb2a54b9ca7b69d14ef0e6a17222431cebe3fbfa1
+- dataset_id: OAFLUX-V3-LH-2002
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2002'
+  filename: lh_oaflux_2002.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2002.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2002, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 40223d96ede0ccb911e59b6e46bf87d51cd40d92ba7c3cb11f1e0fb8d8334fbc
+- dataset_id: OAFLUX-V3-LH-2003
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2003'
+  filename: lh_oaflux_2003.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2003.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2003, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: b7870365fcac7c75ea7750c4376811c043bf48c247e837a5a7677ddd8169082c
+- dataset_id: OAFLUX-V3-LH-2004
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2004'
+  filename: lh_oaflux_2004.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2004.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2004, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: b24c485ad532c21773d6cbccbf59fb8a80027015745c136b7de58ec844ffd6d6
+- dataset_id: OAFLUX-V3-LH-2005
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2005'
+  filename: lh_oaflux_2005.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2005.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2005, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: c41b702de17694566d43975a57bcd0bcb1b95d1ea547db9cfcf645536e8c85ee
+- dataset_id: OAFLUX-V3-LH-2006
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2006'
+  filename: lh_oaflux_2006.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2006.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2006, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 7ce81b595501cf6aedb559d8369585809b7f51163e266d681893a1d0e7649522
+- dataset_id: OAFLUX-V3-LH-2007
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2007'
+  filename: lh_oaflux_2007.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2007.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2007, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 1f91451ff8dfd7dce233c83612b4b87d8a1663f1223eb95d69ebdd6999f2b242
+- dataset_id: OAFLUX-V3-LH-2008
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2008'
+  filename: lh_oaflux_2008.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2008.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2008, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: e449b1cdde18602fdf1a6448ffbd169643ac361afbd79ba91f8983b172bce13a
+- dataset_id: OAFLUX-V3-LH-2009
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2009'
+  filename: lh_oaflux_2009.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2009.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2009, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 6672ab7831a7049351d4102492be31ae4a4f2ee63bc36b0a2f66b9aeec3da7fa
+- dataset_id: OAFLUX-V3-LH-2010
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2010'
+  filename: lh_oaflux_2010.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2010.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2010, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 7a99c65e71714a4be3859cd94169e0e54c57e8d3dcda8ead48f7fc3bf5fa6a5e
+- dataset_id: OAFLUX-V3-LH-2011
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2011'
+  filename: lh_oaflux_2011.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2011.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2011, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 27993a59eaa3590cb6ea659efbc7e559dcf71fcab245ccb35773aa4c8a3d0e84
+- dataset_id: OAFLUX-V3-LH-2012
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2012'
+  filename: lh_oaflux_2012.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2012.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2012, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: fbe8354acc092a064363fbea9f5a0c8501bd4a045fe3bbe0c7216ba8b049e5bf
+- dataset_id: OAFLUX-V3-LH-2013
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2013'
+  filename: lh_oaflux_2013.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2013.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2013, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 6c1d23c0a82e20f3d5dd7331a396be785266377576326413a1e25059521856e3
+- dataset_id: OAFLUX-V3-LH-2014
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2014'
+  filename: lh_oaflux_2014.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2014.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2014, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 501fa1e53038dc4b76e0eaecdaac42419ab5335973907a1ea7c624538aeac402
+- dataset_id: OAFLUX-V3-LH-2015
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2015'
+  filename: lh_oaflux_2015.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2015.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2015, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 2330d25967c183d974f7aa4119be80d9c7522fe4f043ba10b2ab516423848db2
+- dataset_id: OAFLUX-V3-LH-2016
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2016'
+  filename: lh_oaflux_2016.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2016.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2016, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 586f8edd402ded48eed9d1b443d5b60a007593e1f4f4aafdcd640f10fc4bbda3
+- dataset_id: OAFLUX-V3-LH-2017
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2017'
+  filename: lh_oaflux_2017.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2017.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2017, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: bb9cb832a81e7734c1b86881ead83f928b653b3f547a16f2b1946805b8a35e23
+- dataset_id: OAFLUX-V3-LH-2018
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2018'
+  filename: lh_oaflux_2018.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2018.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2018, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: bd821e4a25ea9b2ec7ee31f8f9c8f4eb13106acd0e3418f1013c7eae0443d0a0
+- dataset_id: OAFLUX-V3-LH-2019
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2019'
+  filename: lh_oaflux_2019.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2019.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2019, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 90904db37bf1c32e581ba6b5e42b1ec8f39998f154447586cdea0f9321307f3f
+- dataset_id: OAFLUX-V3-LH-2020
+  loader: none
+  title: 'OAFlux v3 monthly surface latent heat flux over the ocean, 2020'
+  filename: lh_oaflux_2020.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/lh_oaflux_2020.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - lhtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2020, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime latent heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 28fa8759be5fceee31e4ed84c01764acde4b40ecd706320a2911f6d2ceff7467
+- dataset_id: OAFLUX-V3-SH-1991
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 1991'
+  filename: sh_oaflux_1991.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_1991.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1991, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: c5d88764d15504dc02811b0dd3775b212dfe62f289450eb9a3ea64bd92e7295f
+- dataset_id: OAFLUX-V3-SH-1992
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 1992'
+  filename: sh_oaflux_1992.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_1992.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1992, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: b74c74be274b0eb318c1833170a2e677fde3b259490ca3e72a97158193a7e872
+- dataset_id: OAFLUX-V3-SH-1993
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 1993'
+  filename: sh_oaflux_1993.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_1993.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1993, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: ffe60c5e23203313cd5b1050ff7fc9e0c1c5f25a8873afa78ee2e2fa384d9a8b
+- dataset_id: OAFLUX-V3-SH-1994
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 1994'
+  filename: sh_oaflux_1994.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_1994.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1994, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: dd126fccfa2d24a0fe6fed3d31bfdaae980df6458ae2bc5a9170915de9117134
+- dataset_id: OAFLUX-V3-SH-1995
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 1995'
+  filename: sh_oaflux_1995.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_1995.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1995, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 89f57f7fd22238750827d3c307cc0e82d370bcb10cf37f10575e4a42e532df35
+- dataset_id: OAFLUX-V3-SH-1996
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 1996'
+  filename: sh_oaflux_1996.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_1996.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1996, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 4658537eb7b0298f479c32a3deffe735f2720d64fe080cec5488e977e0154dd7
+- dataset_id: OAFLUX-V3-SH-1997
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 1997'
+  filename: sh_oaflux_1997.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_1997.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1997, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 084fd3c6a1ff335fff79d55f9ffdcdddf5807592e916dbc0925f0cbb72786be9
+- dataset_id: OAFLUX-V3-SH-1998
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 1998'
+  filename: sh_oaflux_1998.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_1998.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1998, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 10105c55be204ee288f600b8837fae74063925f30859a1240b5099fb5d0e932e
+- dataset_id: OAFLUX-V3-SH-1999
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 1999'
+  filename: sh_oaflux_1999.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_1999.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '1999, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 2560e745618f37f30963532a09171edf3b4992ec417eab19a97b6f827dc59c46
+- dataset_id: OAFLUX-V3-SH-2000
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2000'
+  filename: sh_oaflux_2000.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2000.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2000, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 88838b399cb7dc26f892aaf036609384bd7140e2c99a5873a8e2b14ac2ae06d5
+- dataset_id: OAFLUX-V3-SH-2001
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2001'
+  filename: sh_oaflux_2001.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2001.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2001, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 9506e085dd2bdd43983af82756e2bf2313948738a11032e33e52765f47593cf5
+- dataset_id: OAFLUX-V3-SH-2002
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2002'
+  filename: sh_oaflux_2002.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2002.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2002, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 0bd1a65ba57ff108ae5510f3a795946e9fab7b1a0b0101aa1c791e5454bd9631
+- dataset_id: OAFLUX-V3-SH-2003
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2003'
+  filename: sh_oaflux_2003.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2003.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2003, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: b98e09d95edfe5265565a2620c8a2992a46586640d306f8981f797cea96aa414
+- dataset_id: OAFLUX-V3-SH-2004
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2004'
+  filename: sh_oaflux_2004.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2004.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2004, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: ad126be95fb3855c62e502cce0033d7de42e35e1748b68b7c979f84534f836fd
+- dataset_id: OAFLUX-V3-SH-2005
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2005'
+  filename: sh_oaflux_2005.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2005.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2005, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 72ab843f3b9a886e9dadbb75a40105642a906d5d3e0b59c63e432b2a2ece06a6
+- dataset_id: OAFLUX-V3-SH-2006
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2006'
+  filename: sh_oaflux_2006.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2006.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2006, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 9b502ca94470a71efa5f382535df1499760923fdda7ce0b2bf014c5705c7bf8c
+- dataset_id: OAFLUX-V3-SH-2007
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2007'
+  filename: sh_oaflux_2007.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2007.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2007, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 1c9c3ac751dd5ce7ca8de235b1f436831555783aae5f103cea752d7ea727faa1
+- dataset_id: OAFLUX-V3-SH-2008
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2008'
+  filename: sh_oaflux_2008.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2008.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2008, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: df621b6730aaf8d8b80349179cb6b1924899390150ce3ccd57427e6d8ebe2ac5
+- dataset_id: OAFLUX-V3-SH-2009
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2009'
+  filename: sh_oaflux_2009.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2009.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2009, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 3f8ba5db28935ad37320b6e63e20558f960bca79d24403114f1feaa5c374a796
+- dataset_id: OAFLUX-V3-SH-2010
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2010'
+  filename: sh_oaflux_2010.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2010.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2010, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 950cddd230adf9e1b9038dfb1a8e7a974d2421b9224c2f9569c5ec2140ad266a
+- dataset_id: OAFLUX-V3-SH-2011
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2011'
+  filename: sh_oaflux_2011.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2011.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2011, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 7e3556bb82cc27d83d1f6fc9db3f9e17419994a4c433c8bcb74760e4a1d6457d
+- dataset_id: OAFLUX-V3-SH-2012
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2012'
+  filename: sh_oaflux_2012.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2012.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2012, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 422c3af7658ad1d45b52504506e91c108f2493eb69ad0a7adc0f720fd5a5f8e3
+- dataset_id: OAFLUX-V3-SH-2013
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2013'
+  filename: sh_oaflux_2013.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2013.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2013, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 2aa17418e3ae90bf8bf06844af2947ca8faa82a45214d82ef2d2efb4c6b3c3fc
+- dataset_id: OAFLUX-V3-SH-2014
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2014'
+  filename: sh_oaflux_2014.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2014.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2014, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 32152a3a37881e14f1150282507f8ef1021dc57fedbc732c2ce816a2d833bd34
+- dataset_id: OAFLUX-V3-SH-2015
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2015'
+  filename: sh_oaflux_2015.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2015.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2015, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: c29a9bc57291348ed0cb98b918d41b2c8f6431cfe4f88e81323fafad5199f9c6
+- dataset_id: OAFLUX-V3-SH-2016
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2016'
+  filename: sh_oaflux_2016.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2016.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2016, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 0628094d02247de1e62ad7054859733d60508337ecb7bdef76ff18610295e9bc
+- dataset_id: OAFLUX-V3-SH-2017
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2017'
+  filename: sh_oaflux_2017.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2017.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2017, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: f0320fbcf89a8e1a3e576ef0b0696d13a1b13852574e0bb763387732f5c8d4db
+- dataset_id: OAFLUX-V3-SH-2018
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2018'
+  filename: sh_oaflux_2018.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2018.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2018, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 1ff83ef93369c5c015e5939066749d930ef3df6d5bd497520c3fd8f940b4b34c
+- dataset_id: OAFLUX-V3-SH-2019
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2019'
+  filename: sh_oaflux_2019.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2019.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2019, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: a2610b38e163285a655e7d86b6dece8308591475e05f247aa0d6c0dd1673683b
+- dataset_id: OAFLUX-V3-SH-2020
+  loader: none
+  title: 'OAFlux v3 monthly surface sensible heat flux over the ocean, 2020'
+  filename: sh_oaflux_2020.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/sh_oaflux_2020.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - shtfl
+  units:
+  - 'W/m^2'
+  temporal_coverage: '2020, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime sensible heat flux, positive upward. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: f8346b24a8335bcd458940fe55b4567c9728af4bee06624850aad8337acf746a
+- dataset_id: OAFLUX-V3-QA-1991
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 1991'
+  filename: qa_oaflux_1991.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_1991.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '1991, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 5047d24a5498604fe56d710450c5b254766ac0e01fc54f98c407f737419156ab
+- dataset_id: OAFLUX-V3-QA-1992
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 1992'
+  filename: qa_oaflux_1992.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_1992.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '1992, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: f5439c097cdabe2ec288e5d6c0c425647945aee5ad4ee9e5c3c4b61d839a8f0c
+- dataset_id: OAFLUX-V3-QA-1993
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 1993'
+  filename: qa_oaflux_1993.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_1993.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '1993, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: b952bf9c670466f31f20378b48c1a321c81e5bf15c0181d74d88639037607522
+- dataset_id: OAFLUX-V3-QA-1994
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 1994'
+  filename: qa_oaflux_1994.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_1994.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '1994, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: a43497d8ba9414dd9c1a7334cd5fb4e96b61c89e6d5dcf6983db233cc46308f9
+- dataset_id: OAFLUX-V3-QA-1995
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 1995'
+  filename: qa_oaflux_1995.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_1995.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '1995, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: be3e86362648b46c061b8bb332fe4732f9dda4132489f23044a87c3b5bc1d331
+- dataset_id: OAFLUX-V3-QA-1996
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 1996'
+  filename: qa_oaflux_1996.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_1996.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '1996, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 726e8bb324d01e8d317fb0f971613e45aa9fcb4332cdbad6cddd2c7119b977e0
+- dataset_id: OAFLUX-V3-QA-1997
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 1997'
+  filename: qa_oaflux_1997.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_1997.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '1997, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 03748ce76dda74fdb1949670f9cfcf62f1443bc7cac243c77d32941bfa8ca607
+- dataset_id: OAFLUX-V3-QA-1998
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 1998'
+  filename: qa_oaflux_1998.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_1998.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '1998, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 3692423c236af5fcc207af29a8564e76e55659a371d73f5ecd12d93aa696174d
+- dataset_id: OAFLUX-V3-QA-1999
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 1999'
+  filename: qa_oaflux_1999.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_1999.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '1999, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 032801d857eb72c972468e85b462f1db35fe057bee645e45e809be1035e9628e
+- dataset_id: OAFLUX-V3-QA-2000
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2000'
+  filename: qa_oaflux_2000.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2000.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2000, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 2d7d1ce810e19fb41a201e0d038182732d82b2f2604f5807eb547d198414de19
+- dataset_id: OAFLUX-V3-QA-2001
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2001'
+  filename: qa_oaflux_2001.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2001.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2001, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: d58a0291eec91c70d5b805a49e45368fea79e37beb644de3458a161a03603ca8
+- dataset_id: OAFLUX-V3-QA-2002
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2002'
+  filename: qa_oaflux_2002.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2002.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2002, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 5e57acc6d11549a0535cc32a0ce89e2c2f6684754c75827ac36efdcd7723ae43
+- dataset_id: OAFLUX-V3-QA-2003
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2003'
+  filename: qa_oaflux_2003.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2003.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2003, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 034d68d35dc9e241ce536ff8986582bb4bd04b2b7862ffbc6e93dbafce0673d5
+- dataset_id: OAFLUX-V3-QA-2004
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2004'
+  filename: qa_oaflux_2004.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2004.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2004, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: a41b7d35480197dc3ce4ae111a6f428aa34a035c4bb51fcc3c9ef2f23f9e1fc9
+- dataset_id: OAFLUX-V3-QA-2005
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2005'
+  filename: qa_oaflux_2005.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2005.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2005, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: c79d0b2941f154193ce1e42732c7efcb4afdd98f6e1c6607170b50694c225f53
+- dataset_id: OAFLUX-V3-QA-2006
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2006'
+  filename: qa_oaflux_2006.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2006.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2006, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: b470acdb67becd703e84158eeb30c5d88fe3db0a1d68fe0ebfd63cac96f7bdd3
+- dataset_id: OAFLUX-V3-QA-2007
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2007'
+  filename: qa_oaflux_2007.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2007.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2007, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 2834b6d3a9a05c9effe7f6efcaff0930b96c2acb557b9caa7348a924f27aa6a1
+- dataset_id: OAFLUX-V3-QA-2008
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2008'
+  filename: qa_oaflux_2008.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2008.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2008, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 1f579699f62e7cb79b4cac61101d0e702f55fe3399410c751e1cb79843012225
+- dataset_id: OAFLUX-V3-QA-2009
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2009'
+  filename: qa_oaflux_2009.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2009.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2009, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 8db75eac552f99b863940515a9688fb982990c2fc99c37a2f5302f1bb08d72cc
+- dataset_id: OAFLUX-V3-QA-2010
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2010'
+  filename: qa_oaflux_2010.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2010.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2010, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: a6f1de97afd41de4782f367966b663f10e3e0d4d306dfc81ae895075ff6b7084
+- dataset_id: OAFLUX-V3-QA-2011
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2011'
+  filename: qa_oaflux_2011.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2011.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2011, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: be3ac2ec43665181efd1ca9e65530fe75d423d7c02e1f2b453c675e67e7bee47
+- dataset_id: OAFLUX-V3-QA-2012
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2012'
+  filename: qa_oaflux_2012.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2012.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2012, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 2ed75627cf5ff80f53b720586c8af035735ccc576de852906d719bcc4060dba7
+- dataset_id: OAFLUX-V3-QA-2013
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2013'
+  filename: qa_oaflux_2013.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2013.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2013, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: b5d4cfbd1c87da6bbb6e71e66cf8125a9a5fecc91eba76f195b9d7efaca14e38
+- dataset_id: OAFLUX-V3-QA-2014
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2014'
+  filename: qa_oaflux_2014.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2014.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2014, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: aececc86046b07621b23211f05198388b4fa31f2a1605e98955a24adbedc1cf7
+- dataset_id: OAFLUX-V3-QA-2015
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2015'
+  filename: qa_oaflux_2015.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2015.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2015, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 45dc235c603f4ca3c41d0cc4a731b9bfd1871501c1585e00df8dbde38a6709af
+- dataset_id: OAFLUX-V3-QA-2016
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2016'
+  filename: qa_oaflux_2016.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2016.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2016, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 02bc8fc94033960ecd88017c27926fcc8155941b6e7135796ef53f0b06092ea6
+- dataset_id: OAFLUX-V3-QA-2017
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2017'
+  filename: qa_oaflux_2017.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2017.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2017, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 5ddcf899c26f25bd110865fbcde0433ed8050af951dd9c1c9e003d128d8a86c5
+- dataset_id: OAFLUX-V3-QA-2018
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2018'
+  filename: qa_oaflux_2018.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2018.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2018, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: ceacc9014fed2d5c4ef12e25ae208420e8dfabfb52f2fbca0c98861e66a9a097
+- dataset_id: OAFLUX-V3-QA-2019
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2019'
+  filename: qa_oaflux_2019.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2019.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2019, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 2cad61407efe91c82ee743b6b9095409ee315ead1697812b88f45cbdc11c1f3f
+- dataset_id: OAFLUX-V3-QA-2020
+  loader: none
+  title: 'OAFlux v3 monthly 2 m specific humidity over the ocean, 2020'
+  filename: qa_oaflux_2020.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/qa_oaflux_2020.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - hum2m
+  units:
+  - 'g/kg'
+  temporal_coverage: '2020, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime near-surface humidity, for the observed deficit q_sat(ts) - qa. At 2 m, not a layer mean. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 32a6614192129d70c2b31d3b100fc602582135800d2aa7a42fd40fedafc5cac7
+- dataset_id: OAFLUX-V3-TS-1991
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 1991'
+  filename: ts_oaflux_1991.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_1991.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '1991, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 9acac60aa84d68635c2400cea724dc8798644ebbc3a53976bf0dc524f830dee0
+- dataset_id: OAFLUX-V3-TS-1992
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 1992'
+  filename: ts_oaflux_1992.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_1992.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '1992, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 3d95c731eecea5a2d9181479e46397ba6a94a66d54243020774d8dbd6682ff6b
+- dataset_id: OAFLUX-V3-TS-1993
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 1993'
+  filename: ts_oaflux_1993.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_1993.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '1993, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 92b27003c997bdfa3c21c52c4e67b9cc3f37ebda4c849faed83a8a909440c45d
+- dataset_id: OAFLUX-V3-TS-1994
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 1994'
+  filename: ts_oaflux_1994.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_1994.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '1994, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 9083cbf8d80738f3062fb688d4f733ada5ed5b094cf60b43d7e3df4afc169d98
+- dataset_id: OAFLUX-V3-TS-1995
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 1995'
+  filename: ts_oaflux_1995.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_1995.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '1995, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 1bad7a4758dd1faeb2c82d543ea538b76333a4ed62b716fb1ac84a6201c84b64
+- dataset_id: OAFLUX-V3-TS-1996
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 1996'
+  filename: ts_oaflux_1996.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_1996.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '1996, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 1749530272ccf4b8a2888dd54198bee2d521d65cf614a6f55aa630f0b0fccd29
+- dataset_id: OAFLUX-V3-TS-1997
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 1997'
+  filename: ts_oaflux_1997.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_1997.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '1997, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 294b242a1a89ab7cd58da945a4bdd937c47a1477e6517de5acab2cfef8a08ebb
+- dataset_id: OAFLUX-V3-TS-1998
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 1998'
+  filename: ts_oaflux_1998.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_1998.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '1998, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: ff9797f8beb1becfcf9764d27602c134ccb5faff65627eff4f4f7482074e35c7
+- dataset_id: OAFLUX-V3-TS-1999
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 1999'
+  filename: ts_oaflux_1999.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_1999.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '1999, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 8eaa742ae900e2de8f34bf22dbe614517a1b24ce387f842843498f9f10b865e9
+- dataset_id: OAFLUX-V3-TS-2000
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2000'
+  filename: ts_oaflux_2000.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2000.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2000, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: dc83ddbc0b80ca0d9e90be670cf569ffdeb61b01f2ad6e7016300cea911b645b
+- dataset_id: OAFLUX-V3-TS-2001
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2001'
+  filename: ts_oaflux_2001.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2001.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2001, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: ca6b2d6a085bee9367a76e540a8834806412b24d3cdee4879b1457f61f670800
+- dataset_id: OAFLUX-V3-TS-2002
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2002'
+  filename: ts_oaflux_2002.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2002.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2002, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 0a8d97af0b9738200833b6ea9d90fe93aba93ee6c16155a2cea62d81e29848eb
+- dataset_id: OAFLUX-V3-TS-2003
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2003'
+  filename: ts_oaflux_2003.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2003.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2003, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 395c0d7d98d5a7792e371675f0704e3c867e43a929318423e76b3ffd9eb40cd3
+- dataset_id: OAFLUX-V3-TS-2004
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2004'
+  filename: ts_oaflux_2004.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2004.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2004, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: db970111adf1ae18ae81db8f6e6f6fde45aa41064ac025887789d8e3751e3c75
+- dataset_id: OAFLUX-V3-TS-2005
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2005'
+  filename: ts_oaflux_2005.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2005.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2005, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 3cce48189a2418179e9e4832113debac7c4497b6ac31fc599dc9680a387613ff
+- dataset_id: OAFLUX-V3-TS-2006
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2006'
+  filename: ts_oaflux_2006.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2006.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2006, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 999e8406bf763ed003140a7f31c451950ce0fc0b4435c845745fb9a930745fbb
+- dataset_id: OAFLUX-V3-TS-2007
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2007'
+  filename: ts_oaflux_2007.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2007.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2007, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: ef324bc800fde4983ebd3b3161f1456ca5b44861f69c22059a285f510f1b1fd9
+- dataset_id: OAFLUX-V3-TS-2008
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2008'
+  filename: ts_oaflux_2008.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2008.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2008, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: c5d5707ddb17aa7b017a6e5bdbd9aca75f575d08903023e7bf2deeaa3fc9ddd6
+- dataset_id: OAFLUX-V3-TS-2009
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2009'
+  filename: ts_oaflux_2009.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2009.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2009, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 203590d2ea37409bd96c3c1da9e67d757159f0e32fd3f59bb033ae06f2fd6bcc
+- dataset_id: OAFLUX-V3-TS-2010
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2010'
+  filename: ts_oaflux_2010.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2010.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2010, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: eb3859f8cdaa10aab18bf1a55d0d625441225d22db0009d1cea78b90195722ae
+- dataset_id: OAFLUX-V3-TS-2011
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2011'
+  filename: ts_oaflux_2011.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2011.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2011, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 793e6ee523d030cd8a25e377935f83b2daf744e673f9bf343a6eb14717d526c9
+- dataset_id: OAFLUX-V3-TS-2012
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2012'
+  filename: ts_oaflux_2012.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2012.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2012, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 33f5e9b733f70f409baaabff83e8438c9275536a4266c1da9d510a82de8926c1
+- dataset_id: OAFLUX-V3-TS-2013
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2013'
+  filename: ts_oaflux_2013.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2013.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2013, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 80654fe9ada16c5375151f6b671f1f0f98ee4dec463a23169dde93c682d90589
+- dataset_id: OAFLUX-V3-TS-2014
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2014'
+  filename: ts_oaflux_2014.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2014.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2014, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 012a8730bdb3db9e3f53a40bac42e47c1d669625b069f916c395dcf374fe7fa9
+- dataset_id: OAFLUX-V3-TS-2015
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2015'
+  filename: ts_oaflux_2015.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2015.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2015, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 6bf4ec5a05c6977240487fc4a6f7b6dc6c5a3622d2b3d5460c6f8a773e803ac3
+- dataset_id: OAFLUX-V3-TS-2016
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2016'
+  filename: ts_oaflux_2016.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2016.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2016, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 67aaad5ba8168ed6c696d9daf232f5bd9d99fea02280964af63f557e393ae776
+- dataset_id: OAFLUX-V3-TS-2017
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2017'
+  filename: ts_oaflux_2017.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2017.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2017, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: d6f4b5b7a4d8cc1ca0f1b0f0c21f163769d25718d9035fde2fd4b41cee46ccf3
+- dataset_id: OAFLUX-V3-TS-2018
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2018'
+  filename: ts_oaflux_2018.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2018.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2018, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: 5e72e17b67d18c6f30d80e1318761d8fa61ad9fb3c5c5100a7fceabb6267e00e
+- dataset_id: OAFLUX-V3-TS-2019
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2019'
+  filename: ts_oaflux_2019.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2019.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2019, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: a69e14c9066d1a71eea944c612a85707eccb7269f755dd41fbe8b5f43dcab699
+- dataset_id: OAFLUX-V3-TS-2020
+  loader: none
+  title: 'OAFlux v3 monthly sea surface temperature over the ocean, 2020'
+  filename: ts_oaflux_2020.nc.gz
+  url: https://scienceweb.whoi.edu/oaflux/data_v3/monthly/turbulence/ts_oaflux_2020.nc.gz
+  provider: 'Woods Hole Oceanographic Institution, OAFlux project'
+  provenance_class: observational
+  variables:
+  - tmpsf
+  units:
+  - 'degree C'
+  temporal_coverage: '2020, monthly'
+  spatial_coverage: 'global ice-free ocean, 1 degree'
+  uncertainty: 'per-cell monthly estimated error in the file (err); its kind is not stated by the provider'
+  licence: 'Open; cite on use (WHOI OAFlux project).'
+  citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
+  notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
+  sha256: e29d6d140e95a7189a35be18dc3ebdb9235c07e4d1debc8228b6b4d52f8b4772
