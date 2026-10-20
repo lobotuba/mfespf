@@ -220,3 +220,43 @@ boundary layer or define "material".
   configuration.
 
 ---
+
+## Erratum before L0 runs (nothing above this line changed)
+
+**L0's smoke test found a coupling defect.** It is recorded and fixed under
+`advection-composition.md`. In the tropical two-column configuration, the
+circulation and each column's tropical exchange both published
+`{region}:vapour_advection_rate` and `{region}:advective_heating_rate`. The
+coupler silently kept the exchange's, so the water and convection modules
+never composed with the circulation's transport in the step it was made. The
+user chose to fix it and rebaseline before L0.
+
+**Three readings change. Each is recorded with both versions.**
+
+1. **The online-split check.**
+   - **Reading 1 (above):** "the published per-layer rate
+     (`{region}:vapour_advection_rate`, and the labelled
+     `circulation_subsidence` / `circulation_ascent` tendencies)".
+   - **Reading 2:** in this configuration those were two different fields.
+     The check compares against the circulation's own rate: its labelled
+     tendency, which after the fix is also
+     `{region}:circulation_vapour_advection_rate`. The same holds for s,
+     against `{region}:circulation_advective_heating_rate`. In the smoke run,
+     vertical + lateral equalled the labelled tendency exactly.
+2. **The restart.**
+   - **Reading 1:** from `v0_final_state.npz`.
+   - **Reading 2:** from A1's final state, on the fixed code.
+3. **The reproduction reference.**
+   - **Reading 1:** `e2null_20000.json`.
+   - **Reading 2:** E2-null ran on the pre-fix code, so the reference is
+     **L0-null**. That is the same 20000-step restart from A1's final state,
+     with k_H = 10 written in each region, without the split. Every shared
+     printed value must be identical.
+
+**Unchanged:** the question, the diagnostics, the boundary-layer definition,
+the tolerances and the classifications.
+
+**Seen in the 60-step smoke run** (spin-up only, pre-fix, not a result): the
+reproduction against a matching restart was identical in all 612 shared
+values; the offline rebuild was exact; the intercolumn identities held to
+2e-16; and the lowest-layer budgets closed to 3e-15 of E.
