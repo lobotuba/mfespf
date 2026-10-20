@@ -492,3 +492,11 @@ results are recorded.
 
 **E0's identity run** is kept as the identity requirement for the
 pre-fix branch. It no longer affects this verdict.
+
+## E0 result (2026-10-20): the identity check passed
+
+The E2 code path, with k_H = 10 written explicitly in each region, ran C0's
+60000-step configuration on the pre-fix code. **All 1130 numeric values in
+`e0_60000.json` are identical to `v0_60000.json`, bit for bit.** No value is
+in one and not the other. So E2 and E2-null's per-region coefficient setting
+is the baseline at k = 10, as the protocol required.
