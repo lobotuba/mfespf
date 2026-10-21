@@ -197,3 +197,26 @@ Offline: `scratchpad/b.py` → `b.json`. Input SHA-256:
 - **The model's subcloud layer also exports by ascent** (0.61 E_rise),
   which the single bulk M_req includes but M_F does not. The model's total
   export through cloud base is 1.66 E_rise, against E_obs + C.
+
+## Disposition (the user's, 2026-10-21)
+
+**The frozen verdict "Comparable" is kept exactly as recorded.** It is not
+a validation: the frozen criterion was simply relatively permissive.
+
+**The broader interpretation, recorded separately:**
+
+> The default surface-rooted vapor mixing is structurally consistent with
+> extending above observed cloud base, but its cloud-base exchange is
+> controlled by timestep-scale homogenization rather than an independently
+> constrained transport rate. The full-mixing exchange exceeds the estimated
+> required exchange by 7–14 times and reduces the cloud-base humidity jump
+> to approximately 10⁻⁵, roughly 440 times smaller than observed.
+> Conversely, eliminating cloud-base vapor exchange is not a viable
+> lower-limit state. The results therefore support testing an intermediate,
+> finite cloud-base exchange law.
+
+**Next:** a finite, conservative, mass-flux-limited cloud-base exchange,
+with its rate taken from an independent shallow-cumulus mass-flux
+observable. The rate is never taken from the model's humidity error, and
+never from M_req, which stays an evaluation quantity
+(`finite-cloud-base-exchange.md`).
