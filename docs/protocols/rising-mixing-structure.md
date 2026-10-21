@@ -172,3 +172,22 @@ cloud-layer class is reported only when the mixed-layer class holds.
   temperatures.
 - **The references are annual-mean climatologies** on a regime mask, with
   the declared limitations above.
+
+---
+
+## Erratum 1: the ISCCP-H period (before M2 reads any data)
+
+**Recorded before any M2 parse; both readings kept.**
+
+- **The frozen text** gives reference (c) as "ISCCP-H HGM 1991–2020".
+- **The registered record** runs from **1991-01 to 2017-06** (318 monthly
+  files, `ISCCP-H-HGM-BASIC-YYYY-MM`). That is where the ISCCP-H HGM product
+  ends, as `regime-cloud-attribution.md` records.
+
+A run cannot read past a record's coverage. So (c) uses 1991-01 to 2017-06,
+the annual mean of its monthly climatology, exactly as the regime-cloud
+composite formed it. The rising mask is unchanged: NCEP R1 1991–2020
+ω500, bilinearly interpolated to ISCCP's 1° grid.
+
+**The liquid low types** are cumulus_liquid, stratocumulus_liquid and
+stratus_liquid.
