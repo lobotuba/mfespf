@@ -125,3 +125,75 @@ tropical dynamics", *Theor. Comput. Fluid Dyn.*
 
 The method does not depend on either citation: M_req is the subcloud layer's
 steady bulk vapour budget, which needs no parameter.
+
+## Results (2026-10-21)
+
+Offline: `scratchpad/b.py` → `b.json`. Input SHA-256:
+
+- `e1.json` 0c38f0ba…5374;
+- `m2_ncep.json` 1d7ad0d4…3e3c;
+- `m0_late.npz` ee35dbab…2983.
+
+**The cloud-base interface:** index 2, at 945.8 hPa, against NCEP's LCL at
+948.0 hPa. Two layers lie below it.
+
+**Checks:**
+
+| check | result | rule |
+|---|---|---|
+| mixing replay | 3.2e-17 | ≤ 1e-12 |
+| below-interface budget | 1.8e-16 | ≤ 1e-12 |
+
+### B0: required exchange
+
+| | value |
+|---|---|
+| E_obs (OAFlux, rising) | 4.677e-5 kg m⁻² s⁻¹ (116.97 W m⁻²) |
+| q_ML (NCEP 1000 hPa) / q_+ (NCEP 925 hPa) | 0.017562 / 0.013252 |
+| Δq across cloud base | 0.004310 |
+| C, upper bracket (the model's lateral import below the interface) | 4.238e-5 kg m⁻² s⁻¹ |
+| **M_req** | **[0.0109, 0.0207] kg m⁻² s⁻¹** |
+
+### B1: the model's exchange (rising column, M0's late window)
+
+| quantity | value |
+|---|---|
+| gross upward vapour flux by mixing | 2.35e-3 kg m⁻² s⁻¹ |
+| **M_F** | **0.147 kg m⁻² s⁻¹** |
+| fraction of the below-interface mass exchanged per step | **0.77** |
+| q difference across the interface (committed) | 9.7e-6 (NCEP: 0.0043) |
+| E_rise | 6.40e-5 kg m⁻² s⁻¹ (1.37 × OAFlux) |
+
+**The below-interface budget, over E_rise:**
+
+| term | / E_rise |
+|---|---:|
+| export by mixing | 1.049 |
+| export by vertical circulation | 0.613 |
+| export by diffusion | 0.0002 |
+| lateral import | 0.662 |
+| condensation | 0 |
+| storage | 0.0004 |
+
+**M_F / M_req: 13.6 against the lower bound, 7.1 against the upper.**
+
+### Classification, as frozen
+
+- **Not invalid:** both checks pass.
+- **Over-exchanges needs M_F ≥ 10 × M_req,high = 0.207:** M_F = 0.147, so
+  no.
+- **Under-exchanges:** no.
+- **Frozen verdict: Comparable.**
+
+**Recorded as found, beside the class.**
+
+- **The ratio lies at 7–14,** straddling the frozen 10× line depending on
+  the lateral bracket.
+- **Full mixing exchanges 77% of the subcloud layer's mass with the air
+  above, every one-hour step.** That is a property of full homogenisation
+  at the coupling step (it scales with 1/Δt), not a physical rate.
+- **It holds the model's q difference across cloud base at 1e-5,** against
+  the observed 0.0043, a factor of 440.
+- **The model's subcloud layer also exports by ascent** (0.61 E_rise),
+  which the single bulk M_req includes but M_F does not. The model's total
+  export through cloud base is 1.66 E_rise, against E_obs + C.
