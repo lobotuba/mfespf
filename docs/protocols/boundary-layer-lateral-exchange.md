@@ -372,3 +372,24 @@ This shallow return flow was named in the user's design as a profile feature
 to report ("midlevel return flow"). No frozen class judges it, and nothing
 here says whether its strength or its humidity is realistic. That is the
 user's to decide.
+
+## Disposition (the user's, 2026-10-21, verbatim)
+
+> The WTG circulation exports representative sinking-column boundary-layer
+> air and imports it into the rising boundary layer with the expected sign
+> and placement. It directly opposes the modeled near-surface humidity
+> error, though weakly in each lowest-layer net budget. The resolved
+> lateral-exchange structure is therefore adequate under the frozen criteria
+> and is not the cause of the reversed humidity contrast. A shallow return
+> branch imports rising-column air at 828–726 hPa amounting to 0.78 of
+> sinking-column evaporation; its subsequent contribution to the sinking
+> lowest layer remains unclassified.
+
+**What follows:**
+
+- **The lateral exchange operator is not modified.**
+- **No broad protocol covering the whole redirect list is opened.**
+- **Next is a narrow shallow-return-flow attribution protocol:** spectral
+  attribution of the return branch, then tagging of the return water.
+- **Then, by the result:** a mode/placement protocol if the return flow is
+  controlling, or a local lowest-layer protocol if it is not.
