@@ -416,3 +416,8 @@ at 850 hPa and 0.516 at 700 hPa.
   changes q₀,tag by 8 percent.
 - **The donor air is 0.21–0.45 moister in RH than NCEP's rising regime at
   the same pressures.** That is evaluation, not a result.
+
+**Correction to R1's wording above.** "Mode 1 … exports at every level up
+to 525 hPa" overstates what was printed. The mode-1 profile was reported for
+layers 0–11 only, and it exports at every one of them, from the surface to
+625 hPa. Higher layers were not examined.
