@@ -191,3 +191,138 @@ composite formed it. The rising mask is unchanged: NCEP R1 1991–2020
 
 **The liquid low types** are cumulus_liquid, stratocumulus_liquid and
 stratus_liquid.
+
+## Results (2026-10-21)
+
+The run is M0, `scratchpad/m0.py`: R0's runner plus the temperature
+budget's labels, θ_post, `convective_temperature_tendency` and
+`surface_convective_heat_flux`. It ran 20000 steps in 6923 s. The
+analysis is `m2_ncep.py`, `m2_isccp.py` and `m1.py`, written to `m1.json`.
+
+**An operational note.** The first M0 launch did not save
+`surface_convective_heat_flux`, which the frozen enthalpy check needs
+whenever the surface is in a group. It was stopped after a few minutes and
+relaunched with the field added. No result was read from the stopped run.
+
+### M0: validity
+
+| check | result |
+|---|---|
+| reproduction | **59/59 arrays of `r0_late.npz` bit-identical; 791/791 shared printed values identical** |
+| temperature closure | 1.9e-16 in both columns |
+| **enthalpy, surface-rooted groups** | **2.8e-12 rising, 4.0e-12 sinking, against the frozen ≤ 1e-12. Fails** |
+| enthalpy, elevated groups (reported, not frozen) | 2.9e-9 rising, 4.1e-10 sinking |
+
+**The enthalpy residual is floating-point round-off, measured.** Over a
+surface-rooted group, Σ C (T_post − T_pre) closes against
+F_s · Δt to at most **3.5 ulp of the group's enthalpy, Σ C T** (2.9 ulp
+sinking). The frozen check divides by the adjustment, Σ C \|ΔT\|, which is
+far smaller than Σ C T. The residual comes from the T → θ → T round trip,
+which carries about 1e-16 of T, against adjustments of order 0.1 K.
+
+**Reported only:** committed T − T_post − (latent + sensible) · Δt reaches
+0.023 K. So some other tendencies, besides latent heat and convection's own
+sensible heat, enter after convection's provisional profile. This does not
+affect T_pre, which is T_post − adjustment · Δt by definition.
+
+### M1: rising column (late means, all 4000 steps)
+
+| layer | 0 | 1 | 4 | 5 | 6 | 7 | 8 | 9 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| p, hPa | 996 | 963 | 861 | 828 | 794 | 760 | 726 | 693 |
+| q_pre, g kg⁻¹ | 16.27 | 15.63 | 15.60 | 15.60 | 15.60 | 15.60 | 15.38 | 13.86 |
+| q_post, g kg⁻¹ | 15.60 | 15.60 | 15.60 | 15.60 | 15.60 | 15.60 | 15.42 | 13.90 |
+| RH_pre | 0.727 | 0.726 | 0.823 | 0.869 | 0.912 | 0.965 | 1.001 | 0.951 |
+| RH_post | 0.695 | 0.721 | 0.818 | 0.859 | 0.906 | 0.959 | 1.003 | 0.958 |
+| saturation deficit post, kg m⁻² | 2.36 | 2.08 | 1.19 | 0.88 | 0.56 | 0.23 | −0.02 | 0.21 |
+
+**The pre-mixing profile is already uniform** from 963 to 760 hPa, because
+the previous step mixed it (a declared limitation). Each step's mixing
+mainly carries the surface layer's fresh evaporation through the group:
+Δq is −0.67 g kg⁻¹ in layer 0 and ≤ 0.03 g kg⁻¹ elsewhere.
+
+**Gradient destruction, per step:**
+
+| | mean | p10 | p50 | p90 |
+|---|---:|---:|---:|---:|
+| G_q, kg kg⁻¹ | 0.00123 | 0.00063 | 0.00070 | 0.00339 |
+| G_T, K | 0.277 | 0.202 | 0.212 | 0.344 |
+| G_h, J kg⁻¹ | 3244 | 1773 | 1941 | 8588 |
+
+**The MSE change in the donor layers,** h_post − h_pre: +186, +117, +113
+and +143 J kg⁻¹ in layers 5–8.
+
+**The group's geometry:**
+
+| quantity | p10 | p50 | p90 | mean |
+|---|---:|---:|---:|---:|
+| top pressure, hPa | 675.8 | 743.3 | 743.3 | **716.6** |
+| depth, hPa | 270 | 270 | 337 | 297 |
+
+The group contains layer 7 on 100% of steps, and layer 8 on 48.3%. There is
+a surface group on every step.
+
+**Vapour carried into the donor layers by mixing, over E_rise:**
+
+| layer | 5 | 6 | 7 | 8 |
+|---|---:|---:|---:|---:|
+| gross | 14.1 | 14.1 | 14.1 | 6.41 |
+| net | 0.0002 | 0.0003 | 0.0034 | 0.072 |
+
+**The condensation the mixing causes, at fixed T_post:**
+
+- 0.073 E in layer 8, and 0.0002 E in layer 7;
+- none in layers 0–6;
+- 2.06 E over the whole column, about 1.6 E of it above 625 hPa, in
+  elevated groups.
+
+**The sinking column, reported:** its surface group's top is fixed at
+810.8 hPa (depth 202 hPa), with G_q = 0.00076.
+
+**The surface-rooted return water by mode** (second half, sums to 1):
+
+| mode | 1 | 3 | 4 | 5 |
+|---|---:|---:|---:|---:|
+| share | −0.625 | 0.823 | 0.090 | 0.638 |
+
+**Modes 3 and 5 together: 1.462,** against mode 1's −0.625.
+
+### M2: structural comparisons
+
+| quantity | model, rising | reference |
+|---|---:|---:|
+| q at 850 / 700 hPa, g kg⁻¹ | 15.60 / 14.18 | 9.89 / 5.51 (NCEP R1) |
+| dq/dp over 850–700, kg kg⁻¹ hPa⁻¹ | 9.47e-6 | 2.92e-5 (NCEP R1); **ratio 0.324** |
+| dq/dp over 1000–850 | not formed (the lowest layer is at 996 hPa) | 5.11e-5 |
+| LCL, hPa | 921.8 (own lowest layer) | **948.0** (NCEP, per cell and month; 949.1 from the composite mean) |
+| surface group top, hPa | **716.6** | ISCCP-H liquid low-cloud top **809.5** (amount 0.152) |
+| return-flow-weighted q, g kg⁻¹ | 15.60 | — |
+
+**Measured differences:**
+
+- the group's top is **231 hPa above the NCEP LCL,** 6.9 layers of
+  33.7 hPa, against the two-layer line;
+- it is **93 hPa above ISCCP's low-cloud top;**
+- it is 205 hPa above the model's own LCL.
+
+### Classification, as frozen
+
+- **Frozen verdict: Invalid,** on the enthalpy check (2.8e-12 and 4.0e-12
+  against 1e-12).
+
+**Recorded for the user's disposition, and not a verdict.** Were the
+enthalpy check held to round-off of the group enthalpy (it is at 3.5 ulp of
+Σ C T), the frozen classes would read:
+
+- **top above the NCEP LCL by more than two layers: yes,** 231 hPa;
+- **|dq/dp| over 850–700 below 0.25 × NCEP's: no,** at 0.324;
+- **so, "Consistent with the observed structure",** by the frozen "or".
+  The cloud-layer class is not reached;
+- **reported always:** the group extends above the model's own LCL by more
+  than two layers: yes.
+
+**Recorded as found, about the gradient window.** In the rising column, q
+is uniform from 963 to 760 hPa, and the group's top is at 743 hPa (median).
+So the model's whole 850–700 gradient comes from above the group's top,
+between about 726 and 700 hPa. Below the top it is zero. The 850–700 window
+was frozen before this was known.
