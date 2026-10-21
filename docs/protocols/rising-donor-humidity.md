@@ -412,3 +412,93 @@ claim.
   rising-regime RH falls with height, from 0.65 to 0.55.
 - **Condensation is not what limits D.** It removes 0.053 E, nearly all in
   layer 8, where the mixed q meets saturation.
+
+## Disposition of the frozen verdict (the user's, 2026-10-21)
+
+> **Frozen computed verdict:** single operator implicated, surface-rooted
+> convective mixing.
+>
+> **Scientific disposition:** not interpretable under D2b as implemented.
+> The gross-entry removal subtracts repeatedly cycled water and exceeds both
+> the donor-layer inventory and the sinking lowest-layer humidity by large
+> factors. It therefore cannot quantify the causal effect of removing
+> convective mixing.
+
+**The exact composition result stands independently.** Surface-rooted mixing
+supplies 97% of donor-layer entry and 98% of donor-layer vapour. It accounts
+for 0.00639 of the 0.00648 kg kg⁻¹ return-water tag in the sinking lowest
+layer, and the tracking closes to 1e-16. The mechanism is strongly
+localised. **The frozen D2b magnitude, ΔD = 0.258 kg kg⁻¹, is labelled
+nonphysical and unusable,** not merely very large. So are V's and K's D2b
+values, which are inflated the same way.
+
+## Erratum 1: inventory-bounded saturation-consistent removal (D2b′)
+
+**Frozen before D2b′ runs.** It replaces D2b as the decisive metric. D2b
+stays reported, labelled invalid. It is not a "net-delivery" removal, because
+mixing can have nearly zero net tendency in D while still setting D's
+composition.
+
+**The attributed inventory.** t_j(k) is label j's water in D layer k after
+convection and diffusion and before condensation: its tagged contribution
+immediately before the saturation step. The labels are D1's, unchanged.
+
+**The removal, each step, in each D layer:**
+
+- remove t_j from the provisional vapour P;
+- condensation responds first, at fixed temperature: the baseline layer
+  condenses c, and now condenses c′ = max(c − t_j, 0);
+- so the donor vapour falls by Δ_j = max(t_j − c, 0).
+
+**Bounds, by construction and checked every step:** 0 ≤ Δ_j ≤ t_j;
+c′ ≥ 0; the counterfactual vapour P − t_j − c′ ≥ 0.
+
+**No accumulation.** The removal is applied afresh from the baseline at
+every step. t_j already carries operator j's history, so removing it is "D
+without j's water", and nothing persists in the rising column beyond that.
+
+**Downstream.** The counterfactual donor vapour, baseline − Δ_j, is
+exported through the measured return pathway as R2 and D2b were:
+−max(I(k), 0) · Δ_j(k) / m_rise(k) · Δt into the sinking layer k = 5–8,
+using the previous step's Δ_j as the start-of-step donor. It is carried
+through R1b's chain with condensation linearised.
+**ΔD_j^inventory = −Δq₀,sink.** The sinking vapour must stay non-negative:
+q₀,sink − ΔD_j^inventory ≥ 0.
+
+**Reconstruction checks, frozen:**
+
+- D1's label closure and D2a's q₀,tag^(j) reproduce `d.json` exactly;
+- **with proportional condensation in place of the buffered rule,** Δ_j
+  equals j's post-condensation label, and the result equals q₀,tag^(j)
+  from D2a, to ≤ 1e-12 relative.
+
+**Also reported per operator:**
+
+- **the buffered fraction:** the share of the removed inventory absorbed
+  by reduced condensation, Σ(t_j − Δ_j) / Σ t_j over D, late means;
+- **whether removing it alone undoes the reversed contrast.**
+
+### Classes, corrected (replacing the per-operator classes and verdicts above)
+
+| class | condition |
+|---|---|
+| **Invalid** | a D0 check, a D1 ledger, a reconstruction check or a bound fails |
+| **Operator implicated** | ΔD_j^inventory ≥ ΔD_subst = 0.002563 kg kg⁻¹ |
+| **Saturation-limited** | j owns a material share of D's vapour (≥ 0.10); ΔD_j^inventory < ΔD_subst; and its buffered fraction is ≥ 0.5 |
+| **Dominant contributor, causal threshold not met** | j's D2a share of D's vapour is ≥ 0.5 (D1's frozen dominance line); and ΔD_j^inventory < ΔD_subst |
+| **Contributing / minor / negligible** | ΔD_j^inventory ≥ material (0.000256) / below material / below 0.0000256 |
+
+**Precedence:** invalid, then implicated. Saturation-limited and dominant
+contributor may both hold and are both reported. The magnitude classes
+apply to every operator.
+
+**The overall verdict, from ΔD^inventory:**
+
+- **single operator implicated;**
+- **several operators implicated;**
+- **no operator implicated,** naming any saturation-limited or dominant
+  contributor.
+
+**Unchanged:** convection, the mixing groups, surface coupling,
+circulation, donor-layer temperatures, condensation and the return pathway.
+No model code changes and no new model run.
