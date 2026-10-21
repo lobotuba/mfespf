@@ -285,6 +285,7 @@ class ConvectiveAdjustmentModule(Module):
         fractional_top: bool = False,
         receives_advection: bool = False,
         advection_sources: tuple[str, ...] = ("",),
+        diagnose_mixing_groups: bool = False,
         condensation_follows: bool = False,
         mass_flux: bool = False,
         plume_entrainment_rate: float = PLUME_ENTRAINMENT_PER_M,
@@ -469,6 +470,13 @@ class ConvectiveAdjustmentModule(Module):
                 "convective_temperature_tendency",
                 "convective_layer_count",
                 *(("surface_mixed_layer_top",) if surface_based else ()),
+                # Off by default: two layer fields a step, wanted only to replay
+                # the mixing offline (shallow-return-flow.md).
+                *(
+                    ("convective_mixing_group", "convective_partial_top_fraction")
+                    if diagnose_mixing_groups
+                    else ()
+                ),
                 "convectively_mixed_layer_temperature",
                 "atmosphere_potential_temperature",
                 "surface_sensible_heat_flux",
@@ -668,6 +676,7 @@ class ConvectiveAdjustmentModule(Module):
         self.sensible_heat_coefficient = sensible_heat_coefficient
         self.transport_vapour = transport_vapour
         self.surface_based = surface_based
+        self.diagnose_mixing_groups = bool(diagnose_mixing_groups)
         self.surface_pressure = surface_pressure
         self.target = target
         self.bulk_plume_parameter = bulk_plume_parameter
@@ -906,6 +915,19 @@ class ConvectiveAdjustmentModule(Module):
                     total_mass
                 )
         return mixed
+
+    def _group_fields(self, n: int) -> tuple[np.ndarray, np.ndarray]:
+        """This step's groups as layer fields: each layer's group index or -1,
+        and the fraction of each layer a group rose into. Output only: exactly
+        what ``_vapour_transport`` mixed over, so the mixing can be replayed."""
+        group = np.full(n, -1.0)
+        for index, (low, high) in enumerate(self._mixing_groups):
+            group[low : high + 1] = float(index)
+        partial = np.zeros(n)
+        for layer, fraction in self._partial_tops.items():
+            if 0 <= layer < n:
+                partial[layer] = float(fraction)
+        return group, partial
 
     def _surface_group_top(self) -> int:
         """The top layer of this step's surface-containing group, or 0 when the
@@ -1770,6 +1792,34 @@ class ConvectiveAdjustmentModule(Module):
                     )
                 }
                 if self.surface_based
+                else {}
+            ),
+            **(
+                {
+                    name: Field(
+                        field_id=name,
+                        physical_name=label,
+                        values=values,
+                        units="1",
+                        quantity_kind=QuantityKind.DIAGNOSTIC,
+                        time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                        time_interval=ctx.dt,
+                        timestamp=ctx.time,
+                        spatial_support=SpatialSupport.LAYER_AVERAGE,
+                        dimensions=("layer",),
+                        provenance=provenance,
+                    )
+                    for name, label, values in zip(
+                        ("convective_mixing_group", "convective_partial_top_fraction"),
+                        (
+                            "index of the adjustment group each layer was mixed in, or -1",
+                            "fraction of each layer an adjustment group rose into",
+                        ),
+                        self._group_fields(len(self._adjusted)),
+                        strict=True,
+                    )
+                }
+                if self.diagnose_mixing_groups
                 else {}
             ),
         }
