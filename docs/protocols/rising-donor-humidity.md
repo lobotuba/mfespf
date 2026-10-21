@@ -258,3 +258,157 @@ Nothing in D0–D2 uses it.
   column is not fed back.
 - **Two columns stand for a continuum of regimes,** under prescribed surface
   temperatures.
+
+---
+
+## Results (2026-10-21)
+
+Offline from `r0_late.npz` (checksum verified), with
+`scratchpad/d.py` → `d.json`. Late means are over the window's second half.
+
+### D0: validity
+
+| check | result |
+|---|---|
+| input checksum | matches |
+| R1b reproduction | q₀,tag = 0.006481229671725366, **exact** |
+| rising closure | 1.8e-16 |
+| pieces: circulation / convection / diffusion | 0 / 0 / 0 |
+| exchange in rising layers 4–9 | exactly 0 |
+| no re-evaporation | **triggered literally:** `evaporation_minus_condensation` reaches +2.5e-19 kg m⁻² s⁻¹ in D. That is rounding in a stored difference. As frozen, its positive part became an entry label, **Rv** |
+
+### D1: the donor region
+
+**Checks:** labels sum to the committed vapour to 7.3e-16; label ledgers
+close to 5.2e-13; the circulation split is consistent to 8.8e-16.
+
+**The net D budget,** over E_rise = 6.415e-5 kg m⁻² s⁻¹:
+
+| term | / E_rise |
+|---|---:|
+| vertical circulation | +0.358 |
+| lateral circulation (the return export) | −0.360 |
+| convection | +0.079 |
+| eddy diffusion | −0.020 |
+| condensation | −0.053 |
+| storage | +0.004 |
+
+**Gross entry into D, and composition:**
+
+| label | gross entry / E_rise | share of entry | share of D's vapour |
+|---|---:|---:|---:|
+| V, vertical circulation | 0.832 | 0.017 | 0.007 |
+| L, lateral circulation | 0.003 | 0.0001 | 0.0001 |
+| **Cs, surface-rooted convection** | **48.6** | **0.974** | **0.983** |
+| Ce, elevated convection | 0 | 0 | 0 |
+| K, eddy diffusion | 0.455 | 0.009 | 0.011 |
+| Rv, re-evaporation (rounding) | 2e-15 | 4e-17 | 4e-17 |
+| I, initial | — | — | 0.0 |
+
+**Each label's exits** are 93–99% back out by convective mixing. The return
+export takes 0.3–0.7%, condensation under 0.4%.
+
+**Condensation:** layer 8 condenses 0.053 E_rise. Layers 5–7 condense
+1e-17 to 1e-4 E. Their reported condensing frequencies (0.50–0.52) count
+rounding-level values above zero.
+
+**Frozen reading:** surface-rooted convection **dominates the supply**
+(0.974 ≥ 0.5).
+
+**A further diagnostic (not frozen, reported):**
+
+- **The surface group always spans layers 0–7.** It reaches layer 8 on
+  49% of steps; its top runs from layer 7 to layer 14.
+- **Within it, q is uniform:** 15.588 g kg⁻¹ in layers 1–7 (layer 0, 16.25,
+  receives evaporation after the mixing).
+- **So RH rises with height through D only because the air cools:**
+
+| layer | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| p, hPa | 996 | 963 | 929 | 895 | 861 | 828 | 794 | 760 | 726 | 693 |
+| q, g kg⁻¹ | 16.25 | 15.60 | 15.59 | 15.59 | 15.59 | 15.59 | 15.59 | 15.59 | 15.37 | 13.83 |
+| RH | 0.72 | 0.72 | 0.75 | 0.78 | 0.82 | 0.86 | 0.91 | 0.96 | 0.99 | 0.94 |
+
+### D2a: composition through the return pathway
+
+| label | q₀,tag^(j), kg kg⁻¹ | f_BL\|return^(j) |
+|---|---:|---:|
+| **Cs** | **0.006390** | 0.960 |
+| K | 0.0000476 | 0.933 |
+| V | 0.0000435 | 0.961 |
+| L | 1.5e-7 | 0.879 |
+| I | 3.6e-11 | — |
+| Ce, Rv | 0, 3e-19 | — |
+| **sum** | **0.006481229671725367** | |
+
+The sum matches R1b's to 1.3e-16. Label I's 3.6e-11 is far below
+material: the window is long enough.
+
+### D2b: saturation-consistent removal
+
+| removed | ΔD, kg kg⁻¹ | / ΔD_subst | rising δ in D / D's vapour | contrast undone |
+|---|---:|---:|---:|---|
+| V | 0.001625 | 0.634 | −0.248 | yes |
+| L | 6.6e-7 | 0.0003 | −0.0001 | no |
+| **Cs** | **0.2576** | **100.5** | **−39.9** | yes |
+| Ce | 0 | 0 | 0 | no |
+| K | 0.000606 | 0.236 | −0.095 | no |
+| Rv | 2.5e-19 | 1e-16 | 3e-17 | no |
+| all | 0.2645 | 103.2 | −40.9 | yes |
+
+### Classification, as frozen
+
+- **Invalid:** no. Every D0 check and D1 ledger passes, and label I is
+  below material.
+- **Per operator, on D2b:** Cs **implicated**; V and K **contributing**;
+  L, Ce and Rv **negligible**.
+- **Frozen verdict: single operator implicated, surface-rooted convective
+  mixing.**
+
+### Recorded as found: D2b is not physical for a mixing operator
+
+**The Cs removal takes away about forty times the water D holds.** The
+rising δ reaches −39.9 times D's vapour, and ΔD = 0.258 kg kg⁻¹ is 15
+times q₀,sink itself, which would make the sinking lowest layer's humidity
+negative.
+
+**Why.** D2b removes each operator's **gross** entry every step.
+Convection's gross entry is 48.6 E, and 97% of it is mixed straight back
+out within the same step. Removing the entry without the matching exit
+removes water that was never retained, so δ grows without a physical
+bound. The frozen design has no check on that, and none is added here.
+
+**V and K are affected in the same way, less obviously.** V's gross entry
+is 0.83 E against a net vertical delivery of 0.358 E, and 99% of it is
+mixed back out by convection.
+
+**So the frozen verdict stands as computed, and its magnitude does not
+mean what the class implies.** That Cs dominates D's water rests on D1 and
+D2a, which are exact and physical: 98% of D's vapour and of the
+return-water tag. The 100-times-the-bar figure does not.
+
+### Erratum to the protocol's text (recorded, not edited above)
+
+**"Removing operator j's entry with proportional condensation gives exactly
+−q₀,tag^(j), by linearity" is false whenever water leaves D and comes
+back.** The latest-entry labels give re-entering water to the operator that
+brings it back; a removal tracer stays missing.
+
+Measured for V: proportional removal gives 0.002780, against V's
+composition of 0.0000435. They differ by a factor of 64. The rising δ
+differs from −t_V by up to 52 times t_V's largest value.
+
+**D2a is therefore a latest-entry composition, not the proportional bound
+on D2b.** The classification used D2b as frozen and does not depend on this
+claim.
+
+### What the results show, separate from the class
+
+- **The donor layers are the top of the rising column's surface mixed
+  group.** Convection mixes vapour to a single q from the surface to
+  760 hPa on every step, and to 726 hPa on half of them.
+- **That alone gives RH climbing from 0.72 to saturation through
+  828–726 hPa,** which is exactly the donor excess over NCEP R1. NCEP's
+  rising-regime RH falls with height, from 0.65 to 0.55.
+- **Condensation is not what limits D.** It removes 0.053 E, nearly all in
+  layer 8, where the mixed q meets saturation.
