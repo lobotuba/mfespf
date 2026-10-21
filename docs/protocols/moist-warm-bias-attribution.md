@@ -1,0 +1,195 @@
+# Protocol: resolution check and radiative attribution of the reference column's moist warm bias (R1-R2)
+
+**Frozen before any code or run of this protocol.** Results are appended below
+a line at the end; nothing above it changes afterwards. The questions and the
+attribution design are the user's (2026-10-21).
+
+**One adjustment, made for the reason stated in R2: the attribution works in
+TOA net, and splits the temperature effect into Planck and lapse-rate parts.**
+Both states are equilibrated, so their totals nearly cancel.
+
+## The status this starts from
+
+> The reference column is +3.9 K from a dry start, where zero
+> upper-tropospheric humidity is an initial-condition artifact, and +9.9 K
+> once externally constrained vapor diffusion removes that memory at 30
+> layers. The diffusion configuration still fails its independent
+> stratospheric-water prediction, so the moist-state warm bias remains the
+> primary unresolved equilibrium error.
+
+**From `stratospheric-water.md`** (reference column, 30 layers, 3600 s,
+200000 steps, last fifth):
+
+| run | T_s |
+|---|---:|
+| K = 0, dry start | 291.941 K |
+| K = 0.39 m² s⁻¹, dry start | 297.934 K |
+
+K = 0.39 m² s⁻¹ is Massie and Hunten's tracer minimum, from Hu et al. (2012)
+Table 3.
+
+**This protocol changes no physics and adopts nothing.** It neither tunes
+nor reopens the two-column work.
+
+## R1: is the reference-plus-diffusion equilibrium vertically converged?
+
+**Configuration.** `strat_run.py`'s reference column exactly:
+`reference_column(grid=column_grid(16), areal_heat_capacity=1.0e6,
+master_dt=3600, initial_water_store=1.0e7, eddy_diffusivity=0.39)`, from the
+dry start, 200000 steps, read over the last fifth. Only `n_layers` changes.
+
+**Resolutions, frozen now:**
+
+- **30,** the calibration resolution;
+- **40,** the established grid;
+- **60,** the finest grid this project has already run, in the full water
+  cycle's resolution study.
+
+The vapour bands are calibrated at 30 layers (`CALIBRATION_N_LAYERS`). Running
+at 40 and 60 is a resolution study under VAL-002, not a recalibration.
+
+**Reported, per resolution:**
+
+- T_s, PW, OLR and ASR;
+- RH(p) and T(p);
+- the mean RH over layers centred at 160–230 hPa;
+- the coldest tropospheric temperature and its pressure;
+- stratospheric water (ppmv, layers below 100 hPa);
+- the run's worst relative energy and water residual;
+- the validity-domain outcome;
+- the equilibrium test (`surface_temperature_bias`: imbalance ≤ 0.1 W m⁻²).
+
+**Classes, frozen:**
+
+| class | condition |
+|---|---|
+| **Invalid** | a run is refused, fails a mandatory gate, or does not equilibrate |
+| **Vertically converged (at this criterion)** | across {30, 40, 60}: T_s spans ≤ 0.5 K, PW spans ≤ 5% of its 30-layer value, and the 160–230 hPa RH spans ≤ 0.05 |
+| **Resolution trend** | not converged, and T_s is monotonic in the layer count |
+| **Resolution scatter** | not converged, and T_s is not monotonic |
+
+**The 0.5 K basis.** The reference column without diffusion scatters
++3.7 to +4.3 K across 25–45 layers, about ±0.3 K. That scatter follows the
+convective top's layer edges. A span above 0.5 K exceeds what that known
+scatter explains.
+
+**+9.93 K stays labelled "30 layers" unless the converged class holds.**
+
+## R2: offline radiative attribution of 291.9 → 297.9 K
+
+**The states, from two fresh runs.**
+
+- **A:** K = 0, dry start, 30 layers.
+- **B:** K = 0.39, dry start, 30 layers. This is R1's 30-layer run.
+
+Each saves **50 start-of-step snapshots, evenly spaced over its last fifth:**
+T(p), w(p), T_s, layer pressures, and the published OLR and ASR.
+
+**Reproduction:** A's T_s and B's T_s match `stratospheric-water.md`'s
+291.941 K and 297.934 K to ≤ 0.0005 K (its rounding).
+
+**Nothing is evolved.** One radiation module, built exactly as the
+reference column builds it, is solved on substituted states. This is
+`regime-cloud-attribution.md` C1's method.
+
+**Identity check:** the unsubstituted solve reproduces each snapshot's
+published OLR and ASR to ≤ 1e-9 relative. The two runs' layer pressures must
+be identical.
+
+**The temperature state is (T(p), T_s) together. The vapour state is w(p).**
+
+**Cases, on each paired snapshot (A_i, B_i),** with the TOA net
+N = ASR − OLR evaluated in each:
+
+| case | T state | vapour |
+|---|---|---|
+| AA | T_A | q_A |
+| AB | T_A | q_B |
+| BA | T_B | q_A |
+| BB | T_B | q_B |
+| A + ΔT_s (Planck) | T_A + (T_s,B − T_s,A) at every layer and the surface | q_A |
+| AB_r, each region r | T_A | q_A with region r replaced by q_B |
+| BA_r, reciprocal | T_B | q_B with region r replaced by q_A |
+
+**Regions, frozen by layer-centre pressure:**
+
+- lower troposphere, p ≥ 700 hPa;
+- middle troposphere, 700 > p ≥ 400 hPa;
+- upper troposphere, 400 > p ≥ 100 hPa;
+- stratosphere, p < 100 hPa.
+
+**Quantities, means over the 50 pairs, for OLR, ASR and N:**
+
+| quantity | definition |
+|---|---|
+| vapour effect | Δ_q = X(AB) − X(AA) |
+| temperature effect | Δ_T = X(BA) − X(AA) |
+| interaction (a result, not a residual to redistribute) | I = [X(BB) − X(AA)] − Δ_q − Δ_T |
+| Planck | Δ_P = X(A + ΔT_s) − X(AA) |
+| lapse rate | Δ_LR = Δ_T − Δ_P |
+| regional vapour effects | Δ_q,r = X(AB_r) − X(AA), and the reciprocal X(BB) − X(BA_r) |
+| regional additivity | Σ_r Δ_q,r against Δ_q |
+
+**Why the adjustment.** A and B are both equilibrated, so N(AA) ≈ N(BB) ≈ 0,
+and the total change is near zero. The vapour and temperature effects
+largely cancel, and ranking parts of a near-zero total would mean nothing.
+
+In N, a positive term drives warming at fixed temperature. Planck is the
+restoring response to the warmer surface and atmosphere. So the
+**warming-attributable terms** are Δ_q, Δ_LR and I, all in N, and Δ_P is
+reported as the term that balances them. The split of Δ_T into Planck and
+lapse rate is the standard kernel decomposition, done here by direct
+substitution.
+
+**Robustness.** The whole matrix is repeated with a shifted pairing (A_i,
+B_(i+25 mod 50)), and on the two runs' time-mean states. The limit cycle's
+phases are not matched between runs, so the pairing is arbitrary and the
+spread is reported.
+
+### Classes, frozen (descriptive; no outcome is preferred)
+
+**On the warming-attributable terms in N (Δ_q, Δ_LR, I), primary pairing:**
+
+| class | condition |
+|---|---|
+| **Invalid** | the identity, reproduction or equal-pressure check fails |
+| **Vapour dominant** | \|Δ_q\| is the largest, and ≥ 2 × the next |
+| **Lapse-rate dominant** | \|Δ_LR\| is the largest, and ≥ 2 × the next |
+| **Interaction dominant** | \|I\| is the largest, and ≥ 2 × the next |
+| **Mixed** | otherwise |
+
+**If vapour dominant, the region,** on Δ_q,r with A as the base:
+
+- **upper-tropospheric vapour dominant,** if it is the largest and ≥ 2 × the
+  next;
+- **lower/mid-tropospheric vapour dominant,** if the lower and middle
+  regions combined are the largest and ≥ 2 × the next;
+- **stratospheric vapour dominant,** likewise;
+- otherwise **regionally mixed.**
+
+If the reciprocal swap (B as the base) gives a different region class, the
+region class is recorded as **direction-dependent**.
+
+**Reported in addition:**
+
+- **nonlinear interaction material,** if \|I\| ≥ 0.10 × \|Δ_P\|;
+- **pairing-sensitive,** if the shifted pairing or the time-mean states
+  change the primary class.
+
+**Never claimed from R2:** which dynamical operator made T_B differ from T_A.
+The hierarchy is the vapour radiative effect, plus the temperature-profile
+radiative effect, plus their interaction. Operator diagnostics may be used
+afterwards, and labelled as such.
+
+## What this cannot separate
+
+- **Offline radiation at fixed states.** It explains the TOA balance of two
+  equilibria, not the path between them.
+- **Clouds** are whatever the reference column prescribes, the same in A and
+  B.
+- **The limit cycle.** Snapshot pairing is arbitrary; the robustness checks
+  bound its effect.
+- **One coefficient, K = 0.39.** Its bracket (K = 3.9) was already found
+  fragile in `stratospheric-water.md`.
+- **A single column with prescribed physics choices,** at a calibration
+  made at 30 layers.
