@@ -502,3 +502,62 @@ apply to every operator.
 **Unchanged:** convection, the mixing groups, surface coupling,
 circulation, donor-layer temperatures, condensation and the return pathway.
 No model code changes and no new model run.
+
+## Erratum 1 results: D2b′, inventory-bounded (2026-10-21)
+
+Offline, `scratchpad/d2b_inv.py` → `d2b_inv.json`. It rebuilds D0 and D1
+from d.py's own code. R1b and D0 reproduce exactly. D1's composition and
+gross entries reproduce `d.json` exactly.
+
+**Reconstruction:** for every operator, the proportional variant equals D2a's
+q₀,tag^(j) **exactly** (relative difference 0), and D2a reproduces `d.json`
+exactly.
+
+| removed | ΔD^inventory, kg kg⁻¹ | / ΔD_subst | buffered fraction | Δ / D's vapour | contrast undone |
+|---|---:|---:|---:|---:|---|
+| **Cs, surface-rooted convection** | **0.006390** | **2.493** | 0.0006 | 0.983 | yes |
+| K, eddy diffusion | 0.0000468 | 0.018 | 0.054 | 0.010 | no |
+| V, vertical circulation | 0.0000428 | 0.017 | 0.076 | 0.006 | no |
+| L, lateral circulation | 1.1e-7 | 0.00004 | 0.70 | 0.00002 | no |
+| Ce, Rv | 2e-19, 4e-19 | — | not meaningful | — | no |
+| all together | 0.006481 | 2.529 | 0.0006 | 1.000 | yes |
+
+The sinking lowest-layer vapour stays non-negative in every case, and the
+counterfactual condensation never goes below zero.
+
+### Bounds: failed at rounding level
+
+| bound | result |
+|---|---|
+| 0 ≤ Δ_j | holds |
+| c′ ≥ 0 | holds |
+| **Δ_j ≤ t_j** | **fails, every operator.** The excess is at most 8.8e-16 kg m⁻² |
+| **counterfactual vapour ≥ 0** | **fails for "all" only,** at −3.6e-15 kg m⁻² |
+
+**The cause, measured.** The baseline's condensation in D, −label·Δt, is
+negative at rounding level in 6459 of 16000 layer-steps. The minimum is
+−8.8e-16 kg m⁻², which is 1.7e-16 of the layer's vapour. This is the same
+rounding as D0's literal re-evaporation trigger. Where c < 0,
+Δ = max(t − c, 0) exceeds t by −c. "All" removes the whole vapour, so its
+remainder is the rounding itself.
+
+**As frozen, a failed bound makes the class invalid.** The bounds carry no
+tolerance, and none is added here.
+
+### Classification, as frozen in erratum 1
+
+- **Frozen verdict: Invalid**, on the Δ_j ≤ t_j and non-negative-vapour
+  bounds, which fail by ≤ 8.8e-16 and 3.6e-15 kg m⁻².
+
+**Recorded for the user's disposition, and not a verdict.** Were the bounds
+held to rounding (the 1e-12 relative used for the closures), the classes
+would read:
+
+- Cs **implicated** (2.49 times ΔD_subst), not saturation-limited (buffered
+  0.06%);
+- V and K **minor**;
+- L, Ce and Rv **negligible**;
+- **single operator implicated: surface-rooted convective mixing.**
+
+**Why so little is buffered.** 98% of Cs's inventory sits in layers 5–7,
+which condense at rounding level. Only layer 8 condenses (0.053 E_rise).
