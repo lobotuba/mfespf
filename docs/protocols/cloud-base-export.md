@@ -102,3 +102,26 @@ below the interface, which is C for M_req,high, and E_rise.
   would scale with 1/Δt.
 - **The references are annual-mean climatologies on a regime mask;** OAFlux
   is ocean-only, while NCEP's mask includes land.
+
+---
+
+## Erratum 1: citations (before B0 reads any data)
+
+**Betts (1976).**
+
+- **As frozen:** *J. Atmos. Sci.* 33, 1008–1020. That page range was
+  written from memory and is wrong.
+- **As verified:** Betts, A. K., 1976, "Modeling subcloud layer structure
+  and interaction with a shallow cumulus layer", *J. Atmos. Sci.* 33,
+  **2363–2382**. Betts's own publication list gives the same details.
+
+**Stevens (2006),** "Bulk boundary-layer concepts for simplified models of
+tropical dynamics", *Theor. Comput. Fluid Dyn.*
+
+- The paper and its subject are confirmed from its preprint, submitted in
+  August 2005, which covers bulk subcloud mixed layers.
+- Volume 20, pp. 279–304, is **not verified** against the publisher's
+  record.
+
+The method does not depend on either citation: M_req is the subcloud layer's
+steady bulk vapour budget, which needs no parameter.
