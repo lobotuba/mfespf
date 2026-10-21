@@ -173,3 +173,53 @@ default is the user's decision and a separate step.
 - **One restart of 20000 steps,** with the stationarity check above.
 - **Two columns stand for a continuum of regimes,** under prescribed surface
   temperatures.
+
+---
+
+## Erratum 1: the subcloud parcel (the user's decision, 2026-10-21, before X0)
+
+**Found in a 40-step smoke test of the implementation, before X0.**
+
+**S as frozen collapses.** The frozen surface parcel is layer 0's
+pre-mixing q, and layer 0 receives each step's evaporation after the mixing.
+So:
+
+1. the parcel gets moister every step;
+2. its LCL falls into layer 0;
+3. the cut then removes the surface group's vapour mixing altogether;
+4. layer 0 traps the next step's evaporation, and the loop repeats.
+
+**The measurement:** restarted from A1's state, the rising column's layer 0
+went from RH 0.72 to 0.97 within about 30 steps, and the late smoke steps
+published no surface vapour group in either column. S as frozen is
+therefore not a subcloud mixed layer but **no surface vapour mixing**.
+
+**Both readings, recorded.**
+
+- **As frozen:** the parcel is layer 0's adjusted T and pre-mixing q, at
+  layer 0's pressure.
+- **As corrected:** the parcel is **the subcloud layer's own mean,** found
+  as a fixed point. It is still parameter-free, and it is what "a subcloud
+  mixed layer homogenises" means:
+  1. start with k at the top of the heat adjustment's surface group;
+  2. form the parcel from layer 0's adjusted T and pressure, with the
+     mass-weighted mean of the provisional (pre-mixing) specific humidity
+     over layers 0..k;
+  3. if that parcel is still unsaturated at layer k's pressure, the
+     subcloud layer is 0..k, and S mixes the vapour over it;
+  4. otherwise k becomes the highest layer whose centre lies at or below
+     the parcel's LCL, and go back to step 2;
+  5. k only decreases, so the loop terminates. If k reaches 0, the surface
+     group mixes no vapour.
+
+**Everything else in the protocol is unchanged:** X0's checks, X1's
+selection observable and windows, the classes and the reported
+consequences. The truncation check recomputes this fixed point offline.
+
+**Also recorded, from the same smoke test.** The validity-domain gate
+judged the new relation's p_0 against every layer's pressure, down to
+107 Pa, because the symbol was inferred from `atmosphere_layer_pressure`.
+As the project's rule requires, the module now publishes its parcel's T, q,
+p and condensation pressure (NaN on steps where the level is not
+evaluated) and binds the relation to them. The declared domain is not
+widened.
