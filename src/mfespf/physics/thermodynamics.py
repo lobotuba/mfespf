@@ -33,6 +33,7 @@ __all__ = [
     "hydrostatic_heights",
     "lapse_rate_adjustment_with_groups",
     "lapse_rate_offsets",
+    "lifting_condensation_pressure",
     "moist_adiabatic_lapse_rate",
     "potential_temperature",
     "saturation_humidity_within_domain",
@@ -603,6 +604,48 @@ def saturation_specific_humidity(temperature: np.ndarray, pressure: np.ndarray) 
     # let the validity domain of the equation record carry the caveat.
     denominator = np.maximum(denominator, 1e-6 * p)
     return EPSILON * e_s / denominator
+
+
+def lifting_condensation_pressure(
+    temperature: float, specific_humidity: float, pressure: float
+) -> float:
+    """Pressure in Pa at which a parcel lifted dry-adiabatically saturates.
+
+    The parcel keeps its specific humidity and follows ``T (p / p_0)^kappa``
+    until ``q`` reaches ``saturation_specific_humidity`` -- the same relation
+    the water module condenses by, so the level is where this model would
+    condense the parcel, not where another saturation formula would
+    (EQ-LIFTING-CONDENSATION-LEVEL). A parcel already saturated is at its own
+    level. Solved by bisection, because the saturation humidity falls
+    monotonically along a dry adiabat.
+
+    The lift stops where the parcel would leave the saturation relation's
+    declared domain, and a parcel still unsaturated there is refused rather
+    than given a level the relation cannot vouch for.
+    """
+    T0, q0, p0 = float(temperature), float(specific_humidity), float(pressure)
+    if T0 <= 0.0 or p0 <= 0.0 or q0 < 0.0:
+        raise ConfigurationError("a lifted parcel needs a positive temperature and pressure")
+
+    def saturated(p: float) -> bool:
+        T = T0 * (p / p0) ** KAPPA
+        return bool(q0 >= saturation_specific_humidity(np.array([T]), np.array([p]))[0])
+
+    if saturated(p0):
+        return p0
+    floor = p0 * (SATURATION_DOMAIN_FLOOR_K / T0) ** (1.0 / KAPPA)
+    if not saturated(floor):
+        raise ConfigurationError(
+            "the parcel does not saturate before leaving the saturation relation's domain"
+        )
+    low, high = floor, p0  # saturated at low, not at high
+    for _ in range(60):
+        middle = 0.5 * (low + high)
+        if saturated(middle):
+            low = middle
+        else:
+            high = middle
+    return 0.5 * (low + high)
 
 
 def evaporation_coefficient_for(sensible_heat_coefficient: float) -> float:

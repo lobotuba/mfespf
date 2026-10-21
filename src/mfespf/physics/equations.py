@@ -43,6 +43,7 @@ EQUATION_IDS = {
     "diffusivity": "EQ-DIFFUSIVITY-APPROXIMATION",
     "grey_greenhouse": "EQ-GREY-SINGLE-LAYER-GREENHOUSE",
     "potential_temperature": "EQ-POTENTIAL-TEMPERATURE",
+    "lifting_condensation_level": "EQ-LIFTING-CONDENSATION-LEVEL",
     "convective_adjustment": "EQ-DRY-CONVECTIVE-ADJUSTMENT",
     "relaxed_convective_adjustment": "EQ-RELAXED-CONVECTIVE-ADJUSTMENT",
     "solar_vapour_absorption": "EQ-SOLAR-VAPOUR-K-DISTRIBUTION",
@@ -779,6 +780,55 @@ def build_equation_registry() -> EquationRegistry:
             conserved_quantities=(),
             correctness_tests=("test_exner_and_potential_temperature_are_inverse",),
             source="Standard atmospheric thermodynamics",
+        )
+    )
+
+    reg.register(
+        EquationRecord(
+            record_id=EQUATION_IDS["lifting_condensation_level"],
+            version=V1,
+            name="Lifting condensation level of a parcel",
+            category=EquationCategory.DIAGNOSTIC_IDENTITY,
+            mathematical_form=(
+                "p_L solves q_0 = q_s(T_0 (p_L / p_0)^(R_d / c_p), p_L): the pressure at "
+                "which a parcel lifted dry-adiabatically with its specific humidity "
+                "conserved reaches saturation"
+            ),
+            physical_basis=(
+                "Below its condensation level an unsaturated parcel follows a dry "
+                "adiabat and keeps its water; the level is where the saturation humidity "
+                "along that adiabat falls to the parcel's own."
+            ),
+            variables=(
+                ("p_L", "lifting condensation pressure", "Pa"),
+                ("T_0", "parcel temperature", "K"),
+                ("q_0", "parcel specific humidity", "kg kg^-1"),
+                ("p_0", "parcel pressure", "Pa"),
+            ),
+            parameters=(
+                ("gas_constant_dry_air", "derived", "molar mass of dry air"),
+                ("specific_heat_dry_air", "measured", "thermodynamic tables"),
+            ),
+            assumptions=(
+                "dry adiabatic ascent: the vapour's heat capacity is neglected in the lift",
+                "saturation by EQ-SATURATION-SPECIFIC-HUMIDITY, over ice below the triple "
+                "point, so the level is where this model condenses the parcel",
+            ),
+            validity_domain=ValidityDomain(
+                ranges=(("T_0", 170.0, 330.0, "K"), ("p_0", 1.0e4, 1.2e5, "Pa")),
+            ),
+            limiting_cases=(
+                "a saturated parcel is at its own level",
+                "above the triple point it agrees with Bolton (1980) eq. 21 within that "
+                "form's stated 0.1 K",
+            ),
+            symmetries=(),
+            conserved_quantities=("water",),
+            correctness_tests=("test_the_lifting_condensation_level_matches_bolton",),
+            source=(
+                "Bolton (1980), Mon. Wea. Rev. 108, 1046-1053, eq. 21, for the closed-form "
+                "comparison"
+            ),
         )
     )
 

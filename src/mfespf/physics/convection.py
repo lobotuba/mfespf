@@ -98,10 +98,13 @@ from mfespf.physics.plume import (
 )
 from mfespf.physics.surface import SURFACE_TEMPERATURE_STATE
 from mfespf.physics.thermodynamics import (
+    KAPPA,
     convective_adjustment_with_groups,
     hydrostatic_heights,
     lapse_rate_offsets,
+    lifting_condensation_pressure,
     potential_temperature,
+    saturation_specific_humidity,
     surface_coupled_adjustment,
 )
 from mfespf.physics.water import VAPOUR_STATE
@@ -113,6 +116,11 @@ V1 = Version(1, 0, 0)
 
 #: Profiles the adjustment can relax a column to.
 _TARGETS = frozenset({"dry_adiabat", "entraining_plume"})
+#: How far the surface-rooted group mixes vapour: over every layer the heat
+#: adjustment mixed (the declared upper bound), or only up to the surface
+#: parcel's lifting condensation level (the subcloud lower bound;
+#: rising-mixing-variants.md).
+VAPOUR_MIXING_TOPS = ("group", "lifting_condensation_level")
 
 CONVECTION_INTERFACE = InterfaceContract(
     interface_id="convective_adjustment",
@@ -286,6 +294,7 @@ class ConvectiveAdjustmentModule(Module):
         receives_advection: bool = False,
         advection_sources: tuple[str, ...] = ("",),
         diagnose_mixing_groups: bool = False,
+        vapour_mixing_top: str = "group",
         condensation_follows: bool = False,
         mass_flux: bool = False,
         plume_entrainment_rate: float = PLUME_ENTRAINMENT_PER_M,
@@ -364,6 +373,16 @@ class ConvectiveAdjustmentModule(Module):
                 "target='dry_adiabat', vapour transport, condensation after convection, "
                 "and no relaxation timescale"
             )
+        if vapour_mixing_top not in VAPOUR_MIXING_TOPS:
+            raise ConfigurationError(
+                f"vapour_mixing_top {vapour_mixing_top!r} is not one of {VAPOUR_MIXING_TOPS}"
+            )
+        subcloud = vapour_mixing_top == "lifting_condensation_level"
+        if subcloud and not (transport_vapour and surface_based and not mass_flux):
+            raise ConfigurationError(
+                "vapour mixing limited to the lifting condensation level needs vapour "
+                "transport, surface-based convection and no mass-flux convection"
+            )
         if condensation_follows and not transport_vapour:
             raise ConfigurationError(
                 "condensation can only follow convection's vapour transport when "
@@ -392,6 +411,7 @@ class ConvectiveAdjustmentModule(Module):
                 ),
                 EQUATION_IDS["sensible_heat"],
                 *((EQUATION_IDS["entraining_lapse_rate"],) if target == "entraining_plume" else ()),
+                *((EQUATION_IDS["lifting_condensation_level"],) if subcloud else ()),
                 *(
                     (EQUATION_IDS["mass_flux_convection"], EQUATION_IDS["clausius_clapeyron"])
                     if mass_flux
@@ -470,6 +490,18 @@ class ConvectiveAdjustmentModule(Module):
                 "convective_temperature_tendency",
                 "convective_layer_count",
                 *(("surface_mixed_layer_top",) if surface_based else ()),
+                # The parcel the subcloud cut lifted, NaN on steps it was not
+                # lifted, so the level's validity is judged where it ran.
+                *(
+                    (
+                        "subcloud_parcel_temperature",
+                        "subcloud_parcel_specific_humidity",
+                        "subcloud_parcel_pressure",
+                        "subcloud_condensation_pressure",
+                    )
+                    if subcloud
+                    else ()
+                ),
                 # Off by default: two layer fields a step, wanted only to replay
                 # the mixing offline (shallow-return-flow.md).
                 *(
@@ -580,6 +612,23 @@ class ConvectiveAdjustmentModule(Module):
                         ("a", "bulk_plume_parameter", "1"),
                     ),
                 ),
+                # Bound to the parcel actually lifted, not to every layer's
+                # pressure: the level is evaluated for one parcel a step.
+                *(
+                    (
+                        (
+                            EQUATION_IDS["lifting_condensation_level"],
+                            (
+                                ("T_0", "subcloud_parcel_temperature", "K"),
+                                ("q_0", "subcloud_parcel_specific_humidity", "kg kg^-1"),
+                                ("p_0", "subcloud_parcel_pressure", "Pa"),
+                                ("p_L", "subcloud_condensation_pressure", "Pa"),
+                            ),
+                        ),
+                    )
+                    if subcloud
+                    else ()
+                ),
                 # The plume saturates at its own temperature, where it exists.
                 *(
                     (
@@ -677,6 +726,7 @@ class ConvectiveAdjustmentModule(Module):
         self.transport_vapour = transport_vapour
         self.surface_based = surface_based
         self.diagnose_mixing_groups = bool(diagnose_mixing_groups)
+        self.vapour_mixing_top = vapour_mixing_top
         self.surface_pressure = surface_pressure
         self.target = target
         self.bulk_plume_parameter = bulk_plume_parameter
@@ -731,6 +781,12 @@ class ConvectiveAdjustmentModule(Module):
         self._partial_tops: dict[int, float] = {}
         self._held_rate: np.ndarray | None = None
         self._mixing_groups: tuple[tuple[int, int], ...] = ()
+        # The groups the vapour is mixed over: the heat groups themselves, or
+        # the surface group cut at its condensation level.
+        self._vapour_groups: tuple[tuple[int, int], ...] = ()
+        self._vapour_partials: dict[int, float] = {}
+        self._condensation_level_layer = -1
+        self._subcloud_parcel = (float("nan"),) * 4
         self._adjusted = np.zeros(0)
         self._vapour_dt = 0.0
         self._vapour_moved = 0.0
@@ -880,7 +936,7 @@ class ConvectiveAdjustmentModule(Module):
             # carries its share of that layer's vapour into the mixing, and the
             # rest of the layer keeps the rest -- the same fraction the heat used.
             top = high + 1
-            f = self._partial_tops.get(top, 0.0) if top < w.size else 0.0
+            f = self._vapour_partials.get(top, 0.0) if top < w.size else 0.0
             total_water = float(np.sum(w[span])) + f * float(w[top] if f else 0.0)
             total_mass = float(np.sum(layer_mass[span])) + f * float(layer_mass[top] if f else 0.0)
             if total_mass <= 0.0:
@@ -895,16 +951,83 @@ class ConvectiveAdjustmentModule(Module):
                 mixed[top] = (1.0 - f) * w[top] + f * total_water * layer_mass[top] / total_mass
         return mixed - w
 
+    def _cut_at_condensation_level(
+        self, adjusted: np.ndarray, pressure: np.ndarray, layer_mass: np.ndarray
+    ) -> None:
+        """Limit the surface group's vapour mixing to the subcloud layer.
+
+        The subcloud layer is found as a fixed point (rising-mixing-variants.md,
+        erratum 1). Starting from the top of the heat adjustment's surface group,
+        the parcel is layer 0's adjusted temperature and pressure carrying the
+        mass-weighted mean of the pre-mixing specific humidity over the layers
+        kept. If it is still unsaturated at the top layer kept, those layers are
+        the subcloud layer; otherwise the top moves down to the layer holding the
+        parcel's lifting condensation level (EQ-LIFTING-CONDENSATION-LEVEL) and
+        the parcel is formed again. The top only descends, so this ends.
+
+        The mean, not layer 0 alone, because layer 0 receives each step's
+        evaporation after the mixing: a layer-0 parcel condenses inside layer 0,
+        the cut stops the mixing that would dilute it, and the column traps its
+        evaporation at the surface within about thirty steps.
+
+        The surface group's vapour is mixed only over that subcloud layer; the
+        layers above keep theirs, and a group cut this way gives its partial top
+        no vapour. The heat groups are untouched. This is the lower bound on the
+        transport, as complete mixing is the upper one.
+        """
+        vapour = self._inputs.get(VAPOUR_STATE)
+        if vapour is None:
+            return
+        base = np.asarray(vapour.require_units("kg m^-2").values, dtype=float)
+        phase = None if self.condensation_follows else self._inputs.get("vapour_phase_change_rate")
+        if phase is not None:
+            base = base + np.asarray(
+                phase.require_units("kg m^-2 s^-1").values, dtype=float
+            ) * float(phase.time_interval or self.context.dt)
+        advection, first = composed_advection(self._inputs, self.advection_sources, "vapour")
+        if advection is not None:
+            base = base + advection * float(first.time_interval or self.context.dt)
+        pressure = np.asarray(pressure, dtype=float)
+        top = max((high for low, high in self._mixing_groups if low == 0), default=-1)
+        T0, p0 = float(adjusted[0]), float(pressure[0])
+        self._subcloud_parcel = (float("nan"),) * 4
+        while top >= 1:
+            q = float(np.sum(base[: top + 1]) / np.sum(layer_mass[: top + 1]))
+            T_top = T0 * (float(pressure[top]) / p0) ** KAPPA
+            if q < float(
+                saturation_specific_humidity(np.array([T_top]), np.array([pressure[top]]))[0]
+            ):
+                break
+            # Saturated by the top layer kept, so the level lies within the
+            # layers already spanned and inside the relation's domain.
+            level = lifting_condensation_pressure(T0, q, p0)
+            self._subcloud_parcel = (T0, q, p0, level)
+            lower = int(np.flatnonzero(pressure >= level)[-1])
+            if lower >= top:
+                break
+            top = lower
+        cut = max(top, 0)
+        self._condensation_level_layer = cut
+        groups, partials = [], dict(self._partial_tops)
+        for low, high in self._mixing_groups:
+            if low == 0 and high > cut:
+                partials.pop(high + 1, None)
+                if cut >= 1:
+                    groups.append((0, cut))
+                continue
+            groups.append((low, high))
+        self._vapour_groups, self._vapour_partials = tuple(groups), partials
+
     def _mix_classes(self, classes: np.ndarray, layer_mass: np.ndarray) -> np.ndarray:
         """Each provenance class mixed over this step's groups exactly as
         ``_vapour_transport`` mixes the vapour: uniform specific amount within a
         group, its total unchanged, the partial top taking its share."""
         mixed = np.array(classes, dtype=float)
         n = mixed.shape[1]
-        for low, high in self._mixing_groups:
+        for low, high in self._vapour_groups:
             span = slice(low, high + 1)
             top = high + 1
-            f = self._partial_tops.get(top, 0.0) if top < n else 0.0
+            f = self._vapour_partials.get(top, 0.0) if top < n else 0.0
             total = np.sum(classes[:, span], axis=1) + (f * classes[:, top] if f else 0.0)
             total_mass = float(np.sum(layer_mass[span])) + f * float(layer_mass[top] if f else 0.0)
             if total_mass <= 0.0:
@@ -921,10 +1044,10 @@ class ConvectiveAdjustmentModule(Module):
         and the fraction of each layer a group rose into. Output only: exactly
         what ``_vapour_transport`` mixed over, so the mixing can be replayed."""
         group = np.full(n, -1.0)
-        for index, (low, high) in enumerate(self._mixing_groups):
+        for index, (low, high) in enumerate(self._vapour_groups):
             group[low : high + 1] = float(index)
         partial = np.zeros(n)
-        for layer, fraction in self._partial_tops.items():
+        for layer, fraction in self._vapour_partials.items():
             if 0 <= layer < n:
                 partial[layer] = float(fraction)
         return group, partial
@@ -1076,6 +1199,7 @@ class ConvectiveAdjustmentModule(Module):
             self._surface_mixed = False
         self._mixing_groups = groups
         self._partial_tops = dict(partials) if partials is not None else {}
+        self._vapour_groups, self._vapour_partials = groups, self._partial_tops
 
         # The relaxed closure applies the exactly integrated fraction of the
         # same adjustment. One scalar across the whole column, so every group
@@ -1099,8 +1223,12 @@ class ConvectiveAdjustmentModule(Module):
         layer_mass = np.asarray(
             self.input_field("atmosphere_layer_mass").require_units("kg m^-2").values, dtype=float
         )
+        if self.vapour_mixing_top == "lifting_condensation_level":
+            self._cut_at_condensation_level(np.asarray(adjusted, dtype=float), pressure, layer_mass)
         vapour_change = (
-            self._vapour_transport(groups, layer_mass) if self.transport_vapour else None
+            self._vapour_transport(self._vapour_groups, layer_mass)
+            if self.transport_vapour
+            else None
         )
         if vapour_change is not None and fraction < 1.0:
             # A convex combination of the provisional and the mixed vapour, both
@@ -1799,6 +1927,43 @@ class ConvectiveAdjustmentModule(Module):
                     name: Field(
                         field_id=name,
                         physical_name=label,
+                        values=np.array(value),
+                        units=units,
+                        quantity_kind=QuantityKind.DIAGNOSTIC,
+                        time_semantics=TimeSemantics.INTERVAL_AVERAGE,
+                        time_interval=ctx.dt,
+                        timestamp=ctx.time,
+                        spatial_support=SpatialSupport.GLOBAL_SCALAR,
+                        # NaN where the parcel was not lifted this step.
+                        missing_value_policy=MissingValuePolicy.MASKED,
+                        provenance=provenance,
+                    )
+                    for name, label, units, value in zip(
+                        (
+                            "subcloud_parcel_temperature",
+                            "subcloud_parcel_specific_humidity",
+                            "subcloud_parcel_pressure",
+                            "subcloud_condensation_pressure",
+                        ),
+                        (
+                            "temperature of the parcel the subcloud cut lifted",
+                            "mean specific humidity of the layers that parcel stands for",
+                            "pressure the parcel was lifted from",
+                            "lifting condensation pressure of that parcel",
+                        ),
+                        ("K", "kg kg^-1", "Pa", "Pa"),
+                        self._subcloud_parcel,
+                        strict=True,
+                    )
+                }
+                if self.vapour_mixing_top == "lifting_condensation_level"
+                else {}
+            ),
+            **(
+                {
+                    name: Field(
+                        field_id=name,
+                        physical_name=label,
                         values=values,
                         units="1",
                         quantity_kind=QuantityKind.DIAGNOSTIC,
@@ -1900,6 +2065,11 @@ class ConvectiveAdjustmentModule(Module):
             "reference_pressure_Pa": self.reference_pressure,
             "relaxation_timescale_s": self.relaxation_timescale,
             "fractional_top": self.fractional_top,
+            **(
+                {"vapour_mixing_top": self.vapour_mixing_top}
+                if self.vapour_mixing_top != "group"
+                else {}
+            ),
             **(
                 {
                     "mass_flux": True,

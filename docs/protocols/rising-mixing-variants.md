@@ -223,3 +223,36 @@ As the project's rule requires, the module now publishes its parcel's T, q,
 p and condensation pressure (NaN on steps where the level is not
 evaluated) and binds the relation to them. The declared domain is not
 widened.
+
+## Recorded before X0: S collapses under erratum 1 as well (2026-10-21)
+
+**A 40-step smoke test of erratum 1's fixed point,** restarted from A1's
+state:
+
+- **the validity-domain gate passes,** with the relation bound to the
+  published parcel;
+- **the cut starts where expected:** layer 2 in the rising column, a
+  subcloud layer about 100 hPa deep;
+- **by the late smoke steps (33–40), the fixed point has descended to
+  layer 0 in both columns.** No surface vapour group is published, the heat
+  groups still reach layers 13–15 (rising) and 5 (sinking), and layer-0 RH
+  is 0.97 (rising) and 0.96 (sinking).
+
+**The mechanism, as measured.** Under S, the subcloud layer's only exits
+for vapour through its top are the circulation and eddy diffusion.
+
+1. Each step's evaporation is shared by 3 layers instead of about 15.
+2. The subcloud layer moistens about five times faster.
+3. Its mean parcel's LCL descends, and the cut follows it down.
+4. Once layer 0 is above RH ≈ 0.9, the mean parcel over layers 0–1
+   condenses below layer 1's centre (963 hPa), and the subcloud layer has
+   no depth left.
+
+**What this establishes, before any X0 run.** The lower limit, with no
+vapour transport above cloud base, is not a viable state of this column. It
+is the transport out through the subcloud layer's top that holds the
+subcloud layer below saturation. So the two-limit bracket cannot be formed
+as frozen. The comparison it was to make would set a degenerate state
+against F.
+
+X0 has not been run. How to proceed is the user's decision.

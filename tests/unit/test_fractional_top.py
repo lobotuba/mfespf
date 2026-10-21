@@ -126,6 +126,9 @@ def test_the_fractional_top_carries_water_in_the_same_fraction():
     """The layer the group rose into gives up that fraction of its vapour."""
     module = ConvectiveAdjustmentModule(transport_vapour=True, fractional_top=True)
     module._partial_tops = {3: 0.25}
+    # The vapour groups are the heat groups unless the subcloud cut is on
+    # (rising-mixing-variants.md), and a step sets them to the same objects.
+    module._vapour_partials = module._partial_tops
     mass = np.full(6, 1.0e3)
     water = np.array([10.0, 8.0, 6.0, 4.0, 2.0, 1.0])
 

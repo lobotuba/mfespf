@@ -17,6 +17,7 @@ from mfespf.physics.thermodynamics import (
     hydrostatic_heights,
     lapse_rate_adjustment_with_groups,
     lapse_rate_offsets,
+    lifting_condensation_pressure,
     moist_adiabatic_lapse_rate,
     potential_temperature,
     saturation_specific_humidity,
@@ -583,3 +584,32 @@ def test_the_evaporation_coefficient_follows_from_the_sensible_heat_one():
 
     with pytest.raises(ConfigurationError, match="cannot be negative"):
         evaporation_coefficient_for(-1.0)
+
+
+@pytest.mark.req("ATM-002", "VAL-001")
+def test_the_lifting_condensation_level_matches_bolton():
+    """A parcel lifted dry-adiabatically saturates where Bolton's closed form
+    says it does. Bolton (1980, Mon. Wea. Rev. 108, eq. 21) gives the
+    condensation temperature from T and the vapour pressure to within 0.1 K;
+    above the triple point, where both saturate over liquid, this lift agrees
+    to that accuracy. A saturated parcel is at its own level."""
+    for T, q, p in (
+        (300.0, 0.0163, 99640.0),
+        (299.6, 0.0176, 100000.0),
+        (290.0, 0.008, 100000.0),
+        (305.0, 0.012, 101325.0),
+        (295.0, 0.010, 95000.0),
+    ):
+        level = lifting_condensation_pressure(T, q, p)
+        T_L = T * (level / p) ** KAPPA
+        assert T_L > 273.16, "the comparison holds where both saturate over liquid"
+        e_hPa = q * p / (EPSILON + (1.0 - EPSILON) * q) / 100.0
+        bolton = 2840.0 / (3.5 * np.log(T) - np.log(e_hPa) - 4.805) + 55.0
+        assert abs(T_L - bolton) <= 0.1, (T, q, p, T_L, bolton)
+        qs = saturation_specific_humidity(np.array([T_L]), np.array([level]))[0]
+        assert abs(qs - q) <= 1e-9 * q, "the level is where the parcel saturates"
+    T, p = 290.0, 1.0e5
+    saturated = float(saturation_specific_humidity(np.array([T]), np.array([p]))[0])
+    assert lifting_condensation_pressure(T, saturated, p) == p
+    with pytest.raises(ConfigurationError):
+        lifting_condensation_pressure(T, 1e-12, p)
