@@ -256,3 +256,20 @@ as frozen. The comparison it was to make would set a degenerate state
 against F.
 
 X0 has not been run. How to proceed is the user's decision.
+
+## Closure (the user's decision, 2026-10-21)
+
+**Closed: bracket not formable, because the lower limit is not viable.** X0
+was not run.
+
+- **F is the current operator,** characterised in `rising-mixing-structure.md`.
+- **S, the subcloud-only limit,** collapses to a saturated, unmixed layer 0
+  within about 30 steps, under the frozen parcel and under erratum 1's.
+- **The code stays, opt-in, with the default bit-identical (dd82c83).**
+  `vapour_mixing_top` and `EQ-LIFTING-CONDENSATION-LEVEL` are kept, with
+  their tests.
+
+**What it establishes:** vapour export through cloud base is what holds the
+subcloud layer below saturation. The next question is how large that
+export must be to hold the observed subcloud layer, and how it compares
+with the exchange full mixing performs (`cloud-base-export.md`).
