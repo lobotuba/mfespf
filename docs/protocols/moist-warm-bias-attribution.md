@@ -193,3 +193,109 @@ afterwards, and labelled as such.
   fragile in `stratospheric-water.md`.
 - **A single column with prescribed physics choices,** at a calibration
   made at 30 layers.
+
+---
+
+## Results (2026-10-21)
+
+Runs: `scratchpad/r_run.py`, 200000 steps each, dry start, read over the last
+fifth. Attribution: `scratchpad/r2.py` → `r2.json`. **Every run completes,
+passes the mandatory gates (no invalidation reasons), equilibrates, and closes
+energy and water to about 1e-15.**
+
+### R1: resolution check (K = 0.39)
+
+| layers | T_s | error | imbalance, W m⁻² | PW, kg m⁻² | RH 160–230 hPa | coldest tropospheric T | strat. water | run time |
+|---:|---:|---:|---:|---:|---:|---|---:|---:|
+| 30 | 297.934 K | +9.93 K | −0.003 | 69.26 | 0.907 | 208.4 K at 127 hPa | 17.1 ppmv | 555 s |
+| 40 | 298.070 K | +10.07 K | +0.004 | 69.49 | 0.891 | 207.1 K at 123 hPa | 17.0 ppmv | 609 s |
+| 60 | 298.391 K | +10.39 K | −0.001 | 70.65 | 0.876 | 203.2 K at 102 hPa | 15.2 ppmv | 745 s |
+
+| criterion | span | line | |
+|---|---:|---:|---|
+| T_s | 0.457 K | 0.5 K | holds |
+| PW | 2.0% | 5% | holds |
+| RH 160–230 hPa | 0.032 | 0.05 | holds |
+
+**Frozen class: vertically converged (at this criterion).** The headline
+with diffusion is +9.9 to +10.4 K across 30–60 layers.
+
+**Recorded as found:** T_s rises monotonically with the layer count (+0.14 K
+from 30 to 40, +0.32 K from 40 to 60). The span is inside the frozen 0.5 K
+line, but its shape is a trend rather than a scatter. The stratospheric
+water still fails against SWOOSH's 4.0 ppmv at every resolution.
+
+### R2: radiative attribution (A: K = 0 → B: K = 0.39, 30 layers)
+
+**Checks:**
+
+| check | result |
+|---|---|
+| reproduction | A: T_s 291.9414 K against 291.941; B: 297.9341 K against 297.934. **Pass** |
+| equal pressures | **pass** |
+| identity | the offline solve reproduces all 100 snapshots' published OLR and reflected shortwave **exactly** (relative 0) |
+
+The radiation's other inputs, including `saturated_layer_temperature` and
+`vapour_bearing_layer_temperature`, were held at the solver kernel's own
+values. The exact identity across 100 different states shows they do not
+affect the fluxes.
+
+**Regions, by layer index:** lower 0–8; middle 9–17; upper 18–26
+(394.6–127.0 hPa); stratosphere 27–29.
+
+**TOA net N = ASR − OLR, W m⁻², means over 50 pairs (primary pairing):**
+
+| term | N | OLR | ASR |
+|---|---:|---:|---:|
+| total, BB − AA | +0.17 | −0.18 | −0.01 |
+| **vapour, Δ_q** | **+27.95** | −27.95 | 0.00 |
+| temperature, Δ_T | −32.74 | +32.72 | −0.01 |
+| Planck, Δ_P | −24.12 | +24.11 | −0.01 |
+| **lapse rate, Δ_LR** | **−8.61** | +8.61 | 0.00 |
+| **interaction, I** | **+4.96** | −4.96 | 0.00 |
+
+**The reference column's shortwave does not see the vapour** (Δ_q in ASR is
+0), so the attribution is entirely longwave.
+
+**Regional vapour effects in N:**
+
+| base | lower | middle | upper | stratosphere | sum | Δ_q |
+|---|---:|---:|---:|---:|---:|---:|
+| A (q_B swapped in) | +1.62 | +11.02 | **+17.66** | +1.64 | 31.93 | 27.95 |
+| B (q_A swapped out) | +0.73 | +7.51 | **+16.07** | +2.28 | — | — |
+
+The regional sum exceeds Δ_q by 4.0 W m⁻². That is the overlap
+non-additivity, recorded and not redistributed.
+
+**Robustness:**
+
+| | Δ_q | Δ_LR | I |
+|---|---:|---:|---:|
+| shifted pairing | +27.92 | −8.59 | +4.96 |
+| time-mean states | +27.98 | −8.55 | +4.83 |
+
+All classes are unchanged in both, so the result is **not pairing-sensitive**.
+
+### Classification, as frozen
+
+- **Not invalid.**
+- **Primary: vapour dominant.** \|Δ_q\| = 27.95 is the largest, and ≥ 2 ×
+  \|Δ_LR\| = 8.61.
+- **Region: regionally mixed, from both bases.**
+  - With A as the base, upper (17.66) is the largest, but not ≥ 2 × lower
+    plus middle (12.64).
+  - With B as the base, upper (16.07) against lower plus middle (8.24)
+    misses the 2× line by 0.4 W m⁻².
+- **Nonlinear interaction: material.** \|I\| = 4.96 ≥ 0.10 × \|Δ_P\| = 2.41.
+
+**What the numbers say, beside the class.**
+
+- **The 6 K comes from the water vapour diffusion carries aloft.** At fixed
+  temperature it traps 28 W m⁻².
+  - The upper troposphere (395–127 hPa) supplies the largest share: 18 of
+    32 W m⁻² regionally from A's base, 16 from B's.
+  - The middle troposphere supplies most of the rest: 11 and 8.
+- **The temperature-profile change opposes it,** by 8.6 W m⁻² beyond
+  Planck.
+- **Planck balances the remainder,** 24.1 W m⁻² for a 6.0 K warming.
+- **Which operator made B's temperature profile is not claimed here.**
