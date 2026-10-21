@@ -260,3 +260,115 @@ the tolerances and the classifications.
 reproduction against a matching restart was identical in all 612 shared
 values; the offline rebuild was exact; the intercolumn identities held to
 2e-16; and the lowest-layer budgets closed to 3e-15 of E.
+
+## L0 and L1 result (2026-10-20), on the fixed code, from A1's final state
+
+**Validity: every frozen check passed.**
+
+| check | result | rule |
+|---|---|---|
+| reproduction against L0-null | 791 of 791 shared values identical | identical |
+| online split (against the circulation's own rate) | 0.0 | ≤ 1e-12 |
+| offline rebuild, q and s | 0.0 and 0.0 | ≤ 1e-12 |
+| intercolumn identity, water and s | 3.1e-16 and 1.3e-16 | ≤ 1e-12 |
+| lowest-layer closure, rising and sinking | 4.7e-16 and 3.2e-16 of E | ≤ 1e-9 of E |
+
+**Late-mean lateral mass inflow I(k)** (×10⁻³ kg m⁻² s⁻¹, per unit of each
+column's area; negative is outflow), humidity and RH:
+
+| k | p, hPa | I sinking | I rising | q sinking | q rising | RH sinking | RH rising |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 996.4 | −2.103 | +1.665 | 0.01700 | 0.01626 | 0.816 | 0.724 |
+| 1 | 962.6 | −1.069 | +0.846 | 0.01662 | 0.01561 | 0.829 | 0.721 |
+| 2 | 928.9 | −0.630 | +0.499 | 0.01661 | 0.01560 | 0.864 | 0.750 |
+| 3 | 895.2 | −0.485 | +0.384 | 0.01661 | 0.01560 | 0.903 | 0.782 |
+| 4 | 861.4 | −0.046 | +0.037 | 0.01661 | 0.01560 | 0.948 | 0.818 |
+| 5 | 827.7 | **+0.447** | −0.354 | 0.01653 | 0.01560 | 0.993 | 0.859 |
+| 6 | 793.9 | **+0.776** | −0.615 | 0.00924 | 0.01560 | 0.551 | 0.906 |
+| 7 | 760.2 | **+0.526** | −0.417 | 0.00613 | 0.01560 | 0.375 | 0.959 |
+| 8 | 726.4 | **+0.067** | −0.053 | 0.00384 | 0.01538 | 0.244 | 0.994 |
+| 9 | 692.7 | −0.059 | +0.047 | 0.00361 | 0.01384 | 0.245 | 0.943 |
+
+The sinking column's boundary layer is layers 0–5 on every late step
+(inversion at interface 6). Its other inflow is at 524–423 hPa and 220–103
+hPa, carrying 0.02 E of water.
+
+**L1, inversion reading (mixed-top reading in brackets where it differs):**
+
+| diagnostic | value | frozen line |
+|---|---:|---|
+| f_m,BL, outflow below the inversion | **0.569** | ≥ 0.5 |
+| Φ₁, lowest-layer flushing ratio | **2.91** (49% of the boundary-layer outflow from 17% of its mass) | ≥ 0.5 |
+| q_export, kg kg⁻¹ | 0.01680 | |
+| R_q,1 | **0.988** | ≥ 0.90 |
+| R_q,BL | **1.008** | ≥ 0.90 |
+| f_import,lowest | 0.276 | |
+| f_import,BL (rising) | **0.568** [0.574] | ≥ 0.5 |
+| f(1) < 0 on any step | never | |
+| **f_export, direct** | **1.748** | predicted ≈ 1.7 (inferred) |
+
+**Lowest-layer budgets, flux form, normalized by each column's E:**
+
+| term | sinking | rising |
+|---|---:|---:|
+| surface evaporation | +1.000 | +1.000 |
+| condensation | 0.000 | 0.000 |
+| convective vapour transport | −0.964 | −1.004 |
+| eddy diffusion | −0.015 | −0.015 |
+| circulation, vertical | +0.928 | −0.423 |
+| circulation, lateral | −0.949 | +0.442 |
+| storage | 0.000 | 0.000 |
+| residual | 0.000 | 0.000 |
+
+**In advective form (the circulation's effect on q₀):**
+
+- **sinking:** vertical −2.34e-9 s⁻¹ and lateral 0, because the layer only
+  exports. Drying, at 0.021 of E/m₀.
+- **rising:** vertical 0 and lateral +3.58e-9 s⁻¹. Moistening, at 0.019 of
+  E/m₀.
+
+**Classification, as frozen.**
+
+- **No defect class holds.**
+  - Not vertically misplaced: f_m,BL 0.569 and Φ₁ 2.91.
+  - No export-humidity defect: R_q,1 0.988 and R_q,BL 1.008.
+  - No rising-import placement defect: f_import,BL 0.568.
+  - No wrong-direction lowest-layer exchange: the sinking lowest layer always
+    exports, and the rising lowest layer is moistened.
+- **So "correct transport structure" holds.** Its lowest-layer conditions
+  hold too: the circulation's advective tendency dries the sinking layer 0
+  and moistens the rising one.
+- **The lowest-layer contrast stays reversed:** q₀,sink 0.01700 against
+  q₀,rise 0.01626.
+- **Frozen verdict: exchange structurally adequate.** The intercolumn
+  pathway is ruled out as the cause of the reversed contrast, and the
+  diagnosis moves to how each column sets its lowest-layer humidity locally.
+
+**What sets each lowest layer, recorded as found.** In both columns the
+lowest layer's water is a balance of surface evaporation against convection's
+removal (0.96 and 1.00 of E). The circulation's net effect on q₀ is about 2
+percent of E/m₀ in each.
+
+**A pathway outside the frozen classes, recorded as found.** The sinking
+column imports rising-column air laterally at and just above its inversion,
+in layers 5–8 (828–726 hPa), at the rising column's humidity (0.0156,
+RH 0.86–0.99 there):
+
+- **That is 24 percent of all the sinking column's lateral mass inflow,**
+  and 0.776 E of water: 0.185 E into the boundary layer's top layer, and
+  0.591 E into the three layers above the inversion.
+- **It is what subsides back into the boundary layer.** The water crossing
+  the inversion downward is f(6)·q₆ = 0.953 E. The inflow at 828–726 hPa
+  raises the sinking RH there to 0.55 and 0.38, against 0.24 above.
+- **Whole-column water:** the sinking column exports 2.07 E laterally (1.94 E
+  from its boundary layer), imports 1.07 E (0.78 E of it at 828–726 hPa, 0.02
+  E above 300 hPa), and its net lateral loss is 1.000 E, its evaporation, as
+  a steady state must.
+- **So about 40 percent of the boundary-layer water the sinking column sends
+  to the rising column comes back at 830–730 hPa,** and subsides into its
+  boundary layer again.
+
+This shallow return flow was named in the user's design as a profile feature
+to report ("midlevel return flow"). No frozen class judges it, and nothing
+here says whether its strength or its humidity is realistic. That is the
+user's to decide.
