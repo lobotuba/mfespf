@@ -421,3 +421,79 @@ at 850 hPa and 0.516 at 700 hPa.
 to 525 hPa" overstates what was printed. The mode-1 profile was reported for
 layers 0–11 only, and it exports at every one of them, from the surface to
 625 hPa. Higher layers were not examined.
+
+## Disposition (the user's, 2026-10-21), recorded verbatim
+
+**The protocol is closed with the frozen verdict: return-flow moistening
+supported.**
+
+> Return-flow moistening is supported. The shallow return flow supplies a
+> substantial share of the sinking column's lowest-layer humidity. Although
+> tagged water passes continuously through the lowest layer, its stored
+> concentration is 0.00648 kg kg⁻¹, equal to 38% of the layer's total
+> humidity and 2.5 times the frozen substantial-effect threshold. Removing
+> the tagged return water increases the surface humidity deficit by
+> 0.00648 kg kg⁻¹, exceeding the frozen 0.002563 kg kg⁻¹ criterion.
+>
+> Nearly all tagged return water enters the sinking boundary layer:
+> f_BL|return = 0.239 + 0.750 − 0.029 = 0.960.
+>
+> Of the total return water, 47% reaches the lowest layer. Its downward
+> arrival and lateral export there are equal and opposite at approximately
+> 0.361 E, demonstrating a recirculating throughflow. This flux cancellation
+> does not imply negligible atmospheric influence because the tagged water
+> constitutes a large fraction of the layer's instantaneous vapor inventory.
+>
+> The return loop is therefore dynamically active rather than a one-way
+> accumulation mechanism: 99.7% of tagged water ultimately returns to the
+> rising column.
+>
+> **Large stored fraction and rapid throughflow can coexist.**
+
+**The donor-humidity class stays formally not met** (ΔD_R2a = 0.002364 <
+0.002563 kg kg⁻¹):
+
+> The rising donor air is substantially moister than the external
+> reference, but replacing it with sinking-column humidity produces 92.2% of
+> the frozen substantial-effect threshold. Therefore, donor humidity is
+> strongly implicated but does not meet its independent frozen support
+> criterion.
+
+The R2a counterfactual would reverse the modelled near-surface humidity
+contrast. That is scientifically important, but it does not change the
+frozen class.
+
+## A prospective deviation from the decision tree (the user's, 2026-10-21)
+
+The tree directs a supported return-flow result towards mode or placement
+testing. The completed diagnostics show that would pursue the weaker
+explanation:
+
+- modes 3 and 5 create the return inflow, with mode 1 partially opposing
+  them;
+- import placement is already causally tested: moving the return import
+  above the inversion changes q₀,tag by only 8%;
+- changing the humidity carried by the same flow changes the surface deficit
+  by 0.002364 kg kg⁻¹, nearly the full frozen bar.
+
+> The frozen decision tree is not followed prospectively because its
+> mode/placement branch has already been tested by R2b and found weak. The
+> return circulation's existence and placement are retained unchanged. The
+> next protocol moves upstream to identify what maintains excessive humidity
+> in the rising-column donor layers at 828–726 hPa.
+
+This is not a retroactive change to this protocol's verdict. It is a new
+decision, based on results the original tree did not anticipate.
+
+**The supported model mechanism:** moist rising donor layer → shallow return
+at 828–726 hPa → 96% enters the sinking boundary layer → 47% reaches the
+lowest layer → 38% of the lowest layer's vapour inventory. What remains
+unresolved is the first term, not the circulation connecting the columns.
+
+**The exact disposition:**
+
+1. Close shallow return flow as supported.
+2. Keep donor humidity formally not met, but strongly implicated.
+3. Do not alter modes 1, 3 or 5.
+4. Do not open a placement protocol.
+5. Proceed upstream to rising donor-layer humidity attribution.
