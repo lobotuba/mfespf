@@ -267,3 +267,152 @@ they hold. No attribution overrides all but invalid.
 - **Everything is under prescribed surface temperatures.**
 
 ---
+
+## R0–R2 result (2026-10-21)
+
+**Code:** a483f92, with the full gate passed (685 tests).
+
+**Validity: every frozen check passed.**
+
+| check | result | rule |
+|---|---|---|
+| reproduction against `l0_20000.json` | 791 of 791 shared values identical | identical |
+| L0's checks (split, rebuild, intercolumn, lowest-layer) | 0.0, 0.0, 3.1e-16, 4.7e-16 of E | as L0 |
+| orientation (G5) | held | |
+| replay closure, sinking column, total vapour | 1.5e-16 · max\|w\| (circulation, convection and diffusion each exact) | ≤ 1e-12 |
+| modal rebuild of the flux; the relaxation time | 0.0; 0.0 | ≤ 1e-12 |
+| tag ledger | 5.6e-14 of the import | ≤ 1e-9 |
+| tag reaching the exchange's layers (above 85 hPa) | at most 1.2e-13 kg m⁻² | |
+
+### R1: where the return branch comes from
+
+**Twenty modes.** Each mode's share of the layer 5–8 import (signed;
+negative is export at those layers):
+
+| mode | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| share | −0.706 | −0.002 | **+0.810** | +0.115 | **+0.686** | +0.009 | −0.005 | −0.047 | +0.063 | −0.006 |
+
+**Lateral inflow into the sinking column by mode,** ×10⁻³ kg m⁻² s⁻¹:
+
+| mode | layer 0 | 2 | 4 | 5 | 6 | 7 | 8 | 10 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | −0.476 | −0.457 | −0.414 | −0.383 | −0.348 | −0.308 | −0.263 | −0.165 |
+| 3 | −0.608 | −0.398 | −0.002 | +0.209 | +0.394 | +0.533 | +0.608 | +0.538 |
+| 5 | −0.572 | −0.071 | +0.515 | +0.596 | +0.482 | +0.210 | −0.131 | −0.586 |
+
+**ω by mode at interfaces 4–9, hPa/day:**
+
+| mode | interface 4 | 9 |
+|---|---:|---:|
+| 1 | 15.6 | 30.1 |
+| 3 | 14.9 | 0.1 |
+| 5 | 6.5 | −7.7 |
+
+**The subsidence water flux across the inversion, by mode:** 2.43e-5
+(mode 1), 1.43e-5 (mode 3), −3.2e-6 (mode 5) kg m⁻² s⁻¹.
+
+**Frozen readings, both of which hold:**
+
+- **One mode dominates:** mode 3 carries 0.810 of the import, and the other
+  modes sum to 0.190.
+- **Cancellation:** Σₙ\|shareₙ\| is 2.89 times the net. Modes 3 and 5
+  (+1.50) import at 828–726 hPa against mode 1 (−0.71), the gravest mode,
+  which exports at every level up to 525 hPa.
+
+So the shallow branch is the third and fifth modes' low-level structure
+showing through the deep first mode's outflow.
+
+### R1b: the tagged return water
+
+| quantity | value |
+|---|---:|
+| tagged import / E_sink | 0.779 |
+| into the boundary layer directly (layer 5) | 0.239 of the import |
+| **f_BL\|return** (direct + net downward across the inversion) | **0.960** |
+| downward across the inversion by the circulation | 0.750 |
+| by convection / upward by diffusion | 0.000 / 0.029 |
+| **f_lowest\|return** (gross tagged inflow into layer 0) | **0.467** |
+| **R_lowest** (that inflow / E_sink) | **0.364** |
+| exits: lateral export / condensation / storage change | **0.997** / 4e-6 / 0.003 |
+| layer 0, net by operator / E: circulation vertical, lateral | +0.361, −0.361 |
+| layer 0, net by operator / E: convection, diffusion, condensation | +0.0002, 0.000, 0.000 |
+| **q₀,tag** (second half; first half 0.00592) | **0.00648 kg kg⁻¹** |
+| q₀,tag / q₀,sink | 0.381 |
+
+**What the tag does.** Return water enters at 828–726 hPa. Nearly all of it
+(0.96) ends up in the sinking boundary layer, and almost all of it (0.997)
+leaves again laterally, low down, back to the rising column. In layer 0 its
+gross vertical arrival is matched by its lateral export at the same
+concentration (±0.361 E), so it passes through. But it is the air the
+boundary layer is made of: **38 percent of the sinking lowest layer's vapour
+is return-flow water.**
+
+### R2: no-feedback counterfactuals
+
+**R2a, the same mass import with a different humidity:**
+
+| case | Δq₀,sink | Δdeficit |
+|---|---:|---:|
+| the sinking column's own humidity at the receiving layer | **−0.002364** | +0.002364 (0.922 of ΔD_subst) |
+| the sinking boundary-layer mean humidity | +0.000445 | −0.000445 |
+
+**R2b, the same tagged water entering at a different height:**
+
+| entry | q₀,tag | of baseline |
+|---|---:|---:|
+| layers 5–8 (baseline) | 0.00648 | 1.00 |
+| layers 6–8 (above the inversion) | 0.00597 | 0.92 |
+| layers 0–5 (within the boundary layer) | 0.00674 | 1.04 |
+
+### Evaluation: the donor humidity against NCEP R1 (reanalysis)
+
+| layer | p, hPa | model rising RH | NCEP rising RH | excess |
+|---|---:|---:|---:|---:|
+| 5 | 827.7 | 0.859 | 0.650 | +0.210 |
+| 6 | 793.9 | 0.906 | 0.616 | +0.290 |
+| 7 | 760.2 | 0.959 | 0.582 | +0.378 |
+| 8 | 726.4 | 0.994 | 0.545 | +0.449 |
+| mean | | | | **+0.332** |
+
+NCEP R1 1991–2020, rising mask (fraction 0.558 on its 2.5° grid): RH 0.671
+at 850 hPa and 0.516 at 700 hPa.
+
+### Classification, as frozen
+
+- **Invalid:** no.
+- **Return-flow moistening supported:**
+  - f_lowest\|return = 0.467 ≥ 0.10 **yes**;
+  - R_lowest = 0.364 ≥ 0.10 **yes**;
+  - q₀,tag = 0.00648 ≥ ΔD_subst = 0.002563 **yes**.
+  - **It holds.**
+- **Donor-humidity problem:** the NCEP excess (+0.332) meets its condition,
+  but R2a case 2 lowers q₀ by 0.002364, under ΔD_subst (0.922 of it).
+  **Not met.**
+- **Modal-placement problem:** R1 does find one dominant mode, but the
+  above-inversion entry leaves q₀,tag at 0.92 of the baseline, not ≤ 0.5.
+  **Not met.**
+- **No attribution:** no.
+- **Frozen verdict: return-flow moistening supported.**
+
+**The contrast-sign reading (always reported).**
+
+- **Without the return water** (at no feedback), q₀,sink − q₀,tag = 0.01052,
+  below q₀,rise = 0.01626. Removing it alone would undo the reversed
+  contrast.
+- **R2a case 2 would also undo it:** 0.01464 < 0.01626, against a contrast
+  of 0.00074.
+
+**Two readings of the same result, recorded as found.**
+
+- **The frozen criterion (q₀,tag)** asks what the lowest layer would hold if
+  the return water were absent. The air that sinks into the boundary layer
+  is largely return air, so that share is large (38 percent).
+- **R2a case 2** asks the narrower question: what if the same air carried
+  the sinking column's own humidity instead of the rising column's. It
+  changes the deficit by 0.92 of the substantial bar: just short of the
+  donor-humidity class, but enough to reverse the contrast's sign.
+- **Placement is not what matters.** Moving the entry above the inversion
+  changes q₀,tag by 8 percent.
+- **The donor air is 0.21–0.45 moister in RH than NCEP's rising regime at
+  the same pressures.** That is evaluation, not a result.
