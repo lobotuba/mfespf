@@ -561,3 +561,38 @@ would read:
 
 **Why so little is buffered.** 98% of Cs's inventory sits in layers 5–7,
 which condense at rounding level. Only layer 8 condenses (0.053 E_rise).
+
+## Erratum 2: the D2b′ bounds held to rounding (the user's decision, 2026-10-21)
+
+**Both readings, recorded.**
+
+- **As frozen in erratum 1,** the bounds carry no tolerance, and the
+  verdict is **Invalid**.
+- **As corrected here,** each bound is held to 1e-12 of the layer's vapour,
+  the relative tolerance every closure in these protocols uses:
+  - Δ_j − t_j ≤ 1e-12 · w;
+  - the counterfactual vapour ≥ −1e-12 · w.
+
+**The measured excursions pass the corrected bounds.**
+
+- Δ_j − t_j is at most 8.8e-16 kg m⁻², which is 1.7e-16 of the layer's
+  vapour.
+- The "all" remainder is −3.6e-15 kg m⁻², under 1e-15 of it.
+- Both come from the baseline's rounding-level negative condensation.
+
+No number changes and nothing is rerun.
+
+**Verdict under erratum 2: single operator implicated, surface-rooted
+convective mixing.**
+
+| operator | class |
+|---|---|
+| **Cs, surface-rooted convection** | **implicated:** ΔD^inventory = 0.006390 kg kg⁻¹, 2.49 × ΔD_subst |
+| V, K | minor |
+| L, Ce, Rv | negligible |
+
+**Cs is not saturation-limited:** it is buffered 0.06%. Removing its
+inventory alone would undo the reversed contrast.
+
+This protocol is closed pending the user's disposition. The next step is
+`rising-mixing-structure.md`.
