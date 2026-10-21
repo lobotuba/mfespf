@@ -326,3 +326,41 @@ is uniform from 963 to 760 hPa, and the group's top is at 743 hPa (median).
 So the model's whole 850–700 gradient comes from above the group's top,
 between about 726 and 700 hPa. Below the top it is zero. The 850–700 window
 was frozen before this was known.
+
+## Erratum 2: the enthalpy check held to round-off (the user's decision, 2026-10-21)
+
+**Both readings, recorded.**
+
+- **As frozen,** the surface-group residual is measured against the
+  adjustment, Σ C \|ΔT\|, to ≤ 1e-12. It fails at 2.8e-12 and 4.0e-12, and
+  the verdict is **Invalid**.
+- **As corrected,** the residual is held to the round-off of what is being
+  summed: \|Σ C ΔT − F_s Δt\| ≤ 1e-12 · Σ C T over the group. The measured
+  residual is 3.5 ulp of Σ C T, about 8e-16 of it, so the check passes.
+  The T → θ → T round trip carries about 1e-16 of T, which no tolerance
+  scaled to ΔT can absorb.
+
+No number changes and nothing is rerun.
+
+**Verdict under erratum 2: consistent with the observed structure.** That is
+the frozen "or": the group's top is 231 hPa above the NCEP LCL (more than
+two layers), but the 850–700 hPa gradient is 0.324 of NCEP's, which is not
+below 0.25.
+
+## Disposition (the user's, 2026-10-21)
+
+**The verdict is recorded as the frozen classes give it,** with what the
+frozen window could not see beside it:
+
+- **the 850–700 hPa window straddles the group's top** (median 743 hPa).
+  The model's whole gradient in that window comes from about 726–700 hPa,
+  above the top. Below the top, from 963 to 760 hPa, the gradient is zero;
+- **the structural evidence is the depth.** The surface-rooted group
+  homogenises surface air:
+  - 231 hPa (6.9 layers) above the observed cloud base (NCEP LCL, 948 hPa);
+  - 93 hPa above the observed low-cloud tops (ISCCP-H, 809 hPa);
+  - 205 hPa above the model's own LCL.
+
+**Next:** a frozen variant comparison of declared structures, selected by a
+structural observable fixed beforehand and never by the sinking column's
+humidity (`rising-mixing-variants.md`).
