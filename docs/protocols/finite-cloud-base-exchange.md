@@ -140,3 +140,54 @@ mechanism this protocol was opened for.
 **What would reopen it:** a regime-matched observation of cloud-base mass
 flux, or of ρ_cb, a_c and w_c, in the tropical ascending marine regime. The
 four decisions above then apply as recorded.
+
+## Final disposition (the user's, 2026-10-21), recorded verbatim
+
+> **No usable external constraint for the rising column.** A cloud-base
+> mass-flux range of 0.008–0.036 kg m⁻² s⁻¹ is available for
+> nonprecipitating shallow trade cumulus, but not for the ascending tropical
+> marine regime responsible for the modeled donor-humidity bias. The
+> observed trade-cumulus range overlaps the independently budget-derived
+> required exchange of 0.011–0.021 kg m⁻² s⁻¹, while the existing
+> full-mixing exchange of 0.147 kg m⁻² s⁻¹ is several times larger. Those
+> comparisons are recorded as evidence, not used to set a coefficient. No
+> finite-exchange implementation or model run is authorized without a
+> regime-matched rising-column constraint.
+
+**The causal chain, as established:**
+
+1. timestep-set full mixing;
+2. excessive cloud-base exchange;
+3. nearly uniform q through 726–760 hPa;
+4. near-saturated donor layers;
+5. shallow return flow;
+6. 38% of the sinking lowest layer's vapour;
+7. the reversed near-surface humidity contrast.
+
+**The correction form, as identified:** a finite two-reservoir conservative
+exchange, with g = 1 − exp[−M_cb Δt (1/m_sub + 1/m_cloud)]. What is missing
+is not the numerical method but an independently defensible M_cb for the
+tropical ascending marine regime.
+
+**The protocol reopens only with a source that gives** M_cb directly, or
+enough measured information to calculate M_cb = ρ_cb a_u w_u. It needs:
+
+- cloud-base density ρ_cb;
+- the active updraft area fraction a_u;
+- the in-cloud cloud-base vertical velocity w_u;
+- an averaging definition compatible with a domain-mean model flux;
+- a tropical ascending marine regime;
+- sufficient distinction between shallow, congestus and deep precipitating
+  convection.
+
+**Until then:**
+
+- no midpoint is selected;
+- no Barbados value is transferred to the rising column;
+- no coefficient is inferred from the desired humidity result;
+- no M1 or M2 run proceeds;
+- all defaults remain unchanged.
+
+> This closes the investigation at a scientifically defensible boundary: the
+> model defect and correction form are identified, but the correction
+> amplitude lacks a regime-matched observable.
