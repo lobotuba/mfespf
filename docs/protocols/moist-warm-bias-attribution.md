@@ -328,3 +328,103 @@ The failed stratospheric-water criterion blocks the inference "diffusion
 removes bistability, converges, therefore is physically superior". The
 four-way balance closes: 27.9 − 8.6 + 5.0 − 24.1 ≈ +0.2 W m⁻². The 4 W m⁻²
 regional overcount is kept explicit, as the interaction term is.
+
+---
+
+# R3: is the diffusion solution's free troposphere too humid against an independent reference? (frozen 2026-10-21, before any R3 code or parse)
+
+**The question is the user's,** and frozen without a mechanism:
+
+> R3 tests whether the diffusion solution's free troposphere is
+> systematically too humid relative to an independent reference, particularly
+> in the pressure regions R2 identifies as carrying most of the vapour
+> radiative effect.
+
+**What R3 does not test:**
+
+- **it does not test subsidence drying.** That causal test follows R3 and is
+  not built into it;
+- **it does not test stratospheric water.**
+
+**Two failures are kept separate:**
+
+- **S1, stratospheric validity.** Excess water above the tropopause.
+  `stratospheric-water.md` points to the missing temperature inversion. It
+  is important for physical validity, and contributes little to R2's warming
+  (+1.6 to +2.3 W m⁻² of the vapour effect).
+- **T1, the tropospheric humidity question.** The near-saturated middle and
+  upper free troposphere, which R2 identifies as carrying most of the vapour
+  effect. Its cause is to be demonstrated.
+
+**The user's decisions:**
+
+1. **Staged:** R3 now, over 1000–300 hPa against NCEP R1. **R3b**, over
+   300–100 hPa, follows once a satellite humidity record (AIRS v7 Level 3 or
+   Aura MLS) is registered. R3b's design is frozen then, not now.
+2. **Global mean primary,** with the tropical ±20° band reported beside it.
+3. **"Systematically too humid":** B exceeds NCEP by ≥ +0.10 RH in both the
+   middle and the upper bands.
+
+## Data
+
+**The model:** the late-mean RH(p) published by A (K = 0) and B
+(K = 0.39), 30 layers, from R1/R2's runs (`rA30.json`, `rB30.json`). B at 40
+and 60 layers is reported beside it.
+
+**The reference:** NCEP R1 1991–2020 monthly long-term means of shum and air
+(registered, checksums verified before parsing). Its humidity levels are
+1000–300 hPa only.
+
+- RH = q / q_s(T, p), with the model's saturation function: over ice below
+  the triple point, as the model's own RH is.
+- Formed for each month and grid point, then averaged over the year.
+- Composited cos-latitude weighted:
+  - **global (primary);**
+  - **±20° (reported).**
+- Provenance: reanalysis.
+
+**Matching.** Model RH is log-p interpolated to NCEP's levels, with no
+extrapolation. The model's lowest layer is centred at 996.5 hPa, so the
+1000 hPa level is not compared. **The compared levels are 925–300 hPa.**
+
+## Bands (R2's, cut at the reference's coverage)
+
+| band | NCEP levels | in R2 terms |
+|---|---|---|
+| lower | 925, 850, 700 | R2's lower, p ≥ 700 |
+| middle | 600, 500, 400 | R2's middle, 700 > p ≥ 400 |
+| upper, to the reference limit | 300 | the bottom of R2's upper, 400 > p ≥ 100 |
+
+The band value is the mean over its levels.
+
+**160–230 hPa is reported model-only,** marked as having no reference until
+R3b.
+
+## Classes, frozen (global composite)
+
+| class | condition |
+|---|---|
+| **Invalid** | a checksum fails, or a model profile does not span the compared levels |
+| **Free troposphere systematically too humid** | B − NCEP ≥ +0.10 in both the middle and the upper bands |
+| **Too humid in one band only** | ≥ +0.10 in exactly one of them |
+| **Not systematically too humid** | otherwise |
+
+**Reported always:**
+
+- A − NCEP and B − NCEP in every band, global and ±20°;
+- the per-level differences;
+- B at 40 and 60 layers;
+- the 160–230 hPa model values, with no reference.
+
+## What R3 cannot separate
+
+- **Reanalysis humidity is model-dependent** where there are few
+  observations. R1's upper-tropospheric humidity is known to be weakly
+  constrained.
+- **The global column is a single profile against an area mean of
+  profiles,** and the RH of a mean is not the mean of RHs. Here RH is formed
+  per point and month, then averaged.
+- **Below-ground levels over high terrain.** R1 extrapolates there; they
+  are not masked.
+- **Monthly means:** q / q_s of monthly means is not the monthly mean of
+  q / q_s.
