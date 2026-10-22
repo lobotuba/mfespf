@@ -489,3 +489,28 @@ before parsing, and every model profile spans 925–300 hPa.
   weakly constrained upper-tropospheric humidity. R3b's satellite record
   is the check on it.
 - **The cause of either part is not claimed here.**
+
+## R3 disposition (the user's, 2026-10-21), recorded verbatim
+
+> R3 finds a systematic free-tropospheric moist bias, but it is not produced
+> uniformly by diffusion. The middle-tropospheric bias is already present in
+> the no-diffusion state A, while diffusion primarily introduces an
+> additional upper-tropospheric moistening beginning near 300 hPa and
+> extending above the NCEP R1 humidity ceiling.
+
+**The two defects stay separate until the evidence says otherwise:**
+
+- **a base-state mid-tropospheric moist bias:** at 600–400 hPa, A is
+  already +0.22 RH against NCEP;
+- **a diffusion-specific upper-tropospheric moistening:** at 300 hPa, A is
+  on the reference while B is +0.22 higher.
+
+The region R3 does not measure, 160–230 hPa, is where B reaches about 0.91
+and where R2's largest regional radiative contribution lies.
+
+**The two-column subsidence experiment is held until R3b.** R3b's primary
+reference is Aura MLS, defined narrowly:
+
+> Does an independent satellite record confirm or reject the diffusion
+> state's very high upper-tropospheric humidity in the region above NCEP R1's
+> usable humidity coverage?
