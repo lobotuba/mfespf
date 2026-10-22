@@ -428,3 +428,64 @@ R3b.
   are not masked.
 - **Monthly means:** q / q_s of monthly means is not the monthly mean of
   q / q_s.
+
+## R3 results (2026-10-21)
+
+`scratchpad/r3.py` → `r3.json`. The NCEP files' checksums were verified
+before parsing, and every model profile spans 925–300 hPa.
+
+**RH by level, global composite (NCEP R1) and the 30-layer runs:**
+
+| level, hPa | NCEP global | NCEP ±20° | A (K = 0) | B (K = 0.39) |
+|---:|---:|---:|---:|---:|
+| 925 | 0.758 | 0.725 | 0.735 | 0.759 |
+| 850 | 0.641 | 0.625 | 0.851 | 0.847 |
+| 700 | 0.531 | 0.460 | 0.777 | 0.879 |
+| 600 | 0.502 | 0.393 | 0.738 | 0.764 |
+| 500 | 0.516 | 0.362 | 0.728 | 0.835 |
+| 400 | 0.528 | 0.354 | 0.748 | 0.765 |
+| 300 | 0.633 | 0.593 | 0.609 | 0.829 |
+
+**Band means, and the model minus NCEP:**
+
+| band | NCEP global | A | A − NCEP | B | **B − NCEP** | B − NCEP, ±20° |
+|---|---:|---:|---:|---:|---:|---:|
+| lower (925–700) | 0.643 | 0.788 | +0.144 | 0.828 | +0.185 | +0.225 |
+| middle (600–400) | 0.515 | 0.738 | +0.223 | 0.788 | **+0.273** | +0.419 |
+| upper, to 300 | 0.633 | 0.609 | −0.024 | 0.829 | **+0.196** | +0.236 |
+
+**B at other resolutions,** global:
+
+| layers | middle | upper, to 300 |
+|---:|---:|---:|
+| 40 | +0.276 | +0.181 |
+| 60 | +0.295 | +0.154 |
+
+**Model-only, with no reference until R3b:** the mean RH at 160–230 hPa is
+0.000 in A, and 0.907 / 0.891 / 0.876 in B at 30 / 40 / 60 layers.
+
+### Classification, as frozen
+
+- **Not invalid.**
+- **B − NCEP is +0.273 in the middle band and +0.196 in the upper band,**
+  both ≥ +0.10.
+- **Frozen verdict: free troposphere systematically too humid.** It holds at
+  40 and 60 layers as well.
+
+### Recorded as found, beside the class
+
+- **The middle-tropospheric excess is not diffusion's.** A, with no
+  diffusion, is already +0.22 too humid there. B adds +0.05.
+- **Diffusion's added humidity is concentrated higher up:**
+  - +0.22 at 300 hPa (A 0.61 against B 0.83);
+  - 0 → 0.91 at 160–230 hPa.
+  - A's 300 hPa level is near NCEP's (−0.02).
+- **Two parts of T1, then:**
+  - **a mid-tropospheric excess common to A and B,** about +0.2 to +0.3
+    globally and +0.4 in the ±20° band;
+  - **an upper-tropospheric excess that diffusion creates.**
+- **NCEP's 300 hPa RH is high (0.63)** relative to its 400 hPa value. That
+  is consistent with RH over ice above the freezing level, and with R1's
+  weakly constrained upper-tropospheric humidity. R3b's satellite record
+  is the check on it.
+- **The cause of either part is not claimed here.**
