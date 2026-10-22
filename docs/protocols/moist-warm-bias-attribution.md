@@ -514,3 +514,95 @@ reference is Aura MLS, defined narrowly:
 > Does an independent satellite record confirm or reject the diffusion
 > state's very high upper-tropospheric humidity in the region above NCEP R1's
 > usable humidity coverage?
+
+---
+
+# R3b: does Aura MLS confirm or reject B's upper-tropospheric humidity? (frozen 2026-10-21, before any download)
+
+> Does an independent satellite record confirm or reject the diffusion
+> state's very high upper-tropospheric humidity in the region above NCEP R1's
+> usable humidity coverage?
+
+**What R3b does not test:** it makes no causal claim, about subsidence or
+anything else, and tunes nothing.
+
+## The reference
+
+**MLS/Aura Level 3 Monthly Binned RH with respect to ice, V005
+(ML3MBRHI),** from NASA GES DISC.
+
+- **Coverage:** 82°S–82°N at 4° × 5°.
+- **Recommended range:** 316 hPa upward, per the product's catalog entry.
+  It points to section 3.20 and chapter 4 of the EOS MLS Level 2 V5 Quality
+  Document.
+- **Registration:** every file is registered in `data/sources.yaml` with its
+  SHA-256 before any parse, as `provenance_class: observational`.
+
+**Screening.** Before any value is parsed, the product documentation's
+statement of what screening the Level 3 production already applies is
+recorded here, verbatim.
+
+- If it prescribes user-side screening of the Level 3 files (a status,
+  count or quality field), exactly that is applied.
+- If the Level 3 product cannot be shown to be built from screened Level 2
+  data, R3b falls back to Level 2 ML2RHI with the quality document's
+  section 3.20 rules, by erratum.
+- **No value is discarded for being negative, noisy or surprising.** Only
+  the product's own fill value is excluded.
+
+**The convention.** The model's published RH is formed with its own
+saturation function, which is over ice below the triple point. So above the
+freezing level it is RH over ice, the convention ML3MBRHI uses. The
+saturation formulas differ slightly, and that is declared, not converted.
+
+## The comparison
+
+- **Period:** 2005-01 to 2020-12. Full years after MLS's August 2004
+  start, ending with NCEP's climatology period.
+- **Averaging, per bin:**
+  1. the mean over the years available for each calendar month;
+  2. the mean of the 12 months.
+
+  Then a cos-latitude-weighted area mean: **global (82°S–82°N), primary;**
+  ±20° reported. A bin missing in a calendar month is left out of that
+  month, with weights renormalised. The fraction left out is reported.
+- **Levels: the product's own pressure levels with 100 ≤ p ≤ 316 hPa.** The
+  model is log-p interpolated onto them, with no extrapolation. This
+  compares on the satellite's levels, not by putting the reference onto the
+  model's.
+- **Model:** A and B late-mean RH at 30 layers (`rA30.json`, `rB30.json`).
+  B at 40 and 60 layers is reported.
+
+**The primary band:** the mean over the product levels within
+147 ≤ p ≤ 215 hPa. It is the satellite-level counterpart of the model's
+160–230 hPa diagnostic.
+
+**A consistency check, reported, not classified:** MLS at 316 hPa against
+NCEP R1 at 300 hPa (R3), both against the model.
+
+## Classes, frozen (global, primary band)
+
+| class | condition |
+|---|---|
+| **Invalid** | a file is unregistered or fails its checksum; a month of 2005–2020 is missing; or a model profile does not span the compared levels |
+| **Diffusion state contradicted aloft** | B − MLS ≥ +0.10 |
+| **Diffusion state consistent aloft** | \|B − MLS\| < 0.10 |
+| **Diffusion state too dry aloft** | B − MLS ≤ −0.10 |
+
+**Reported always:**
+
+- A − MLS;
+- whether the pattern "A within 0.10 of MLS, and B ≥ +0.10" holds;
+- every level, global and ±20°;
+- B at 40 and 60 layers.
+
+## What R3b cannot separate
+
+- **MLS's vertical resolution is 3–6 km.** The model's sharp profile is
+  compared with a smoothed retrieval, and Level 3 carries no averaging
+  kernels.
+- **The two saturation formulas over ice differ slightly.**
+- **A global equilibrium column against a 2005–2020 climatology** of
+  82°S–82°N.
+- **Retrieval sensitivity** to thick cloud in the upper troposphere, as the
+  quality document describes it.
