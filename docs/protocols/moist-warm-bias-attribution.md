@@ -299,3 +299,32 @@ All classes are unchanged in both, so the result is **not pairing-sensitive**.
   Planck.
 - **Planck balances the remainder,** 24.1 W m⁻² for a 6.0 K warming.
 - **Which operator made B's temperature profile is not claimed here.**
+
+## Disposition (the user's, 2026-10-21), recorded verbatim
+
+**The interpretation, tightened:**
+
+> R2 identifies the equilibrium separation as vapour-dominant radiatively:
+> the humidity change contributes +27.9 W m⁻² at fixed temperature, opposed
+> by −8.6 W m⁻² from the nonuniform temperature-profile change, with a
+> material +5.0 W m⁻² interaction.
+
+**The headline after R1 and R2:**
+
+> The diffusion solution is numerically reproducible and vertically
+> converged, but not yet physically validated. R2 shows that its ~6 K
+> warm-state separation is radiatively vapour-dominant and regionally mixed,
+> with the largest contribution from the upper troposphere. The remaining
+> decisive failure is excessive stratospheric water.
+
+**What R2 does not establish:**
+
+- why diffusion put the vapour there;
+- whether the excess resides in physically realistic pathways;
+- whether the temperature profile is dynamically realizable;
+- that diffusion should become the default operator.
+
+The failed stratospheric-water criterion blocks the inference "diffusion
+removes bistability, converges, therefore is physically superior". The
+four-way balance closes: 27.9 − 8.6 + 5.0 − 24.1 ≈ +0.2 W m⁻². The 4 W m⁻²
+regional overcount is kept explicit, as the interaction term is.
