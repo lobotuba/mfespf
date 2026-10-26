@@ -822,3 +822,158 @@ Per-file entries for 17,340 daily files would put about 260,000 lines into
   - Clouds "significantly degrade the precision ... but the mean bias as
     compared to AIRS changes by less than 10%."
   - Cloud-flagged profiles are kept, as the document directs.
+
+## R3b results (2026-10-26)
+
+**Run validity: valid by the frozen gate.**
+
+- **Registration:** the three manifests and the quality document are
+  registered (`ec59424`). Each was verified before use, and each of the
+  17,340 daily files was verified against its manifest line before it was
+  opened.
+- **Completeness:** no calendar month of 2005–2020 is missing. The fewest
+  days in a month is 12 (2011-04 and 2018-06); the most is 31.
+- **Spans:** every model profile spans the compared levels.
+- **Profiles:** 19,970,110 RHI profiles. 2,167 had no Temperature or H2O
+  profile at the identical `Time` and were excluded. None lay beyond ±82°.
+- **The script:** `r3b.py`, in this session's scratchpad, as for R3.
+
+**Screening, as a fraction of the 19,967,943 matched profiles:**
+
+| rule | fails |
+|---|---:|
+| Status odd | 0.29% |
+| Quality (RHI > 0.7, T > 0.9) | 2.16% |
+| Convergence (RHI < 2.0, T < 1.03) | 0.53% |
+| H2O, p ≥ 1 hPa (primary) | 2.11% |
+| H2O, p < 1 hPa (the other reading) | 79.1% |
+| value precision ≤ 0 or fill (fraction of values) | 0.68% |
+| thick-cloud rule (reported variant), profiles flagged | 2.97% |
+
+95.4% of the values considered enter the primary climatology.
+
+**Bins left out:**
+
+- **Primary and cloud-rule variants:** no bin-month at any level.
+- **The p < 1 hPa reading:** 11% (global) and 13% (±20°) of bin-months,
+  because that reading rejects four profiles in five.
+
+**Levels.** The nominal names are those of the erratum. The product's levels
+are 316.23, 261.02, 215.44, 177.83, 146.78, 121.15 and 100.00 hPa. The
+model is interpolated onto these.
+
+### MLS and the model, level by level (RH as a fraction)
+
+**Global (82°S–82°N):**
+
+| hPa | MLS primary | MLS cloud rule on | MLS H2O p<1 | A (30) | B (30) | B (40) | B (60) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 316 | 63.804 | 63.804 | 322.591 | 0.687 | 0.808 | 0.806 | 0.788 |
+| 261 | 3.483 | 0.429 | 31.799 | 0.981 | 0.839 | 0.835 | 0.830 |
+| 215 | 1.176 | 0.489 | 0.602 | 0.000 | 0.877 | 0.861 | 0.864 |
+| 178 | 0.462 | 0.402 | 0.413 | 0.000 | 0.932 | 0.927 | 0.875 |
+| 147 | 0.351 | 0.351 | 0.345 | 0.000 | 0.968 | 0.978 | 0.988 |
+| 121 | 0.320 | 0.320 | 0.316 | 0.000 | 0.999 | 1.000 | 1.000 |
+| 100 | 0.360 | 0.360 | 0.369 | 0.000 | 1.000 | 1.000 | 1.000 |
+
+**±20° (bins whose centres lie within ±20°):**
+
+| hPa | MLS primary | MLS cloud rule on | MLS H2O p<1 |
+|---|---:|---:|---:|
+| 316 | 142.719 | 142.719 | 402.211 |
+| 261 | 7.908 | 0.395 | 1.014 |
+| 215 | 2.434 | 0.670 | 0.907 |
+| 178 | 0.842 | 0.693 | 0.741 |
+| 147 | 0.699 | 0.699 | 0.691 |
+| 121 | 0.654 | 0.654 | 0.649 |
+| 100 | 0.747 | 0.747 | 0.772 |
+
+### The primary band (215, 178 and 147 hPa)
+
+| | MLS | A − MLS | B30 − MLS | B40 − MLS | B60 − MLS |
+|---|---:|---:|---:|---:|---:|
+| **global, primary** | 0.663 | −0.663 | **+0.263** | +0.260 | +0.246 |
+| global, cloud rule on | 0.414 | −0.414 | +0.512 | +0.508 | +0.495 |
+| global, H2O p < 1 hPa | 0.453 | −0.453 | +0.472 | +0.469 | +0.456 |
+| ±20°, primary | 1.325 | −1.325 | −0.400 | −0.403 | −0.416 |
+| ±20°, cloud rule on | 0.687 | −0.687 | +0.238 | +0.235 | +0.221 |
+| ±20°, H2O p < 1 hPa | 0.780 | −0.780 | +0.146 | +0.142 | +0.129 |
+
+### Classification, as frozen
+
+- **B − MLS = +0.263 in the global primary band, which is ≥ +0.10. So the
+  class is "Diffusion state contradicted aloft."**
+  - The same class holds at 40 and 60 layers (+0.260, +0.246).
+  - It also holds under both reported variants (+0.512, +0.472).
+- **The pattern "A within 0.10 of MLS, and B ≥ +0.10" does not hold.**
+  - A is −0.663: A has zero RH from 215 hPa up.
+  - So the observation lies between the two states (A ≪ MLS ≪ B), not
+    with A.
+
+### Recorded as found, beside the class
+
+1. **The frozen means are dominated by a tail that passes every mandatory
+   rule.**
+   - The global primary MLS mean is 6380% at 316 hPa, 348% at 261 hPa and
+     118% at 215 hPa.
+   - A diagnostic over every 40th day (145 days, the same verification
+     path, the primary rules) shows physical medians and an unphysical tail.
+
+   | hPa | median | 99th pct | 99.9th pct | max | mean | mean, cloud-flagged excluded |
+   |---|---:|---:|---:|---:|---:|---:|
+   | 316 | 38% | 336% | 954% | 6.8×10⁷% | 229% | 59% |
+   | 261 | 31% | 204% | 712% | 9.6×10⁵% | 52% | 44% |
+   | 215 | 29% | 185% | 673% | 5.7×10⁶% | 55% | 40% |
+   | 178 | 13% | 172% | 380% | 3.2×10⁵% | 33% | 31% |
+   | 147 | 6% | 157% | 230% | 2.1×10⁴% | 26% | 25% |
+   | 121 | 6% | 131% | 168% | 3.2×10³% | 23% | 23% |
+   | 100 | 7% | 132% | 177% | 698% | 25% | 24% |
+
+   - Of the values above 1000%, the thick-cloud rule of section 3.20.6
+     flags 70% at 316 hPa, 79% at 261 and 215 hPa, 85% at 178 hPa, and all
+     at 147 and 121 hPa.
+   - This is the outlier population the document attributes to thick
+     clouds, "primarily in the tropics".
+   - The medians and cloud-excluded means are diagnostics, not frozen
+     quantities, and classify nothing.
+2. **The tail can only work against the class.**
+   - Every tail value is large and positive, so it raises the MLS mean and
+     lowers B − MLS.
+   - The class is "contradicted" with the tail in. Any treatment that
+     removed it would raise B − MLS, as the cloud-rule variant does (+0.263
+     → +0.512).
+3. **The ±20° primary band reads −0.40 only because of 215 hPa,** where the
+   tropical MLS mean is 243%.
+   - At 178 and 147 hPa, ±20° B − MLS is +0.09 and +0.27 (primary).
+   - With the cloud rule on, the tropical band is +0.238.
+4. **At the two levels the tail barely reaches** (178 and 147 hPa, where the
+   primary and cloud-rule MLS means agree to 0.06 and exactly):
+   - B30 − MLS is +0.47 and +0.62 globally;
+   - B at 147 hPa is 0.97 against MLS 0.35.
+5. **A has zero RH at and above 215 hPa** (dry start, no vapour transport,
+   as R3 found for 160–230 hPa).
+   - Its 261 hPa value is 0.98.
+   - A's upper troposphere is too dry by the whole observed value. B's is
+     too moist by 0.26 to 0.68, depending on the level and treatment, in the
+     global band and the four levels above 215 hPa.
+   - Neither state is consistent with MLS aloft.
+6. **The 316 hPa consistency check (reported, not classified) is unusable as
+   a mean.**
+   - The MLS 316 hPa mean is 63.8 (6380%) globally and 142.7 at ±20°: the
+     tail, at the bottom of the document's useful range (316–0.001 hPa).
+   - Against NCEP R1 at 300 hPa (0.633 global, 0.593 at ±20°), A 0.687 and
+     B 0.808.
+   - The sample median at 316 hPa (38%) and cloud-excluded mean (59%) are
+     recorded beside it.
+7. **The H2O rule's other reading (p < 1 hPa) rejects 79% of profiles.**
+   Above about 1 hPa, water vapour below 0.101 ppmv is the mesosphere's
+   ordinary state rather than an oscillation. That reading is recorded and
+   not adopted, as frozen.
+
+**What this does and does not say.**
+
+- B's upper troposphere is far more humid than MLS observes, under every
+  frozen and reported treatment.
+- A's is far drier. The observation sits between them.
+- **No causal claim is made.** In particular, nothing here says what removes
+  B's excess or supplies A's deficit.
