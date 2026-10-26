@@ -10694,3 +10694,75 @@ sources:
   citation: 'Yu, L. and Weller, R. A. (2007), Objectively analyzed air-sea heat fluxes for the global ice-free oceans (1981-2005), BAMS 88, 527-539.'
   notes: 'Evaluation only in regime-surface-exchange.md: the observed regime SST, for the observed deficit. Never fed back. Held outside the repository; the checksum identifies the file.'
   sha256: e29d6d140e95a7189a35be18dc3ebdb9235c07e4d1debc8228b6b4d52f8b4772
+- dataset_id: AURA-MLS-ML2RHI-V005-MANIFEST
+  loader: none
+  title: 'Aura MLS Level 2 relative humidity with respect to ice (ML2RHI) V005, daily files 2005-001 to 2020-366: manifest'
+  filename: aura_mls/ML2RHI.005_2005-2020.sha256
+  url: https://data.gesdisc.earthdata.nasa.gov/data/Aura_MLS_Level2/ML2RHI.005/
+  provider: 'NASA GES DISC (Earthdata Cloud); MLS team, Jet Propulsion Laboratory'
+  provenance_class: observational
+  variables:
+  - relative_humidity_over_ice
+  units:
+  - 'percent'
+  temporal_coverage: '2005-01-01 to 2020-12-31, one file per day (5780 files)'
+  spatial_coverage: 'near-global along-track profiles, 82S-82N; useful range 316-0.001 hPa'
+  uncertainty: 'per-value L2gpPrecision (1 sigma) in each file'
+  licence: 'NASA data, no restriction on use; cite on use.'
+  citation: 'Read, W. G. et al. (2007), EOS Aura Microwave Limb Sounder upper tropospheric and lower stratospheric humidity validation, J. Geophys. Res. 112, D24S35, doi:10.1029/2007JD008752.'
+  notes: 'R3b of moist-warm-bias-attribution.md (erratum 1). The file registered is a manifest of the daily .he5 files in aura_mls/L2/, one line per file, "<sha256>  <filename>", sorted by filename, UTF-8, LF; it is reproducible from the files alone, so this checksum pins every one of them. Files as listed by CMR (versions v05-00 to v05-02, collections c01 to c03). Earthdata Login required; the URL is the collection directory, not a file.'
+  sha256: 5a7c3a1059ee3bedf8b8eb20c05db29e5bdb800a04b9ea9ba5a5e5d712ee4a32
+- dataset_id: AURA-MLS-ML2T-V005-MANIFEST
+  loader: none
+  title: 'Aura MLS Level 2 temperature (ML2T) V005, daily files 2005-001 to 2020-366: manifest'
+  filename: aura_mls/ML2T.005_2005-2020.sha256
+  url: https://data.gesdisc.earthdata.nasa.gov/data/Aura_MLS_Level2/ML2T.005/
+  provider: 'NASA GES DISC (Earthdata Cloud); MLS team, Jet Propulsion Laboratory'
+  provenance_class: observational
+  variables:
+  - temperature
+  units:
+  - 'K'
+  temporal_coverage: '2005-01-01 to 2020-12-31, one file per day (5780 files)'
+  spatial_coverage: 'near-global along-track profiles, 82S-82N'
+  uncertainty: 'per-value L2gpPrecision (1 sigma) in each file'
+  licence: 'NASA data, no restriction on use; cite on use.'
+  citation: 'Livesey, N. J., Read, W. G., Wagner, P. A., Froidevaux, L., Santee, M. L. et al. (2020), EOS Aura MLS Version 5.0x Level 2 and 3 data quality and description document, JPL D-105336 Rev. A.'
+  notes: 'R3b of moist-warm-bias-attribution.md (erratum 1): used only for the RHI screening of section 3.20.6 (Quality, Convergence and, in the reported variant, L2gpPrecision), matched to RHI profiles by Time. Manifest of aura_mls/L2T/ in the same format as the ML2RHI one. Earthdata Login required.'
+  sha256: fd48b34487df0826ea9db94942f207261ec4e1d3083a46d51723c4bc85029447
+- dataset_id: AURA-MLS-ML2H2O-V005-MANIFEST
+  loader: none
+  title: 'Aura MLS Level 2 water vapour (ML2H2O) V005, daily files 2005-001 to 2020-366: manifest'
+  filename: aura_mls/ML2H2O.005_2005-2020.sha256
+  url: https://data.gesdisc.earthdata.nasa.gov/data/Aura_MLS_Level2/ML2H2O.005/
+  provider: 'NASA GES DISC (Earthdata Cloud); MLS team, Jet Propulsion Laboratory'
+  provenance_class: observational
+  variables:
+  - water_vapour_volume_mixing_ratio
+  units:
+  - 'mol mol^-1'
+  temporal_coverage: '2005-01-01 to 2020-12-31, one file per day (5780 files)'
+  spatial_coverage: 'near-global along-track profiles, 82S-82N'
+  uncertainty: 'per-value L2gpPrecision (1 sigma) in each file'
+  licence: 'NASA data, no restriction on use; cite on use.'
+  citation: 'Livesey, N. J., Read, W. G., Wagner, P. A., Froidevaux, L., Santee, M. L. et al. (2020), EOS Aura MLS Version 5.0x Level 2 and 3 data quality and description document, JPL D-105336 Rev. A.'
+  notes: 'R3b of moist-warm-bias-attribution.md (erratum 1): used only for the H2O oscillation rule of the RHI screening (0.101 ppmv), matched to RHI profiles by Time. Manifest of aura_mls/L2H2O/ in the same format as the ML2RHI one. Earthdata Login required.'
+  sha256: ae3719ff589236432074016a261b818af50810d2223ae2e0adae83bc822c4d06
+- dataset_id: AURA-MLS-V5-QUALITY-DOCUMENT
+  loader: none
+  title: 'EOS Aura MLS Version 5.0x Level 2 and 3 data quality and description document (JPL D-105336 Rev. A)'
+  filename: aura_mls/Aura-MLS_DataQuality_v5-0x-revA.pdf
+  url: https://acdisc.gesdisc.eosdis.nasa.gov/data/Aura_MLS_Level2/ML2RHI.005/doc/Aura-MLS_DataQuality_v5-0x-revA.pdf
+  provider: 'MLS team, Jet Propulsion Laboratory; distributed by NASA GES DISC'
+  provenance_class: observational
+  variables:
+  - documentation
+  units:
+  - 'none'
+  temporal_coverage: 'not applicable'
+  spatial_coverage: 'not applicable'
+  uncertainty: 'not applicable'
+  licence: 'Copyright California Institute of Technology; government sponsorship acknowledged. Cite on use.'
+  citation: 'Livesey, N. J., Read, W. G., Wagner, P. A., Froidevaux, L., Santee, M. L. et al. (2020), EOS Aura MLS Version 5.0x Level 2 and 3 data quality and description document, JPL D-105336 Rev. A.'
+  notes: 'The screening rules of R3b (moist-warm-bias-attribution.md, erratum 1) are quoted from its sections 1.5, 3.9.9, 3.20.6 and chapter 4. Documentation, not a dataset: provenance_class is the class of the product it describes. The on-premises URL it was fetched from is retired.'
+  sha256: 049e538ef67224d3d42eaf4a8d8155d8f4f5d94971d4b2cad6f5d07ff60ff535
