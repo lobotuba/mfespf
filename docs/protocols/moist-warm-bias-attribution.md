@@ -977,3 +977,220 @@ model is interpolated onto these.
 - A's is far drier. The observation sits between them.
 - **No causal claim is made.** In particular, nothing here says what removes
   B's excess or supplies A's deficit.
+
+## R3b disposition (the user's, 2026-10-26), recorded verbatim
+
+**Transcription note.** Three formulas arrived doubled by the paste, once as
+rendered text and once as source. Each is given once here; no other
+character is changed.
+
+- "approaching 107%10^7\%" is written "approaching 10⁷%".
+- "p<1p<1" is written "p < 1".
+- "p≥1p\ge1" is written "p ≥ 1".
+
+Consecutive one-line items that arrived as separate lines are shown as
+lists, and headings in bold; the words are unchanged.
+
+> **Decision**
+>
+> Accept R3b as Valid and retain the frozen classification: the diffusion
+> state is Contradicted aloft.
+>
+> Do not redesign the test or replace the mean after seeing the MLS values.
+> The outlier tail is serious, but it does not threaten this classification.
+> It biases the result against contradiction by increasing the MLS mean and
+> reducing the apparent positive B-minus-MLS discrepancy.
+>
+> The registered result should therefore remain:
+>
+> R3b: Valid. Diffusion state B is Contradicted aloft.
+> Over the global 147–215 hPa band, the frozen primary comparison gives
+> B − MLS = +0.263, with corresponding 40- and 60-layer values of +0.260
+> and +0.246. State A is also inconsistent with MLS, at −0.663. The
+> observations fall between the two modeled states. No causal
+> interpretation is assigned.
+>
+> **Why the result stands**
+>
+> The chain of custody is strong:
+>
+> - The erratum was frozen before observational values were read.
+> - The manifest was registered separately.
+> - No month from 2005 through 2020 was missing.
+> - Every checksum was verified before its file was opened.
+> - The primary and reported alternatives were specified before evaluation.
+> - The layer-resolution variants agree closely: +0.263, +0.260, and
+>   +0.246.
+> - Activating the conditional cloud rule strengthens the discrepancy from
+>   +0.263 to +0.512.
+> - The alternate H2O interpretation also leaves B too humid at +0.472.
+>
+> This is not a marginal classification produced by a single aggregation or
+> resolution choice.
+>
+> **Treatment of the outlier tail**
+>
+> Keep the mean-based primary design exactly as frozen, but place a
+> conspicuous limitation beside the result.
+>
+> The correct distinction is:
+>
+> - Protocol validity: Valid.
+> - Primary classification: Contradicted.
+> - Estimator quality: The MLS arithmetic mean is badly distorted at some
+>   levels.
+> - Effect on classification: Conservative with respect to the
+>   contradiction of B.
+>
+> I would use language such as:
+>
+> Estimator limitation: The screened MLS RHI distribution contains a small,
+> extreme positive tail, including values approaching 10⁷% RH. These
+> observations pass the frozen mandatory screening rules and are therefore
+> retained in the primary calculation. The tail materially inflates some
+> arithmetic means, including approximately 6,380% at 316 hPa and 118% at
+> 215 hPa, compared with medians of 38% and 29%. Because the anomalous
+> values are positive, their inclusion raises the MLS reference and reduces
+> B − MLS. The primary classification is therefore not caused by the tail;
+> applying the preregistered conditional cloud rule increases B − MLS from
+> +0.263 to +0.512. No post hoc observations are removed from the primary
+> result.
+>
+> That says precisely what matters without calling the values erroneous in
+> a way the protocol has not demonstrated.
+>
+> **Do not reinterpret A as supported**
+>
+> The failure of the original expected pattern matters. R3b has not shown
+> that A is observationally supported.
+>
+> The scientific conclusion is narrower:
+>
+> - A is much too dry, reaching zero RH from 215 hPa upward.
+> - B is too humid over the registered upper-tropospheric band.
+> - MLS falls between A and B.
+> - Therefore, B is contradicted, but A is not validated.
+> - R3b identifies an observational bracketing failure, not a successful
+>   state selection.
+>
+> I would add this sentence prominently:
+>
+> Contradiction of B does not constitute confirmation of A; neither modeled
+> state agrees with the MLS upper-tropospheric reference.
+>
+> **Treatment of the distorted secondary checks**
+>
+> ±20° band
+>
+> Retain the frozen reported value of −0.40, but mark it as tail-dominated
+> and not representative of the vertical pattern.
+>
+> Report the diagnostic decomposition:
+>
+> - 215 hPa tropical mean: 243%, driving the negative band aggregate.
+> - 178 hPa: +0.09
+> - 147 hPa: +0.27
+> - Conditional cloud-rule result: +0.24
+>
+> The −0.40 result should not be deleted, reclassified, or silently
+> replaced. It should be labeled as an arithmetic-mean sensitivity to the
+> 215 hPa tail.
+>
+> 316 hPa NCEP comparison
+>
+> Record it as:
+>
+> Computed but not interpretable as a mean-based comparison because the
+> screened MLS arithmetic mean is dominated by the extreme positive tail.
+>
+> Do not call the entire R3b test invalid because one reported supporting
+> comparison is uninterpretable. Keep it outside the evidence used for the
+> primary class.
+>
+> H2O alternate reading
+>
+> The 79% rejection rate under p < 1 hPa is strong internal evidence that
+> the selected p ≥ 1 hPa interpretation was the coherent reading. It should
+> remain a reported interpretive check and should not alter the primary
+> population.
+>
+> **Should the mean-based design stand?**
+>
+> For this frozen R3b execution: yes. For future protocols: no, not by
+> itself.
+>
+> Changing the estimator now would be outcome-responsive. Instead:
+>
+> - Preserve the arithmetic mean as the registered primary estimator.
+> - Report median, sample count, relevant quantiles, and tail diagnostics
+>   descriptively.
+> - Do not let any new robust estimator change the R3b class.
+> - Create a separately frozen successor test if a robust observational
+>   metric is desired.
+>
+> A future protocol could preregister, for each pressure level and spatial
+> band:
+>
+> - arithmetic mean for continuity;
+> - median as the robust central estimate;
+> - 5th, 25th, 75th, 95th, 99th, and 99.9th percentiles;
+> - maximum;
+> - number and fraction above physically diagnostic thresholds;
+> - mandatory-screen and cloud-rule populations side by side;
+> - a prespecified robust classification statistic, such as median
+>   model-minus-observation bias.
+>
+> The important point is that such a successor would answer a new question.
+> It must not become a retroactive repair of R3b.
+>
+> **Branch disposition**
+>
+> The three named commits show the right separation:
+>
+> - 5bf677e: frozen erratum
+> - ec59424: manifest registration
+> - 6818da8: results
+>
+> My decision is to retain all three, preserve the appended result without
+> reclassification, and push the full 11-commit branch after the ordinary
+> repository integrity checks. Do not amend or squash the erratum,
+> manifest, and result commits together. Their ordering demonstrates that
+> the method and population were fixed before the result was recorded.
+>
+> **Final disposition text**
+>
+> R3b disposition: Accepted as Valid; diffusion state B Contradicted aloft.
+> The frozen primary comparison over the global 147–215 hPa band gives
+> B − MLS = +0.263. The result is stable across 30-, 40-, and 60-layer
+> realizations and is strengthened by the preregistered conditional
+> cloud-screening variant. State A is also inconsistent with MLS, so the
+> result contradicts B without validating A. An extreme positive tail
+> materially degrades the interpretability of some MLS arithmetic means,
+> particularly the tropical 215 hPa and global 316 hPa diagnostics, but the
+> tail acts conservatively on the primary B-minus-MLS discrepancy and
+> therefore does not cause or weaken the registered classification. No
+> causal claim is made.
+>
+> That is the result I would preserve as the formal R3b record.
+
+### The R3b record, as the disposition sets it
+
+**R3b: Valid. Diffusion state B Contradicted aloft.** Global 147–215 hPa,
+B − MLS = +0.263; at 40 and 60 layers, +0.260 and +0.246. A − MLS = −0.663.
+
+**Contradiction of B does not constitute confirmation of A; neither modeled
+state agrees with the MLS upper-tropospheric reference.**
+
+**The labels the disposition places beside the record:**
+
+- **Estimator limitation:** the paragraph above, as worded there.
+- **The ±20° band (−0.40):** retained; labeled an arithmetic-mean
+  sensitivity to the 215 hPa tail, not representative of the vertical
+  pattern.
+- **The 316 hPa NCEP comparison:** computed but not interpretable as a
+  mean-based comparison; outside the evidence for the class.
+- **The H2O p < 1 hPa reading:** a reported interpretive check; the
+  primary population is unchanged.
+
+**A robust-estimator successor is not opened here.** If one is wanted, it is
+frozen separately and answers a new question. It does not change this class.
