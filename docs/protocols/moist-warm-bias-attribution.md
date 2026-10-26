@@ -606,3 +606,219 @@ NCEP R1 at 300 hPa (R3), both against the model.
   82°S–82°N.
 - **Retrieval sensitivity** to thick cloud in the upper troposphere, as the
   quality document describes it.
+
+## R3b erratum 1: the frozen product cannot cover the period (2026-10-26, before any MLS value was parsed; nothing above this line changed)
+
+**The finding.** ML3MBRHI V005 has no files for 2007, 2008, 2010, 2011 or
+2014–2017.
+
+- **Sources checked:** the retired on-premises archive's year listing, and
+  NASA's Common Metadata Repository (CMR). CMR returns 14 granules for
+  version 005: 2004–2006, 2009, 2012, 2013 and 2018–2025.
+- **The Earthdata Cloud archive** has the same gaps.
+- **Nothing was parsed to establish this.** Only directory listings and
+  catalogue records were read.
+
+**Both readings, kept:**
+
+1. **As frozen:** a month of 2005–2020 is missing, so R3b is **Invalid**.
+   No constructible observational reference.
+2. **By this erratum:** R3b takes the fallback the frozen text already names,
+   **Level 2 ML2RHI V005 with the quality document's section 3.20 rules.**
+   This is the user's choice (2026-10-26), from four offered:
+   - Level 2 V005;
+   - Level 3 V004 for 2005–2020;
+   - Level 3 V005 for the 8 years that exist;
+   - closing R3b.
+
+### The Level 3 screening statement the frozen text asked for, verbatim
+
+The source is the EOS MLS Level 2/3 Version 5.0x Quality document,
+`Aura-MLS_DataQuality_v5-0x-revA.pdf`, chapter 4 (document pages 160 and
+163). Spaces and digits are restored from two text extractions of the PDF;
+no word was changed.
+
+> As part of the generation of these data products, all the data screening
+> rules described in chapters 1 and 3 are applied (along with the ClO bias
+> correction, see section 3.6), providing a significant additional
+> simplification to data users.
+
+> As discussed above, these Level 3 products are generated using only the
+> Level 2 data points that meet all the screening criteria described in the
+> earlier chapters of this document, providing a significant simplification
+> for users. In cases where there are no good Level 2 data available to
+> populate a Level 3 data point, the nvalues field is set to zero and the
+> other data fields are set to the _FillValue (bad data flag) for the given
+> netCDF variables.
+
+So the Level 3 product is built from screened Level 2 data. The fallback is
+taken because of the missing years, not because of screening.
+
+### The Level 2 screening statement, verbatim
+
+**Section 3.20.6, "Data screening" (document pages 138–139):**
+
+> **Pressure range:** Profile from 316–0.001 hPa, larger pressures represent
+> mid/upper troposphere column. Values outside this range are not
+> recommended for scientific use.
+>
+> **Estimated precision:** Only use values for which the estimated precision
+> is a positive number. Values where the a priori information has a strong
+> influence are flagged with negative or zero precision, and should not be
+> used in scientific analyses (see Section 1.5).
+>
+> **Status flag:** Only use profiles for which the Status field is an even
+> number. Odd values of Status indicate that the profile should not be used
+> in scientific studies. See Section 1.6 for more information on the
+> interpretation of the Status field.
+>
+> **Clouds:** Ignore status bits 16 (high clouds) or 32 (low clouds) set
+> indicating the presence of clouds. See artifacts for more details.
+>
+> **Quality field:** The Quality fields for both the L2GP-RHI and
+> L2GP-Temperature swaths need to be considered, as described below:
+> For pressures of 83 hPa and smaller: Use only profiles with RHI Quality
+> greater than 0.7 and Temperature Quality greater than 0.2
+> For pressures of 100 hPa and larger: Use only profiles with RHI Quality
+> greater than 0.7 and Temperature Quality greater than 0.9.
+>
+> **Convergence field:** Only profiles with a value of the RHI Convergence
+> less than 2.0 and Temperature Convergence less than 1.03 should be used in
+> scientific studies.
+>
+> **Temperature precision:** The L2gpPrecision field in the
+> L2GP-Temperature file can be used to further eliminate outliers that are
+> believed to be the result of thick clouds, primarily in the tropics. If
+> careful screening of the troposphere is required, levels 261–178 hPa
+> should be avoided if any of the following criteria are met:
+> At 316 hPa: L2gpPrecision > 1.1 K and latitude > −60°
+> At 261 hPa: L2gpPrecision > 0.7 K
+> At 215 hPa: L2gpPrecision > 0.825 K
+>
+> **Additional screening for based on H2O:** Eliminate highly oscillatory
+> profiles by eliminating H2O profiles having values less than 0.101 ppmv at
+> any pressure < 1 hPa (vertical levels 1–37).
+
+In "for based on", the PDF text carries no word between "for" and "based";
+it is quoted as it stands.
+
+**Section 3.9.9 (H2O), the same rule as the parent product states it:**
+
+> H2O profiles having values less than 0.101 ppmv (0.101×10⁻⁶ VMR) at any
+> pressure at or larger than 1 hPa (vertical levels 1–37) should not be
+> used.
+
+**Section 1.5:**
+
+> Data points for which L2gpPrecision is set negative or zero should not be
+> used, as this flags that the resulting precision is worse than 50% of the
+> a priori precision, indicating that instrument and/or the algorithms have
+> failed to provide enough useful information for that point.
+
+### The rules applied, frozen
+
+R3b's levels are 316, 261, 215, 178, 147, 121 and 100 hPa. All of them fall
+under the "100 hPa and larger" Quality rule.
+
+| # | rule | applies to |
+|---|---|---|
+| 1 | RHI `L2gpPrecision` > 0 | each value |
+| 2 | RHI `Status` even. Bits 16 and 32 alone reject nothing. | each profile |
+| 3 | RHI `Quality` > 0.7 and Temperature `Quality` > 0.9 | each profile |
+| 4 | RHI `Convergence` < 2.0 and Temperature `Convergence` < 1.03 | each profile |
+| 5 | Reject if H2O `L2gpValue` < 0.101 × 10⁻⁶ at any level with p ≥ 1 hPa | each profile |
+| 6 | Exclude the product's own fill value | each value |
+
+**Rule 5 has two readings, and both are kept.**
+
+- **Primary: p ≥ 1 hPa.** This is section 3.9.9's statement. The level
+  numbers 1–37, which both sections quote, run from 1000 to 1 hPa on the
+  12-per-decade grid.
+- **Reported beside it: p < 1 hPa.** This is section 3.20.6 as written.
+- The user's choice, 2026-10-26.
+
+**The conditional temperature-precision rule:**
+
+- It is **off for the class.** Its own condition is "if careful screening is
+  required", and the frozen rule is "no value is discarded for being noisy".
+- With it on, the result is **reported beside the class.** A profile meeting
+  any of its three criteria loses its values at 261, 215 and 178 hPa, and
+  the fraction removed is reported.
+- The user's choice, 2026-10-26.
+
+**Matching profiles across products.** Temperature and H2O are in their own
+daily files, ML2T and ML2H2O V005.
+
+- Each RHI profile is matched to the Temperature and H2O profiles in the
+  same day's files with an identical `Time` value.
+- An RHI profile without both matches is excluded, and the count is
+  reported.
+- Nothing else is used from Temperature or H2O.
+
+**Version mixing.** The files are taken as distributed and as listed by CMR.
+
+- Within a year they mix software versions v05-00, v05-01 and v05-02, and
+  collections c01 to c03.
+- Each file's version is recorded in its manifest line.
+- Nothing is selected by version.
+
+### The climatology, frozen
+
+The method mirrors the Level 3 product's simple binning (chapter 4: "simply
+reporting the mean measured value within a given spatial/temporal box").
+
+- **Bins: 4° latitude × 5° longitude.**
+  - Latitude edges run −82, −78, …, 82, giving 41 bins.
+  - Longitude edges run −180, −175, …, 180, giving 72 bins.
+  - Profiles with latitude beyond ±82° are not used.
+- **The monthly bin value** at each level is the mean of the screened values
+  in that bin in that calendar month of that year.
+- **Units:** RHI's `L2gpValue` is in percent and is divided by 100. Nothing
+  else is changed.
+- **From there, the frozen averaging stands unchanged:**
+  1. the per-bin calendar-month mean over the years with a value;
+  2. the mean of the 12 months;
+  3. the cos-latitude area mean, global primary and ±20° reported, with
+     missing bins left out and weights renormalised. The fraction left out
+     is reported.
+- **The frozen completeness gate stands.** R3b is Invalid if any calendar
+  month of 2005–2020 has no RHI file for any of its days.
+- **Partial months are used as they are.** The number of days present in
+  each month is reported.
+
+The levels, the primary band (147–215 hPa: 215, 178 and 147 hPa), the model
+runs, the interpolation and the classes are unchanged.
+
+### Registration, frozen
+
+Per-file entries for 17,340 daily files would put about 260,000 lines into
+`data/sources.yaml`. Each product is therefore registered through a manifest.
+
+- **The manifest format:** one line per file, `<sha256>  <filename>`, sorted
+  by filename, UTF-8, with LF line endings.
+- **Location:** each manifest is written to `data/raw/aura_mls/` from the
+  downloaded files.
+- **Registration:** each manifest is registered in `data/sources.yaml` as
+  `provenance_class: observational`, with its own SHA-256.
+  - Because the format is fixed, the manifest is reproducible from the files
+    alone.
+  - So the recorded hash pins every file.
+- **The products:** ML2RHI, ML2T and ML2H2O V005, 2005-001 to 2020-366.
+- **The quality document** (`Aura-MLS_DataQuality_v5-0x-revA.pdf`) is
+  registered as its own entry.
+- **The order of checks, before any value is read:**
+  1. the analysis verifies each manifest against `data/sources.yaml`;
+  2. it verifies each file against its manifest line, before opening it.
+- **Invalid also covers a file that is unregistered or fails its checksum.**
+
+### What R3b cannot separate, added (the list above is not shortened)
+
+- **The climatology is this project's binning of Level 2, not the MLS team's
+  Level 3.** The rules are the same; the code is not.
+- **Section 3.20.8:** "MLS produces higher relative humidities in the moist
+  regions of the tropics relative to AIRS."
+- **Section 3.20.7:**
+  - A possible drift in lower-stratospheric water vapour, inherited by RHI.
+  - Clouds "significantly degrade the precision ... but the mean bias as
+    compared to AIRS changes by less than 10%."
+  - Cloud-flagged profiles are kept, as the document directs.
